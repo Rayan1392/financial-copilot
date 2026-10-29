@@ -52,10 +52,12 @@ public sealed class StructuredQueryCompilationTests
         var snapshot = new StructuredQueryCatalogSnapshotBuilder().Build(catalog, hierarchy);
 
         Assert.Equal(4, snapshot.MonthlyMeasures.Count);
+        // Owner decision 2026-10-29 (evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json):
+        // only the monthly production quantity is approved and queryable; the sales measures stay pending.
+        Assert.Equal(["metric_monthly_production_quantity"],
+            snapshot.MonthlyMeasures.Where(measure => measure.Queryable || measure.SemanticApproved).Select(measure => measure.CatalogId));
         Assert.All(snapshot.MonthlyMeasures, measure =>
         {
-            Assert.False(measure.Queryable);
-            Assert.False(measure.SemanticApproved);
             Assert.Equal("NoavaranCurrentApi", measure.ProviderName);
             Assert.Equal("ProductSales", measure.ReportType);
             Assert.Equal(0, measure.OutputType);

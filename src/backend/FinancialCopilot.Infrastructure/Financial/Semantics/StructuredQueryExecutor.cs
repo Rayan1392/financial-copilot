@@ -296,6 +296,18 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
                             _ => "monthly_growth_negative_baseline_unsupported"
                         }, rows, timer.Elapsed, bytes);
             }
+            // A single monthly observation without a value is missing data, and a quantity without its
+            // reported unit cannot be answered; neither is substituted or defaulted (unit policy A4).
+            if (query.IsMonthlyValueQuery && query.ResultShape == PlanPresentation.Scalar && rows.Count == 1
+                && !query.IsPopulationDiscoveryQuery)
+            {
+                var observation = rows[0];
+                if (observation.GetValueOrDefault("Value") is null)
+                    return Result(StructuredQueryExecutionStatus.NoData, query, grant, "monthly_observation_missing", rows, timer.Elapsed, bytes);
+                if (string.Equals(query.EffectiveUnit, "row-source-unit", StringComparison.Ordinal)
+                    && string.IsNullOrWhiteSpace(observation.GetValueOrDefault("SourceUnit") as string))
+                    return Result(StructuredQueryExecutionStatus.Incomplete, query, grant, "monthly_quantity_unit_missing", rows, timer.Elapsed, bytes);
+            }
             var populationCoverageIncomplete = query.IsPopulationDiscoveryQuery
                 && (!query.CompanyDiscoveryCoverageComplete
                     || !string.Equals(query.ProductMappingCoverageStatus, "complete", StringComparison.OrdinalIgnoreCase));

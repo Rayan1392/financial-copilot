@@ -538,3 +538,19 @@ statement observations.
 - [x] Canonicalizer drops a requested output field that merely restates the measure (live model emitted it intermittently and broke the slice).
 - [x] Governance boundary analysis recorded in `evaluation/engine-baseline-stabilization-report.md`.
 - [ ] Decide the stale-test contract updates listed in the report (12 focused unit tests asserting the pre-approval catalog state) with the product owner before editing them.
+
+## 2026-10-28 — F141-E07 monthly production quantity (MONTHLY_PRODUCTION_APPROVAL_REQUIRED)
+
+- [x] Data contract verified in code, catalog and fixtures (`evaluation/monthly-production-vertical-slice-report.md`).
+- [x] Governance decision request prepared without marking anything approved: `evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json`.
+- [ ] Product owner approves or amends the record; engineering applies `proposedCatalogChange`, regenerates hierarchy/hash, then runs the prepared F141-E07 slice and negative scenarios.
+- [ ] Deterministic Persian-month → Gregorian window normalization before planning (A7).
+
+## 2026-10-29 — F141-E07 monthly production quantity executed (MONTHLY_PRODUCTION_E2E_PASSED)
+
+- [x] Owner policy applied to the catalog for `metric_monthly_production_quantity` only (measure review, two tables with least-privilege column allowlists, two relationships); hierarchy and hashes regenerated with `catalog.py hierarchy build` / `validate`.
+- [x] Measure-identity governance in `SchemaContextCompletenessValidator` (mirrors the direct-source identity rule; navigation-node review stays a navigation concern); `JsonCatalogNavigationHierarchyProvider` carries measure governance in the context.
+- [x] Deterministic Persian month normalization (`PersianReportingPeriodNormalizer`, `ReportingPeriodRequirementsNormalizer`) wired into `Feature141ChatQueryService`'s general planner path and the runner; model Gregorian bounds are replaced, never authoritative.
+- [x] Executor fail-closed checks for a single monthly observation without value (`monthly_observation_missing`) or unit (`monthly_quantity_unit_missing`).
+- [x] F141-E07 live: `تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟` → ۲۵ تن, 1405-06; 12 negative scenarios (11 asserted, 1 observed); previous four PASS cases unchanged.
+- [ ] Owner decision: a company reporting the same product title in two units (M10) is resolved to one key by the Feature 129 product resolver; decide whether Feature 141 must treat it as ambiguous.

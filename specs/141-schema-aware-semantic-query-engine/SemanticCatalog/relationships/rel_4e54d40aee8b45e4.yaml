@@ -17,12 +17,25 @@
   "physicalConstraint": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL",
   "inferredCardinality": "many-to-one",
   "semantic": {
-    "approved": false,
-    "status": "discovered-unapproved",
-    "runtimeJoinable": false
+    "approved": true,
+    "status": "owner-approved",
+    "runtimeJoinable": true,
+    "queryAuthorization": {
+      "approved": true,
+      "queryable": true,
+      "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "decisionRecord": "evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json"
+    }
   },
   "provenance": {
     "source": "postgres-pg_catalog",
     "verified": true
+  },
+  "verification": {
+    "status": "verified-application-logical-relationship",
+    "applicationModelField": "MonthlyReports.CompanyId",
+    "targetIdentity": "Companies.Id",
+    "physicalForeignKey": "present-in-pg_catalog",
+    "note": "EF model NormalizedMonthlyReportRow.CompanyId; verified 2026-10-29"
   }
 }

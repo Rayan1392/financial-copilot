@@ -61,3 +61,13 @@ coexisting consolidation bases, same-PeriodEnd ties, older periods, NULL values,
 an LLM; each scenario executes twice and must be identical. Runner artifacts are written per run as
 `engine-e2e-vertical-slice-<date>-<HHmmss>-<caseId>-<outcome>.json` and are never overwritten.
 See `engine-baseline-stabilization-report.md` for commands, exit codes and findings.
+
+## Monthly production quantity (2026-10-29)
+
+F141-E07 runs through the runner's `MonthlyMeasure` kind: live canonical intent → navigator requirements →
+deterministic Persian month normalization (`PersianReportingPeriodNormalizer`) replacing the model's bounds →
+planner with the production company and company-scoped product resolvers → compiler → catalog authorizer →
+restricted executor (SELECT on `MonthlyReports`, `MonthlyReportLineItems`, `Companies` only) → Persian answer.
+Governance comes from the owner-approved catalog objects (measure, tables, relationships); the completeness
+validator treats a reviewed-measure request like exact direct-source identity. Negative scenarios live in
+`Feature141MonthlyProductionSemanticsPostgreSqlTests` (no LLM) and write `artifacts/monthly-production-semantics-<stamp>.json`.

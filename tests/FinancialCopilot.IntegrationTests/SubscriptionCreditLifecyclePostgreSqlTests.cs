@@ -11,6 +11,40 @@ public sealed class SubscriptionCreditLifecyclePostgreSqlTests(PostgreSqlIntegra
     private static readonly DateTimeOffset Activation = new(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
 
     [SkippableFact]
+    public async Task ConcurrentFirstInactiveLaunchesAcrossIndependentConnections_GrantFreeCreditsOnce()
+    {
+        await using var database = await fixture.CreateBillingDatabaseAsync();
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        await using var firstContext = database.CreateBillingContext();
+        await using var secondContext = database.CreateBillingContext();
+        await firstContext.Database.OpenConnectionAsync();
+        await secondContext.Database.OpenConnectionAsync();
+        var decision = new TahlilAppSubscriptionDecision(
+            "Free", null, "free-or-no-active-paid-plan", PlanSubscriptions: Array.Empty<TahlilAppPlanSubscription>());
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var first = SynchronizeInactiveLaunchAsync(firstContext, tenantId, userId, decision, gate.Task);
+        var second = SynchronizeInactiveLaunchAsync(secondContext, tenantId, userId, decision, gate.Task);
+        gate.SetResult();
+        await Task.WhenAll(first, second);
+
+        await using var verify = database.CreateBillingContext();
+        var account = await verify.CustomerAccounts.SingleAsync(row => row.TenantId == tenantId && row.UserId == userId);
+        var wallet = await verify.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
+        var period = await verify.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal("Free", account.SubscriptionPlanCode);
+        Assert.Equal(25m, wallet.Balance);
+        Assert.Equal(25m, period.GrantedCredits);
+        Assert.Equal(Activation, period.StartsAtUtc);
+        Assert.Equal(Activation.AddDays(30), period.ExpiresAtUtc);
+        Assert.Equal(1, await verify.SubscriptionCreditPeriods.CountAsync(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free"));
+        Assert.Equal(1, await verify.UsageLedgerEntries.CountAsync(row =>
+            row.CustomerAccountId == account.Id && row.OperationCode == "Billing.SubscriptionCreditGrant"));
+        Assert.Empty(await verify.PaidExpiryCooldowns.Where(row => row.CustomerAccountId == account.Id).ToListAsync());
+    }
+
+    [SkippableFact]
     public async Task ConcurrentPlusToProEventsAcrossIndependentConnections_TransferCreditsExactlyOnce()
     {
         await using var database = await fixture.CreateBillingDatabaseAsync();
@@ -98,6 +132,19 @@ public sealed class SubscriptionCreditLifecyclePostgreSqlTests(PostgreSqlIntegra
         var time = new FixedTimeProvider(Activation.AddDays(5));
         await new ExternalSubscriptionSynchronizer(context, new OwnedIdentityBillingProvisioner(context, time), time)
             .SynchronizeAsync(tenantId, userId, decision, 9, CancellationToken.None);
+    }
+
+    private static async Task SynchronizeInactiveLaunchAsync(
+        BillingDbContext context,
+        Guid tenantId,
+        Guid userId,
+        TahlilAppSubscriptionDecision decision,
+        Task gate)
+    {
+        await gate;
+        var time = new FixedTimeProvider(Activation);
+        await new ExternalSubscriptionSynchronizer(context, new OwnedIdentityBillingProvisioner(context, time), time)
+            .SynchronizeAsync(tenantId, userId, decision, 1, CancellationToken.None);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

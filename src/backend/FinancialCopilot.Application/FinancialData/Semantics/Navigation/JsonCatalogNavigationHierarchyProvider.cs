@@ -312,6 +312,7 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
                 FinancialValueReferences: FinancialReferences(nodes),
                 ProviderFinancialIndicatorIds: Flatten(nodes, node => node.ProviderIndicators),
                 MeasureRelationshipIds: ReadMonthlyMeasureRelationships(),
+                MeasureGovernance: ReadMonthlyMeasureGovernance(),
                 SourceSemantics: Flatten(nodes, node => node.ProviderRestrictions),
                 UnitAndPeriodSemantics: Flatten(nodes, node => node.UnitAndPeriodSemantics));
         }
@@ -379,6 +380,29 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
 
     private static string[] Flatten(IEnumerable<Node> nodes, Func<Node, IEnumerable<string>> selector) =>
         nodes.SelectMany(selector).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+
+    /// <summary>Catalog review state per monthly measure; the context carries it so completeness can gate on it.</summary>
+    private IReadOnlyDictionary<string, MeasureGovernance> ReadMonthlyMeasureGovernance()
+    {
+        var path = Path.Combine(catalogPath, "dictionaries", "monthly-measures.yaml");
+        var result = new Dictionary<string, MeasureGovernance>(StringComparer.Ordinal);
+        if (!File.Exists(path)) return result;
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        if (!document.RootElement.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
+            return result;
+        foreach (var item in entries.EnumerateArray())
+        {
+            if (!item.TryGetProperty("catalogId", out var id) || id.ValueKind != JsonValueKind.String) continue;
+            var review = item.TryGetProperty("review", out var reviewElement) && reviewElement.ValueKind == JsonValueKind.Object
+                ? reviewElement : default;
+            bool Flag(string name) => review.ValueKind == JsonValueKind.Object && review.TryGetProperty(name, out var value)
+                && value.ValueKind == JsonValueKind.True;
+            var hasReview = review.ValueKind == JsonValueKind.Object;
+            result[id.GetString()!] = new MeasureGovernance(Flag("semanticApproved"), Flag("queryable"),
+                hasReview ? NullableString(review, "status") : null, hasReview ? NullableString(review, "provenance") : null);
+        }
+        return result;
+    }
 
     private IReadOnlyDictionary<string, IReadOnlyList<string>> ReadMonthlyMeasureRelationships()
     {

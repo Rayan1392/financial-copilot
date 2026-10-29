@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "catalogVersion": "1",
-  "catalogHash": "cd7da04a59d9ea7cfac96db7f63b3dc03c6fe909dafa417734b3560028eab98c",
+  "catalogHash": "29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a",
   "generatedFrom": "canonical SemanticCatalog YAML",
   "nodes": [
     {
@@ -238,8 +238,8 @@
         },
         {
           "relationshipId": "rel_4e54d40aee8b45e4",
-          "semanticApproval": "discovered-unapproved",
-          "runtimeJoinable": false,
+          "semanticApproval": "owner-approved",
+          "runtimeJoinable": true,
           "provenance": "postgres-pg_catalog"
         },
         {
@@ -817,25 +817,25 @@
       "semanticApproval": {
         "state": "human-review-required",
         "approved": false,
-        "provenance": "existing catalog review state; no reviewer approval fabricated"
+        "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29"
       },
       "queryAuthorization": {
         "state": "not-authorized",
         "queryable": false,
-        "catalogQueryAuthorization": "not-approved",
+        "catalogQueryAuthorization": "approved",
         "reason": "Canonical table query authorization is unchanged."
       },
       "relationshipGovernance": [
         {
           "relationshipId": "rel_31e410fb3ae11956",
-          "semanticApproval": "pending-owner-semantic-approval",
-          "runtimeJoinable": false,
+          "semanticApproval": "owner-approved",
+          "runtimeJoinable": true,
           "provenance": "EF Core persistence model plus captured PostgreSQL schema/index metadata"
         },
         {
           "relationshipId": "rel_4e54d40aee8b45e4",
-          "semanticApproval": "discovered-unapproved",
-          "runtimeJoinable": false,
+          "semanticApproval": "owner-approved",
+          "runtimeJoinable": true,
           "provenance": "postgres-pg_catalog"
         }
       ]
@@ -895,19 +895,19 @@
       "semanticApproval": {
         "state": "human-review-required",
         "approved": false,
-        "provenance": "existing catalog review state; no reviewer approval fabricated"
+        "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29"
       },
       "queryAuthorization": {
         "state": "not-authorized",
         "queryable": false,
-        "catalogQueryAuthorization": "not-approved",
+        "catalogQueryAuthorization": "approved",
         "reason": "Canonical table query authorization is unchanged."
       },
       "relationshipGovernance": [
         {
           "relationshipId": "rel_31e410fb3ae11956",
-          "semanticApproval": "pending-owner-semantic-approval",
-          "runtimeJoinable": false,
+          "semanticApproval": "owner-approved",
+          "runtimeJoinable": true,
           "provenance": "EF Core persistence model plus captured PostgreSQL schema/index metadata"
         }
       ]
@@ -35512,5 +35512,5 @@
       ]
     }
   ],
-  "hierarchyHash": "7b21e46801d0442394c3ce70f9257c4ff4d7e5a38efc6120707d5c5bd466b28b"
+  "hierarchyHash": "0af438c4df610e103fc174097fd5ded82d43f62b12feb402393b6ed06a2cd8c8"
 }

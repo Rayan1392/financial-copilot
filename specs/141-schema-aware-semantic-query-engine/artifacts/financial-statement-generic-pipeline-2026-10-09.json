@@ -3,12 +3,12 @@
   "question": "\u0633\u0648\u062F \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC \u0647\u0631 \u0633\u0647\u0645 \u06A9\u06AF\u0647\u0631 \u0686\u0642\u062F\u0631 \u0627\u0633\u062A\u061F",
   "executionMode": "captured-navigation-plus-isolated-postgresql-fixture",
   "catalogVersion": "1",
-  "catalogHash": "cd7da04a59d9ea7cfac96db7f63b3dc03c6fe909dafa417734b3560028eab98c",
+  "catalogHash": "29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a",
   "companyBinding": {
     "Status": 0,
-    "CompanyId": "9bcab393-71b2-4d9f-ab97-bd5d6f3f523e",
+    "CompanyId": "9bde5839-5211-4180-9316-b8d4ab77a345",
     "CandidateCompanyIds": [
-      "9bcab393-71b2-4d9f-ab97-bd5d6f3f523e"
+      "9bde5839-5211-4180-9316-b8d4ab77a345"
     ],
     "IdentityProvenance": "exact_ticker",
     "DiagnosticCode": null
@@ -16,13 +16,13 @@
   "plan": {
     "ContractVersion": 1,
     "CatalogVersion": "1",
-    "CatalogHash": "cd7da04a59d9ea7cfac96db7f63b3dc03c6fe909dafa417734b3560028eab98c",
+    "CatalogHash": "29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a",
     "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
     "Entities": [
       {
         "EntityKind": "Company",
         "UserReference": "\u06A9\u06AF\u0647\u0631",
-        "ResolvedEntityId": "9bcab393-71b2-4d9f-ab97-bd5d6f3f523e",
+        "ResolvedEntityId": "9bde5839-5211-4180-9316-b8d4ab77a345",
         "ResolvedEntityKey": null,
         "IdentityProvenance": "exact_ticker",
         "IdentityVerified": true
@@ -128,7 +128,7 @@
   "sqlParameters": [
     {
       "Name": "company_id",
-      "Value": "9bcab393-71b2-4d9f-ab97-bd5d6f3f523e"
+      "Value": "9bde5839-5211-4180-9316-b8d4ab77a345"
     },
     {
       "Name": "source_item_catalog_id",
@@ -164,14 +164,14 @@
     {
       "Value": 3753,
       "PeriodEnd": "2026-06-21",
-      "StatementId": "a5551213-10ab-49a8-9068-b2590d39b371",
+      "StatementId": "89f9dcfd-e00c-4f9e-a205-ba5bd7f8d51c",
       "ProviderName": "NoavaranCurrentApi",
       "StatementType": "IncomeStatement",
       "SourceItemId": 161,
       "SourceUnit": "N/A",
       "SourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
       "IsComposing": false,
-      "CompanyId": "9bcab393-71b2-4d9f-ab97-bd5d6f3f523e",
+      "CompanyId": "9bde5839-5211-4180-9316-b8d4ab77a345",
       "PeriodType": "ThreeMonths",
       "IsAudited": false,
       "IsRepresented": false,
@@ -179,7 +179,7 @@
       "PeriodStart": "2026-03-21",
       "SourcePayloadChecksum": "feature141-statement-fixture",
       "PublishedAt": "2026-07-22",
-      "LastSynchronizedAt": "2026-10-28T19:25:00.467542Z",
+      "LastSynchronizedAt": "2026-10-29T04:02:42.419726Z",
       "WarningsJson": "[]",
       "LogicalVendor": null,
       "SourceMode": null

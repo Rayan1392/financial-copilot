@@ -130,7 +130,7 @@
   },
   "semantic": {
     "status": "candidate-pending-review",
-    "queryable": false,
+    "queryable": true,
     "descriptionEn": "Product- or service-scoped monthly activity measures attached to a provider report by MonthlyReportId.",
     "descriptionFa": "اقلام فعالیت ماهانه محصول یا خدمت که با شناسه گزارش به سرآیند متصل می‌شوند.",
     "purpose": "Persist production, sales quantity, sales amount, and provider-reported sales rate at source-line grain.",
@@ -167,15 +167,26 @@
     "sourceVerification": "EF Core mappings, live PostgreSQL schema, normalizer source, and persisted trend contract; million-IRR scale also supplied by business owner.",
     "approvalStatus": "human-review-required",
     "semanticApproval": {
-      "state": "candidate-pending-review",
-      "approved": false,
-      "provenance": "existing catalog review state; no reviewer approval fabricated"
+      "state": "owner-approved-runtime-query",
+      "approved": true,
+      "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "scope": "metric_monthly_production_quantity direct value retrieval",
+      "decisionRecord": "evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json"
     },
     "queryAuthorization": {
-      "state": "not-approved",
-      "runtimeQueryable": false,
-      "approvedObjects": [],
-      "reason": "Semantic review and navigation inclusion do not grant query access."
+      "state": "approved-least-privilege",
+      "runtimeQueryable": true,
+      "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "approvedObjects": [
+        "tbl_8ecd0432a4292998_MonthlyReportId",
+        "tbl_8ecd0432a4292998_ProductCode",
+        "tbl_8ecd0432a4292998_Title",
+        "tbl_8ecd0432a4292998_Unit",
+        "tbl_8ecd0432a4292998_ProductionQuantity",
+        "tbl_8ecd0432a4292998_SourceRowFingerprint",
+        "tbl_8ecd0432a4292998_SourceMultiplicity"
+      ],
+      "reason": "SELECT only on the columns the monthly production quantity compiler reads; sales columns are not approved."
     }
   },
   "provenance": {

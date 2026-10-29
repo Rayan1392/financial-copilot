@@ -38,6 +38,70 @@ public sealed class SubscriptionCreditLifecycleTests
         Assert.Equal(1, await db.UsageLedgerEntries.CountAsync(row => row.OperationCode == "Billing.SubscriptionCreditGrant"));
     }
 
+    [Fact]
+    public async Task FirstInactiveTahlilAppLaunch_GrantsSpendableFreePeriodOnceWithoutCooldown()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlansAsync(db);
+        var time = new MutableTimeProvider(InitialAt);
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var provisioner = new OwnedIdentityBillingProvisioner(db, time);
+        var synchronizer = new ExternalSubscriptionSynchronizer(db, provisioner, time);
+
+        // An authoritative inactive response with an empty plans[] array is the first launch.
+        await synchronizer.SynchronizeAsync(
+            tenantId, userId, Decide([], InitialAt), 1, CancellationToken.None);
+        time.Set(InitialAt.AddDays(1));
+        // Repeated login/status reconciliation must preserve the original period and grant.
+        await synchronizer.SynchronizeAsync(
+            tenantId, userId, Decide([], time.GetUtcNow()), 2, CancellationToken.None);
+
+        var accountRow = await db.CustomerAccounts.SingleAsync(row => row.UserId == userId);
+        var walletRow = await db.WalletProjections.SingleAsync(row => row.CustomerAccountId == accountRow.Id);
+        var period = await db.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == accountRow.Id);
+        var grant = await db.UsageLedgerEntries.SingleAsync(row => row.Id == period.GrantLedgerEntryId);
+        Assert.Equal("Free", accountRow.SubscriptionPlanCode);
+        Assert.True(accountRow.ExternalSubscriptionManaged);
+        Assert.Equal(InitialAt, period.StartsAtUtc);
+        Assert.Equal(InitialAt.AddDays(30), period.ExpiresAtUtc);
+        Assert.Equal(25m, period.GrantedCredits);
+        Assert.Equal(25m, walletRow.Balance);
+        Assert.Equal("Billing.SubscriptionCreditGrant", grant.OperationCode);
+        Assert.Equal(1, await db.UsageLedgerEntries.CountAsync(row =>
+            row.CustomerAccountId == accountRow.Id && row.OperationCode == "Billing.SubscriptionCreditGrant"));
+        Assert.Empty(await db.PaidExpiryCooldowns.Where(row => row.CustomerAccountId == accountRow.Id).ToListAsync());
+
+        var account = new FinancialCopilot.Billing.Accounts.CustomerAccount(
+            accountRow.Id, tenantId,
+            FinancialCopilot.Billing.Accounts.CustomerAccountType.Individual,
+            FinancialCopilot.Billing.Accounts.BillingMode.Prepaid);
+        var wallet = new WalletSnapshot(
+            walletRow.CustomerAccountId, walletRow.Balance, walletRow.ReservedAmount, walletRow.UpdatedAt, walletRow.Revision);
+        const string reservationKey = "first-free-user-ai-question";
+        var reservation = await new UsageReservationAuthorizationService(
+                db, new CreditLinePolicyService(), time)
+            .ReserveAsync(account, wallet, "AiQuery.Test", 1m, reservationKey, CancellationToken.None);
+        var committed = await new UsageFinalizationService(db, time).CommitAsync(
+            new UsageCommitCommand(
+                accountRow.Id,
+                userId,
+                tenantId,
+                ApiClientId: null,
+                ExternalUserId: null,
+                reservationKey,
+                "first-free-user-ai-question-commit",
+                new UsageChargeResult(1m, "test-v1", Cached: false)),
+            CancellationToken.None);
+
+        Assert.Equal(reservationKey, reservation.IdempotencyKey);
+        Assert.False(committed.AlreadyFinalized);
+        Assert.Equal(1m, committed.LedgerEntry!.CreditsCharged);
+        Assert.Equal(24m, (await db.WalletProjections.SingleAsync(row => row.CustomerAccountId == accountRow.Id)).Balance);
+        Assert.Equal(24m, (await db.SubscriptionCreditPeriods.SingleAsync(row => row.Id == period.Id)).RemainingCredits);
+        Assert.Empty(await db.PaidExpiryCooldowns.Where(row => row.CustomerAccountId == accountRow.Id).ToListAsync());
+    }
+
     [Theory]
     [InlineData("Plus", 260)]
     [InlineData("Pro", 2600)]

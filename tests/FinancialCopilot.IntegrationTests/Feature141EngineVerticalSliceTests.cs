@@ -9,6 +9,8 @@ using FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 using FinancialCopilot.Infrastructure;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
+using FinancialCopilot.Infrastructure.Financial.Ingestion;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics;
 using Microsoft.Extensions.Configuration;
@@ -124,13 +126,100 @@ public sealed class Feature141EngineVerticalSliceTests(
         // 8. No unauthorized access: the role is SELECT-only on the four reviewed tables, decoy rows were not
         //    returned, and the executor refuses the writable administrative principal.
         Assert.True(trace.RestrictedRoleIsSelectOnly);
-        Assert.False(trace.RestrictedRoleCanReadMonthlyReports);
+        Assert.False(trace.RestrictedRoleCanReadOtherDomainTable);
         Assert.Equal(trace.Fixture.SeededLineItemCount, trace.IndependentLineItemCount);
         Assert.Equal(StructuredQueryExecutionStatus.Unauthorized, trace.WritablePrincipalExecutionStatus);
         Assert.Equal("database_read_only_identity_check_failed", trace.WritablePrincipalDiagnostic);
         Assert.True(trace.LlmCalls > 0, "no live model call was made");
         Assert.Equal(trace.LlmCalls, trace.ObservedModelCalls);
         Assert.Equal(1, trace.ObservedExecutorCalls);
+    }
+
+    [SkippableFact]
+    public async Task MonthlyProductionQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer()
+    {
+        RequireLiveOptIn();
+        await using var database = await fixture.CreateDatabaseAsync();
+
+        var testCase = Feature141VerticalSliceCases.MonthlyProductionKgol;
+        var runner = new Feature141EngineVerticalSliceRunner(database, output);
+        var trace = await runner.RunAsync(testCase, CancellationToken.None);
+        var artifactPath = await Feature141EngineVerticalSliceRunner.WriteArtifactAsync(trace);
+        output.WriteLine($"Trace artifact: {artifactPath}");
+
+        // 1. Live canonical intent names the company, the product and the Persian month.
+        Assert.True(trace.IntentExtractionSucceeded, $"intent extraction failed: {trace.IntentFailureCategory}");
+        var intent = Assert.IsType<CanonicalSemanticIntent>(trace.CanonicalIntent);
+        var measure = Assert.Single(intent.Measures);
+        Assert.Equal(MeasureConceptKind.ProductionQuantity, measure.Kind);
+        Assert.Equal("productionQuantity", measure.ConceptId);
+        Assert.Equal([testCase.ExpectedCompanyLabel], intent.EntityScope.CompanyLabels);
+        Assert.Contains(intent.Products, product => product.UserLabel.Contains(testCase.ExpectedProductLabel!, StringComparison.Ordinal));
+        Assert.Equal(ReportingPeriodKind.ExplicitMonth, intent.Period.Kind);
+        Assert.False(intent.Ambiguity.RequiresClarification);
+
+        // 2. Deterministic Persian month: model bounds are never authoritative.
+        Assert.Equal(testCase.ExpectedPersianMonth, trace.NormalizedPersianMonth);
+        Assert.Equal(testCase.ExpectedPeriodStart, trace.NormalizedPeriodStart);
+        Assert.Equal(testCase.ExpectedPeriodEnd, trace.NormalizedPeriodEnd);
+        Assert.Contains(trace.RequirementsNormalizationDiagnostics, d => d.StartsWith("persian_period_normalized:1405-06:", StringComparison.Ordinal));
+        Assert.Equal([testCase.ExpectedMeasureCatalogId!], trace.RequirementsMeasureIds);
+
+        // 3. Governed identities and eligibility from the real catalog (no flags forced).
+        Assert.Equal(StructuredCompanyBindingStatus.Found, trace.CompanyBindingStatus);
+        Assert.Equal(trace.Fixture.CompanyId, trace.BoundCompanyId);
+        Assert.Equal(StructuredProductBindingStatus.Found, trace.ProductBindingStatus);
+        Assert.Equal(trace.Fixture.ProductKey, trace.ProductKey);
+        Assert.True(trace.PlanStructurallyValid, string.Join("|", trace.PlanDiagnostics));
+        Assert.True(trace.PlanExecutionEligible, string.Join("|", trace.PlanDiagnostics));
+
+        // 4. SQL parameters: provider, report type, accepted revision, company, product and the normalized window.
+        Assert.True(trace.CompilationSucceeded, string.Join("|", trace.CompilationDiagnostics));
+        Assert.Equal("NoavaranCurrentApi", trace.SqlParameters["provider_name"]);
+        Assert.Equal("ProductSales", trace.SqlParameters["report_type"]);
+        Assert.Equal(0, trace.SqlParameters["output_type"]);
+        Assert.Equal(true, trace.SqlParameters["is_accepted"]);
+        Assert.Equal("Accepted", trace.SqlParameters["revision_status"]);
+        Assert.Equal(trace.Fixture.CompanyId, trace.SqlParameters["company_id"]);
+        Assert.Equal(trace.Fixture.ProductKey, trace.SqlParameters["product_code"]);
+        Assert.Equal(testCase.ExpectedPeriodStart, trace.SqlParameters["period_start"]);
+        Assert.Equal(testCase.ExpectedPeriodEnd, trace.SqlParameters["period_end"]);
+        Assert.True(trace.CompiledQueryAuthorized && trace.CompiledSemanticReviewApproved);
+        Assert.Equal([trace.Fixture.CompanyId], trace.CompiledCompanyIds);
+
+        // 5 and 6. Authorization and actual PostgreSQL execution with the exact fixture value.
+        Assert.True(trace.GrantIssued, "catalog authorizer refused the compiled query");
+        Assert.Equal(trace.Fixture.RestrictedRole, trace.GrantRole);
+        Assert.Equal(StructuredQueryExecutionStatus.Succeeded, trace.ExecutionStatus);
+        Assert.Equal(1, trace.ExecutionRowCount);
+        Assert.Equal(testCase.ExpectedValue, trace.ActualValue);
+        Assert.Equal(testCase.ExpectedValue, trace.IndependentDatabaseValue);
+        Assert.Equal(trace.Fixture.SeededLineItemCount, trace.IndependentLineItemCount);
+        Assert.Equal(testCase.ExpectedPeriodStart, trace.ActualPeriodStart);
+        Assert.Equal(testCase.ExpectedPeriodEnd, trace.ActualPeriodEnd);
+        Assert.Equal("1405-06-01", trace.ActualPersianPeriodStart);
+        Assert.Equal("1405-06-31", trace.ActualPersianPeriodEnd);
+        Assert.Equal(trace.Fixture.ProductKey, trace.ActualProductCode);
+        Assert.Equal(testCase.ExpectedUnit, trace.ActualSourceUnit);
+        Assert.Equal(trace.Fixture.CompanyId, trace.ActualRowCompanyId);
+
+        // 7. Persian answer with value, unit and month window.
+        Assert.Equal(StructuredAnswerStatus.Answered, trace.PersianAnswerStatus);
+        Assert.Contains(testCase.ExpectedPersianValueDigits!, trace.PersianAnswer, StringComparison.Ordinal);
+        Assert.Contains("تن", trace.PersianAnswer, StringComparison.Ordinal);
+        Assert.Equal("تن", trace.PersianAnswerUnit);
+        Assert.Contains(Feature141EngineVerticalSliceRunner.PersianDigits("2026-09-22"), trace.PersianAnswer, StringComparison.Ordinal);
+        Assert.DoesNotContain("۹۹", trace.PersianAnswer, StringComparison.Ordinal);
+        Assert.DoesNotContain("۴۷", trace.PersianAnswer, StringComparison.Ordinal);
+
+        // 8. Least privilege and no unauthorized access.
+        Assert.True(trace.RestrictedRoleIsSelectOnly);
+        Assert.False(trace.RestrictedRoleCanReadOtherDomainTable);
+        Assert.Equal(StructuredQueryExecutionStatus.Unauthorized, trace.WritablePrincipalExecutionStatus);
+        Assert.Equal(1, trace.ObservedExecutorCalls);
+        // Intent extraction plus the navigator's requirements and navigation calls; the navigation result
+        // also counts its own requirements call, so the component total may exceed the observed count.
+        Assert.InRange(trace.ObservedModelCalls, 2, trace.LlmCalls);
     }
 
     [SkippableTheory]
@@ -179,6 +268,9 @@ public sealed class Feature141EngineVerticalSliceTests(
 
 public enum Feature141ExpectedOutcome { Answered, Ambiguous, Unsupported, Incomplete, Unauthorized }
 
+/// <summary>Which governed retrieval path the question exercises and which fixture block is seeded.</summary>
+public enum Feature141CaseKind { StatementItem, MonthlyMeasure }
+
 /// <summary>One governed question with independently fixed expectations; the fixture is seeded from it.</summary>
 public sealed record Feature141VerticalSliceCase(
     string CaseId,
@@ -193,7 +285,11 @@ public sealed record Feature141VerticalSliceCase(
     DateOnly? ExpectedPeriodStart = null,
     DateOnly? ExpectedPeriodEnd = null,
     string? ExpectedPersianValueDigits = null,
-    bool TenantScopeMissing = false)
+    bool TenantScopeMissing = false,
+    Feature141CaseKind Kind = Feature141CaseKind.StatementItem,
+    string? ExpectedMeasureCatalogId = null,
+    string? ExpectedProductLabel = null,
+    string? ExpectedPersianMonth = null)
 {
     public string? ExpectedPersianPeriodStart => ExpectedPeriodStart is { } d ? Feature141EngineVerticalSliceRunner.ToPersianCalendar(d) : null;
     public string? ExpectedPersianPeriodEnd => ExpectedPeriodEnd is { } d ? Feature141EngineVerticalSliceRunner.ToPersianCalendar(d) : null;
@@ -234,13 +330,34 @@ public static class Feature141VerticalSliceCases
     public static readonly Feature141VerticalSliceCase UnauthorizedWithoutTenant = new(
         "F141-E20", "سود عملیاتی هر سهم کگهر چقدر است؟", Feature141ExpectedOutcome.Unauthorized, TenantScopeMissing: true);
 
+    /// <summary>
+    /// Monthly production quantity of one product for one company and one Persian month, governed by the
+    /// owner-approved metric_monthly_production_quantity (decision record 2026-10-28, applied 2026-10-29).
+    /// Shahrivar 1405 = 2026-08-23..2026-09-22 by deterministic PersianCalendar normalization.
+    /// </summary>
+    public static readonly Feature141VerticalSliceCase MonthlyProductionKgol = new(
+        CaseId: "F141-E07",
+        Question: "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+        ExpectedOutcome: Feature141ExpectedOutcome.Answered,
+        ExpectedCompanyLabel: "کگل",
+        ExpectedValue: 25m,
+        ExpectedUnit: "ton",
+        ExpectedPeriodStart: new DateOnly(2026, 8, 23),
+        ExpectedPeriodEnd: new DateOnly(2026, 9, 22),
+        ExpectedPersianValueDigits: "۲۵",
+        Kind: Feature141CaseKind.MonthlyMeasure,
+        ExpectedMeasureCatalogId: "metric_monthly_production_quantity",
+        ExpectedProductLabel: "گندله",
+        ExpectedPersianMonth: "1405-06");
+
     public static readonly IReadOnlyList<Feature141VerticalSliceCase> All =
-        [OperatingProfitPerShareKgehr, AmbiguousSales, UnsupportedForecast, UnauthorizedWithoutTenant];
+        [OperatingProfitPerShareKgehr, MonthlyProductionKgol, AmbiguousSales, UnsupportedForecast, UnauthorizedWithoutTenant];
 }
 
 public sealed record Feature141VerticalSliceFixtureInfo(
     string DatabaseName, string RestrictedRole, Guid CompanyId, Guid DecoyCompanyId,
-    Guid StatementId, Guid OlderStatementId, int SeededLineItemCount);
+    Guid StatementId, Guid OlderStatementId, int SeededLineItemCount,
+    Guid? MonthlyReportId = null, string? ProductKey = null);
 
 /// <summary>Stage-by-stage trace of one run. Null means the stage was not reached.</summary>
 public sealed class Feature141VerticalSliceTrace
@@ -312,7 +429,19 @@ public sealed class Feature141VerticalSliceTrace
     public string? PersianAnswerUnit { get; set; }
     public IReadOnlyList<StructuredAnswerEvidence> PersianEvidence { get; set; } = [];
     public bool RestrictedRoleIsSelectOnly { get; set; }
-    public bool RestrictedRoleCanReadMonthlyReports { get; set; }
+    /// <summary>True when the fixture role can read the other domain's table (statement role → MonthlyReports; monthly role → FinancialStatementLineItems).</summary>
+    public bool RestrictedRoleCanReadOtherDomainTable { get; set; }
+    public IReadOnlyList<string> RequirementsMeasureIds { get; set; } = [];
+    public IReadOnlyList<string> RequirementsNormalizationDiagnostics { get; set; } = [];
+    public string? ModelPeriodStart { get; set; }
+    public string? ModelPeriodEnd { get; set; }
+    public string? NormalizedPersianMonth { get; set; }
+    public DateOnly? NormalizedPeriodStart { get; set; }
+    public DateOnly? NormalizedPeriodEnd { get; set; }
+    public StructuredProductBindingStatus? ProductBindingStatus { get; set; }
+    public string? ProductKey { get; set; }
+    public string? ActualProductCode { get; set; }
+    public string? ActualSourceUnit { get; set; }
     public StructuredQueryExecutionStatus? WritablePrincipalExecutionStatus { get; set; }
     public string? WritablePrincipalDiagnostic { get; set; }
     public int LlmCalls { get; set; }
@@ -362,8 +491,11 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
         }.ConnectionString;
         var trace = new Feature141VerticalSliceTrace
             { CaseId = testCase.CaseId, Question = testCase.Question, Fixture = fixtureInfo, ExpectedOutcome = testCase.ExpectedOutcome };
-        (trace.RestrictedRoleIsSelectOnly, trace.RestrictedRoleCanReadMonthlyReports) =
-            await InspectRestrictedRoleAsync(restrictedConnection, fixtureInfo.RestrictedRole, cancellationToken);
+        var monthly = testCase.Kind == Feature141CaseKind.MonthlyMeasure;
+        (trace.RestrictedRoleIsSelectOnly, trace.RestrictedRoleCanReadOtherDomainTable) = await InspectRestrictedRoleAsync(
+            restrictedConnection, fixtureInfo.RestrictedRole,
+            monthly ? "MonthlyReportLineItems" : "FinancialStatementLineItems",
+            monthly ? "FinancialStatementLineItems" : "MonthlyReports", cancellationToken);
 
         // Production composition root. Both connection strings are redirected to the isolated database so
         // nothing in this graph can reach the Development application database.
@@ -410,7 +542,8 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             scope.ServiceProvider.GetRequiredService<IOfflineStructuredQueryPlanningService>(),
             provider.GetRequiredService<IStructuredQueryCompiler>(), snapshot, authorizer, executor,
             provider.GetRequiredService<IPersianStructuredQueryResponseGenerator>(),
-            NullLogger<Feature141ChatQueryService>.Instance);
+            NullLogger<Feature141ChatQueryService>.Instance,
+            scope.ServiceProvider.GetRequiredService<IQuestionSchemaRequirementsExtractor>());
         var chatRequest = new AiQueryRequest(testCase.Question, tenantId, testCase.TenantScopeMissing ? Guid.Empty : ActorId,
             $"feature141-vertical-slice-{testCase.CaseId}", UserId: testCase.TenantScopeMissing ? null : ActorId,
             ActorType: ActorType.User, AuthenticationMode: AuthenticationMode.WebAppUser);
@@ -452,7 +585,9 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
         trace.TypedBindingStatus = typedBinding.Status;
         trace.TypedBindingDiagnostics = typedBinding.Diagnostics;
         trace.BoundSourceCatalogId = typedBinding.References.SingleOrDefault()?.CatalogId;
-        if (typedBinding.Status != CanonicalCatalogBindingStatus.Bound)
+        // The typed binding only covers the direct statement-item slice; a monthly measure question takes
+        // the general planner path exactly as Feature141ChatQueryService does (requiresGeneralPlanner).
+        if (typedBinding.Status != CanonicalCatalogBindingStatus.Bound && !monthly)
         {
             trace.TypedOutcome = typedBinding.Status switch
             {
@@ -466,26 +601,15 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             return Finish(trace, totalTimer, executionService, executor);
         }
         if (intent.Measures.Count != 1) return Finish(trace, totalTimer, executionService, executor);
-        var canonical = CanonicalSourceItemBindingResolver.Resolve(intent.Measures[0], references, Provider);
-        trace.ChatPathBindingStatus = canonical.Status;
-        trace.ChatPathBindingDiagnostic = canonical.DiagnosticCode;
-        if (canonical.Status != CanonicalSourceItemBindingStatus.Bound || canonical.Reference is not { } bound)
-            return Finish(trace, totalTimer, executionService, executor);
-        var resolution = new FinancialSourceTitleResolution(FinancialSourceTitleResolutionStatus.Resolved,
-            canonical.DiagnosticCode, bound, [bound], new Dictionary<string, string?>(), bound.UnitClassification,
-            bound.QueryAuthorizationStatus ?? (bound.Queryable ? "authorized" : "not-authorized"));
-        var directSource = snapshot.DirectSources.SingleOrDefault(source =>
-            string.Equals(source.CatalogId, bound.CatalogId, StringComparison.Ordinal));
-        var handoff = FinancialSourcePlannerHandoff.Create(intent, resolution, snapshot.CatalogVersion, snapshot.CatalogHash, directSource);
-        trace.HandoffStatus = handoff.Status;
-        trace.HandoffDiagnosticCode = handoff.DiagnosticCode;
-        trace.PlannerRequirements = handoff.Binding?.PlannerRequirements;
-        if (handoff.Binding is null) return Finish(trace, totalTimer, executionService, executor);
 
-        // Stage 3: live navigator and deterministic planner over the real hierarchy provider.
+        // Stage 3: live navigator and deterministic planner over the real hierarchy provider. Company and
+        // product identities come from the production resolvers over the isolated database.
         await using var bindingDb = database.CreateContext();
         var companyBinder = new StructuredQueryCompanyBinder(new CanonicalQueryEntityResolver(bindingDb,
             Options.Create(new CanonicalEntityResolutionOptions(Enabled: true))));
+        var productBinder = new StructuredQueryProductBinder(new CompanyScopedProductResolver(
+            new CompanyResolverService(bindingDb, NullLogger<CompanyResolverService>.Instance),
+            new EfCoreMonthlyProductComparisonRepository(bindingDb)));
         var navigator = new LlmVectorlessSchemaNavigator(executionService, hierarchyProvider, hierarchyProvider, hierarchyProvider,
             provider.GetRequiredService<ISchemaContextCompletenessValidator>(), provider.GetRequiredService<SchemaNavigatorBudgets>());
         var planner = new OfflineStructuredQueryPlanningService(
@@ -494,10 +618,65 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             provider.GetRequiredService<ISchemaContextCompletenessValidator>(),
             provider.GetRequiredService<IStructuredQueryPlanBuilder>(),
             provider.GetRequiredService<IStructuredQueryPlanValidator>(),
-            companyBinder);
+            companyBinder, productBinder,
+            productConceptResolver: provider.GetRequiredService<IReviewedProductConceptResolver>());
         var navigationRequest = new SchemaNavigationRequest(1, testCase.Question, snapshot.CatalogVersion, snapshot.CatalogHash,
             TenantId: TenantId, CorrelationId: $"feature141-vertical-slice-{testCase.CaseId}");
-        var planning = await planner.PlanAsync(navigationRequest, handoff.Binding.PlannerRequirements, cancellationToken);
+        QuestionSchemaRequirements plannerRequirements;
+        if (monthly)
+        {
+            // General planner path (Feature141ChatQueryService.requiresGeneralPlanner): the navigator extracts
+            // requirements; the Persian month named by the model is normalized deterministically and the
+            // model's Gregorian bounds are replaced before planning.
+            var extracted = await navigator.ExtractAsync(navigationRequest, cancellationToken);
+            trace.LlmCalls += extracted.ModelCalls;
+            trace.LlmInputTokens = Sum(trace.LlmInputTokens, extracted.InputTokens);
+            trace.LlmOutputTokens = Sum(trace.LlmOutputTokens, extracted.OutputTokens);
+            trace.ModelPeriodStart = extracted.StructuredShape?.ReportingPeriodStart?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            trace.ModelPeriodEnd = extracted.StructuredShape?.ReportingPeriodEnd?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            if (intent.Period.Kind != ReportingPeriodKind.ExplicitMonth)
+            {
+                trace.TypedOutcome = Feature141ExpectedOutcome.Incomplete;
+                trace.TypedOutcomeReason = $"period_kind_not_explicit_month:{intent.Period.Kind}";
+                return Finish(trace, totalTimer, executionService, executor);
+            }
+            var period = PersianReportingPeriodNormalizer.Normalize(intent.Period);
+            trace.NormalizedPersianMonth = period.PersianLabel;
+            trace.NormalizedPeriodStart = period.Start;
+            trace.NormalizedPeriodEnd = period.End;
+            if (period.Status != PersianReportingPeriodStatus.Normalized)
+            {
+                trace.TypedOutcome = Feature141ExpectedOutcome.Incomplete;
+                trace.TypedOutcomeReason = $"persian_period_not_normalized:{period.DiagnosticCode}";
+                return Finish(trace, totalTimer, executionService, executor);
+            }
+            plannerRequirements = ReportingPeriodRequirementsNormalizer.Apply(extracted, period);
+            output.WriteLine($"Period: model={trace.ModelPeriodStart}..{trace.ModelPeriodEnd} normalized={period.PersianLabel}={period.Start:yyyy-MM-dd}..{period.End:yyyy-MM-dd}");
+        }
+        else
+        {
+            var canonical = CanonicalSourceItemBindingResolver.Resolve(intent.Measures[0], references, Provider);
+            trace.ChatPathBindingStatus = canonical.Status;
+            trace.ChatPathBindingDiagnostic = canonical.DiagnosticCode;
+            if (canonical.Status != CanonicalSourceItemBindingStatus.Bound || canonical.Reference is not { } bound)
+                return Finish(trace, totalTimer, executionService, executor);
+            var resolution = new FinancialSourceTitleResolution(FinancialSourceTitleResolutionStatus.Resolved,
+                canonical.DiagnosticCode, bound, [bound], new Dictionary<string, string?>(), bound.UnitClassification,
+                bound.QueryAuthorizationStatus ?? (bound.Queryable ? "authorized" : "not-authorized"));
+            var directSource = snapshot.DirectSources.SingleOrDefault(source =>
+                string.Equals(source.CatalogId, bound.CatalogId, StringComparison.Ordinal));
+            var handoff = FinancialSourcePlannerHandoff.Create(intent, resolution, snapshot.CatalogVersion, snapshot.CatalogHash, directSource);
+            trace.HandoffStatus = handoff.Status;
+            trace.HandoffDiagnosticCode = handoff.DiagnosticCode;
+            if (handoff.Binding is null) return Finish(trace, totalTimer, executionService, executor);
+            plannerRequirements = handoff.Binding.PlannerRequirements;
+        }
+        trace.PlannerRequirements = plannerRequirements;
+        trace.RequirementsMeasureIds = plannerRequirements.MeasureIds;
+        trace.RequirementsNormalizationDiagnostics = plannerRequirements.NormalizationDiagnostics;
+        var planning = await planner.PlanAsync(navigationRequest, plannerRequirements, cancellationToken);
+        trace.ProductBindingStatus = planning.ProductBinding?.Status;
+        trace.ProductKey = planning.ProductBinding?.ProductKey;
         trace.Navigation = planning.Navigation;
         trace.Plan = planning.Plan;
         trace.PlanStructurallyValid = planning.Validation.IsStructurallyValid;
@@ -565,11 +744,14 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             trace.ActualPersianPeriodEnd = trace.ActualPeriodEnd is { } end ? ToPersianCalendar(end) : null;
             trace.ActualRowCompanyId = row.GetValueOrDefault("CompanyId") as Guid?;
             trace.ActualRowSourceItemId = row.GetValueOrDefault("SourceItemId") is { } item ? Convert.ToInt32(item, CultureInfo.InvariantCulture) : null;
+            trace.ActualProductCode = row.GetValueOrDefault("ProductCode") as string;
+            trace.ActualSourceUnit = row.GetValueOrDefault("SourceUnit") as string;
         }
 
         // Independent verification straight from the seeded rows with the administrative connection.
-        (trace.IndependentDatabaseValue, trace.IndependentLineItemCount) =
-            await ReadIndependentValueAsync(fixtureInfo, testCase.ExpectedSourceItemCatalogId, cancellationToken);
+        (trace.IndependentDatabaseValue, trace.IndependentLineItemCount) = monthly
+            ? await ReadIndependentMonthlyValueAsync(fixtureInfo, cancellationToken)
+            : await ReadIndependentValueAsync(fixtureInfo, testCase.ExpectedSourceItemCatalogId, cancellationToken);
 
         // Stage 7: Persian answer.
         var answer = provider.GetRequiredService<IPersianStructuredQueryResponseGenerator>().Generate(
@@ -608,6 +790,8 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
     private async Task<Feature141VerticalSliceFixtureInfo> SeedAsync(Feature141VerticalSliceCase testCase, string databaseName,
         CancellationToken cancellationToken)
     {
+        if (testCase.Kind == Feature141CaseKind.MonthlyMeasure)
+            return await SeedMonthlyAsync(testCase, databaseName, cancellationToken);
         var expectedSourceItem = testCase.ExpectedSourceItemCatalogId == Guid.Empty
             ? Feature141VerticalSliceCases.OperatingProfitPerShareSourceItemCatalogId : testCase.ExpectedSourceItemCatalogId;
         var expectedValue = testCase.ExpectedValue ?? 3_753m;
@@ -685,16 +869,98 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
         return new(databaseName, role, companyId, decoyCompanyId, statementId, olderStatementId, SeededLineItemCount: 4);
     }
 
-    private static async Task<(bool SelectOnly, bool CanReadMonthlyReports)> InspectRestrictedRoleAsync(
-        string restrictedConnection, string role, CancellationToken cancellationToken)
+    /// <summary>Seeds the monthly production fixture: one accepted Shahrivar 1405 report for کگل with a گندله line (25 ton)
+    /// plus decoys a wrong product, a wrong month, a superseded revision of the same month and a wrong company would surface.</summary>
+    private async Task<Feature141VerticalSliceFixtureInfo> SeedMonthlyAsync(Feature141VerticalSliceCase testCase, string databaseName,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var marketId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
+        var decoyCompanyId = Guid.NewGuid();
+        const string externalCompany = "feature141-vs-kgol";
+        const string decoyExternalCompany = "feature141-vs-kgehr";
+        var periodStart = testCase.ExpectedPeriodStart ?? new DateOnly(2026, 8, 23);
+        var periodEnd = testCase.ExpectedPeriodEnd ?? new DateOnly(2026, 9, 22);
+        var productKey = $"{Provider}:{externalCompany}:TITLE:{testCase.ExpectedProductLabel}|UNIT:{testCase.ExpectedUnit}";
+        var otherProductKey = $"{Provider}:{externalCompany}:TITLE:کنسانتره|UNIT:{testCase.ExpectedUnit}";
+        var decoyProductKey = $"{Provider}:{decoyExternalCompany}:TITLE:{testCase.ExpectedProductLabel}|UNIT:{testCase.ExpectedUnit}";
+        Guid reportId;
+        await using (var db = database.CreateContext())
+        {
+            db.Markets.Add(new NormalizedMarketRow { Id = marketId, ProviderName = Provider, ExternalId = "feature141-vs-monthly-market",
+                Name = "Feature 141 monthly vertical slice fixture", LastSynchronizedAt = now });
+            db.Companies.Add(new NormalizedCompanyRow { Id = companyId, ProviderName = Provider, ExternalCompanyId = externalCompany,
+                Name = "Fixture Kgol", Ticker = testCase.ExpectedCompanyLabel, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
+            db.Companies.Add(new NormalizedCompanyRow { Id = decoyCompanyId, ProviderName = Provider, ExternalCompanyId = decoyExternalCompany,
+                Name = "Fixture Kgehr", Ticker = "کگهر", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
+            NormalizedMonthlyReportRow Report(Guid company, string externalCompanyId, string suffix, DateOnly start, DateOnly end,
+                bool accepted, string revisionStatus) => new()
+            {
+                Id = Guid.NewGuid(), ProviderName = Provider, ExternalCompanyId = externalCompanyId, ExternalReportId = $"vs-{suffix}",
+                PeriodStart = start, PeriodEnd = end, SourcePayloadChecksum = $"vs-{suffix}", LastSynchronizedAt = now,
+                LogicalReportKey = $"vs-{externalCompanyId}-{start:yyyyMM}", RevisionFingerprint = $"vs-{suffix}", IsAccepted = accepted,
+                RevisionStatus = revisionStatus, ReportType = "ProductSales", OutputType = 0, CompanyId = company
+            };
+            NormalizedMonthlyReportLineItemRow Line(NormalizedMonthlyReportRow report, string key, string title, decimal production) => new()
+            {
+                Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{key}",
+                SourceMultiplicity = 1, ProductCode = key, Title = title, Unit = testCase.ExpectedUnit!, ProductionQuantity = production,
+                SalesQuantity = production - 5, SalesAmount = production * 10, SalesRate = 10m, SourcePayloadChecksum = report.SourcePayloadChecksum
+            };
+            var expected = Report(companyId, externalCompany, "kgol-1405-06", periodStart, periodEnd, true, "Accepted");
+            var superseded = Report(companyId, externalCompany, "kgol-1405-06-superseded", periodStart, periodEnd, false, "Superseded");
+            var earlier = Report(companyId, externalCompany, "kgol-1405-05", periodStart.AddMonths(-1), periodStart.AddDays(-1), true, "Accepted");
+            var decoy = Report(decoyCompanyId, decoyExternalCompany, "kgehr-1405-06", periodStart, periodEnd, true, "Accepted");
+            db.MonthlyReports.AddRange(expected, superseded, earlier, decoy);
+            db.MonthlyReportLineItems.AddRange(
+                Line(expected, productKey, testCase.ExpectedProductLabel!, testCase.ExpectedValue ?? 25m),
+                Line(expected, otherProductKey, "کنسانتره", 60m),
+                Line(superseded, productKey, testCase.ExpectedProductLabel!, 99m),
+                Line(earlier, productKey, testCase.ExpectedProductLabel!, 22m),
+                Line(decoy, decoyProductKey, testCase.ExpectedProductLabel!, 47m));
+            reportId = expected.Id;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        var role = "feature141_vs_monthly_reader_" + Guid.NewGuid().ToString("N");
+        _restrictedPassword = "F141vs_" + Guid.NewGuid().ToString("N");
+        await using var connection = new NpgsqlConnection(database.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE ROLE \"{role}\" LOGIN PASSWORD '{_restrictedPassword}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT; " +
+            $"GRANT USAGE ON SCHEMA public TO \"{role}\"; " +
+            $"GRANT SELECT ON TABLE public.\"MonthlyReports\", public.\"MonthlyReportLineItems\", public.\"Companies\" TO \"{role}\";";
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        return new(databaseName, role, companyId, decoyCompanyId, Guid.Empty, Guid.Empty, SeededLineItemCount: 5, reportId, productKey);
+    }
+
+    private async Task<(decimal? Value, int LineItemCount)> ReadIndependentMonthlyValueAsync(
+        Feature141VerticalSliceFixtureInfo fixtureInfo, CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(database.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT (SELECT li.\"ProductionQuantity\" FROM public.\"MonthlyReportLineItems\" li " +
+            "WHERE li.\"MonthlyReportId\" = @report AND li.\"ProductCode\" = @product), " +
+            "(SELECT COUNT(*) FROM public.\"MonthlyReportLineItems\")";
+        command.Parameters.AddWithValue("report", fixtureInfo.MonthlyReportId!.Value);
+        command.Parameters.AddWithValue("product", fixtureInfo.ProductKey!);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return (null, 0);
+        return (reader.IsDBNull(0) ? null : reader.GetDecimal(0), (int)reader.GetInt64(1));
+    }
+
+    private static async Task<(bool SelectOnly, bool CanReadOtherDomainTable)> InspectRestrictedRoleAsync(
+        string restrictedConnection, string role, string primaryTable, string otherDomainTable, CancellationToken cancellationToken)
     {
         await using var connection = new NpgsqlConnection(restrictedConnection);
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT current_user, rolsuper OR rolcreatedb OR rolcreaterole, " +
-            "has_table_privilege(current_user, 'public.\"FinancialStatementLineItems\"', 'SELECT'), " +
-            "has_table_privilege(current_user, 'public.\"FinancialStatementLineItems\"', 'INSERT, UPDATE, DELETE'), " +
-            "has_table_privilege(current_user, 'public.\"MonthlyReports\"', 'SELECT') " +
+            $"has_table_privilege(current_user, 'public.\"{primaryTable}\"', 'SELECT'), " +
+            $"has_table_privilege(current_user, 'public.\"{primaryTable}\"', 'INSERT, UPDATE, DELETE'), " +
+            $"has_table_privilege(current_user, 'public.\"{otherDomainTable}\"', 'SELECT') " +
             "FROM pg_roles WHERE rolname = current_user";
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) return (false, true);

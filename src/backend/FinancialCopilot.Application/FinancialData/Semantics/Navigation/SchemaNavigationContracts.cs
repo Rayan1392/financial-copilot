@@ -215,6 +215,9 @@ public sealed record SchemaContextExpansionRequest(
     int MaximumFanOut = 12,
     IReadOnlyList<string>? RequiredCatalogIds = null);
 
+/// <summary>Catalog review state of a governed measure (from dictionaries/monthly-measures.yaml); independent from navigation-node review.</summary>
+public sealed record MeasureGovernance(bool SemanticApproved, bool Queryable, string? Status, string? Provenance);
+
 public sealed record SchemaNodeGovernance(
     string NodeId,
     bool ExistsInCatalog,
@@ -245,7 +248,8 @@ public sealed record SchemaContext(
     IReadOnlyList<string>? ProviderFinancialIndicatorIds = null,
     IReadOnlyDictionary<string, IReadOnlyList<string>>? MeasureRelationshipIds = null,
     IReadOnlyList<string>? SourceSemantics = null,
-    IReadOnlyList<string>? UnitAndPeriodSemantics = null);
+    IReadOnlyList<string>? UnitAndPeriodSemantics = null,
+    IReadOnlyDictionary<string, MeasureGovernance>? MeasureGovernance = null);
 
 public enum SchemaContextCompletenessStatus
 {
@@ -328,6 +332,12 @@ public sealed class SchemaContextCompletenessValidator : ISchemaContextCompleten
         var directSourceIdentityRequest = selectedFinancialReferences.Count > 0
             && selectedFinancialReferences.All(reference => reference.ReferenceType
                 == nameof(FinancialValueReferenceType.DirectSourceItem));
+        // A request for exactly reviewed catalog measures is governed by the measures' own catalog
+        // review state (the same principle as exact direct-source identity); navigation-node review
+        // stays a navigation concern. Contexts without measure governance keep the node-based rule.
+        var measureIdentityRequest = selectedFinancialReferences.Count > 0 && context.MeasureGovernance is not null
+            && selectedFinancialReferences.All(reference => reference.ReferenceType
+                == nameof(FinancialValueReferenceType.MonthlyMeasure));
         if (context.NodeGovernance.GroupBy(item => item.NodeId, StringComparer.Ordinal).Any(group => group.Count() > 1))
             governanceDiagnostics.Add("Schema context contains duplicate node-governance records.");
         var governance = context.NodeGovernance.ToDictionary(item => item.NodeId, StringComparer.Ordinal);
@@ -338,7 +348,7 @@ public sealed class SchemaContextCompletenessValidator : ISchemaContextCompleten
                 governanceDiagnostics.Add($"Unknown navigation node: {nodeId}.");
                 continue;
             }
-            if (!node.NavigationMetadataApproved && !directSourceIdentityRequest)
+            if (!node.NavigationMetadataApproved && !directSourceIdentityRequest && !measureIdentityRequest)
                 governanceDiagnostics.Add($"Navigation metadata is not approved: {nodeId}.");
         }
 
@@ -409,9 +419,15 @@ public sealed class SchemaContextCompletenessValidator : ISchemaContextCompleten
                 governanceDiagnostics.Add($"Financial value reference is not approved for retrieval: {selectedReference.CatalogId}.");
         }
 
-        var semanticReviewApproved = context.NodeIds.All(id => governance.TryGetValue(id, out var item) && item.SemanticMeaningApproved)
+        var measureIdentityApproved = measureIdentityRequest && selectedFinancialReferences.All(reference =>
+            context.MeasureGovernance!.TryGetValue(reference.CatalogId, out var measure) && measure.SemanticApproved && measure.Queryable);
+        var semanticReviewApproved = measureIdentityRequest
+            ? measureIdentityApproved
+            : context.NodeIds.All(id => governance.TryGetValue(id, out var item) && item.SemanticMeaningApproved)
             && resolvedFinancialReferences.All(item => string.Equals(item.SemanticReviewStatus, "approved", StringComparison.OrdinalIgnoreCase));
-        var queryAuthorized = directSourceIdentityRequest
+        var queryAuthorized = measureIdentityRequest
+            ? measureIdentityApproved
+            : directSourceIdentityRequest
             ? directSourceIdentityAuthorized
                 && selectedFinancialReferences.All(reference => resolvedFinancialReferences.Any(item =>
                     string.Equals(item.CatalogId, reference.CatalogId, StringComparison.Ordinal) && item.Queryable))

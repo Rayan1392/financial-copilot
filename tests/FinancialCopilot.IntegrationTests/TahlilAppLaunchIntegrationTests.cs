@@ -154,6 +154,20 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         using var scope = factory.Services.CreateScope();
         var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
         Assert.Equal(1, await auth.TahlilAppExternalIdentities.CountAsync(row => row.ExternalUserId == externalId));
+
+        var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var account = await billing.CustomerAccounts.SingleAsync(row => row.UserId ==
+            firstBody.RootElement.GetProperty("user").GetProperty("userId").GetGuid());
+        var wallet = await billing.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
+        var period = await billing.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal("Free", account.SubscriptionPlanCode);
+        Assert.Equal(25m, wallet.Balance);
+        Assert.Equal(25m, period.GrantedCredits);
+        Assert.Equal(TimeSpan.Zero, period.StartsAtUtc.Offset);
+        Assert.Equal(period.StartsAtUtc.AddDays(30), period.ExpiresAtUtc);
+        Assert.Equal(1, await billing.UsageLedgerEntries.CountAsync(row =>
+            row.CustomerAccountId == account.Id && row.OperationCode == "Billing.SubscriptionCreditGrant"));
+        Assert.Empty(await billing.PaidExpiryCooldowns.Where(row => row.CustomerAccountId == account.Id).ToListAsync());
     }
 
     [Fact]
@@ -166,7 +180,9 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         factory.Gateway.Respond(second, Succeeded(externalId));
 
         var responses = await Task.WhenAll(Launch(first), Launch(second));
-        Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        Assert.All(responses, response => Assert.True(
+            response.StatusCode == HttpStatusCode.OK,
+            $"Launch returned {response.StatusCode}. Captured errors: {string.Join(Environment.NewLine, factory.LogCapture.Messages.Where(message => message.Contains("exception", StringComparison.OrdinalIgnoreCase)).TakeLast(20))}"));
         var users = new List<Guid>();
         foreach (var response in responses)
         {
@@ -179,6 +195,16 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
         Assert.Equal(1, await auth.TahlilAppExternalIdentities.CountAsync(row => row.ExternalUserId == externalId));
         Assert.Equal(1, await auth.Users.CountAsync(row => row.Id == users[0]));
+
+        var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var account = await billing.CustomerAccounts.SingleAsync(row => row.UserId == users[0]);
+        var wallet = await billing.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal(25m, wallet.Balance);
+        Assert.Equal(1, await billing.SubscriptionCreditPeriods.CountAsync(row =>
+            row.CustomerAccountId == account.Id && row.PlanCode == "Free"));
+        Assert.Equal(1, await billing.UsageLedgerEntries.CountAsync(row =>
+            row.CustomerAccountId == account.Id && row.OperationCode == "Billing.SubscriptionCreditGrant"));
+        Assert.Empty(await billing.PaidExpiryCooldowns.Where(row => row.CustomerAccountId == account.Id).ToListAsync());
     }
 
     [Fact]

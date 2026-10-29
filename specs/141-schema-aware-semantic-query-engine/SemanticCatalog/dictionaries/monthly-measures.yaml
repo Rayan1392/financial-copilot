@@ -8,11 +8,34 @@
       "physicalTableId": "tbl_8ecd0432a4292998",
       "physicalColumn": "ProductionQuantity",
       "reportTableId": "tbl_8e759d70dada6bd8",
-      "relationshipIds": ["rel_31e410fb3ae11956"],
-      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
-      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
-      "unitPolicy": {"kind":"quantity","code":"source-quantity-unit","compatibleOnlyWithinSameUnit":true},
-      "review": {"semanticApproved":false,"queryable":false,"status":"pending-owner-review"}
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "quantity",
+        "code": "source-quantity-unit",
+        "compatibleOnlyWithinSameUnit": true
+      },
+      "review": {
+        "semanticApproved": true,
+        "queryable": true,
+        "status": "owner-approved",
+        "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+        "decisionRecord": "evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json",
+        "approvedOperations": [
+          "DirectValueRetrieval"
+        ],
+        "approvedScope": "one named company, one company-scoped product, one Persian report month; accepted revisions only; row unit preserved verbatim"
+      }
     },
     {
       "catalogId": "metric_monthly_sales_quantity",
@@ -20,11 +43,28 @@
       "physicalTableId": "tbl_8ecd0432a4292998",
       "physicalColumn": "SalesQuantity",
       "reportTableId": "tbl_8e759d70dada6bd8",
-      "relationshipIds": ["rel_31e410fb3ae11956"],
-      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
-      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
-      "unitPolicy": {"kind":"quantity","code":"source-quantity-unit","compatibleOnlyWithinSameUnit":true},
-      "review": {"semanticApproved":false,"queryable":false,"status":"pending-owner-review"}
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "quantity",
+        "code": "source-quantity-unit",
+        "compatibleOnlyWithinSameUnit": true
+      },
+      "review": {
+        "semanticApproved": false,
+        "queryable": false,
+        "status": "pending-owner-review"
+      }
     },
     {
       "catalogId": "metric_monthly_sales",
@@ -32,11 +72,27 @@
       "physicalTableId": "tbl_8ecd0432a4292998",
       "physicalColumn": "SalesAmount",
       "reportTableId": "tbl_8e759d70dada6bd8",
-      "relationshipIds": ["rel_31e410fb3ae11956"],
-      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
-      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
-      "unitPolicy": {"kind":"monetary","code":"MillionIRR"},
-      "review": {"semanticApproved":false,"queryable":false,"status":"pending-owner-review"}
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "monetary",
+        "code": "MillionIRR"
+      },
+      "review": {
+        "semanticApproved": false,
+        "queryable": false,
+        "status": "pending-owner-review"
+      }
     },
     {
       "catalogId": "metric_monthly_sales_rate",
@@ -44,11 +100,30 @@
       "physicalTableId": "tbl_8ecd0432a4292998",
       "physicalColumn": "SalesRate",
       "reportTableId": "tbl_8e759d70dada6bd8",
-      "relationshipIds": ["rel_31e410fb3ae11956"],
-      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
-      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
-      "unitPolicy": {"kind":"provider-reported","code":null,"sourceUnitColumn":"Unit","verified":false,"recomputeAllowed":false},
-      "review": {"semanticApproved":false,"queryable":false,"status":"pending-rate-unit-verification"}
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "provider-reported",
+        "code": null,
+        "sourceUnitColumn": "Unit",
+        "verified": false,
+        "recomputeAllowed": false
+      },
+      "review": {
+        "semanticApproved": false,
+        "queryable": false,
+        "status": "pending-rate-unit-verification"
+      }
     }
   ],
   "runtimeQueryable": false,

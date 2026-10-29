@@ -209,3 +209,17 @@ Migration `Feature139SubscriptionRevocation` is generated and remains unapplied.
 - Backend Release solution build: **passed, 0 warnings, 0 errors**.
 - The PostgreSQL tests were skipped because local PostgreSQL/Docker infrastructure was unavailable. Migration `Feature139SubscriptionRevocation` was generated only; it was not applied. No production partner endpoint was called, and no deployment, commit, or push was performed.
 - A shared distributed rate limiter is still an operational requirement for multiple API instances. Current pacing is process-wide (one request per 1.1 seconds per process), so aggregate traffic across replicas must be verified or routed through one shared limiter before staging enablement.
+
+## Revision 9 — Initial inactive Free activation verification
+
+The first successful TahlilApp launch with `active=false` and `plans=[]` already provisions the local identity's Free wallet and period through the existing wallet lifecycle initializer. The period is anchored to the UTC `TimeProvider` timestamp when the Billing wallet is first provisioned, receives the catalog's 25-credit Free allowance, and expires 30 days later. The subsequent inactive-plan reconciliation finds that period and preserves it; repeated launch/status reconciliation does not grant another period. Since a new account has no paid history, it has no paid-expiry cooldown and can reserve and consume Free credits immediately. No production behavior change was needed.
+
+This first-launch behavior is distinct from paid-plan revocation: an account with paid history keeps the existing cooldown and does not receive Free credits until that cooldown ends. The regression does not mutate historical plan allowance or grant ledger rows.
+
+### Revision 9 verification
+
+- `SubscriptionCreditLifecycleTests` Release focused run: **19 passed, 0 failed**. Includes initial inactive/empty-plan sync, stable 25-credit Free period, no cooldown, repeat reconciliation without another grant, and a successful 1-credit reservation/commit.
+- `SecondLaunch_ResolvesTheSameLocalUser` Release integration test: **1 passed** using the already-built integration assembly; it verifies the actual launch API provisions a single 25-credit Free period on the first launch and preserves it on the next launch.
+- `ConcurrentFirstInactiveLaunchesAcrossIndependentConnections_GrantFreeCreditsOnce`: **skipped** by the PostgreSQL integration fixture because local PostgreSQL infrastructure was unavailable. The test is present for environments where the fixture can start PostgreSQL.
+- Integration project rebuild could not complete because concurrent Feature 141 edits in `Feature141EngineVerticalSliceTests.cs` currently contain unrelated compile errors. A pre-existing in-memory concurrent launch test also fails because its EF InMemory store permits duplicate Billing accounts and concurrent auth permission seeding collides; this does not provide PostgreSQL race evidence.
+- No production API calls, database migrations, deployments, commits or pushes were performed.

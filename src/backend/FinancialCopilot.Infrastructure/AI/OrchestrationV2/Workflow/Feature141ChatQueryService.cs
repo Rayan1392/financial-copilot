@@ -41,7 +41,8 @@ internal sealed class Feature141ChatQueryService(
     IStructuredQueryAuthorizer authorizer,
     IReadOnlyStructuredQueryExecutor executor,
     IPersianStructuredQueryResponseGenerator responseGenerator,
-    ILogger<Feature141ChatQueryService> logger)
+    ILogger<Feature141ChatQueryService> logger,
+    IQuestionSchemaRequirementsExtractor requirementsExtractor)
 {
     private const string ProviderName = "NoavaranCurrentApi";
 
@@ -127,7 +128,22 @@ internal sealed class Feature141ChatQueryService(
                 || intent.Output.RequestedFields.Count != 0;
             if (requiresGeneralPlanner)
             {
-                var generalPlan = await planningService.PlanAsync(navigationRequest, cancellationToken).ConfigureAwait(false);
+                // The model names the Persian year and month; the calendar bounds are computed here so
+                // model-generated Gregorian dates never become authoritative.
+                var requirements = await requirementsExtractor.ExtractAsync(navigationRequest, cancellationToken).ConfigureAwait(false);
+                if (intent.Period.Kind == ReportingPeriodKind.ExplicitMonth)
+                {
+                    var period = PersianReportingPeriodNormalizer.Normalize(intent.Period);
+                    if (period.Status != PersianReportingPeriodStatus.Normalized)
+                    {
+                        logger.LogInformation(
+                            "Feature141 Persian month could not be normalized. CorrelationId={CorrelationId} Diagnostic={Diagnostic}",
+                            request.CorrelationId, period.DiagnosticCode);
+                        return "ماه شمسی درخواستی قابل تشخیص نیست؛ لطفاً نام ماه و سال شمسی را دقیق بنویسید (مثلاً شهریور ۱۴۰۵).";
+                    }
+                    requirements = ReportingPeriodRequirementsNormalizer.Apply(requirements, period);
+                }
+                var generalPlan = await planningService.PlanAsync(navigationRequest, requirements, cancellationToken).ConfigureAwait(false);
                 return await ExecutePlannedAsync(request, generalPlan, cancellationToken).ConfigureAwait(false);
             }
 

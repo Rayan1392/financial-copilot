@@ -1,13 +1,52 @@
 {
   "id": "rel_31e410fb3ae11956",
-  "from": {"schema":"public","table":"MonthlyReportLineItems","columns":["MonthlyReportId"]},
-  "to": {"schema":"public","table":"MonthlyReports","columns":["Id"]},
+  "from": {
+    "schema": "public",
+    "table": "MonthlyReportLineItems",
+    "columns": [
+      "MonthlyReportId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "MonthlyReports",
+    "columns": [
+      "Id"
+    ]
+  },
   "physicalConstraint": null,
   "physicalConstraintPresent": false,
   "inferredCardinality": "many-to-one",
-  "joinGrain": {"manySide":"MonthlyReportLineItems rows, including source multiplicity","oneSide":"One monthly report revision identified by MonthlyReports.Id"},
-  "nullableBehavior": {"fromKeyNullable":false,"toKeyNullable":false,"referentialIntegrityEnforced":false,"orphanBehavior":"Line items can be orphaned because PostgreSQL has no FK constraint."},
-  "verification": {"status":"verified-application-logical-relationship","applicationModelField":"MonthlyReportLineItems.MonthlyReportId","targetIdentity":"MonthlyReports.Id","physicalForeignKey":"not-present-in-captured-live-schema","dataJoinUniqueness":"Unique source row fingerprint/multiplicity within report; live orphan scan not performed."},
-  "semantic": {"approved":false,"status":"pending-owner-semantic-approval","runtimeJoinable":false,"queryAuthorization":{"approved":false,"queryable":false,"reason":"Logical join documentation does not grant runtime query access."}},
-  "provenance": {"source":"EF Core persistence model plus captured PostgreSQL schema/index metadata","verified":true}
+  "joinGrain": {
+    "manySide": "MonthlyReportLineItems rows, including source multiplicity",
+    "oneSide": "One monthly report revision identified by MonthlyReports.Id"
+  },
+  "nullableBehavior": {
+    "fromKeyNullable": false,
+    "toKeyNullable": false,
+    "referentialIntegrityEnforced": false,
+    "orphanBehavior": "Line items can be orphaned because PostgreSQL has no FK constraint."
+  },
+  "verification": {
+    "status": "verified-application-logical-relationship",
+    "applicationModelField": "MonthlyReportLineItems.MonthlyReportId",
+    "targetIdentity": "MonthlyReports.Id",
+    "physicalForeignKey": "not-present-in-captured-live-schema",
+    "dataJoinUniqueness": "Unique source row fingerprint/multiplicity within report; live orphan scan not performed."
+  },
+  "semantic": {
+    "approved": true,
+    "status": "owner-approved",
+    "runtimeJoinable": true,
+    "queryAuthorization": {
+      "approved": true,
+      "queryable": true,
+      "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "decisionRecord": "evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json"
+    }
+  },
+  "provenance": {
+    "source": "EF Core persistence model plus captured PostgreSQL schema/index metadata",
+    "verified": true
+  }
 }

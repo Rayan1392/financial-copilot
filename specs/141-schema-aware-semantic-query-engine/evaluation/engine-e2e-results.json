@@ -1,6 +1,6 @@
 {
   "feature": "141",
-  "runId": "engine-e2e-2026-10-28-baseline-stabilization",
+  "runId": "engine-e2e-2026-10-29-monthly-production",
   "verdict": "ENGINE_E2E_BLOCKED",
   "chatIntegrationEnabled": false,
   "measured": {
@@ -13,14 +13,14 @@
   },
   "metrics": {
     "totalCases": 20,
-    "pass": 4,
+    "pass": 5,
     "fail": 0,
-    "blocked": 16,
+    "blocked": 15,
     "typedRejectionsObserved": 3,
     "incorrectNumericResults": 0,
     "unauthorizedExecutions": 0,
     "silentSemanticOmissions": 0,
-    "executedCases": 4
+    "executedCases": 5
   },
   "catalogEvidence": {
     "sourceItemsTotal": 296,
@@ -235,9 +235,9 @@
       "executionCorrect": null,
       "observedOutcome": null,
       "expectedOutcome": "Unauthorized",
-      "status": "BLOCKED",
+      "status": "SUPERSEDED",
       "reasonCode": "monthly_measure_not_approved",
-      "reason": "monthly measure not approved for generic query",
+      "reason": "Question text differs (مرداد, کگهر); the governed monthly production slice passed as F141-E07 on 2026-10-29. See monthlyProduction.",
       "llmTokens": null,
       "elapsedMs": null
     },
@@ -635,16 +635,16 @@
     }
   ],
   "currentVerification": {
-    "date": "2026-10-28",
+    "date": "2026-10-29",
     "verdict": "ENGINE_E2E_BLOCKED",
     "firstVerticalSliceStatus": "FIRST_VERTICAL_SLICE_PASSED",
     "totalCases": 20,
-    "passed": 1,
-    "blocked": 19,
-    "semanticEvaluatedLive": 1,
-    "executionEvaluatedLive": 1,
+    "passed": 5,
+    "blocked": 15,
+    "semanticEvaluatedLive": 5,
+    "executionEvaluatedLive": 5,
     "docker": "Linux engine Internal Server Error; disposable local PostgreSQL 18.1 used instead",
-    "note": "E141-02 executed end to end with the live provider and an isolated database. The other 19 remain blocked on governance (monthly measures, netProfit/EPS/totalAssets bindings, product equivalence, discovery scopes) and on unimplemented planner algebra; see engine-e2e-report.md."
+    "note": "F141-E04 (statement item) and F141-E07 (monthly production quantity) answered end to end with the live provider and the isolated database; E18/E19/E20 typed rejections reproduced. 15 cases remain blocked on canonical bindings for netProfit/operatingProfit/earningsPerShare/totalAssets, the three unapproved monthly sales measures, product equivalence, discovery scopes and planner algebra."
   },
   "currentProposedCases": [
     {
@@ -1383,5 +1383,126 @@
       ]
     },
     "report": "engine-baseline-stabilization-report.md"
+  },
+  "monthlyProduction": {
+    "date": "2026-10-29",
+    "status": "MONTHLY_PRODUCTION_E2E_PASSED",
+    "caseId": "F141-E07",
+    "question": "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+    "governance": {
+      "decisionRecord": "governance/metric_monthly_production_quantity-decision-request-2026-10-28.json",
+      "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "catalogHashBefore": "cd7da04a59d9ea7cfac96db7f63b3dc03c6fe909dafa417734b3560028eab98c",
+      "catalogHashAfter": "29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a",
+      "hierarchyHashAfter": "0af438c4df610e103fc174097fd5ded82d43f62b12feb402393b6ed06a2cd8c8",
+      "changedCatalogObjects": [
+        "dictionaries/monthly-measures.yaml#metric_monthly_production_quantity.review",
+        "tables/tbl_8ecd0432a4292998.yaml#semantic (7 approved columns)",
+        "tables/tbl_8e759d70dada6bd8.yaml#semantic (10 approved columns)",
+        "relationships/rel_31e410fb3ae11956.yaml#semantic",
+        "relationships/rel_4e54d40aee8b45e4.yaml#semantic+verification",
+        "manifest.yaml#navigationHierarchyHash",
+        "artifacts/navigation-hierarchy.yaml/.md (regenerated)"
+      ],
+      "unchanged": "metric_monthly_sales, metric_monthly_sales_quantity, metric_monthly_sales_rate remain pending; sales columns not approved"
+    },
+    "provider": "OpenAI",
+    "model": "gpt-5.6-luna",
+    "canonicalIntent": {
+      "measure": "productionQuantity (ProductionQuantity)",
+      "company": "کگل",
+      "product": "گندله",
+      "period": "ExplicitMonth شهریور ۱۴۰۵"
+    },
+    "periodNormalization": {
+      "modelBounds": "2026-08-23..2026-09-22",
+      "deterministic": "1405-06 = 2026-08-23..2026-09-22 (PersianCalendar)",
+      "diagnostic": "persian_period_normalized:1405-06:2026-08-23..2026-09-22",
+      "modelBoundsAuthoritative": false
+    },
+    "bindings": {
+      "company": "Found (exact ticker)",
+      "product": "Found NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+      "measure": "metric_monthly_production_quantity"
+    },
+    "plan": {
+      "executionEligible": true,
+      "compiledSemanticReviewApproved": true,
+      "compiledQueryAuthorized": true,
+      "identityAuthorized": false
+    },
+    "sqlParameters": {
+      "provider_name": "NoavaranCurrentApi",
+      "report_type": "ProductSales",
+      "output_type": 0,
+      "is_accepted": true,
+      "revision_status": "Accepted",
+      "company_id": "<fixture company>",
+      "product_code": "NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+      "period_start": "2026-08-23",
+      "period_end": "2026-09-22",
+      "row_limit": 2,
+      "row_offset": 0
+    },
+    "postgresql": {
+      "status": "Succeeded",
+      "rows": 1,
+      "value": 25,
+      "unit": "ton",
+      "periodStart": "2026-08-23",
+      "periodEnd": "2026-09-22",
+      "persianPeriod": "1405-06-01..1405-06-31",
+      "independentAdminRead": 25,
+      "seededLineItems": 5,
+      "decoysReturned": 0
+    },
+    "expected": {
+      "value": 25,
+      "unit": "ton",
+      "persianMonth": "1405-06"
+    },
+    "persianAnswer": "کگل گندله در بازهٔ ۲۰۲۶-۰۸-۲۳ تا ۲۰۲۶-۰۹-۲۲، مقدار تولید ماهانه: ۲۵ تن.\nمنبع: NoavaranCurrentApi، گزارش vs-kgol-1405-06.",
+    "unauthorizedAccessChecks": {
+      "restrictedRoleSelectOnly": true,
+      "restrictedRoleCanReadFinancialStatementLineItems": false,
+      "writablePrincipalExecution": "Unauthorized database_read_only_identity_check_failed",
+      "executorCalls": 1
+    },
+    "llm": {
+      "observedCalls": 3,
+      "inputTokens": 14846,
+      "outputTokens": 2192,
+      "intentLatencyMs": 5725,
+      "navigatorLatencyMs": 10905,
+      "totalMs": 17584
+    },
+    "runs": [
+      "artifacts/engine-e2e-vertical-slice-2026-10-29-035155-F141-E07-answered.json",
+      "artifacts/engine-e2e-vertical-slice-2026-10-29-035459-F141-E07-answered.json",
+      "artifacts/engine-e2e-vertical-slice-2026-10-29-035550-F141-E07-answered.json",
+      "artifacts/engine-e2e-vertical-slice-2026-10-29-035927-F141-E07-answered.json"
+    ],
+    "negativeScenarios": {
+      "test": "Feature141MonthlyProductionSemanticsPostgreSqlTests",
+      "artifact": "artifacts/monthly-production-semantics-2026-10-29-035903.json",
+      "asserted": 11,
+      "observedOnly": 1,
+      "failures": 0,
+      "outcomes": {
+        "M1 answered": "Succeeded 25 ton",
+        "M2 missing product": "product NotFound, no SQL",
+        "M3 missing report": "NoData",
+        "M4 wrong company": "product NotFound, no SQL",
+        "M5 wrong period": "NoData",
+        "M6 duplicate accepted reports (alias)": "Ambiguous",
+        "M7 superseded revision": "Succeeded 30 (accepted), superseded 99 excluded",
+        "M8 NULL quantity": "NoData monthly_observation_missing",
+        "M9 missing unit": "Incomplete monthly_quantity_unit_missing",
+        "M10 same title two units": "OBSERVED: resolver picked kg variant (open owner decision)",
+        "M11 unapproved measure snapshot": "compiled QueryAuthorized=false, no grant, no SQL",
+        "M12 role without SELECT": "Failed database_query_failed, 0 rows"
+      }
+    },
+    "report": "monthly-production-e2e-execution-report.md"
   }
 }

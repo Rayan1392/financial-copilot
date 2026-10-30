@@ -315,6 +315,7 @@
                                                                         "tbl_53d51e26e1ca6929_ProviderName",
                                                                         "tbl_53d51e26e1ca6929_StatementType",
                                                                         "tbl_53d51e26e1ca6929_CompanyId",
+                                                                        "tbl_53d51e26e1ca6929_ExternalCompanyId",
                                                                         "tbl_53d51e26e1ca6929_IsComposing",
                                                                         "tbl_53d51e26e1ca6929_PeriodEnd",
                                                                         "tbl_53d51e26e1ca6929_PeriodType",

@@ -1,10 +1,15 @@
--- Manual, DBA-reviewed revocation in the same designated Development database.
+-- Manual, DBA-reviewed revocation in the same designated database:
+--   psql -v expected_database=<exact database name> -f feature141-read-role-revoke.sql
 \set ON_ERROR_STOP on
-\set expected_dev_database 'REPLACE_WITH_EXACT_DEVELOPMENT_DATABASE'
-SELECT current_database() = :'expected_dev_database' AS correct_dev_database \gset
-\if :correct_dev_database
+\if :{?expected_database}
 \else
-  \echo 'Refusing: connected database does not equal expected Development database.'
+  \echo 'Refusing: pass -v expected_database=<exact target database name>.'
+  \quit 3
+\endif
+SELECT current_database() = :'expected_database' AS correct_database \gset
+\if :correct_database
+\else
+  \echo 'Refusing: connected database does not equal expected_database.'
   \quit 3
 \endif
 
@@ -18,7 +23,16 @@ REVOKE SELECT (
   "SourcePayloadChecksum", "PublishedAt", "LastSynchronizedAt", "WarningsJson",
   "LogicalVendor", "SourceMode"
 ) ON TABLE public."FinancialStatements" FROM feature141_reader;
-REVOKE SELECT ("Id") ON TABLE public."Companies" FROM feature141_reader;
+REVOKE SELECT ("ExternalCompanyId") ON TABLE public."FinancialStatements" FROM feature141_reader;
+REVOKE SELECT ("Id", "ProviderName", "ExternalCompanyId", "Name", "Ticker", "CompanySymbol") ON TABLE public."Companies" FROM feature141_reader;
+REVOKE SELECT (
+  "Id", "ProviderName", "ExternalCompanyId", "PeriodStart", "PeriodEnd", "ReportType", "OutputType",
+  "IsAccepted", "RevisionStatus", "ExternalReportId"
+) ON TABLE public."MonthlyReports" FROM feature141_reader;
+REVOKE SELECT (
+  "MonthlyReportId", "ProductCode", "Title", "Unit", "ProductionQuantity", "SalesQuantity", "SalesAmount",
+  "SourceRowFingerprint", "SourceMultiplicity"
+) ON TABLE public."MonthlyReportLineItems" FROM feature141_reader;
 REVOKE USAGE ON SCHEMA public FROM feature141_reader;
 DO $disconnect$
 BEGIN

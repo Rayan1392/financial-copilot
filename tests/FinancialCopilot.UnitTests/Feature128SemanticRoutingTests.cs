@@ -406,6 +406,22 @@ public sealed class Feature128SemanticRoutingTests
         Assert.Equal(2, ambiguous.Candidates.Count);
     }
 
+    [Fact]
+    public async Task ProductResolutionReadsTheGenericProductMarkerOnlyWhenNoTitleContainsIt()
+    {
+        var companyId = Guid.NewGuid();
+        var period = new JalaliPeriod(1405, 5);
+        var resolver = new CompanyScopedProductResolver(
+            new FakeCompanyResolver(new ResolvedCompany(companyId, "external-fold", "فولاد", null, null, null, null)),
+            new FakeProductRepository(period, [
+                Observation(companyId, "P1", "گندله", "KEY-PELLET", 100m),
+                Observation(companyId, "P2", "نرمه گندله", "KEY-FINES", 10m)]));
+
+        var result = await resolver.ResolveAsync("فولاد", "محصول گندله");
+
+        Assert.Equal("KEY-PELLET", Assert.IsType<ProductResolutionResult.Resolved>(result).Product.ProductKey);
+    }
+
     private static ProductSalesObservation Observation(Guid companyId, string code, string title, string key, decimal sales) =>
         new(Guid.NewGuid(), Guid.NewGuid(), "external-fold", new JalaliPeriod(1404, 6), "test", "report", new DateOnly(2025, 9, 1), new DateOnly(2025, 9, 30), null, title, "ton", null, 10m, 100m, sales, ProductKey: key, ProviderProductCode: code);
 

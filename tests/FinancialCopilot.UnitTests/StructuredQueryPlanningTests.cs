@@ -148,9 +148,10 @@ public sealed class StructuredQueryPlanningTests
         };
         var completeness = new SchemaContextCompletenessResult(SchemaContextCompletenessStatus.Complete, [], [],
             RetrievalComplete: true, SemanticReviewApproved: false, QueryAuthorized: false);
-        var productKey = "PRODUCT:COMPANY:PELLET";
+        var productKey = "ext-kgahar:TITLE:گندله|UNIT:ton";
+        var selection = new MonthlyProductSelection(["گندله"], ["ton", "ton "]);
         var productBinder = new FakeProductBinder(new StructuredProductBinding(StructuredProductBindingStatus.Found,
-            companyId, productKey, "گندله", "ton", "feature-129-company-scoped-product-row", [], null));
+            companyId, productKey, "گندله", "ton", "feature-129-company-scoped-product-row", [], null, selection));
         var service = new OfflineStructuredQueryPlanningService(
             new FakeRequirementsExtractor(requirements), new FakeNavigator(navigation), new FakeContextProvider(context),
             new FakeCompletenessValidator(completeness), new StructuredQueryPlanBuilder(), new StructuredQueryPlanValidator(),
@@ -166,6 +167,8 @@ public sealed class StructuredQueryPlanningTests
         Assert.Equal(productKey, product.ResolvedEntityKey);
         Assert.True(product.IdentityVerified);
         Assert.Equal(productKey, planned.ProductBinding!.ProductKey);
+        // The binder's source labels reach the plan; the compiler matches rows by them, never by ProductCode.
+        Assert.Same(selection, planned.Plan.ProductSelection);
         Assert.False(planned.Plan.QueryAuthorized);
         Assert.False(planned.Plan.ExecutionEligible);
     }
@@ -228,6 +231,57 @@ public sealed class StructuredQueryPlanningTests
         Assert.False(result.Plan.CompanyDiscoveryScope!.CompanyCoverageComplete);
         Assert.True(result.Plan.Period.ReportingPeriodStart < result.Plan.Period.ReportingPeriodEnd);
         Assert.Contains("population_discovery_uses_trailing_12_calendar_month_observation_window", result.Plan.Diagnostics);
+    }
+
+    [Fact]
+    public async Task Producer_sales_ranking_keeps_the_explicitly_requested_month_instead_of_a_rolling_window()
+    {
+        var (baseRequest, _, baseNavigation, baseContext, _) = Scenario();
+        var request = baseRequest with { Question = "رتبه‌بندی تولیدکنندگان گندله بر اساس مبلغ فروش گندله در مرداد ۱۴۰۵" };
+        var mordadStart = new DateOnly(2026, 7, 23);
+        var mordadEnd = new DateOnly(2026, 8, 22);
+        // Requirements as the chat service hands them over after deterministic Persian month normalization.
+        var requirements = new QuestionSchemaRequirements(1, request.CatalogVersion, request.CatalogHash,
+            ["metric_monthly_sales"], ["dim_company", "dim_product_identity", "dim_monthly_period"], ["company", "product"],
+            [], [], ["explicit-period"], [], ["ranked-table"],
+            FinancialValueReferences: [],
+            RequestedFinancialValueOperation: nameof(FinancialValueOperation.DirectValueRetrieval),
+            StructuredShape: new StructuredPlanShape([], [], [], [], [], 0, 10, PlanFinancialOperationKind.DirectValue,
+                mordadStart, mordadEnd))
+        {
+            ProductReferences = ["گندله"]
+        };
+        var context = baseContext with
+        {
+            MeasureIds = ["metric_monthly_sales", "metric_monthly_production_quantity"],
+            DimensionIds = ["dim_company", "dim_product_identity", "dim_monthly_period"],
+            RelationshipIds = ["rel_31e410fb3ae11956"], PeriodPolicies = [], PresentationRequirements = ["ranked-table"],
+            FinancialValueReferences = []
+        };
+        var navigation = baseNavigation with { SelectedEntityKinds = ["company", "product"], SelectedEntityReferences = [] };
+        var completeness = new SchemaContextCompletenessResult(SchemaContextCompletenessStatus.Complete, [], [],
+            RetrievalComplete: true, SemanticReviewApproved: false, QueryAuthorized: false);
+        var conceptResolver = new ReviewedProductConceptResolver([
+            new ReviewedProductConcept("product_iron_ore_pellets", "product-catalog-v1", "گندله سنگ‌آهن",
+                ["گندله", "گندله سنگ‌آهن"], "approved", "owner-confirmed:feature141-product-equivalence:2026-10-09")
+        ]);
+        var scopeResolver = new AuthorizedCompanyDiscoveryScopeResolver([
+            new AuthorizedCompanyDiscoveryScope(request.TenantId, "tenant-test-scope", "tenant-approval", false)
+        ]);
+        var service = new OfflineStructuredQueryPlanningService(new FakeRequirementsExtractor(requirements),
+            new FakeNavigator(navigation), new FakeContextProvider(context), new FakeCompletenessValidator(completeness),
+            new StructuredQueryPlanBuilder(), new StructuredQueryPlanValidator(), new FakeCompanyBinder(),
+            productConceptResolver: conceptResolver, companyDiscoveryScopeResolver: scopeResolver);
+
+        var result = await service.PlanAsync(request, CancellationToken.None);
+
+        Assert.Equal(PopulationSalesScope.RequestedProductSales, result.Plan.PopulationSalesScope);
+        Assert.Equal("explicit-reporting-period-v1", result.Plan.PopulationCoveragePolicyId);
+        Assert.Equal(mordadStart, result.Plan.Period.ReportingPeriodStart);
+        Assert.Equal(mordadEnd, result.Plan.Period.ReportingPeriodEnd);
+        Assert.Null(result.Plan.Period.MaximumPeriods);
+        Assert.Contains("explicit-period", result.Plan.Period.Policies);
+        Assert.DoesNotContain("population_discovery_uses_trailing_12_calendar_month_observation_window", result.Plan.Diagnostics);
     }
 
     [Fact]

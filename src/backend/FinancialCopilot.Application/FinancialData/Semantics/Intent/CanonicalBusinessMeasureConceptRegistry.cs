@@ -235,10 +235,14 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
         var rankedResult = intent.Ranking is not null || intent.Output?.Kind == RequestedOutputKind.RankedList;
         var companyLabelTerms = (intent.EntityScope?.CompanyLabels ?? [])
             .Select(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm).Where(term => term.Length > 0).ToHashSet(StringComparer.Ordinal);
+        var statementItemsOnly = measures.Length > 0 && measures.All(measure =>
+            measure.CanonicalizationStatus == MeasureCanonicalizationStatus.Canonicalized
+            && measure.Kind == MeasureConceptKind.FinancialStatementItem);
         var requestedFields = (intent.Output?.RequestedFields ?? [])
             .Where(field => !string.IsNullOrWhiteSpace(field)
                 && !(multiCompanyResult && companyLabelTerms.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field)))
                 && !GenericValuePlaceholders.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field))
+                && !(statementItemsOnly && PeriodPlaceholders.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field)))
                 && !(multiCompanyResult && CompanyIdentityPlaceholders.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field)))
                 && !(rankedResult && RankPlaceholders.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field)))
                 && !measureTerms.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field))
@@ -249,9 +253,6 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
         // Canonicalize(measure)); an *inferred* constraint that only restates that grain carries no
         // semantics and is removed. Explicit constraints and every other constraint are preserved. The
         // model names it "valueGrain" or, per requested measure, "<conceptId>ValueGrain".
-        var statementItemsOnly = measures.Length > 0 && measures.All(measure =>
-            measure.CanonicalizationStatus == MeasureCanonicalizationStatus.Canonicalized
-            && measure.Kind == MeasureConceptKind.FinancialStatementItem);
         var grainNames = measures.Select(measure => measure.ConceptId + "ValueGrain").Append("valueGrain").ToArray();
         var constraints = (intent.Constraints ?? []).Where(constraint => !(statementItemsOnly
                 && constraint.Provenance == ConstraintProvenance.Inferred
@@ -259,9 +260,36 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
                 && string.Equals(constraint.Value?.Trim(), "companyTotal", StringComparison.OrdinalIgnoreCase)))
             .ToArray();
 
+        // A statement basis stated as a "statementScope" constraint («بر اساس صورت‌های مالی جداگانه») is the measures'
+        // own statementScope qualifier: it is applied where the qualifier is unspecified and the constraint removed. A
+        // measure with a different explicit scope keeps the constraint, so the request is refused rather than merged.
+        if (statementItemsOnly && StatedStatementScope(constraints) is { } statedScope
+            && measures.All(measure => measure.Qualifiers.StatementScope is FinancialStatementScope.Unspecified
+                || measure.Qualifiers.StatementScope == statedScope))
+        {
+            measures = measures.Select(measure => measure with
+            {
+                Qualifiers = measure.Qualifiers with { StatementScope = statedScope }
+            }).ToArray();
+            constraints = constraints.Where(constraint => StatementBasisOf(constraint) is null).ToArray();
+        }
+        // A statement period named by its end only («دوره شش‌ماهه منتهی به شهریور ۱۴۰۵») arrives either as an explicit
+        // month or as a date range without a start; for statement items both mean the period ending in that month, so
+        // the end-only range becomes that explicit month (monthly measures keep their range semantics untouched).
+        var period = intent.Period;
+        if (statementItemsOnly && period is { Kind: ReportingPeriodKind.DateRange } && string.IsNullOrWhiteSpace(period.StartLabel)
+            && !string.IsNullOrWhiteSpace(period.EndLabel))
+            period = period with { Kind = ReportingPeriodKind.ExplicitMonth, Granularity = ReportingPeriodGranularity.Month };
+        // «در دوره مشترک» on a statement comparison of named companies restates the engine's documented policy (the
+        // latest reporting period every named company reports), so the "commonPeriod" constraint is removed.
+        if (statementItemsOnly && (intent.EntityScope?.CompanyLabels ?? []).Count > 1
+            && intent.Period?.Kind is ReportingPeriodKind.Unspecified or ReportingPeriodKind.LatestAvailable)
+            constraints = constraints.Where(constraint => !IsCommonPeriodConstraint(constraint)).ToArray();
+
         return intent with
         {
             Measures = measures,
+            Period = period!,
             Constraints = constraints,
             Operation = operation!,
             Filters = CanonicalizeFilter(intent.Filters),
@@ -269,6 +297,44 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
             Output = intent.Output is null ? intent.Output! : intent.Output with { RequestedFields = requestedFields },
             Ambiguity = ambiguity!
         };
+    }
+
+    // Constraint names are model-written free text (observed for one question: "commonPeriod", "commonReportingPeriod",
+    // "periodAlignment=commonPeriod", "دوره=مشترک"; "statementScope", "statementBasis"), so they are recognized by the
+    // meaning of name and value together; a statement basis must be named by the value.
+    private static bool IsStatementScopeConstraint(UserConstraint constraint)
+    {
+        var text = $"{constraint.Name} {constraint.Value}";
+        return new[] { "scope", "basis", "consolidat", "statement", "صورت", "مبنا" }
+            .Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsCommonPeriodConstraint(UserConstraint constraint)
+    {
+        var text = $"{constraint.Name} {constraint.Value}";
+        return (text.Contains("common", StringComparison.OrdinalIgnoreCase) || text.Contains("مشترک", StringComparison.Ordinal))
+            && new[] { "period", "alignment", "دوره" }.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>The one basis named by the statement-basis constraints, or null when none or conflicting.</summary>
+    private static FinancialStatementScope? StatedStatementScope(IEnumerable<UserConstraint> constraints)
+    {
+        var scopes = constraints.Select(StatementBasisOf).OfType<FinancialStatementScope>().Distinct().ToArray();
+        return scopes.Length == 1 ? scopes[0] : null;
+    }
+
+    /// <summary>The statement basis a basis-named constraint states in its value; null for any other constraint.</summary>
+    private static FinancialStatementScope? StatementBasisOf(UserConstraint constraint)
+    {
+        if (!IsStatementScopeConstraint(constraint)) return null;
+        var value = CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(constraint.Value ?? string.Empty);
+        return value.Contains("غیرتلفیقی", StringComparison.Ordinal) || value.Contains("غیر تلفیقی", StringComparison.Ordinal)
+            || value.Contains("جداگانه", StringComparison.Ordinal) || value.Contains("مستقل", StringComparison.Ordinal)
+            || value.Contains("standalone", StringComparison.OrdinalIgnoreCase) || value.Contains("separate", StringComparison.OrdinalIgnoreCase)
+                ? FinancialStatementScope.Standalone
+            : value.Contains("تلفیقی", StringComparison.Ordinal) || value.Contains("consolidated", StringComparison.OrdinalIgnoreCase)
+                ? FinancialStatementScope.Consolidated
+            : null;
     }
 
     private RequestedMeasure Canonicalize(RequestedMeasure measure, IReadOnlyList<string> productLabels)
@@ -326,6 +392,17 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
         CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("amount"),
         CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("مقدار"),
         CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("ارزش"),
+    };
+
+    // Every statement-item answer states its reporting period, so a requested period field restates the output.
+    private static readonly HashSet<string> PeriodPlaceholders = new(StringComparer.Ordinal)
+    {
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("period"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("reportingPeriod"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("commonPeriod"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("دوره"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("دوره مشترک"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("دوره گزارش"),
     };
 
     private static readonly HashSet<string> RankPlaceholders = new(StringComparer.Ordinal)

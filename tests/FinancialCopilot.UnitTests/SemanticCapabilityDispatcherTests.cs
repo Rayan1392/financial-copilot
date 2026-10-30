@@ -200,6 +200,52 @@ public sealed class SemanticCapabilityDispatcherTests
         Assert.Equal(1, feedback.Calls);
     }
 
+    [Fact]
+    public async Task InvalidFrameThatFallsBack_DefersItsOneSettlementToTheFallback()
+    {
+        // A two-company comparison has no single symbol, so the registered source frame is invalid before any executor runs.
+        // The Feature 141 fallback answers it and must settle the turn's own reservation exactly once.
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var billing = new RecordingBilling();
+        var executor = new Executor("monthly_activity_trend");
+        var coordinator = new SemanticExecutionCoordinator(new SemanticCapabilityDispatcher(registry, [executor]), billing,
+            new RecordingFeedback(), new RecordingEventSink());
+        var invalid = Frame("monthly_activity_trend") with { Slots = [] };
+        var request = new AiQueryRequest("compare", Guid.NewGuid(), Guid.NewGuid(), "invalid-then-fallback");
+        var reservation = await billing.TryReserveAsync(new BillingReservationRequest(
+            request.CorrelationId, request.TenantId, request.ActorId, "AiQuery.Scanner", request.UserId, request.ApiClientId,
+            request.ExternalUserId, BillingOperationId: request.BillingOperationId), default);
+
+        var operation = await coordinator.ExecuteWithReservationAsync(invalid, Context(), request, reservation,
+            deferSettlementForFallback: true, default);
+
+        Assert.Equal(CapabilityExecutionStatus.ClarificationRequired, operation.Execution.Status);
+        Assert.Same(reservation, operation.DeferredReservation);
+        Assert.Equal(0, billing.Finalizations);
+        Assert.Equal(0, executor.Calls);
+    }
+
+    [Fact]
+    public async Task InvalidFrameWithoutFallback_SettlesItsReservationImmediately()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var billing = new RecordingBilling();
+        var coordinator = new SemanticExecutionCoordinator(new SemanticCapabilityDispatcher(registry, [new Executor("monthly_activity_trend")]),
+            billing, new RecordingFeedback(), new RecordingEventSink());
+        var invalid = Frame("monthly_activity_trend") with { Slots = [] };
+        var request = new AiQueryRequest("trend", Guid.NewGuid(), Guid.NewGuid(), "invalid-no-fallback");
+        var reservation = await billing.TryReserveAsync(new BillingReservationRequest(
+            request.CorrelationId, request.TenantId, request.ActorId, "AiQuery.Scanner", request.UserId, request.ApiClientId,
+            request.ExternalUserId, BillingOperationId: request.BillingOperationId), default);
+
+        var operation = await coordinator.ExecuteWithReservationAsync(invalid, Context(), request, reservation,
+            deferSettlementForFallback: false, default);
+
+        Assert.Null(operation.DeferredReservation);
+        Assert.Equal(1, billing.Finalizations);
+        Assert.Equal("ValidationFailed", billing.LastCompletionStatus);
+    }
+
     [Theory]
     [InlineData(QuerySlotValidationState.Ambiguous, null, DialogueOutcomeReasonCodes.EntityAmbiguous)]
     [InlineData(QuerySlotValidationState.Invalid, DialogueOutcomeReasonCodes.EntityNotFound, DialogueOutcomeReasonCodes.EntityNotFound)]

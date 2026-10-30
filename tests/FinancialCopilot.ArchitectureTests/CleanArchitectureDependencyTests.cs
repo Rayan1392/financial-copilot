@@ -248,7 +248,7 @@ public sealed class CleanArchitectureDependencyTests
         {
             var source = File.ReadAllText(file);
             var semanticBranch = source.IndexOf("SemanticFrame is", StringComparison.Ordinal);
-            var semanticExecution = source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
+            var semanticExecution = FindSemanticCoordinatorCall(source);
             Assert.True(semanticBranch >= 0 && semanticExecution > semanticBranch,
                 $"{Path.GetFileName(file)} must execute validated semantic frames through the coordinator.");
         }
@@ -256,11 +256,19 @@ public sealed class CleanArchitectureDependencyTests
         foreach (var file in files.Skip(1))
         {
             var source = File.ReadAllText(file);
-            var semanticExecution = source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
+            var semanticExecution = FindSemanticCoordinatorCall(source);
             var modelResolution = source.IndexOf("ResolveModelClient(request)", StringComparison.Ordinal);
             Assert.True(modelResolution > semanticExecution,
                 $"{Path.GetFileName(file)} must not require an AI model before deterministic semantic execution.");
         }
+    }
+
+    private static int FindSemanticCoordinatorCall(string source)
+    {
+        var reservedCall = source.IndexOf("semanticExecutionCoordinator.ExecuteWithReservationAsync", StringComparison.Ordinal);
+        return reservedCall >= 0
+            ? reservedCall
+            : source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
     }
 
     [Fact]

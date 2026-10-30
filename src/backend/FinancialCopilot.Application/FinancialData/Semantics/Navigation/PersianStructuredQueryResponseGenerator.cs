@@ -79,6 +79,11 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         {
             if (status == StructuredAnswerStatus.Incomplete && request.Plan.PopulationCoveragePolicyId is not null)
             {
+                // Owner decision 2026-10-30: a product mapping limited to approved aliases still ranks the companies that
+                // have a valid observation, labelled as partial. Incomplete company-scope coverage is still refused.
+                if (request.Plan.PopulationSalesScope is not null
+                    && execution.DiagnosticCode == "population_discovery_product_alias_coverage_incomplete")
+                    return RenderPartialProducerSalesRanking(request, request.Plan, execution);
                 if (request.Plan.PopulationSalesScope is not null)
                     return new(status,
                         "پوشش جمعیت تولیدکنندگان یا نگاشت محصول برای رتبه‌بندی کامل نیست؛ رتبهٔ مالی گزارش نمی‌شود.",
@@ -124,7 +129,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         var evidence = execution.Rows.Select(row => ToEvidence(row, companyLabels, productLabel)).ToArray();
         var tableRows = execution.Rows.Select(ToDisplayFacts).ToArray();
         var metric = request.Plan.Sources.FirstOrDefault()?.MetricCode ?? request.Plan.Sources.FirstOrDefault()?.CatalogId;
-        var measure = MeasureLabel(metric);
+        var measure = MeasureLabel(metric, request.Plan.Sources.FirstOrDefault()?.TitleFa);
         if (IsQuantityMetric(metric) && HasIncompatibleQuantityUnits(execution.Rows))
             return new(StructuredAnswerStatus.Ambiguous,
                 "واحدهای اندازه‌گیری گزارش‌ها با هم سازگار نیستند؛ نتیجهٔ عددی ارائه نمی‌شود.", null,
@@ -143,6 +148,8 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
                 RenderComparisons(measure, unit, operation.Kind, execution.Rows, evidence),
             _ when request.Plan.Entities.Count(x => x.EntityKind.Equals("Company", StringComparison.OrdinalIgnoreCase)) > 1
                 => RenderCompanyComparison(measure, unit, execution.Rows, evidence),
+            _ when MonthlyMeasureLabel(metric) is not null && execution.Rows.Count == 1
+                => RenderMonthlyValue(metric, unit, execution.Rows[0], evidence[0]),
             _ => RenderValues(measure, unit, execution.Rows, evidence)
         };
         textAnswer = AppendWarnings(textAnswer, execution.Warnings);
@@ -161,7 +168,14 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         var subjectAndPeriod = string.Join(" ", new[] { Subject(evidence[0]), Period(evidence[0]).TrimStart() }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
         var provenance = Provenance(evidence[0]);
-        return $"{subjectAndPeriod}، {measure}: {Value(row, "Value")} {unit}{(provenance.Length == 0 ? "." : "." + provenance + ".")}";
+        // A statement value states its reporting basis, so a standalone default is never mistaken for the consolidated figure.
+        var basis = row.GetValueOrDefault("IsComposing") switch
+        {
+            true => " بر اساس صورت مالی تلفیقی",
+            false => " بر اساس صورت مالی جداگانه",
+            _ => string.Empty
+        };
+        return $"{subjectAndPeriod}، {measure}{basis}: {Amount(row.GetValueOrDefault("Value"), unit)}{(provenance.Length == 0 ? "." : "." + provenance + ".")}";
     }
 
     private static string RenderComparisons(string measure, string unit, PlanFinancialOperationKind kind,
@@ -170,20 +184,36 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         var row = rows[0];
         if (row.GetValueOrDefault("ComparisonStatus") as string is not (null or "comparable"))
             return "دوره‌های گزارش برای این مقایسه قابل تأیید نیستند؛ نتیجهٔ عددی ارائه نمی‌شود.";
-        var current = Value(row, "Value");
-        var previous = Value(row, "PreviousValue");
+        var current = Amount(row.GetValueOrDefault("Value"), unit);
+        var previous = Amount(row.GetValueOrDefault("PreviousValue"), unit);
         var changeKey = kind == PlanFinancialOperationKind.GrowthPercentage ? "GrowthPercentage" : "ComparisonValue";
         var changeUnit = kind == PlanFinancialOperationKind.GrowthPercentage ? "درصد" : unit;
         var subject = Subject(evidence[0]);
         var provenance = Provenance(evidence[0]);
-        return $"{subject}، {measure} در دورهٔ جاری {current} {unit} و در دورهٔ مبنا {previous} {unit} بوده است؛ " +
-               $"مقدار ثبت‌شده برای تغییر {(kind == PlanFinancialOperationKind.GrowthPercentage ? "درصدی" : "مطلق")}: {Value(row, changeKey)} {changeUnit}." +
+        return $"{subject}، {measure} در دورهٔ جاری {current} و در دورهٔ مبنا {previous} بوده است؛ " +
+               $"مقدار ثبت‌شده برای تغییر {(kind == PlanFinancialOperationKind.GrowthPercentage ? "درصدی" : "مطلق")}: {Amount(row.GetValueOrDefault(changeKey), changeUnit)}." +
                (provenance.Length == 0 ? string.Empty : provenance + ".");
     }
 
+    /// <summary>One monthly production or sales figure: «تولید گندله کگل در شهریور ۱۴۰۵ برابر با ۱٬۰۸۵٬۱۵۷ تن بوده است.»</summary>
+    private static string RenderMonthlyValue(string? metric, string unit, IReadOnlyDictionary<string, object?> row,
+        StructuredAnswerEvidence evidence)
+    {
+        var company = Text(row.GetValueOrDefault("CompanySymbol")) ?? evidence.Company;
+        var subject = string.Join(" ", new[] { MonthlyMeasureLabel(metric), evidence.Product, company }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var period = Period(evidence);
+        return $"{subject}{(period.Length == 0 ? "" : " " + period)} برابر با {Amount(row.GetValueOrDefault("Value"), unit)} بوده است."
+            + Provenance(evidence);
+    }
+
+    /// <summary>A trend as one line per reported period, without repeating the source after every period.</summary>
     private static string RenderTimeSeries(string measure, string unit, IReadOnlyList<StructuredAnswerEvidence> evidence) =>
-        "روند " + measure + " بر اساس دوره‌های گزارش‌شده: " + string.Join("؛ ", evidence.Select(item =>
-            $"{Period(item)} {Fact(item, "Value")} {unit}{Provenance(item)}")) + ".";
+        "روند " + string.Join(" ", new[] { measure, evidence.Count == 0 ? null : Subject(evidence[0]) }
+            .Where(value => !string.IsNullOrWhiteSpace(value))) + ":\n"
+        + string.Join("\n", evidence.Select(item =>
+            $"{PeriodPhrase(item)}: {Amount(item.Facts.GetValueOrDefault("Value"), unit, "ناموجود")}"))
+        + (evidence.Count == 0 ? string.Empty : Provenance(evidence[0]));
 
     private static string RenderRanking(string measure, string unit, IReadOnlyList<IReadOnlyDictionary<string, object?>> rows,
         IReadOnlyList<StructuredAnswerEvidence> evidence)
@@ -194,7 +224,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         var rankingLabel = growthRanking ? "رشد " + measure : measure;
         return "رتبه‌بندی بر اساس " + rankingLabel + ": " +
             string.Join("؛ ", rows.Select((row, index) =>
-                $"رتبهٔ {Digits((index + 1).ToString(Invariant))}: {Subject(evidence[index])}، {Value(row, resultKey)} {resultUnit}{Provenance(evidence[index])}")) + ".";
+                $"رتبهٔ {Digits((index + 1).ToString(Invariant))}: {Subject(evidence[index])}، {Amount(row.GetValueOrDefault(resultKey), resultUnit)}{Provenance(evidence[index])}")) + ".";
     }
 
     private static string RenderProducerSalesRanking(StructuredQueryPlan plan, string measure, string unit,
@@ -210,14 +240,62 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             var company = evidence[index].Company ?? "شرکت با هویت نامشخص";
             var productName = plan.PopulationSalesScope == PopulationSalesScope.RequestedProductSales
                 ? "، " + (evidence[index].Product ?? product) : string.Empty;
-            return $"رتبهٔ {Digits((index + 1).ToString(Invariant))}: {company}{productName}، {Value(row, "Value")} {unit}{Provenance(evidence[index])}";
+            return $"رتبهٔ {Digits((index + 1).ToString(Invariant))}: {company}{productName}، {Amount(row.GetValueOrDefault("Value"), unit)}{Provenance(evidence[index])}";
         })) + ".";
+    }
+
+    /// <summary>
+    /// A producer ranking over the companies that have a valid observation in the requested period, in the executor's
+    /// deterministic order (value descending, then company). A company without a value is left out, never ranked as
+    /// zero; quantities in incompatible units are not ranked; the answer never claims complete market coverage.
+    /// </summary>
+    private PersianStructuredQueryResponse RenderPartialProducerSalesRanking(StructuredQueryAnswerRequest request,
+        StructuredQueryPlan plan, StructuredQueryExecutionResult execution)
+    {
+        var diagnostics = (request.Diagnostics ?? []).Concat(execution.DiagnosticCode is null ? [] : [execution.DiagnosticCode])
+            .Append("population_ranking_partial_product_coverage").Distinct(StringComparer.Ordinal).ToArray();
+        var rows = execution.Rows.Where(row => row.GetValueOrDefault("CompanyId") is Guid
+            && row.GetValueOrDefault("Value") is not (null or DBNull)).ToArray();
+        if (rows.Length == 0)
+            return new(StructuredAnswerStatus.Incomplete, PopulationNoMatchText(plan), execution.EffectiveUnit,
+                request.FailureStage ?? "coverage_validation", execution.Warnings, [], [], diagnostics);
+        var metric = plan.Sources.FirstOrDefault()?.MetricCode ?? plan.Sources.FirstOrDefault()?.CatalogId;
+        if (IsQuantityMetric(metric) && HasIncompatibleQuantityUnits(rows))
+            return new(StructuredAnswerStatus.Ambiguous,
+                "واحدهای اندازه‌گیری گزارش‌ها با هم سازگار نیستند؛ نتیجهٔ عددی ارائه نمی‌شود.", null,
+                "unit_validation", [], [], [], diagnostics.Append("monthly_quantity_units_incompatible").ToArray());
+
+        var evidence = rows.Select(row => ToEvidence(row, CompanyLabels(plan), ProductLabel(plan))).ToArray();
+        var unit = IsQuantityMetric(metric)
+            ? ResolveQuantityUnit(rows.SelectMany(QuantityUnitsInRow).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)))
+            : ResolveUnit(execution, metric);
+        var product = plan.ProductConcept?.CanonicalLabel ?? ProductLabel(plan) ?? "محصول تأییدشده";
+        var basis = plan.PopulationSalesScope == PopulationSalesScope.TotalCompanySales
+            ? $"{MeasureLabel(metric)} کل شرکت"
+            : $"{MeasureLabel(metric)} {product}";
+        var period = plan.Period.ReportingPeriodStart is { } start && plan.Period.ReportingPeriodEnd is { } end
+            ? PersianReportingPeriodText.Window(start, end)
+            : PeriodPhrase(evidence[0]);
+        var items = rows.Select((row, index) =>
+            $"رتبهٔ {Digits((index + 1).ToString(Invariant))}: {evidence[index].Company ?? "شرکت با هویت نامشخص"}، " +
+            Amount(row.GetValueOrDefault("Value"), unit));
+        // Report identities stay in the evidence; the text names a provider only when it is not the default source.
+        var providers = evidence.Select(item => item.Provider).OfType<string>().Where(provider => !IsDefaultProvider(provider))
+            .Distinct(StringComparer.Ordinal).ToArray();
+        var source = providers.Length == 0 ? string.Empty : $"\nمنبع: {string.Join("، ", providers)}";
+        var text = $"در {period}، در میان شرکت‌های تولیدکنندهٔ {product} که اطلاعات معتبر دارند، رتبه‌بندی بر اساس {basis} به شرح زیر است:\n" +
+            string.Join("\n", items) +
+            "\nاین رتبه‌بندی فقط شرکت‌های دارای مشاهدهٔ معتبر در داده‌های موجود را در بر می‌گیرد و پوشش کامل بازار را نشان نمی‌دهد؛ " +
+            "شرکت‌های بدون مشاهدهٔ معتبر کنار گذاشته شده‌اند." + source;
+        return new(StructuredAnswerStatus.Incomplete, AppendWarnings(text, execution.Warnings), unit,
+            request.FailureStage ?? "coverage_validation", execution.Warnings, evidence, rows.Select(ToDisplayFacts).ToArray(),
+            diagnostics);
     }
 
     private static string RenderCompanyComparison(string measure, string unit,
         IReadOnlyList<IReadOnlyDictionary<string, object?>> rows, IReadOnlyList<StructuredAnswerEvidence> evidence) =>
         "مقایسهٔ " + measure + ": " + string.Join("؛ ", rows.Select((row, index) =>
-            $"{Subject(evidence[index])} {Value(row, "Value")} {unit} ({PeriodPhrase(evidence[index])}){Provenance(evidence[index])}")) + ".";
+            $"{Subject(evidence[index])} {Amount(row.GetValueOrDefault("Value"), unit)} ({PeriodPhrase(evidence[index])}){Provenance(evidence[index])}")) + ".";
 
     private string RenderPopulationDiscovery(StructuredQueryPlan plan,
         IReadOnlyList<StructuredAnswerEvidence> evidence,
@@ -232,7 +310,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             var row = rows[index];
             var company = item.Company ?? "شرکت با هویت نامشخص";
             var unit = ResolveRowUnit(row);
-            return $"{company}: تولید ثبت‌شدهٔ {label} {Fact(item, "Value")} {unit} {Period(item).TrimStart()}؛ {Provenance(item)}";
+            return $"{company}: تولید ثبت‌شدهٔ {label} {Amount(row.GetValueOrDefault("Value"), unit)} {Period(item).TrimStart()}{Provenance(item)}";
         });
         var prefix = $"در گزارش‌های ماهانهٔ واجد شرایط {window}، تولید مثبت {label} برای شرکت‌های زیر مشاهده شد: ";
         var coverage = partial
@@ -295,7 +373,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
     private static IReadOnlyDictionary<string, string> ToDisplayFacts(IReadOnlyDictionary<string, object?> row)
     {
         var facts = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var key in new[] { "CompanyId", "CompanyName", "CompanySymbol", "ProductCode", "ProductTitle", "PeriodStart", "PeriodEnd", "Value", "PreviousValue", "GrowthPercentage", "ComparisonValue", "SourceUnit", "PreviousSourceUnit", "ProviderName", "ReportId", "ExternalReportId", "SourceRowFingerprint", "ComparisonStatus" })
+        foreach (var key in new[] { "CompanyId", "CompanyName", "CompanySymbol", "ProductTitle", "PeriodStart", "PeriodEnd", "Value", "PreviousValue", "GrowthPercentage", "ComparisonValue", "SourceUnit", "PreviousSourceUnit", "ProviderName", "ReportId", "ExternalReportId", "SourceRowFingerprint", "ComparisonStatus" })
             if (row.TryGetValue(key, out var value) && value is not null) facts[key] = Convert.ToString(value, Invariant) ?? string.Empty;
         return facts;
     }
@@ -312,7 +390,8 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
         return unit switch
         {
-            "MillionIRR" => "میلیون ریال",
+            "MillionIRR" => MillionIrrLabel,
+            "IRRPerShare" => "ریال به‌ازای هر سهم",
             "percent" or "Percent" => "درصد",
             "source-quantity-unit" or "row-source-unit" or null or "" => "واحد اندازه‌گیری نامشخص",
             _ => unit
@@ -349,12 +428,22 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         "metric_monthly_production_quantity" or "MONTHLY_PRODUCTION_QUANTITY" or
         "metric_monthly_sales_quantity" or "MONTHLY_SALES_QUANTITY";
 
-    private static string MeasureLabel(string? metric) => metric switch
+    /// <summary>The short sentence label of a monthly measure; null for any other measure.</summary>
+    private static string? MonthlyMeasureLabel(string? metric) => metric switch
+    {
+        "metric_monthly_production_quantity" or "MONTHLY_PRODUCTION_QUANTITY" => "تولید",
+        "metric_monthly_sales_quantity" or "MONTHLY_SALES_QUANTITY" => "مقدار فروش",
+        "metric_monthly_sales" or "MONTHLY_SALES" => "مبلغ فروش",
+        _ => null
+    };
+
+    /// <summary>The measure's display label; a statement item is named by its registered title when the plan carries it.</summary>
+    private static string MeasureLabel(string? metric, string? sourceTitle = null) => metric switch
     {
         "metric_monthly_production_quantity" or "MONTHLY_PRODUCTION_QUANTITY" => "مقدار تولید ماهانه",
         "metric_monthly_sales_quantity" or "MONTHLY_SALES_QUANTITY" => "مقدار فروش ماهانه",
         "metric_monthly_sales" or "MONTHLY_SALES" => "مبلغ فروش ماهانه",
-        _ => "مقدار مالی گزارش‌شده"
+        _ => string.IsNullOrWhiteSpace(sourceTitle) ? "مقدار مالی گزارش‌شده" : sourceTitle.Trim()
     };
 
     private static string Value(IReadOnlyDictionary<string, object?> row, string key) =>
@@ -372,6 +461,40 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             _ => Convert.ToString(value, Invariant) ?? string.Empty
         };
         return Digits(text);
+    }
+
+    internal const string MillionIrrLabel = "میلیون ریال";
+
+    /// <summary>
+    /// A value with its unit label for display. A Million IRR amount is shown in Toman (1 Million IRR = 100,000 Toman):
+    /// «میلیارد تومان» from one billion Toman, otherwise «میلیون تومان» or «تومان», at most two decimals. Other units unchanged.
+    /// </summary>
+    internal static string Amount(object? value, string unit, string missing = "در دسترس نیست")
+    {
+        if (value is null or DBNull) return $"{missing} {unit}";
+        if (unit != MillionIrrLabel || !TryDecimal(value, out var millionIrr)) return $"{FormatValue(value)} {unit}";
+        var toman = Math.Abs(millionIrr * 100_000m);
+        var (scaled, label) = toman >= 1_000_000_000m ? (toman / 1_000_000_000m, "میلیارد تومان")
+            : toman >= 1_000_000m ? (toman / 1_000_000m, "میلیون تومان") : (toman, "تومان");
+        var text = Math.Round(scaled, 2, MidpointRounding.AwayFromZero).ToString("#,##0.##", Invariant);
+        return (millionIrr < 0 ? "منفی " : string.Empty) + Digits(text) + " " + label;
+    }
+
+    /// <summary>The unit named beside converted amounts (Million IRR amounts are displayed in Toman).</summary>
+    internal static string DisplayUnit(string unit) => unit == MillionIrrLabel ? "تومان" : unit;
+
+    private static bool TryDecimal(object value, out decimal number)
+    {
+        switch (value)
+        {
+            case decimal d: number = d; return true;
+            case string s: return decimal.TryParse(s, NumberStyles.Number, Invariant, out number);
+            case IConvertible convertible:
+                try { number = convertible.ToDecimal(Invariant); return true; }
+                catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException) { break; }
+        }
+        number = 0;
+        return false;
     }
 
     internal static string Digits(string value)
@@ -426,9 +549,15 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             .Where(item => item.Length > 0).ToArray(),
         _ => []
     };
-    private static string Provenance(StructuredAnswerEvidence item) => item.Provider is null && item.ReportIdentities.Count == 0
-        ? "" : $"\nمنبع: {(item.Provider is null ? "" : item.Provider + (item.ReportIdentities.Count > 0 ? "، " : ""))}" +
-            $"{(item.ReportIdentities.Count > 0 ? "گزارش " + string.Join("، ", item.ReportIdentities) : "")}";
+    /// <summary>
+    /// The source shown to the user: the provider only, and nothing for Noavaran, the product's default source. Report
+    /// identities stay in the evidence and table rows for audit and are never part of the text.
+    /// </summary>
+    private static string Provenance(StructuredAnswerEvidence item) => item.Provider is null || IsDefaultProvider(item.Provider)
+        ? "" : $"\nمنبع: {item.Provider}";
+
+    internal static bool IsDefaultProvider(string? provider) =>
+        string.Equals(provider, "NoavaranCurrentApi", StringComparison.Ordinal);
     private static string AppendWarnings(string text, IReadOnlyList<string> warnings) => warnings.Count == 0
         ? text : text + " هشدار: " + string.Join("؛ ", warnings) + ".";
 }

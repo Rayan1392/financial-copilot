@@ -9,10 +9,14 @@ namespace FinancialCopilot.Infrastructure.Financial.Semantics;
 /// (Feature 129) identifies a product by title; Feature 141 additionally requires a single measurement
 /// unit for a direct value, so a title the company reports in several units is returned as Ambiguous
 /// instead of letting one unit be chosen silently. Feature 129 behavior is unchanged.
+/// A Feature 141 product is its normalized title and unit (plus approved concept aliases); the binding
+/// carries the persisted source labels with that identity. The persisted ProductCode is not a product
+/// identity and is never read (owner decision 2026-10-29).
 /// </summary>
 public sealed class StructuredQueryProductBinder(
     ICanonicalQueryProductResolver resolver,
-    IMonthlyProductCatalogReadRepository? productCatalog = null) : IStructuredQueryProductBinder
+    IMonthlyProductCatalogReadRepository? productCatalog = null,
+    IReviewedProductConceptResolver? conceptResolver = null) : IStructuredQueryProductBinder
 {
     public const string IncompatibleUnitsDiagnostic = "monthly_product_units_incompatible";
 
@@ -23,18 +27,23 @@ public sealed class StructuredQueryProductBinder(
         switch (result)
         {
             case ProductResolutionResult.Resolved resolved:
-                var unitConflict = await FindUnitConflictAsync(resolved.Product, cancellationToken);
+                var product = resolved.Product;
+                var observations = productCatalog is null || string.IsNullOrWhiteSpace(product.ExternalCompanyId)
+                    ? [] : await productCatalog.GetProductCatalogAsync(product.ExternalCompanyId, cancellationToken);
+                var unitConflict = FindUnitConflict(product, observations);
                 if (unitConflict.Count > 1)
-                    return new(StructuredProductBindingStatus.Ambiguous, resolved.Product.CompanyId, null,
-                        resolved.Product.DisplayTitle, null, "company-scoped-product-resolver",
+                    return new(StructuredProductBindingStatus.Ambiguous, product.CompanyId, null,
+                        product.DisplayTitle, null, "company-scoped-product-resolver",
                         unitConflict, IncompatibleUnitsDiagnostic);
                 return new(StructuredProductBindingStatus.Found,
-                    resolved.Product.CompanyId, resolved.Product.ProductKey, resolved.Product.DisplayTitle,
-                    resolved.Product.Unit, resolved.Product.IdentityProvenance, [], null);
+                    product.CompanyId, IdentityKey(product.ExternalCompanyId, product.DisplayTitle, product.Unit),
+                    product.DisplayTitle, product.Unit, product.IdentityProvenance, [], null,
+                    SourceLabels(product, productMention, observations));
             case ProductResolutionResult.Ambiguous ambiguous:
                 return new(StructuredProductBindingStatus.Ambiguous, null,
                     null, null, null, "company-scoped-product-resolver", ambiguous.Candidates
-                        .Select(candidate => candidate.Product.ProductKey).Distinct(StringComparer.Ordinal).ToArray(),
+                        .Select(candidate => IdentityKey(candidate.Product.ExternalCompanyId, candidate.Product.DisplayTitle,
+                            candidate.Product.Unit)).Distinct(StringComparer.Ordinal).ToArray(),
                     "monthly_product_identity_ambiguous");
             case ProductResolutionResult.NotFound:
                 return new(StructuredProductBindingStatus.NotFound, null,
@@ -48,26 +57,56 @@ public sealed class StructuredQueryProductBinder(
         }
     }
 
+    /// <summary>The company-scoped semantic product identity: normalized title and unit, nothing else.</summary>
+    public static string IdentityKey(string? externalCompanyId, string? title, string? unit) =>
+        $"{externalCompanyId}:TITLE:{TitleKey(title)}|UNIT:{UnitKey(unit)}";
+
+    // The existing Feature 129 normalization, compared case-insensitively as the resolver compares titles.
+    private static string TitleKey(string? title) => MonthlyProductComparisonNormalizer.Normalize(title).ToLowerInvariant();
+    private static string UnitKey(string? unit) => MonthlyProductComparisonNormalizer.Unit(unit).ToLowerInvariant();
+
     /// <summary>
-    /// Product keys the company reports under the resolved product's title with a different unit.
-    /// Semantic product identity is unit independent (owner rule 1), but a single value must come from
-    /// one unit (rules 4–6); the caller decides, the binder never picks.
+    /// Identity keys of the resolved product's title in each unit the company reports it in. Semantic
+    /// product identity is unit independent (owner rule 1), but a single value must come from one unit
+    /// (rules 4–6); the caller decides, the binder never picks.
     /// </summary>
-    private async Task<IReadOnlyList<string>> FindUnitConflictAsync(CanonicalQueryProduct product, CancellationToken cancellationToken)
+    private static IReadOnlyList<string> FindUnitConflict(CanonicalQueryProduct product,
+        IReadOnlyList<ProductSalesObservation> observations)
     {
-        if (productCatalog is null || string.IsNullOrWhiteSpace(product.ExternalCompanyId)) return [];
-        var observations = await productCatalog.GetProductCatalogAsync(product.ExternalCompanyId, cancellationToken);
-        var title = MonthlyProductTrendCalculator.NormalizeProductText(product.DisplayTitle);
+        var title = TitleKey(product.DisplayTitle);
         if (string.IsNullOrWhiteSpace(title)) return [];
         var variants = observations
-            .Where(row => string.Equals(MonthlyProductTrendCalculator.NormalizeProductText(row.Title), title, StringComparison.OrdinalIgnoreCase))
-            .Select(row => (Unit: NormalizeUnit(row.Unit), Key: row.ProductKey ?? MonthlyProductTrendCalculator.ProductKey(product.ExternalCompanyId, row)))
-            .GroupBy(row => row.Unit, StringComparer.Ordinal)
-            .Select(group => group.Select(row => row.Key).OrderBy(key => key, StringComparer.Ordinal).First())
+            .Where(row => TitleKey(row.Title) == title)
+            .Select(row => UnitKey(row.Unit))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .Select(unit => IdentityKey(product.ExternalCompanyId, product.DisplayTitle, unit))
             .ToArray();
         return variants.Length > 1 ? variants : [];
     }
 
-    private static string NormalizeUnit(string? unit) =>
-        (unit ?? string.Empty).Trim().Normalize().Replace('ي', 'ی').Replace('ك', 'ک').ToLowerInvariant();
+    /// <summary>
+    /// Every persisted Title and Unit spelling of the resolved product in the company's accepted single-month
+    /// reports: rows whose normalized unit equals the product's and whose normalized title is the product's
+    /// title or, when the product title is an alias of an approved product concept, any of that concept's aliases.
+    /// </summary>
+    private MonthlyProductSelection SourceLabels(CanonicalQueryProduct product, string? productMention,
+        IReadOnlyList<ProductSalesObservation> observations)
+    {
+        var title = TitleKey(product.DisplayTitle);
+        var unit = UnitKey(product.Unit);
+        var titles = new HashSet<string>(StringComparer.Ordinal) { title };
+        if (conceptResolver is not null && !string.IsNullOrWhiteSpace(productMention)
+            && conceptResolver.Resolve(productMention) is { Status: ProductConceptResolutionStatus.Resolved } concept)
+        {
+            var aliases = concept.ApprovedAliases.Select(TitleKey).ToHashSet(StringComparer.Ordinal);
+            if (aliases.Contains(title)) titles.UnionWith(aliases);
+        }
+        var rows = observations.Where(row => titles.Contains(TitleKey(row.Title)) && UnitKey(row.Unit) == unit).ToArray();
+        return new(
+            rows.Select(row => row.Title).Append(product.DisplayTitle).OfType<string>()
+                .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+            rows.Select(row => row.Unit ?? string.Empty).Append(product.Unit ?? string.Empty)
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+    }
 }

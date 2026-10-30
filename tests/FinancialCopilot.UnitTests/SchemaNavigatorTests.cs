@@ -155,6 +155,22 @@ public sealed class SchemaNavigatorTests
     }
 
     [Fact]
+    public async Task RequirementsOutline_ContainsTheTypedMonthlyMeasureEvenWithoutAMultiWordAliasInTheQuestion()
+    {
+        // Real-data pilot P22/P25: «تولید» alone never scores (single-token aliases are ignored), so the ranked outline
+        // omitted the production measure and the requirements model refused the question.
+        var (provider, version, hash) = CreateHierarchyProvider();
+        const string question = "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بوده؟";
+
+        var ranked = await provider.GetCompactOutlineAsync(version, hash, question, [], 20_000, CancellationToken.None);
+        var required = await provider.GetCompactOutlineAsync(version, hash, question, ["metric_monthly_production_quantity"],
+            20_000, CancellationToken.None);
+
+        Assert.DoesNotContain("metric_monthly_production_quantity", ranked, StringComparison.Ordinal);
+        Assert.Contains("metric_monthly_production_quantity", required, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RequirementsAndNavigationContracts_EnumerateOnlyCurrentCatalogCandidates()
     {
         var (hierarchyPath, catalogPath, catalogHash) = CreateCatalogFixture(navigationApproved: true);

@@ -179,10 +179,11 @@ public sealed class Feature141CrossCompanyComparisonSemanticsPostgreSqlTests(
                 foreach (var row in scenario.ExpectedRows)
                 {
                     Assert.Contains(row.Label, answer.TextAnswer, StringComparison.Ordinal);
-                    Assert.Contains(PersianStructuredQueryResponseGenerator.FormatValue(row.Value),
+                    // Million IRR amounts are displayed in Toman.
+                    Assert.Contains(PersianStructuredQueryResponseGenerator.Amount(row.Value, PersianStructuredQueryResponseGenerator.MillionIrrLabel),
                         answer.TextAnswer, StringComparison.Ordinal);
                 }
-                Assert.Contains("میلیون ریال", answer.TextAnswer, StringComparison.Ordinal);
+                Assert.Contains("تومان", answer.TextAnswer, StringComparison.Ordinal);
             }
             else if (first.DiagnosticCode != "population_ranking_authorized_company_coverage_incomplete")
             {
@@ -317,7 +318,7 @@ public sealed class Feature141CrossCompanyComparisonSemanticsPostgreSqlTests(
             Name = "Feature 141 cross-company fixture", LastSynchronizedAt = now });
         foreach (var (ticker, id) in companies)
             db.Companies.Add(new NormalizedCompanyRow { Id = id, ProviderName = Provider, ExternalCompanyId = $"cc-{id:N}",
-                Name = $"Fixture {ticker}", Ticker = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
+                Name = $"Fixture {ticker}", Ticker = ticker, CompanySymbol = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
         db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow { Id = sourceItem, ProviderName = Provider,
             StatementType = "IncomeStatement", SourceItemId = 143, TitleFa = "سود خالص", Unit = "N/A", LastSynchronizedAt = now });
         db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow { Id = otherItem, ProviderName = Provider,

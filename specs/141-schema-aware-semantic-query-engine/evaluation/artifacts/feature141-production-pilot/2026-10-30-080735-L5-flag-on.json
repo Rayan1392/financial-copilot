@@ -1,0 +1,49 @@
+{
+  "id": "L5-flag-on",
+  "run": {
+    "Question": "P/E کگل چقدر است؟",
+    "Enabled": true,
+    "Answer": "واحد: میلیون ریال\r\nبرای نماد کگل مقدار قابل اتکایی برای نسبت قیمت به سود در داده‌های فعلی موجود نیست.",
+    "PersistedUserMessage": "P/E کگل چقدر است؟",
+    "PersistedAssistantMessage": "واحد: میلیون ریال\r\nبرای نماد کگل مقدار قابل اتکایی برای نسبت قیمت به سود در داده‌های فعلی موجود نیست.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=DeterministicFallback CorrelationId=feature141-pilot-3c09ba2f886e4dc190b328dcab958966 | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:کگل RequestedMetrics=unknown RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=Executed ReasonCode=none PayloadType=SymbolLookupTableResult",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "SymbolLookup",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:symbol_metric_lookup"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 338.0000,
+    "WalletBalanceAfter": 337.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 6533.3948,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=DeterministicFallback CorrelationId=feature141-pilot-3c09ba2f886e4dc190b328dcab958966",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:کگل RequestedMetrics=unknown RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=Executed ReasonCode=none PayloadType=SymbolLookupTableResult",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-3c09ba2f886e4dc190b328dcab958966 RolloutMode=Shadow LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.88 ExtractedCompany=کگل ExtractedProduct=(null) ExtractedMetric=unknown ExtractedPeriod=(null) ResolvedCompan"
+    ],
+    "ExecutedQueries": []
+  }
+}

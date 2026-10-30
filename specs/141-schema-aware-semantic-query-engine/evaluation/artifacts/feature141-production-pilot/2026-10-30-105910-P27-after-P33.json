@@ -1,0 +1,49 @@
+{
+  "id": "P27-after-P33",
+  "run": {
+    "Question": "کدام شرکت‌ها در مرداد ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "Enabled": true,
+    "Answer": "روند فروش گندله کگل (کگل)",
+    "PersistedUserMessage": "کدام شرکت‌ها در مرداد ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "PersistedAssistantMessage": "روند فروش گندله کگل (کگل)",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-fb97619c9969402586031f1f94db09c0 | Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=entity:مرداد,entity:گندله,entity:تولید,entity:کرده,entity:اند RequestedMetrics= RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=Executed ReasonCode=none PayloadType=MonthlyProductTrendResult",
+    "SemanticCapability": "product_sales_trend",
+    "Intent": "MonthlyProductTrend",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 23.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:product_sales_trend"
+    },
+    "Reservations": [],
+    "LedgerEntries": 2,
+    "LedgerCreditsCharged": 2.0000,
+    "WalletBalanceBefore": 195.0000,
+    "WalletBalanceAfter": 193.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 8336.2548,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-fb97619c9969402586031f1f94db09c0",
+      "Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=entity:مرداد,entity:گندله,entity:تولید,entity:کرده,entity:اند RequestedMetrics= RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=Executed ReasonCode=none PayloadType=MonthlyProductTrendResult",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-fb97619c9969402586031f1f94db09c0 RolloutMode=Canary LegacyCapability=unknown LegacyConfidence=(null) SemanticIntent=product_sales_trend SemanticCapabilityCandidate=product_sales_trend SemanticConfidence=(null) ExtractedCompany=مرداد ExtractedProduct=(null) ExtractedMetric=(null) ExtractedPeriod=(null) ResolvedCompany=کگل Comp"
+    ],
+    "ExecutedQueries": []
+  }
+}

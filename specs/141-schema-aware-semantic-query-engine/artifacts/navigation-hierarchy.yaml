@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "catalogVersion": "1",
-  "catalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+  "catalogHash": "425b4087f0a266f09dd99f0b5bf8593deab4539f46edeb404beef2b607e74605",
   "generatedFrom": "canonical SemanticCatalog YAML",
   "nodes": [
     {
@@ -100,6 +100,7 @@
           "rel_01d20c44fad46b14",
           "rel_0a064593b79bfabb",
           "rel_1f9aee4cf408c134",
+          "rel_26d0b2a4b006b368",
           "rel_27c113242c5db114",
           "rel_38ed0217e96af6f4",
           "rel_43ae23d35efbe735",
@@ -108,6 +109,7 @@
           "rel_4e54d40aee8b45e4",
           "rel_5bc660a22f34ed20",
           "rel_5cce5a3ef281dec0",
+          "rel_71eca79d3b7d6aa2",
           "rel_795f5fd8f8c6a468",
           "rel_7bf681885d1db432",
           "rel_7ea100339cd75190",
@@ -190,8 +192,10 @@
         ],
         "relationshipIds": [
           "rel_0a064593b79bfabb",
+          "rel_26d0b2a4b006b368",
           "rel_4e54d40aee8b45e4",
           "rel_5cce5a3ef281dec0",
+          "rel_71eca79d3b7d6aa2",
           "rel_7ea100339cd75190",
           "rel_818227f1407b2495",
           "rel_8856eca122e9381e",
@@ -237,9 +241,15 @@
           "provenance": "postgres-pg_catalog"
         },
         {
-          "relationshipId": "rel_4e54d40aee8b45e4",
-          "semanticApproval": "owner-approved",
+          "relationshipId": "rel_26d0b2a4b006b368",
+          "semanticApproval": "owner-approved-runtime-join",
           "runtimeJoinable": true,
+          "provenance": "Product-owner data contract (Feature 141 Noavaran company mapping) plus read-only live PostgreSQL verification"
+        },
+        {
+          "relationshipId": "rel_4e54d40aee8b45e4",
+          "semanticApproval": "physical-fk-not-runtime-join",
+          "runtimeJoinable": false,
           "provenance": "postgres-pg_catalog"
         },
         {
@@ -247,6 +257,12 @@
           "semanticApproval": "discovered-unapproved",
           "runtimeJoinable": false,
           "provenance": "postgres-pg_catalog"
+        },
+        {
+          "relationshipId": "rel_71eca79d3b7d6aa2",
+          "semanticApproval": "owner-approved-runtime-join",
+          "runtimeJoinable": true,
+          "provenance": "Product-owner data contract (Feature 141 Noavaran monthly company mapping) plus ingestion code inspection"
         },
         {
           "relationshipId": "rel_7ea100339cd75190",
@@ -280,8 +296,8 @@
         },
         {
           "relationshipId": "rel_e4fa0fe989156533",
-          "semanticApproval": "owner-approved-runtime-join",
-          "runtimeJoinable": true,
+          "semanticApproval": "physical-fk-not-runtime-join",
+          "runtimeJoinable": false,
           "provenance": "postgres-pg_catalog"
         },
         {
@@ -736,7 +752,8 @@
         ],
         "relationshipIds": [
           "rel_31e410fb3ae11956",
-          "rel_4e54d40aee8b45e4"
+          "rel_4e54d40aee8b45e4",
+          "rel_71eca79d3b7d6aa2"
         ],
         "directSourceItemIds": [],
         "providerFinancialIndicatorIds": []
@@ -797,7 +814,8 @@
         ],
         "relationshipIds": [
           "rel_31e410fb3ae11956",
-          "rel_4e54d40aee8b45e4"
+          "rel_4e54d40aee8b45e4",
+          "rel_71eca79d3b7d6aa2"
         ],
         "directSourceItemIds": [],
         "providerFinancialIndicatorIds": []
@@ -834,9 +852,15 @@
         },
         {
           "relationshipId": "rel_4e54d40aee8b45e4",
-          "semanticApproval": "owner-approved",
-          "runtimeJoinable": true,
+          "semanticApproval": "physical-fk-not-runtime-join",
+          "runtimeJoinable": false,
           "provenance": "postgres-pg_catalog"
+        },
+        {
+          "relationshipId": "rel_71eca79d3b7d6aa2",
+          "semanticApproval": "owner-approved-runtime-join",
+          "runtimeJoinable": true,
+          "provenance": "Product-owner data contract (Feature 141 Noavaran monthly company mapping) plus ingestion code inspection"
         }
       ]
     },
@@ -1047,6 +1071,7 @@
         ],
         "relationshipIds": [
           "rel_2588cf95d01a651a",
+          "rel_26d0b2a4b006b368",
           "rel_635b794f3c9a6eec",
           "rel_cd8a77a2717ac71f",
           "rel_e4fa0fe989156533"
@@ -1115,6 +1140,7 @@
         ],
         "relationshipIds": [
           "rel_2588cf95d01a651a",
+          "rel_26d0b2a4b006b368",
           "rel_e4fa0fe989156533"
         ],
         "directSourceItemIds": [],
@@ -1151,9 +1177,15 @@
           "provenance": "EF/application persistence model plus captured live PostgreSQL column/index metadata"
         },
         {
-          "relationshipId": "rel_e4fa0fe989156533",
+          "relationshipId": "rel_26d0b2a4b006b368",
           "semanticApproval": "owner-approved-runtime-join",
           "runtimeJoinable": true,
+          "provenance": "Product-owner data contract (Feature 141 Noavaran company mapping) plus read-only live PostgreSQL verification"
+        },
+        {
+          "relationshipId": "rel_e4fa0fe989156533",
+          "semanticApproval": "physical-fk-not-runtime-join",
+          "runtimeJoinable": false,
           "provenance": "postgres-pg_catalog"
         }
       ]
@@ -35557,5 +35589,5 @@
       ]
     }
   ],
-  "hierarchyHash": "f163367205f4861a4f04c776ed9206bbf968da19196976a2b020e8a6d3ac4753"
+  "hierarchyHash": "e88cb3dc19ab24c6eb2129fe7b0b8cfbb94b6e794d5113a699883e926ccb68c8"
 }

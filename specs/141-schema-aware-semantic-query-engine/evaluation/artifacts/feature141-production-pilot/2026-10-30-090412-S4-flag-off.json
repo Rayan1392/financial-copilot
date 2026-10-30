@@ -1,0 +1,47 @@
+{
+  "id": "S4-flag-off",
+  "run": {
+    "Question": "مقدار تولید گندله کگل در شهریور ۱۴۰۵",
+    "Enabled": false,
+    "Answer": "نام نماد یا شرکت به‌طور قطعی مشخص نشد. لطفاً نام نماد دقیق را وارد کنید.",
+    "PersistedUserMessage": "مقدار تولید گندله کگل در شهریور ۱۴۰۵",
+    "PersistedAssistantMessage": "نام نماد یا شرکت به‌طور قطعی مشخص نشد. لطفاً نام نماد دقیق را وارد کنید.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-pilot-4e15883f26ce48259874c170f8694356 | Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False",
+    "SemanticCapability": null,
+    "Intent": "SymbolLookup",
+    "Outcome": "DisambiguationNeeded",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 191,
+      "CompletionTokens": 193,
+      "TotalTokens": 384,
+      "EstimatedCost": null,
+      "ExecutionRoute": null
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 220.0000,
+    "WalletBalanceAfter": 219.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 12267.5612,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-pilot-4e15883f26ce48259874c170f8694356",
+      "Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False"
+    ],
+    "ExecutedQueries": []
+  }
+}

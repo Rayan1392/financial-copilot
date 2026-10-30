@@ -1,0 +1,53 @@
+{
+  "id": "L1-flag-on",
+  "run": {
+    "Question": "روند فروش کگهر",
+    "Enabled": true,
+    "Answer": "درخواست شما پشتیبانی می‌شود، اما داده قابل استفاده‌ای برای آن در بازه موجود پیدا نشد.",
+    "PersistedUserMessage": "روند فروش کگهر",
+    "PersistedAssistantMessage": "درخواست شما پشتیبانی می‌شود، اما داده قابل استفاده‌ای برای آن در بازه موجود پیدا نشد.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_activity_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-5f4b982b3f6c4884829bf6391b83dc38 | Chat semantic route selected. Route=semantic_capability Capability=monthly_activity_trend ExtractedEntities=entity:کگهر RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=monthly_activity_trend Status=NoData ReasonCode=supported_but_no_rows PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:monthly_activity_trend:NoData Definitive=False CorrelationId=feature141-pilot-5f4b982b3f6c4884829bf6391b83dc38",
+    "SemanticCapability": "monthly_activity_trend",
+    "Intent": "MonthlyActivityTrend",
+    "Outcome": "NoData",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 2608,
+      "CompletionTokens": 735,
+      "TotalTokens": 3343,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:monthly_activity_trend"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 409.0000,
+    "WalletBalanceAfter": 408.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-5f4b982b3f6c4884829bf6391b83dc38",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگهر Products= RequestedMeasures=OtherBusinessMeasure PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=None Presentation=TimeSeries"
+    ],
+    "ElapsedMs": 16489.1215,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_activity_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-5f4b982b3f6c4884829bf6391b83dc38",
+      "Chat semantic route selected. Route=semantic_capability Capability=monthly_activity_trend ExtractedEntities=entity:کگهر RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=monthly_activity_trend Status=NoData ReasonCode=supported_but_no_rows PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:monthly_activity_trend:NoData Definitive=False CorrelationId=feature141-pilot-5f4b982b3f6c4884829bf6391b83dc38",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-5f4b982b3f6c4884829bf6391b83dc38 RolloutMode=Shadow LegacyCapability=monthly_activity_trend LegacyConfidence=0.95 SemanticIntent=monthly_activity_trend SemanticCapabilityCandidate=monthly_activity_trend SemanticConfidence=0.95 ExtractedCompany=کگهر ExtractedProduct=(null) ExtractedMetric=فروش ExtractedPeriod=(null) ResolvedCo"
+    ],
+    "ExecutedQueries": []
+  }
+}

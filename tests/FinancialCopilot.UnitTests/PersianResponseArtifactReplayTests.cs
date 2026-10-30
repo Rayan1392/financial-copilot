@@ -178,10 +178,22 @@ public sealed class PersianResponseArtifactReplayTests
         {
             var formatted = value.ToString("#,##0.############################", System.Globalization.CultureInfo.InvariantCulture)
                 .Replace(',', '٬').Replace('.', '٫');
-            Assert.Contains(ConvertDigits(formatted), answer);
+            // A Million IRR amount is displayed in Toman; either form proves the observed value was rendered unchanged.
+            Assert.True(answer.Contains(ConvertDigits(formatted), StringComparison.Ordinal)
+                || answer.Contains(TomanDisplay(value), StringComparison.Ordinal), $"{caseId}: {value} not rendered in «{answer}»");
         }
         if (caseId == "monthly-08-sales-six-month-trend")
-            Assert.All(new[] { "۱۲۰", "۱۵۰", "۲۰۰", "۲۵۰", "۳۰۰", "۸۵۰" }, value => Assert.Contains(value, answer));
+            Assert.All(new[] { "۱۲ میلیون", "۱۵ میلیون", "۲۰ میلیون", "۲۵ میلیون", "۳۰ میلیون", "۸۵ میلیون" }, value => Assert.Contains(value, answer));
+    }
+
+    private static string TomanDisplay(decimal millionIrr)
+    {
+        var toman = Math.Abs(millionIrr) * 100_000m;
+        var (scaled, label) = toman >= 1_000_000_000m ? (toman / 1_000_000_000m, "میلیارد تومان")
+            : toman >= 1_000_000m ? (toman / 1_000_000m, "میلیون تومان") : (toman, "تومان");
+        var text = Math.Round(scaled, 2, MidpointRounding.AwayFromZero)
+            .ToString("#,##0.##", System.Globalization.CultureInfo.InvariantCulture).Replace(',', '٬').Replace('.', '٫');
+        return ConvertDigits(text) + " " + label;
     }
 
     private static string ConvertDigits(string value) => new(value.Select(character => character is >= '0' and <= '9'

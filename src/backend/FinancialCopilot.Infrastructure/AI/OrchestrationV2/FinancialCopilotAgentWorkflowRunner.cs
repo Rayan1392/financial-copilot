@@ -114,6 +114,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             var semanticText = semantic.Execution.Payload switch
             {
                 string text => text,
+                Workflow.Feature141ChatAnswer feature141 => feature141.Text,
                 ComprehensiveAnalysisQueryResponse analysis => ComprehensiveAnalysisToolResult.Success(analysis).AgentSummary,
                 SemanticComprehensiveAnalysisPayload combined when combined.Lookup.Rows.Count > 0 =>
                     $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary}",

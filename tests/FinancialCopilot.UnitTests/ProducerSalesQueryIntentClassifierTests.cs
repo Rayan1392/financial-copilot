@@ -47,6 +47,23 @@ public sealed class ProducerSalesQueryIntentClassifierTests
         Assert.False(intent.RequiresClarification);
     }
 
+    [Theory]
+    [InlineData("شرکت‌ها را بر اساس مبلغ فروش گندله در مرداد ۱۴۰۵ رتبه‌بندی کن.", "metric_monthly_sales")]
+    [InlineData("شرکت‌ها را بر اساس مقدار فروش گندله در مرداد ۱۴۰۵ رتبه‌بندی کن.", "metric_monthly_sales_quantity")]
+    public void RankingByTheNamedProductsSalesNeedsNoProductionVerb(string question, string measure)
+    {
+        var intent = _classifier.Classify(question, "گندله");
+
+        Assert.True(intent.IsProducerSalesRanking);
+        Assert.Equal(PopulationSalesScope.RequestedProductSales, intent.Scope);
+        Assert.Equal(measure, intent.MeasureCatalogId);
+        Assert.False(intent.RequiresClarification);
+    }
+
+    [Fact]
+    public void RankingByCompanySalesWithoutTheProductOrProductionIsNotAProducerRanking() =>
+        Assert.False(_classifier.Classify("شرکت‌ها را بر اساس فروش کل شرکت رتبه‌بندی کن.", "گندله").IsProducerSalesRanking);
+
     [Fact]
     public void NonRankingProductQuestionDoesNotBecomeProducerSalesComposition()
     {

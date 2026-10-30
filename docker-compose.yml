@@ -479,9 +479,19 @@ services:
       ChannelFinancialStatements__AutoBackfillEnabled: ${CHANNEL_FINANCIAL_STATEMENTS_AUTO_BACKFILL_ENABLED:-false}
       ChannelFinancialStatements__InitialDelayMinutes: ${CHANNEL_FINANCIAL_STATEMENTS_INITIAL_DELAY_MINUTES:-5}
       ChannelMonthlyReports__AllowedChannelIds__0: ${CODALMIRROR_CHANNEL_ID:-}
+      # Feature 141 runtime connection: the dedicated read-only role feature141_reader, never the database owner
+      # (tools/SemanticCatalog/sql/feature141-read-role-setup.sql).
       ConnectionStrings__Feature141ReadOnly: ${FEATURE141_READONLY_CONNECTION_STRING:?Feature 141 read-only connection is required}
       # Feature 141 chat route: off unless a pilot environment sets FEATURE141_ENABLED=true; set false to roll back.
       Feature141__Enabled: ${FEATURE141_ENABLED:-false}
+      # Feature 141 shared public company scope: one tenant-level scope over every eligible listed company, active only
+      # with the owner's approval reference. tools/SemanticCatalog/sql/feature141-public-company-scope-env.sql generates
+      # these variables and the per-company Feature141__QueryExecution__* lines into .env (they reach the container
+      # through env_file). Without them discovery and ranking questions are refused at no charge.
+      Feature141__CompanyDiscoveryScopes__0__TenantId: ${FEATURE141_PUBLIC_SCOPE_TENANT_ID:-11111111-1111-1111-1111-111111111111}
+      Feature141__CompanyDiscoveryScopes__0__ScopeId: ${FEATURE141_PUBLIC_SCOPE_ID:-public-listed-companies}
+      Feature141__CompanyDiscoveryScopes__0__ApprovalReference: ${FEATURE141_PUBLIC_SCOPE_APPROVAL_REFERENCE:-}
+      Feature141__CompanyDiscoveryScopes__0__CompanyCoverageComplete: "true"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       Authentication__OwnedIdentity__PublicRegistrationEnabled: ${AUTH_PUBLIC_REGISTRATION_ENABLED:-false}
     depends_on:

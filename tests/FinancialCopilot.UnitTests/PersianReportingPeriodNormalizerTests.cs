@@ -70,4 +70,48 @@ public sealed class PersianReportingPeriodNormalizerTests
         Assert.Contains("persian_period_normalized:1405-06:2026-08-23..2026-09-22", applied.NormalizationDiagnostics);
         Assert.Contains("model_period_bounds_replaced:2026-08-01..2026-08-31", applied.NormalizationDiagnostics);
     }
+
+    [Theory]
+    [InlineData("فروردین", "شهریور ۱۴۰۵", "2026-03-21", "2026-09-22")]
+    [InlineData("فروردین ۱۴۰۵", "شهریور ۱۴۰۵", "2026-03-21", "2026-09-22")]
+    [InlineData("دی", "خرداد ۱۴۰۵", "2025-12-22", "2026-06-21")]
+    [InlineData("1404/10", "1405/03", "2025-12-22", "2026-06-21")]
+    public void MonthRangesAreNormalizedDeterministically(string startLabel, string endLabel, string start, string end)
+    {
+        var range = PersianReportingPeriodNormalizer.NormalizeRange(
+            new(ReportingPeriodKind.DateRange, ReportingPeriodGranularity.Month, StartLabel: startLabel, EndLabel: endLabel));
+
+        Assert.NotNull(range);
+        Assert.Equal(DateOnly.Parse(start), range.Value.First.Start);
+        Assert.Equal(DateOnly.Parse(end), range.Value.Last.End);
+    }
+
+    [Theory]
+    [InlineData("شهریور ۱۴۰۵", "فروردین ۱۴۰۵")]
+    [InlineData("ابتدای سال", "شهریور ۱۴۰۵")]
+    [InlineData("فروردین", "اخیر")]
+    public void InvertedOrUnparseableRangesAreNotNormalized(string startLabel, string endLabel)
+    {
+        Assert.Null(PersianReportingPeriodNormalizer.NormalizeRange(
+            new(ReportingPeriodKind.DateRange, ReportingPeriodGranularity.Month, StartLabel: startLabel, EndLabel: endLabel)));
+        Assert.Null(PersianReportingPeriodNormalizer.NormalizeRange(new(ReportingPeriodKind.ExplicitMonth, UserPeriodLabel: endLabel)));
+    }
+
+    [Fact]
+    public void MonthRangeBoundsReplaceModelBoundsAndPeriodCount()
+    {
+        var requirements = new QuestionSchemaRequirements(1, "1", "hash", ["metric_monthly_production_quantity"], [], ["company", "product"],
+            [], [], ["latest"], [], ["time-series"],
+            StructuredShape: new StructuredPlanShape([], [], [], [], [], MaximumPeriods: 1));
+        var range = PersianReportingPeriodNormalizer.NormalizeRange(
+            new(ReportingPeriodKind.DateRange, ReportingPeriodGranularity.Month, StartLabel: "فروردین", EndLabel: "شهریور ۱۴۰۵"))!.Value;
+
+        var applied = ReportingPeriodRequirementsNormalizer.Apply(requirements, range.First, range.Last);
+
+        Assert.Equal(new DateOnly(2026, 3, 21), applied.StructuredShape!.ReportingPeriodStart);
+        Assert.Equal(new DateOnly(2026, 9, 22), applied.StructuredShape.ReportingPeriodEnd);
+        Assert.Null(applied.StructuredShape.MaximumPeriods);
+        Assert.Equal(["explicit-period"], applied.PeriodPolicies);
+        Assert.Contains("persian_period_normalized:1405-01..1405-06:2026-03-21..2026-09-22", applied.NormalizationDiagnostics);
+    }
 }

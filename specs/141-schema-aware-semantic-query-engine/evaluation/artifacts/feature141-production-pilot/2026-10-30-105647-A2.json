@@ -1,0 +1,52 @@
+{
+  "id": "A2",
+  "run": {
+    "Question": "سود عملیاتی وبملت در دوره شش‌ماهه منتهی به شهریور ۱۴۰۵ بر اساس صورت مالی جداگانه چقدر بوده؟",
+    "Enabled": true,
+    "Answer": "درخواست شما پشتیبانی می‌شود، اما داده قابل استفاده‌ای برای آن در بازه موجود پیدا نشد.",
+    "PersistedUserMessage": "سود عملیاتی وبملت در دوره شش‌ماهه منتهی به شهریور ۱۴۰۵ بر اساس صورت مالی جداگانه چقدر بوده؟",
+    "PersistedAssistantMessage": "درخواست شما پشتیبانی می‌شود، اما داده قابل استفاده‌ای برای آن در بازه موجود پیدا نشد.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_table Disposition=DeterministicFallback CorrelationId=feature141-pilot-5a3b4717dc6e485f8a57b2d2f1d1dbae | Chat semantic route selected. Route=semantic_capability Capability=financial_statement_table ExtractedEntities=entity:عملیاتی,entity:وبملت,entity:دوره,entity:شش,entity:ماهه,entity:منتهی,entity:شهریور,entity:بر,entity:اساس,entity:جداگانه RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=financial_statement_table Status=NoData ReasonCode=supported_but_no_rows PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_table:NoData Definitive=False CorrelationId=feature141-pilot-5a3b4717dc6e485f8a57b2d2f1d1dbae",
+    "SemanticCapability": "financial_statement_table",
+    "Intent": "FinancialStatementTableLookup",
+    "Outcome": "NoData",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 2635,
+      "CompletionTokens": 578,
+      "TotalTokens": 3213,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:financial_statement_table"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 99.0000,
+    "WalletBalanceAfter": 98.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-5a3b4717dc6e485f8a57b2d2f1d1dbae"
+    ],
+    "ElapsedMs": 15894.2491,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_table Disposition=DeterministicFallback CorrelationId=feature141-pilot-5a3b4717dc6e485f8a57b2d2f1d1dbae",
+      "Chat semantic route selected. Route=semantic_capability Capability=financial_statement_table ExtractedEntities=entity:عملیاتی,entity:وبملت,entity:دوره,entity:شش,entity:ماهه,entity:منتهی,entity:شهریور,entity:بر,entity:اساس,entity:جداگانه RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=financial_statement_table Status=NoData ReasonCode=supported_but_no_rows PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_table:NoData Definitive=False CorrelationId=feature141-pilot-5a3b4717dc6e485f8a57b2d2f1d1dbae",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-5a3b4717dc6e485f8a57b2d2f1d1dbae RolloutMode=Shadow LegacyCapability=financial_statement_table LegacyConfidence=0.8 SemanticIntent=financial_statement_table SemanticCapabilityCandidate=financial_statement_table SemanticConfidence=0.8 ExtractedCompany=عملیاتی ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) R"
+    ],
+    "ExecutedQueries": []
+  }
+}

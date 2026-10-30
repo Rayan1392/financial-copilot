@@ -1,10 +1,15 @@
--- Read-only privilege audit. Run as DBA in the designated Development database.
+-- Read-only privilege audit. Run as DBA in the designated database:
+--   psql -v expected_database=<exact database name> -f feature141-read-role-verify.sql
 \set ON_ERROR_STOP on
-\set expected_dev_database 'REPLACE_WITH_EXACT_DEVELOPMENT_DATABASE'
-SELECT current_database() = :'expected_dev_database' AS correct_dev_database \gset
-\if :correct_dev_database
+\if :{?expected_database}
 \else
-  \echo 'Refusing: connected database does not equal expected Development database.'
+  \echo 'Refusing: pass -v expected_database=<exact target database name>.'
+  \quit 3
+\endif
+SELECT current_database() = :'expected_database' AS correct_database \gset
+\if :correct_database
+\else
+  \echo 'Refusing: connected database does not equal expected_database.'
   \quit 3
 \endif
 
@@ -33,7 +38,16 @@ WITH required(table_name, column_name) AS (VALUES
   ('FinancialStatements','PeriodStart'), ('FinancialStatements','SourcePayloadChecksum'),
   ('FinancialStatements','PublishedAt'), ('FinancialStatements','LastSynchronizedAt'),
   ('FinancialStatements','WarningsJson'), ('FinancialStatements','LogicalVendor'),
-  ('FinancialStatements','SourceMode'), ('Companies','Id')
+  ('FinancialStatements','SourceMode'), ('FinancialStatements','ExternalCompanyId'),
+  ('Companies','Id'), ('Companies','ProviderName'), ('Companies','ExternalCompanyId'), ('Companies','Name'), ('Companies','Ticker'), ('Companies','CompanySymbol'),
+  ('MonthlyReports','Id'), ('MonthlyReports','ProviderName'), ('MonthlyReports','ExternalCompanyId'),
+  ('MonthlyReports','PeriodStart'), ('MonthlyReports','PeriodEnd'), ('MonthlyReports','ReportType'),
+  ('MonthlyReports','OutputType'), ('MonthlyReports','IsAccepted'), ('MonthlyReports','RevisionStatus'),
+  ('MonthlyReports','ExternalReportId'),
+  ('MonthlyReportLineItems','MonthlyReportId'), ('MonthlyReportLineItems','Title'),
+  ('MonthlyReportLineItems','Unit'), ('MonthlyReportLineItems','ProductionQuantity'), ('MonthlyReportLineItems','SalesQuantity'),
+  ('MonthlyReportLineItems','SalesAmount'), ('MonthlyReportLineItems','SourceRowFingerprint'),
+  ('MonthlyReportLineItems','SourceMultiplicity')
 )
 SELECT table_name, column_name,
        has_column_privilege('feature141_reader', format('public.%I', table_name), column_name, 'SELECT') AS select_allowed
@@ -54,7 +68,16 @@ WITH required(table_name, column_name) AS (VALUES
   ('FinancialStatements','PeriodStart'), ('FinancialStatements','SourcePayloadChecksum'),
   ('FinancialStatements','PublishedAt'), ('FinancialStatements','LastSynchronizedAt'),
   ('FinancialStatements','WarningsJson'), ('FinancialStatements','LogicalVendor'),
-  ('FinancialStatements','SourceMode'), ('Companies','Id')
+  ('FinancialStatements','SourceMode'), ('FinancialStatements','ExternalCompanyId'),
+  ('Companies','Id'), ('Companies','ProviderName'), ('Companies','ExternalCompanyId'), ('Companies','Name'), ('Companies','Ticker'), ('Companies','CompanySymbol'),
+  ('MonthlyReports','Id'), ('MonthlyReports','ProviderName'), ('MonthlyReports','ExternalCompanyId'),
+  ('MonthlyReports','PeriodStart'), ('MonthlyReports','PeriodEnd'), ('MonthlyReports','ReportType'),
+  ('MonthlyReports','OutputType'), ('MonthlyReports','IsAccepted'), ('MonthlyReports','RevisionStatus'),
+  ('MonthlyReports','ExternalReportId'),
+  ('MonthlyReportLineItems','MonthlyReportId'), ('MonthlyReportLineItems','Title'),
+  ('MonthlyReportLineItems','Unit'), ('MonthlyReportLineItems','ProductionQuantity'), ('MonthlyReportLineItems','SalesQuantity'),
+  ('MonthlyReportLineItems','SalesAmount'), ('MonthlyReportLineItems','SourceRowFingerprint'),
+  ('MonthlyReportLineItems','SourceMultiplicity')
 )
 SELECT c.relname AS table_name, a.attname AS column_name,
        (r.column_name IS NOT NULL) AS reviewed_column,
@@ -64,7 +87,7 @@ JOIN pg_namespace n ON n.oid = c.relnamespace
 JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
 LEFT JOIN required r ON r.table_name = c.relname AND r.column_name = a.attname
 WHERE n.nspname = 'public'
-  AND c.relname IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies')
+  AND c.relname IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies','MonthlyReports','MonthlyReportLineItems')
 ORDER BY c.relname, a.attnum;
 
 -- Effective write/schema/database capability checks must all be false except CONNECT/USAGE.
@@ -81,7 +104,7 @@ SELECT table_name,
        has_table_privilege('feature141_reader', format('public.%I', table_name), 'REFERENCES') AS references_allowed,
        has_table_privilege('feature141_reader', format('public.%I', table_name), 'TRIGGER') AS trigger_allowed
 FROM (VALUES ('FinancialStatementSourceItems'), ('FinancialStatementLineItems'),
-             ('FinancialStatements'), ('Companies')) AS t(table_name);
+             ('FinancialStatements'), ('Companies'), ('MonthlyReports'), ('MonthlyReportLineItems')) AS t(table_name);
 
 -- Detect table-wide SELECT ACL entries granted directly to reader or PUBLIC.
 SELECT n.nspname, c.relname, grantee.rolname AS grantee, x.privilege_type
@@ -89,7 +112,7 @@ FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) x
 LEFT JOIN pg_roles grantee ON grantee.oid = x.grantee
 WHERE n.nspname = 'public'
-  AND c.relname IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies')
+  AND c.relname IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies','MonthlyReports','MonthlyReportLineItems')
   AND x.privilege_type = 'SELECT'
   AND (x.grantee = 0 OR grantee.rolname = 'feature141_reader');
 
@@ -97,10 +120,10 @@ WHERE n.nspname = 'public'
 SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
-  AND c.relname IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies');
+  AND c.relname IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies','MonthlyReports','MonthlyReportLineItems');
 SELECT schemaname, tablename, policyname, roles, cmd, qual, with_check
 FROM pg_policies WHERE schemaname = 'public'
-  AND tablename IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies');
+  AND tablename IN ('FinancialStatementSourceItems','FinancialStatementLineItems','FinancialStatements','Companies','MonthlyReports','MonthlyReportLineItems');
 
 -- Separately connect AS feature141_reader and run this identity/read-only probe:
 -- BEGIN READ ONLY;

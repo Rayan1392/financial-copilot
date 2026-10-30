@@ -56,6 +56,11 @@ public sealed class ReviewedCompanyPopulationResolver(IReadOnlyList<ReviewedComp
             StringSplitOptions.RemoveEmptyEntries));
 }
 
+/// <summary>
+/// A company's reviewed member of a product equivalence group. Its rows are matched by
+/// <see cref="NormalizedLabel"/> (the reviewed source title); <see cref="CompanyProductKey"/> is retained
+/// for configuration compatibility only and never matched against the persisted ProductCode.
+/// </summary>
 public sealed record ReviewedProductEquivalenceMember(Guid CompanyId, string ProviderName,
     string ProviderProductIdentity, string CompanyProductKey, string NormalizedLabel,
     string UnitCode, string IdentityReference, bool IdentityReviewed);
@@ -102,7 +107,7 @@ public sealed class ReviewedProductEquivalenceResolver(IReadOnlyList<ReviewedPro
         var scoped = selected.Members.Where(member => requestedCompanies.Contains(member.CompanyId)).ToArray();
         if (scoped.Length != requestedCompanies.Count || scoped.Select(member => member.CompanyId).Distinct().Count() != requestedCompanies.Count
             || scoped.Any(member => member.CompanyId == Guid.Empty || string.IsNullOrWhiteSpace(member.ProviderName)
-                || string.IsNullOrWhiteSpace(member.ProviderProductIdentity) || string.IsNullOrWhiteSpace(member.CompanyProductKey)
+                || string.IsNullOrWhiteSpace(member.ProviderProductIdentity)
                 || string.IsNullOrWhiteSpace(member.NormalizedLabel) || string.IsNullOrWhiteSpace(member.IdentityReference)
                 || !member.IdentityReviewed))
             return new(ProductEquivalenceResolutionStatus.MissingCompanyMapping, selected.CatalogId, selected.DisplayName,

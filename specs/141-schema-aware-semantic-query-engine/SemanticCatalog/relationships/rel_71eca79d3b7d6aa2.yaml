@@ -1,0 +1,53 @@
+{
+  "id": "rel_71eca79d3b7d6aa2",
+  "from": {
+    "schema": "public",
+    "table": "MonthlyReports",
+    "columns": [
+      "ExternalCompanyId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "Companies",
+    "columns": [
+      "ExternalCompanyId"
+    ]
+  },
+  "physicalConstraint": null,
+  "physicalConstraintPresent": false,
+  "inferredCardinality": "many-to-one",
+  "joinGrain": {
+    "manySide": "One MonthlyReports row per provider report revision, identified to its company by (ProviderName, ExternalCompanyId).",
+    "oneSide": "One Companies row per (ProviderName, ExternalCompanyId); unique index IX_Companies_ProviderName_ExternalCompanyId.",
+    "providerScope": "The join key is the pair (ProviderName, ExternalCompanyId): compiled SQL always equates MonthlyReports.ProviderName with Companies.ProviderName in addition to this column pair."
+  },
+  "nullableBehavior": {
+    "fromKeyNullable": true,
+    "toKeyNullable": false,
+    "referentialIntegrityEnforced": false,
+    "orphanBehavior": "No FK constraint; a report whose provider identity has no Companies row is not returned."
+  },
+  "verification": {
+    "status": "verified-application-logical-relationship",
+    "applicationModelField": "MonthlyReports.(ProviderName, ExternalCompanyId)",
+    "targetIdentity": "Companies.(ProviderName, ExternalCompanyId), the base identity of the NoavaranEligibleCompanies view",
+    "physicalForeignKey": "not-present; the Noavaran monthly normalizer (NadpcoApiMonthlyActivityNormalizer) writes ProviderName and ExternalCompanyId and never CompanyId",
+    "dataJoinUniqueness": "Companies unique index IX_Companies_ProviderName_ExternalCompanyId; MonthlyReports indexed on (ProviderName, ExternalCompanyId, ...)."
+  },
+  "semantic": {
+    "approved": true,
+    "status": "owner-approved-runtime-join",
+    "runtimeJoinable": true,
+    "queryAuthorization": {
+      "approved": true,
+      "queryable": true,
+      "reason": "Noavaran monthly reports identify their company through the provider identity; MonthlyReports.CompanyId must not be required.",
+      "provenance": "product-owner-confirmed:Feature141-noavaran-monthly-company-mapping-2026-10-29"
+    }
+  },
+  "provenance": {
+    "source": "Product-owner data contract (Feature 141 Noavaran monthly company mapping) plus ingestion code inspection",
+    "verified": true
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "testCase": {
+    "Id": "C3",
+    "Question": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+    "Refusal": false,
+    "Contains": [
+      "۷۰۰",
+      "میلیون ریال"
+    ],
+    "Excludes": [
+      "۶۵۰"
+    ],
+    "SpecialistContains": [
+      "۰٫۰۷",
+      "میلیارد تومان",
+      "۱۴۰۵/۰۶"
+    ],
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+    "Enabled": true,
+    "Answer": "کگهر گندله در شهریور ۱۴۰۵، مبلغ فروش ماهانه: ۷۰۰ میلیون ریال.\nمنبع: NoavaranCurrentApi، گزارش f141chat-kgehr-1405-06.",
+    "PersistedUserMessage": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+    "PersistedAssistantMessage": "کگهر گندله در شهریور ۱۴۰۵، مبلغ فروش ماهانه: ۷۰۰ میلیون ریال.\nمنبع: NoavaranCurrentApi، گزارش f141chat-kgehr-1405-06.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a Fingerprint=05386ca1d4b62e2e456e9a245f406bed075d9fe078496198d8087176b933646f Status=Succeeded Rows=1 ElapsedMs=37.2322",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_value_search Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a | Chat semantic route selected. Route=semantic_capability Capability=financial_statement_value_search ExtractedEntities=entity:مبلغ,entity:گندله,entity:کگهر,entity:شهریور RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=financial_statement_value_search Status=NoData ReasonCode=supported_but_no_rows PayloadType=FinancialStatementValueSearchResult | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_value_search:NoData Definitive=True CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a",
+    "SemanticCapability": "financial_statement_value_search",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 10864,
+      "CompletionTokens": 1505,
+      "TotalTokens": 12369,
+      "EstimatedCost": null,
+      "ExecutionRoute": "feature141_fallback"
+    },
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگهر Products=گندله RequestedMeasures=salesAmount PeriodKind=ExplicitMonth PeriodCount=1 ComparisonMode=None Presentation=Scalar",
+      "Feature141 statement shape classified. Shape=none Diagnostic=none Operation=Retrieve Ranking=none Constraints= RequestedFields= Filters=none CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a",
+      "Feature141 query completed. CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a Fingerprint=05386ca1d4b62e2e456e9a245f406bed075d9fe078496198d8087176b933646f Status=Succeeded Rows=1 ElapsedMs=37.2322"
+    ],
+    "ElapsedMs": 30602.1393,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_value_search Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a",
+      "Chat semantic route selected. Route=semantic_capability Capability=financial_statement_value_search ExtractedEntities=entity:مبلغ,entity:گندله,entity:کگهر,entity:شهریور RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=financial_statement_value_search Status=NoData ReasonCode=supported_but_no_rows PayloadType=FinancialStatementValueSearchResult",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_value_search:NoData Definitive=True CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-chat-mvp-621f144042ab45db847d906222782d8a RolloutMode=Shadow LegacyCapability=financial_statement_value_search LegacyConfidence=0.94 SemanticIntent=financial_statement_value_search SemanticCapabilityCandidate=financial_statement_value_search SemanticConfidence=0.94 ExtractedCompany=مبلغ ExtractedProduct=(null) ExtractedMetric=فروش "
+    ]
+  }
+}

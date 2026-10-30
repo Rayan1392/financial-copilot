@@ -11,17 +11,30 @@ public static class ReportingPeriodRequirementsNormalizer
 {
     public const string ExplicitPeriodPolicy = "explicit-period";
 
-    public static QuestionSchemaRequirements Apply(QuestionSchemaRequirements requirements, PersianReportingPeriod period)
+    public static QuestionSchemaRequirements Apply(QuestionSchemaRequirements requirements, PersianReportingPeriod period) =>
+        Apply(requirements, period, period);
+
+    /// <summary>
+    /// Applies the bounds of a Persian month range, first month through last month inclusive. A range bounds
+    /// the series by itself, so a model-provided period count is removed with the model's dates.
+    /// </summary>
+    public static QuestionSchemaRequirements Apply(QuestionSchemaRequirements requirements,
+        PersianReportingPeriod first, PersianReportingPeriod last)
     {
         ArgumentNullException.ThrowIfNull(requirements);
-        ArgumentNullException.ThrowIfNull(period);
-        if (period.Status != PersianReportingPeriodStatus.Normalized || period.Start is null || period.End is null)
-            throw new ArgumentException("Only a normalized Persian month can be applied.", nameof(period));
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(last);
+        if (first.Status != PersianReportingPeriodStatus.Normalized || first.Start is null
+            || last.Status != PersianReportingPeriodStatus.Normalized || last.End is null || first.Start > last.End)
+            throw new ArgumentException("Only normalized Persian months can be applied.", nameof(first));
 
+        var period = (Start: first.Start, End: last.End);
+        var isRange = first != last;
         var shape = requirements.StructuredShape ?? new StructuredPlanShape([], [], [], [], []);
         var replaced = shape.ReportingPeriodStart != period.Start || shape.ReportingPeriodEnd != period.End;
+        var label = isRange ? $"{first.PersianLabel}..{last.PersianLabel}" : first.PersianLabel;
         var diagnostics = requirements.NormalizationDiagnostics
-            .Append($"persian_period_normalized:{period.PersianLabel}:{period.Start:yyyy-MM-dd}..{period.End:yyyy-MM-dd}");
+            .Append($"persian_period_normalized:{label}:{period.Start:yyyy-MM-dd}..{period.End:yyyy-MM-dd}");
         if (replaced && (shape.ReportingPeriodStart is not null || shape.ReportingPeriodEnd is not null))
             diagnostics = diagnostics.Append(
                 $"model_period_bounds_replaced:{shape.ReportingPeriodStart:yyyy-MM-dd}..{shape.ReportingPeriodEnd:yyyy-MM-dd}");
@@ -31,7 +44,11 @@ public static class ReportingPeriodRequirementsNormalizer
             .Append(ExplicitPeriodPolicy).Distinct(StringComparer.Ordinal).ToArray();
         return requirements with
         {
-            StructuredShape = shape with { ReportingPeriodStart = period.Start, ReportingPeriodEnd = period.End },
+            StructuredShape = shape with
+            {
+                ReportingPeriodStart = period.Start, ReportingPeriodEnd = period.End,
+                MaximumPeriods = isRange ? null : shape.MaximumPeriods
+            },
             PeriodPolicies = periodPolicies,
             NormalizationDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray()
         };

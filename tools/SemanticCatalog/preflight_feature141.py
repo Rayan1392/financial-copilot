@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FEATURE = ROOT / "specs/141-schema-aware-semantic-query-engine"
 CATALOG = FEATURE / "SemanticCatalog"
 ITEM_ID = "source_item_682beceadddc1458"
-REL_IDS = ["rel_cd8a77a2717ac71f", "rel_2588cf95d01a651a", "rel_e4fa0fe989156533"]
+REL_IDS = ["rel_cd8a77a2717ac71f", "rel_2588cf95d01a651a", "rel_26d0b2a4b006b368"]
 TABLE_IDS = ["tbl_36036602dbf76362", "tbl_4f2ef2d8dd59b46a", "tbl_53d51e26e1ca6929", "tbl_8646d83cdb350f92"]
 REQUIRED_CONFIG = [
     "Enabled", "ExplicitDevelopmentOptIn", "EnvironmentName", "ConnectionString",

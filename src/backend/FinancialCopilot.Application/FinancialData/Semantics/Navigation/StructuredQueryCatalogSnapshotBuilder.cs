@@ -190,7 +190,7 @@ public sealed class StructuredQueryCatalogSnapshotBuilder
             var unitColumn = StringOrNull(unitPolicy, "sourceUnitColumn") ?? "Unit";
             measures.Add(new StructuredSqlMonthlyMeasure(
                 RequiredString(entry, "catalogId"), RequiredString(entry, "metricCode"), lineTableId, reportTableId,
-                Column(lineTableId, RequiredString(entry, "physicalColumn")), Column(lineTableId, "ProductCode"),
+                Column(lineTableId, RequiredString(entry, "physicalColumn")),
                 Column(lineTableId, "Title"), Column(lineTableId, unitColumn),
                 Column(reportTableId, "PeriodStart"), Column(reportTableId, "PeriodEnd"),
                 Column(reportTableId, "ProviderName"), Column(reportTableId, "ReportType"),
@@ -212,9 +212,19 @@ public sealed class StructuredQueryCatalogSnapshotBuilder
         (relationship.FromTableCatalogId == first && relationship.ToTableCatalogId == second)
         || (relationship.FromTableCatalogId == second && relationship.ToTableCatalogId == first);
 
+    /// <summary>
+    /// The one join path between two tables. When the catalog records several (a physical FK and the
+    /// runtime join, e.g. FinancialStatements.CompanyId and the provider identity), the runtime-joinable one is used.
+    /// </summary>
     private static StructuredSqlRelationship SingleRelationship(IEnumerable<StructuredSqlRelationship> relationships,
-        string first, string second) => relationships.Where(x => Connects(x, first, second)).SingleOrDefault()
-        ?? throw new SchemaNavigationOutputException("catalog_snapshot_direct_source_relationships_incomplete");
+        string first, string second)
+    {
+        var connecting = relationships.Where(x => Connects(x, first, second)).ToArray();
+        if (connecting.Length > 1) connecting = connecting.Where(x => x.Queryable).ToArray();
+        return connecting.Length == 1
+            ? connecting[0]
+            : throw new SchemaNavigationOutputException("catalog_snapshot_direct_source_relationships_incomplete");
+    }
 
     private static StructuredSqlTable FindTable(IReadOnlyDictionary<string, StructuredSqlTable> tables, string name) =>
         tables.Values.SingleOrDefault(table => table.Schema == "public" && table.Name == name)

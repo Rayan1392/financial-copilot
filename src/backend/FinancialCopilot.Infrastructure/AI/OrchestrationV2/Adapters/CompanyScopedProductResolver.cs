@@ -54,6 +54,12 @@ public sealed class CompanyScopedProductResolver(
             return new ProductResolutionResult.NotFound(requested);
 
         var matches = ResolveMatches(products.Values, requested);
+        // «محصول گندله» names the product «گندله»; the marker is kept first because some titles start with it.
+        if (matches.Count == 0 && ProductSemanticIntentRules.StripProductMarker(requested) is { } unmarked)
+        {
+            requested = MonthlyProductTrendCalculator.NormalizeProductText(unmarked);
+            matches = ResolveMatches(products.Values, requested);
+        }
         if (matches.Count == 0)
             return new ProductResolutionResult.NotFound(requested);
         if (matches.Count > 1)

@@ -44,8 +44,12 @@ public sealed record StructuredSqlDirectSource(string CatalogId, Guid SourceItem
     string? MetricCode = null, bool IdentityVerified = false, bool SemanticApproved = false,
     string? EffectiveUnit = null, string? EffectiveUnitStatus = null, string? EffectiveUnitProvenance = null,
     string? TitleFa = null);
+/// <summary>
+/// Physical mapping of one monthly measure. A product is identified by its line-item Title and Unit only;
+/// the persisted ProductCode is deliberately not mapped (owner decision 2026-10-29).
+/// </summary>
 public sealed record StructuredSqlMonthlyMeasure(string CatalogId, string MetricCode, string LineItemsTableCatalogId,
-    string ReportsTableCatalogId, string ValueColumnCatalogId, string ProductCodeColumnCatalogId,
+    string ReportsTableCatalogId, string ValueColumnCatalogId,
     string ProductTitleColumnCatalogId, string QuantityUnitColumnCatalogId, string PeriodStartColumnCatalogId,
     string PeriodEndColumnCatalogId, string ReportProviderColumnCatalogId, string ReportTypeColumnCatalogId,
     string OutputTypeColumnCatalogId, string CompanyIdColumnCatalogId, string AcceptedColumnCatalogId,
@@ -339,6 +343,9 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             || productEntities[0].ResolvedEntityKey!.Length > 256 || !productEntities[0].IdentityVerified
             || string.IsNullOrWhiteSpace(productEntities[0].IdentityProvenance)))
             errors.Add("monthly_product_binding_not_verified");
+        // A named company's product is matched by its approved source labels (Title and Unit), never by ProductCode.
+        if (hasProduct && companyIds.Length == 1 && !IsBoundedProductSelection(plan.ProductSelection))
+            errors.Add("monthly_product_source_labels_missing");
         if ((!isComparison && isDirect && !hasProduct && !hasAggregation) || (isComparison && !hasProduct && !rankedProducts))
             errors.Add("monthly_direct_measure_requires_product_binding");
         if (!isDirect && !isComparison) errors.Add("monthly_operation_shape_not_supported");
@@ -377,7 +384,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                 || !reviewedEquivalence.Members.Select(member => member.CompanyId).ToHashSet().SetEquals(companyIds)
                 || reviewedEquivalence.Members.Any(member => !member.IdentityReviewed
                     || string.IsNullOrWhiteSpace(member.ProviderProductIdentity)
-                    || string.IsNullOrWhiteSpace(member.CompanyProductKey)
+                    || string.IsNullOrWhiteSpace(member.NormalizedLabel)
                     || string.IsNullOrWhiteSpace(member.IdentityReference))
                 || reviewedEquivalence.Members.Select(member => member.UnitCode).Distinct(StringComparer.Ordinal).Count() != 1
                 || string.IsNullOrWhiteSpace(reviewedEquivalence.UnitCode)
@@ -442,8 +449,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                 if (snapshot.Columns.All(x => x.CatalogId != columnId)) errors.Add("monthly_measure_column_missing");
         }
 
-        var productCode = productEntities.Length == 1 && companyIds.Length == 1
-            ? productEntities[0].ResolvedEntityKey : null;
+        var productSelection = hasProduct && companyIds.Length == 1 ? plan.ProductSelection : null;
         if (plan.Filters.Count > 0) errors.Add("monthly_filters_require_typed_resolved_dimensions");
 
         if (errors.Count > 0) return new(false, null, errors.Distinct(StringComparer.Ordinal).ToArray());
@@ -457,7 +463,6 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             return new(false, null, ["monthly_relationship_column_binding_invalid"]);
 
         var value = columns[mapping.ValueColumnCatalogId];
-        var product = columns[mapping.ProductCodeColumnCatalogId];
         var title = columns[mapping.ProductTitleColumnCatalogId];
         var unit = columns[mapping.QuantityUnitColumnCatalogId];
         var periodStart = columns[mapping.PeriodStartColumnCatalogId];
@@ -466,6 +471,12 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var reportType = columns[mapping.ReportTypeColumnCatalogId];
         var outputType = columns[mapping.OutputTypeColumnCatalogId];
         var companyId = columns[mapping.CompanyIdColumnCatalogId];
+        var company = ResolveMonthlyCompanyIdentity(snapshot, columns, reports, provider) ?? new MonthlyCompanyIdentity(provider, companyId);
+        // Display labels of the reporting company, when approved: its name and its stock symbol (Companies.CompanySymbol).
+        var companyName = company.Companies is null ? null : columns.Values.SingleOrDefault(column =>
+            column.TableCatalogId == company.Companies.CatalogId && column.Name == "Name" && column.Queryable);
+        var companySymbol = company.Companies is null ? null : CompanySymbolColumn(columns, company.Companies.CatalogId);
+        var companyLabelIds = new[] { companyName, companySymbol }.OfType<StructuredSqlColumn>().Select(column => column.CatalogId).ToArray();
         var accepted = columns[mapping.AcceptedColumnCatalogId];
         var revision = columns[mapping.RevisionStatusColumnCatalogId];
         var externalReportId = columns[mapping.ExternalReportIdColumnCatalogId];
@@ -485,20 +496,26 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             {
                 var member = reviewedEquivalence.Members[index];
                 parameters.Add(new($"product_company_{index}", member.CompanyId));
-                parameters.Add(new($"product_code_{index}", member.CompanyProductKey));
+                parameters.Add(new($"product_title_{index}", member.NormalizedLabel));
             }
         }
+        // Products are matched by source labels only: a reviewed member's label, or the approved Title and Unit
+        // spellings of a named company's product. Source row identity is not stable between months.
+        string EquivalenceMemberPredicate(string lineAlias, int index) =>
+            $"BTRIM({lineAlias}.{Q(title.Name)}) = @product_title_{index}";
+        string ProductSelectionPredicate(string lineAlias) =>
+            $"{lineAlias}.{Q(title.Name)} = ANY(@product_titles) AND COALESCE({lineAlias}.{Q(unit.Name)}, '') = ANY(@product_units)";
         string ProductEquivalencePredicate(string reportAlias, string lineAlias) => "(" + string.Join(" OR ",
             reviewedEquivalence!.Members.Select((member, index) =>
-                $"({reportAlias}.{Q(companyId.Name)} = @product_company_{index} AND EXISTS (SELECT 1 FROM {QT(lineItems)} {lineAlias} " +
+                $"({company.Key(reportAlias)} = @product_company_{index} AND EXISTS (SELECT 1 FROM {QT(lineItems)} {lineAlias} " +
                 $"WHERE {lineAlias}.{Q(lineReportKey.Name)} = {reportAlias}.{Q(reportId.Name)} " +
-                $"AND {lineAlias}.{Q(product.Name)} = @product_code_{index}))")) + ")";
+                $"AND {EquivalenceMemberPredicate(lineAlias, index)}))")) + ")";
         string ProductExistsPredicate(string reportAlias, string lineAlias) =>
             $"EXISTS (SELECT 1 FROM {QT(lineItems)} {lineAlias} WHERE {lineAlias}.{Q(lineReportKey.Name)} = {reportAlias}.{Q(reportId.Name)} " +
-            $"AND {lineAlias}.{Q(product.Name)} = @product_code)";
+            $"AND {ProductSelectionPredicate(lineAlias)})";
         var companyPredicate = companyIds.Length == 1
-            ? $"r.{Q(companyId.Name)} = @company_id"
-            : $"r.{Q(companyId.Name)} = ANY(@company_ids)";
+            ? company.Filter("r", "= @company_id")
+            : company.Filter("r", "= ANY(@company_ids)");
         if (companyIds.Length == 1) parameters.Add(new("company_id", companyIds[0]));
         else parameters.Add(new("company_ids", companyIds));
         var where = new List<string>
@@ -507,32 +524,40 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             $"r.{Q(reportType.Name)} = @report_type", $"r.{Q(outputType.Name)} = @output_type",
             $"r.{Q(accepted.Name)} = @is_accepted", $"r.{Q(revision.Name)} = @revision_status"
         };
-        if (productCode is not null)
+        if (productSelection is not null)
         {
-            parameters.Add(new("product_code", productCode));
-            where.Add($"li.{Q(product.Name)} = @product_code");
+            parameters.Add(new("product_titles", productSelection.SourceTitles.Distinct(StringComparer.Ordinal).ToArray()));
+            parameters.Add(new("product_units", productSelection.SourceUnits.Distinct(StringComparer.Ordinal).ToArray()));
+            where.Add(ProductSelectionPredicate("li"));
         }
         else if (useProductEquivalence)
         {
             where.Add(ProductEquivalencePredicate("r", "li_scope"));
             where.Add("(" + string.Join(" OR ", reviewedEquivalence!.Members.Select((member, index) =>
-                $"(r.{Q(companyId.Name)} = @product_company_{index} AND li.{Q(product.Name)} = @product_code_{index})")) + ")");
+                $"({company.Key("r")} = @product_company_{index} AND {EquivalenceMemberPredicate("li", index)})")) + ")");
         }
+        // One semantic product per company when a product is requested; otherwise each source Title/Unit pair
+        // (unique within one report) is a product of its own.
+        var productScoped = productSelection is not null || useProductEquivalence;
+        var productIdentity = productScoped
+            ? "@product_identity::text"
+            : $"CONCAT(BTRIM(li.{Q(title.Name)}), '|', COALESCE(BTRIM(li.{Q(unit.Name)}), ''))";
+        if (productScoped) parameters.Add(new("product_identity", productEntities[0].ResolvedEntityKey));
         var ctes = new List<string>();
         if (plan.Period.SelectLatestByReportingPeriod)
         {
             var latestPeriodFilter = $"r0.{Q(provider.Name)} = @provider_name AND r0.{Q(reportType.Name)} = @report_type " +
                 $"AND r0.{Q(outputType.Name)} = @output_type AND r0.{Q(accepted.Name)} = @is_accepted " +
                 $"AND r0.{Q(revision.Name)} = @revision_status";
-            if (productCode is not null)
+            if (productSelection is not null)
                 latestPeriodFilter += $" AND {ProductExistsPredicate("r0", "li0")}";
             else if (useProductEquivalence)
                 latestPeriodFilter += $" AND {ProductEquivalencePredicate("r0", "li0_scope")}";
             if (companyIds.Length > 1)
             {
                 var eligibleCommonMonths = $"SELECT r0.{Q(periodEnd.Name)} AS {Q("PeriodEnd")} FROM {QT(reports)} r0 " +
-                    $"WHERE r0.{Q(companyId.Name)} = ANY(@company_ids) AND {latestPeriodFilter} " +
-                    $"GROUP BY r0.{Q(periodEnd.Name)} HAVING COUNT(DISTINCT r0.{Q(companyId.Name)}) = @company_count";
+                    $"WHERE {company.Filter("r0", "= ANY(@company_ids)")} AND {latestPeriodFilter} " +
+                    $"GROUP BY r0.{Q(periodEnd.Name)} HAVING COUNT(DISTINCT {company.Key("r0")}) = @company_count";
                 parameters.Add(new("company_count", companyIds.Length));
                 if (plan.Period.MaximumPeriods is { } commonCount)
                 {
@@ -552,20 +577,20 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             {
                 parameters.Add(new("maximum_periods", latestCount));
                 ctes.Add($"latest_bounded_months AS (SELECT {Q("CompanyId")}, {Q("PeriodEnd")} FROM (" +
-                    $"SELECT r0.{Q(companyId.Name)} AS {Q("CompanyId")}, r0.{Q(periodEnd.Name)} AS {Q("PeriodEnd")}, " +
-                    $"ROW_NUMBER() OVER (PARTITION BY r0.{Q(companyId.Name)} ORDER BY r0.{Q(periodEnd.Name)} DESC) AS {Q("PeriodRank")} " +
-                    $"FROM {QT(reports)} r0 WHERE {(companyIds.Length == 1 ? $"r0.{Q(companyId.Name)} = @company_id" : $"r0.{Q(companyId.Name)} = ANY(@company_ids)")} " +
-                    $"AND {latestPeriodFilter} GROUP BY r0.{Q(companyId.Name)}, r0.{Q(periodEnd.Name)}) ranked_latest_months " +
+                    $"SELECT {company.Key("r0")} AS {Q("CompanyId")}, r0.{Q(periodEnd.Name)} AS {Q("PeriodEnd")}, " +
+                    $"ROW_NUMBER() OVER (PARTITION BY {company.Key("r0")} ORDER BY r0.{Q(periodEnd.Name)} DESC) AS {Q("PeriodRank")} " +
+                    $"FROM {QT(reports)} r0 WHERE {(companyIds.Length == 1 ? company.Filter("r0", "= @company_id") : company.Filter("r0", "= ANY(@company_ids)"))} " +
+                    $"AND {latestPeriodFilter} GROUP BY {company.Key("r0")}, r0.{Q(periodEnd.Name)}) ranked_latest_months " +
                     $"WHERE {Q("PeriodRank")} <= @maximum_periods)");
-                where.Add($"EXISTS (SELECT 1 FROM latest_bounded_months lbm WHERE lbm.{Q("CompanyId")} = r.{Q(companyId.Name)} " +
+                where.Add($"EXISTS (SELECT 1 FROM latest_bounded_months lbm WHERE lbm.{Q("CompanyId")} = {company.Key("r")} " +
                     $"AND lbm.{Q("PeriodEnd")} = r.{Q(periodEnd.Name)})");
             }
             else
             {
-                ctes.Add($"latest_month AS (SELECT r0.{Q(companyId.Name)} AS {Q("CompanyId")}, MAX(r0.{Q(periodEnd.Name)}) AS {Q("PeriodEnd")} " +
-                $"FROM {QT(reports)} r0 WHERE {(companyIds.Length == 1 ? $"r0.{Q(companyId.Name)} = @company_id" : $"r0.{Q(companyId.Name)} = ANY(@company_ids)")} " +
-                $"AND {latestPeriodFilter} GROUP BY r0.{Q(companyId.Name)})");
-                where.Add($"EXISTS (SELECT 1 FROM latest_month lm WHERE lm.{Q("CompanyId")} = r.{Q(companyId.Name)} " +
+                ctes.Add($"latest_month AS (SELECT {company.Key("r0")} AS {Q("CompanyId")}, MAX(r0.{Q(periodEnd.Name)}) AS {Q("PeriodEnd")} " +
+                $"FROM {QT(reports)} r0 WHERE {(companyIds.Length == 1 ? company.Filter("r0", "= @company_id") : company.Filter("r0", "= ANY(@company_ids)"))} " +
+                $"AND {latestPeriodFilter} GROUP BY {company.Key("r0")})");
+                where.Add($"EXISTS (SELECT 1 FROM latest_month lm WHERE lm.{Q("CompanyId")} = {company.Key("r")} " +
                     $"AND lm.{Q("PeriodEnd")} = r.{Q(periodEnd.Name)})");
             }
         }
@@ -578,13 +603,13 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             {
                 parameters.Add(new("company_count", companyIds.Length));
                 var commonPeriods = $"SELECT r0.{Q(periodEnd.Name)} AS {Q("PeriodEnd")} FROM {QT(reports)} r0 " +
-                    $"WHERE r0.{Q(companyId.Name)} = ANY(@company_ids) AND r0.{Q(provider.Name)} = @provider_name " +
+                    $"WHERE {company.Filter("r0", "= ANY(@company_ids)")} AND r0.{Q(provider.Name)} = @provider_name " +
                     $"AND r0.{Q(reportType.Name)} = @report_type AND r0.{Q(outputType.Name)} = @output_type " +
                     $"AND r0.{Q(accepted.Name)} = @is_accepted AND r0.{Q(revision.Name)} = @revision_status " +
                     $"AND r0.{Q(periodStart.Name)} >= @period_start AND r0.{Q(periodEnd.Name)} <= @period_end " +
-                    (productCode is not null ? $"AND {ProductExistsPredicate("r0", "li0")}" : useProductEquivalence
+                    (productSelection is not null ? $"AND {ProductExistsPredicate("r0", "li0")}" : useProductEquivalence
                         ? $"AND {ProductEquivalencePredicate("r0", "li0_scope")}" : string.Empty) + " " +
-                    $"GROUP BY r0.{Q(periodEnd.Name)} HAVING COUNT(DISTINCT r0.{Q(companyId.Name)}) = @company_count";
+                    $"GROUP BY r0.{Q(periodEnd.Name)} HAVING COUNT(DISTINCT {company.Key("r0")}) = @company_count";
                 var limitCommonPeriods = plan.Period.MaximumPeriods.HasValue
                     ? " ORDER BY \"PeriodEnd\" DESC LIMIT @maximum_periods" : string.Empty;
                 if (plan.Period.MaximumPeriods.HasValue)
@@ -595,27 +620,28 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             else if (plan.Period.MaximumPeriods.HasValue)
             {
                 parameters.Add(new("maximum_periods", plan.Period.MaximumPeriods.Value));
-                var eligiblePeriods = $"SELECT r0.{Q(companyId.Name)} AS {Q("CompanyId")}, r0.{Q(periodEnd.Name)} AS {Q("PeriodEnd")} " +
-                    $"FROM {QT(reports)} r0 WHERE r0.{Q(companyId.Name)} = @company_id " +
+                var eligiblePeriods = $"SELECT {company.Key("r0")} AS {Q("CompanyId")}, r0.{Q(periodEnd.Name)} AS {Q("PeriodEnd")} " +
+                    $"FROM {QT(reports)} r0 WHERE {company.Filter("r0", "= @company_id")} " +
                     $"AND r0.{Q(provider.Name)} = @provider_name AND r0.{Q(reportType.Name)} = @report_type " +
                     $"AND r0.{Q(outputType.Name)} = @output_type AND r0.{Q(accepted.Name)} = @is_accepted " +
                     $"AND r0.{Q(revision.Name)} = @revision_status " +
                     $"AND r0.{Q(periodStart.Name)} >= @period_start AND r0.{Q(periodEnd.Name)} <= @period_end " +
-                    (productCode is not null ? $"AND {ProductExistsPredicate("r0", "li0")}" : string.Empty) + " " +
-                    $"GROUP BY r0.{Q(companyId.Name)}, r0.{Q(periodEnd.Name)}";
+                    (productSelection is not null ? $"AND {ProductExistsPredicate("r0", "li0")}" : string.Empty) + " " +
+                    $"GROUP BY {company.Key("r0")}, r0.{Q(periodEnd.Name)}";
                 ctes.Add($"bounded_months AS (SELECT {Q("CompanyId")}, {Q("PeriodEnd")} FROM (SELECT monthly_periods.*, " +
                     $"ROW_NUMBER() OVER (PARTITION BY {Q("CompanyId")} ORDER BY {Q("PeriodEnd")} DESC) AS {Q("PeriodRank")} " +
                     $"FROM ({eligiblePeriods}) monthly_periods) ranked_months WHERE {Q("PeriodRank")} <= @maximum_periods)");
-                where.Add($"EXISTS (SELECT 1 FROM bounded_months bm WHERE bm.{Q("CompanyId")} = r.{Q(companyId.Name)} " +
+                where.Add($"EXISTS (SELECT 1 FROM bounded_months bm WHERE bm.{Q("CompanyId")} = {company.Key("r")} " +
                     $"AND bm.{Q("PeriodEnd")} = r.{Q(periodEnd.Name)})");
             }
         }
 
-        var monthlyRowSql = $"eligible_monthly_rows AS (SELECT r.{Q(companyId.Name)} AS {Q("CompanyId")}, " +
+        var monthlyRowSql = $"eligible_monthly_rows AS (SELECT {company.Key("r")} AS {Q("CompanyId")}, " +
+            $"{company.Label("r", companyName)} AS {Q("CompanyName")}, {company.Label("r", companySymbol)} AS {Q("CompanySymbol")}, " +
             $"r.{Q(periodStart.Name)} AS {Q("PeriodStart")}, r.{Q(periodEnd.Name)} AS {Q("PeriodEnd")}, " +
-            $"li.{Q(product.Name)} AS {Q("ProductCode")}, li.{Q(title.Name)} AS {Q("ProductTitle")}, " +
+            $"{productIdentity} AS {Q("ProductIdentity")}, li.{Q(title.Name)} AS {Q("ProductTitle")}, " +
             $"li.{Q(value.Name)} AS {Q("Value")}, li.{Q(unit.Name)} AS {Q("SourceUnit")}, " +
-            $"COUNT(*) OVER (PARTITION BY r.{Q(companyId.Name)}, r.{Q(periodEnd.Name)}, li.{Q(product.Name)}) AS {Q("SamePeriodCandidateCount")}, " +
+            $"COUNT(*) OVER (PARTITION BY {company.Key("r")}, r.{Q(periodEnd.Name)}{(productScoped ? string.Empty : ", " + productIdentity)}) AS {Q("SamePeriodCandidateCount")}, " +
             $"r.{Q(provider.Name)} AS {Q("ProviderName")}, r.{Q(reportType.Name)} AS {Q("ReportType")}, " +
             $"r.{Q(outputType.Name)} AS {Q("OutputType")}, r.{Q(revision.Name)} AS {Q("RevisionStatus")}, " +
             $"r.{Q(reportId.Name)} AS {Q("ReportIdentity")}, r.{Q(externalReportId.Name)} AS {Q("ExternalReportId")}, " +
@@ -629,19 +655,20 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         {
             // A multi-company ranked query without a product scope ranks company totals. A
             // single-company ranked query retains the established product-ranking behavior.
-            var groupProduct = rankedProducts && !(companyIds.Length > 1 && productCode is null);
-            var groupBy = $"{Q("CompanyId")}, {Q("PeriodEnd")}" + (groupProduct ? $", {Q("ProductCode")}" : string.Empty);
+            var groupProduct = rankedProducts && !(companyIds.Length > 1 && productSelection is null);
+            var groupBy = $"{Q("CompanyId")}, {Q("PeriodEnd")}" + (groupProduct ? $", {Q("ProductIdentity")}" : string.Empty);
             var productColumns = groupProduct
-                ? $"{Q("ProductCode")}, MIN({Q("ProductTitle")}) AS {Q("ProductTitle")}"
-                : $"NULL::text AS {Q("ProductCode")}, NULL::text AS {Q("ProductTitle")}";
+                ? $"{Q("ProductIdentity")}, MIN({Q("ProductTitle")}) AS {Q("ProductTitle")}"
+                : $"NULL::text AS {Q("ProductIdentity")}, NULL::text AS {Q("ProductTitle")}";
             var unitCount = mapping!.UnitKind is "quantity" or "source-quantity"
                 ? $"COUNT(DISTINCT {Q("SourceUnit")})" : "1";
-            ctes.Add($"aggregated_monthly_rows AS (SELECT {Q("CompanyId")}, MIN({Q("PeriodStart")}) AS {Q("PeriodStart")}, " +
+            ctes.Add($"aggregated_monthly_rows AS (SELECT {Q("CompanyId")}, MIN({Q("CompanyName")}) AS {Q("CompanyName")}, " +
+                $"MIN({Q("CompanySymbol")}) AS {Q("CompanySymbol")}, MIN({Q("PeriodStart")}) AS {Q("PeriodStart")}, " +
                 $"{Q("PeriodEnd")}, {productColumns}, " +
                 $"SUM({Q("Value")}) AS {Q("Value")}, MIN({Q("SourceUnit")}) AS {Q("SourceUnit")}, " +
                 $"MAX({Q("SamePeriodCandidateCount")}) AS {Q("SamePeriodCandidateCount")}, " +
                 $"COUNT(DISTINCT {Q("ReportIdentity")}) AS {Q("EligibleReportCount")}, " +
-                $"GREATEST(COUNT(*) - COUNT(DISTINCT {Q("ProductCode")}), 0) AS {Q("DuplicateProductCount")}, " +
+                $"GREATEST(COUNT(*) - COUNT(DISTINCT {Q("ProductIdentity")}), 0) AS {Q("DuplicateProductCount")}, " +
                 $"{unitCount} AS {Q("UnitCompatibilityCount")}, " +
                 $"COUNT(*) FILTER (WHERE {Q("SourceMultiplicity")} <> 1) AS {Q("InvalidMultiplicityCount")}, " +
                 $"MAX({Q("SourceMultiplicity")}) AS {Q("SourceMultiplicity")}, " +
@@ -681,11 +708,11 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                   $"WHEN date_trunc('month', {Q("PreviousPeriodEnd")}) <> date_trunc('month', {Q("PeriodEnd")}) - (@comparison_month_offset * INTERVAL '1 month') THEN 'missing-comparison-period' " +
                   periodWindowMismatch + "ELSE 'comparable' END";
             ctes.Add($"compared_monthly_rows AS (SELECT *, " +
-                $"LAG({Q("PeriodStart")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductCode")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousPeriodStart")}, " +
-                $"LAG({Q("PeriodEnd")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductCode")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousPeriodEnd")}, " +
-                $"LAG({Q("Value")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductCode")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousValue")}, " +
-                $"LAG({Q("SourceUnit")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductCode")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousSourceUnit")}, " +
-                $"ROW_NUMBER() OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductCode")} ORDER BY {Q("PeriodEnd")} DESC) AS {Q("LatestProductPeriodRank")} " +
+                $"LAG({Q("PeriodStart")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductIdentity")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousPeriodStart")}, " +
+                $"LAG({Q("PeriodEnd")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductIdentity")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousPeriodEnd")}, " +
+                $"LAG({Q("Value")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductIdentity")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousValue")}, " +
+                $"LAG({Q("SourceUnit")}, @comparison_month_offset) OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductIdentity")} ORDER BY {Q("PeriodEnd")}) AS {Q("PreviousSourceUnit")}, " +
+                $"ROW_NUMBER() OVER (PARTITION BY {Q("CompanyId")}, {Q("ProductIdentity")} ORDER BY {Q("PeriodEnd")} DESC) AS {Q("LatestProductPeriodRank")} " +
                 $"FROM {valueCteName})");
             var computedValue = plan.FinancialOperation.Kind == PlanFinancialOperationKind.AbsoluteChange
                 ? $"({Q("Value")} - {Q("PreviousValue")})"
@@ -699,25 +726,26 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                   $"AND date_trunc('month', {Q("PreviousPeriodEnd")}) = date_trunc('month', {Q("PeriodEnd")}) - (@comparison_month_offset * INTERVAL '1 month') "
                 : string.Empty;
             var sqlComparisonOrder = rankedGrowthComparison
-                ? $"{Q("GrowthPercentage")} DESC, {Q("ProductCode")} ASC"
+                ? $"{Q("GrowthPercentage")} DESC, {Q("ProductIdentity")} ASC"
                 : plan.Sort.Count == 1 && plan.Sort[0].Direction == PlanSortDirection.Descending
                 ? $"{Q("PeriodEnd")} DESC" : $"{Q("PeriodEnd")} ASC";
             var sql = "WITH " + string.Join(",\n", ctes) +
-                $"\nSELECT {Q("Value")}, {Q("PeriodStart")}, {Q("PeriodEnd")}, {Q("ProductCode")}, " +
+                $"\nSELECT {Q("Value")}, {Q("PeriodStart")}, {Q("PeriodEnd")}, {Q("ProductIdentity")}, " +
                 $"{Q("SamePeriodCandidateCount")}, {Q("PreviousPeriodStart")}, {Q("PreviousPeriodEnd")}, {Q("PreviousValue")}, {computedValue} AS {Q(comparisonColumn)}, " +
-                $"{status} AS {Q("ComparisonStatus")}, {Q("ProductTitle")}, {Q("SourceUnit")}, {Q("PreviousSourceUnit")}, {Q("CompanyId")}, {Q("ProviderName")}, " +
+                $"{status} AS {Q("ComparisonStatus")}, {Q("ProductTitle")}, {Q("SourceUnit")}, {Q("PreviousSourceUnit")}, {Q("CompanyId")}, " +
+                $"{Q("CompanyName")}, {Q("CompanySymbol")}, {Q("ProviderName")}, " +
                 $"{Q("ReportIdentity")} AS {Q("ReportId")}, {Q("ExternalReportId")}, {Q("SourceRowFingerprint")}, {Q("SourceMultiplicity")} " +
                 $"FROM compared_monthly_rows{comparisonFilter} ORDER BY {Q("CompanyId")}, {sqlComparisonOrder} LIMIT @row_limit OFFSET @row_offset";
-            return BuildCompiledMonthly(sql, plan, snapshot, mapping, parameters, companyIds);
+            return BuildCompiledMonthly(sql, plan, snapshot, mapping, parameters, companyIds, company, companyLabelIds);
         }
 
         string finalSql;
         if (hasAggregation)
         {
-            var companyRanking = rankedProducts && companyIds.Length > 1 && productCode is null;
+            var companyRanking = rankedProducts && companyIds.Length > 1 && productSelection is null;
             var order = rankedProducts
                 ? companyRanking ? $"{Q("Value")} DESC, {Q("CompanyId")} ASC"
-                    : $"{Q("Value")} DESC, {Q("ProductCode")} ASC"
+                    : $"{Q("Value")} DESC, {Q("ProductIdentity")} ASC"
                 : $"{Q("CompanyId")} ASC, {Q("PeriodEnd")} ASC";
             finalSql = "WITH " + string.Join(",\n", ctes) +
                 $"\nSELECT * FROM aggregated_monthly_rows ORDER BY {order} LIMIT @row_limit OFFSET @row_offset";
@@ -729,9 +757,9 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             ctes.Add("projected_monthly_rows AS (SELECT * FROM eligible_monthly_rows)");
             finalSql = "WITH " + string.Join(",\n", ctes) +
                 $"\nSELECT *, {Q("ReportIdentity")} AS {Q("ReportId")} FROM projected_monthly_rows " +
-                $"ORDER BY {Q("CompanyId")}, {order}, {Q("ProductCode")}, {Q("SourceMultiplicity")} LIMIT @row_limit OFFSET @row_offset";
+                $"ORDER BY {Q("CompanyId")}, {order}, {Q("ProductIdentity")}, {Q("SourceMultiplicity")} LIMIT @row_limit OFFSET @row_offset";
         }
-        return BuildCompiledMonthly(finalSql, plan, snapshot, mapping, parameters, companyIds);
+        return BuildCompiledMonthly(finalSql, plan, snapshot, mapping, parameters, companyIds, company, companyLabelIds);
     }
 
     private static StructuredQueryCompilationResult CompileMonthlyCompanyDiscovery(StructuredQueryPlan plan,
@@ -808,7 +836,6 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var (lineReportKey, reportId) = ColumnPair(lineReportRelationship, lineItems.CatalogId, columns);
         var (reportCompanyFk, companyId) = ColumnPair(companyRelationship, reports.CatalogId, columns);
         var value = columns[mapping.ValueColumnCatalogId];
-        var productCode = columns[mapping.ProductCodeColumnCatalogId];
         var productTitle = columns[mapping.ProductTitleColumnCatalogId];
         var unit = columns[mapping.QuantityUnitColumnCatalogId];
         var periodStart = columns[mapping.PeriodStartColumnCatalogId];
@@ -823,15 +850,13 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var multiplicity = columns[mapping.SourceMultiplicityColumnCatalogId];
         var companyName = columns.Values.SingleOrDefault(column => column.TableCatalogId == companyTable.CatalogId
             && column.Name == "Name" && column.Queryable);
-        var companyTicker = columns.Values.SingleOrDefault(column => column.TableCatalogId == companyTable.CatalogId
-            && column.Name == "Ticker" && column.Queryable)
-            ?? columns.Values.SingleOrDefault(column => column.TableCatalogId == companyTable.CatalogId
-                && column.Name == "CompanySymbol" && column.Queryable);
-        var companyKey = columns[companyId.CatalogId];
-        var requiredColumns = new[] { lineReportKey, reportId, reportCompanyFk, companyId, value, productCode,
+        var companyTicker = CompanySymbolColumn(columns, companyTable.CatalogId);
+        var companyIdentity = ResolveMonthlyCompanyIdentity(snapshot, columns, reports, reportProvider);
+        var companyKey = companyIdentity?.CompanyId!;
+        var requiredColumns = new[] { lineReportKey, reportId, reportCompanyFk, companyId, value,
             productTitle, unit, periodStart, periodEnd, reportProvider, reportType, outputType, accepted,
             revision, externalReportId, fingerprintColumn, multiplicity, companyName, companyKey };
-        if (requiredColumns.Any(column => column is null || !column.Queryable)
+        if (requiredColumns.Any(column => column is null || !column.Queryable) || companyIdentity is null
             || companyName is null || companyId.TableCatalogId != companyTable.CatalogId
             || reportCompanyFk.TableCatalogId != reports.CatalogId)
             return new(false, null, ["population_discovery_required_catalog_columns_unapproved"]);
@@ -847,16 +872,16 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var sql = "WITH eligible_observations AS (" +
             $"SELECT c.{q(companyKey.Name)} AS {q("CompanyId")}, c.{q(companyName.Name)} AS {q("CompanyName")}, " +
             $"{companySymbolExpression} AS {q("CompanySymbol")}, li.{q(productTitle.Name)} AS {q("ProductTitle")}, " +
-            $"li.{q(productCode.Name)} AS {q("ProductCode")}, li.{q(value.Name)} AS {q("Value")}, " +
+            $"li.{q(value.Name)} AS {q("Value")}, " +
             $"li.{q(unit.Name)} AS {q("SourceUnit")}, r.{q(periodStart.Name)} AS {q("PeriodStart")}, " +
             $"r.{q(periodEnd.Name)} AS {q("PeriodEnd")}, r.{q(reportProvider.Name)} AS {q("ProviderName")}, " +
             $"r.{q(reportId.Name)} AS {q("ReportId")}, r.{q(externalReportId.Name)} AS {q("ExternalReportId")}, " +
             $"li.{q(fingerprintColumn.Name)} AS {q("SourceRowFingerprint")}, li.{q(multiplicity.Name)} AS {q("SourceMultiplicity")}, " +
             $"COUNT(*) OVER (PARTITION BY c.{q(companyKey.Name)}, r.{q(periodEnd.Name)}) AS {q("SamePeriodCandidateCount")}, " +
             $"ROW_NUMBER() OVER (PARTITION BY c.{q(companyKey.Name)} ORDER BY r.{q(periodEnd.Name)} DESC, " +
-            $"r.{q(periodStart.Name)} DESC, r.{q(reportId.Name)} ASC, li.{q(productCode.Name)} ASC) AS {q("DiscoveryRank")} " +
+            $"r.{q(periodStart.Name)} DESC, r.{q(reportId.Name)} ASC, li.{q(productTitle.Name)} ASC, li.{q(fingerprintColumn.Name)} ASC) AS {q("DiscoveryRank")} " +
             $"FROM {qt(lineItems)} li JOIN {qt(reports)} r ON li.{q(lineReportKey.Name)} = r.{q(reportId.Name)} " +
-            $"JOIN {qt(companyTable)} c ON r.{q(reportCompanyFk.Name)} = c.{q(companyId.Name)} " +
+            $"JOIN {qt(companyTable)} c ON {companyIdentity.Join("r", "c")} " +
             $"WHERE c.{q(companyKey.Name)} = ANY(@company_ids) AND r.{q(reportProvider.Name)} = @provider_name " +
             $"AND r.{q(reportType.Name)} = @report_type AND r.{q(outputType.Name)} = @output_type " +
             $"AND r.{q(accepted.Name)} = @is_accepted AND r.{q(revision.Name)} = @revision_status " +
@@ -881,6 +906,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             .Concat([lineItems.CatalogId, reports.CatalogId, companyTable.CatalogId])
             .Concat([lineReportRelationship.FromColumnCatalogId, lineReportRelationship.ToColumnCatalogId,
                 companyRelationship.FromColumnCatalogId, companyRelationship.ToColumnCatalogId])
+            .Concat(companyIdentity.CatalogIds)
             .Distinct(StringComparer.Ordinal).ToArray();
         var reviewApproved = plan.SemanticReviewApproved && mapping.SemanticApproved
             && lineItems.SemanticApproved && reports.SemanticApproved && companyTable.SemanticApproved
@@ -998,15 +1024,16 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var salesMultiplicity = columns[sales.SourceMultiplicityColumnCatalogId];
         var companyName = columns.Values.SingleOrDefault(column => column.TableCatalogId == companyTable.CatalogId
             && column.Name == "Name" && column.Queryable);
-        var companyTicker = columns.Values.Where(column => column.TableCatalogId == companyTable.CatalogId
-                && (column.Name == "Ticker" || column.Name == "CompanySymbol") && column.Queryable)
-            .OrderByDescending(column => column.Name == "Ticker").FirstOrDefault();
+        var companyTicker = CompanySymbolColumn(columns, companyTable.CatalogId);
         var requiredColumns = new[] { prodLineReportFk, prodReportId, prodReportCompanyFk, prodCompanyId, prodValue,
             prodTitle, prodPeriodStart, prodPeriodEnd, prodProvider, prodType, prodOutputType, prodAccepted, prodRevision,
             salesLineReportFk, salesReportId, salesReportCompanyFk, salesCompanyId, salesValue, salesUnit, salesTitle,
             salesPeriodStart, salesPeriodEnd, salesProvider, salesType, salesOutputType, salesAccepted, salesRevision,
             salesExternalId, salesFingerprint, salesMultiplicity, companyName };
-        if (requiredColumns.Any(column => column is null || !column.Queryable) || companyName is null)
+        var prodIdentity = ResolveMonthlyCompanyIdentity(snapshot, columns, prodReports, prodProvider);
+        var salesIdentity = ResolveMonthlyCompanyIdentity(snapshot, columns, salesReports, salesProvider);
+        if (requiredColumns.Any(column => column is null || !column.Queryable) || companyName is null
+            || prodIdentity is null || salesIdentity is null)
             return new(false, null, ["producer_sales_required_catalog_columns_unapproved"]);
 
         var q = Q;
@@ -1015,23 +1042,30 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var producerPeriod = explicitMonth
             ? $"pr.{q(prodPeriodStart.Name)} = @period_start AND pr.{q(prodPeriodEnd.Name)} = @period_end"
             : $"pr.{q(prodPeriodEnd.Name)} >= @period_start AND pr.{q(prodPeriodEnd.Name)} <= @period_end";
-        var salesPeriod = $"sr.{q(salesPeriodEnd.Name)} >= @period_start AND sr.{q(salesPeriodEnd.Name)} <= @period_end";
+        var salesPeriod = explicitMonth
+            ? $"sr.{q(salesPeriodStart.Name)} = @period_start AND sr.{q(salesPeriodEnd.Name)} = @period_end"
+            : $"sr.{q(salesPeriodEnd.Name)} >= @period_start AND sr.{q(salesPeriodEnd.Name)} <= @period_end";
         var productSalesPredicate = plan.PopulationSalesScope == PopulationSalesScope.RequestedProductSales
             ? $" AND BTRIM(sl.{q(salesTitle.Name)}) = ANY(@product_aliases)" : string.Empty;
-        var companyKey = columns[salesCompanyId.CatalogId];
+        var companyKey = salesIdentity.CompanyId!;
         var ticker = companyTicker is null ? "NULL::text" : $"c.{q(companyTicker.Name)}";
         var unitCount = sales.UnitKind == "quantity" ? $"COUNT(DISTINCT sl.{q(salesUnit.Name)})" : "1";
         var productMappingCoverage = string.Equals(concept!.MappingCoverageStatus, "complete", StringComparison.OrdinalIgnoreCase)
             ? "complete" : "partial";
+        // A trailing window ranks at the latest month every producer reported. An explicit month is fixed: a producer
+        // without an eligible sales observation in it is left out of the (partial) ranking instead of blocking it.
+        var commonPeriodCoverage = explicitMonth
+            ? string.Empty
+            : $" HAVING COUNT(DISTINCT {q("CompanyId")}) = (SELECT COUNT(*) FROM producers)";
         var sql = "WITH producers AS (" +
-            $"SELECT DISTINCT pr.{q(prodReportCompanyFk.Name)} AS {q("CompanyId")} " +
+            $"SELECT DISTINCT {prodIdentity.Key("pr")} AS {q("CompanyId")} " +
             $"FROM {qt(prodLines)} pl JOIN {qt(prodReports)} pr ON pl.{q(prodLineReportFk.Name)} = pr.{q(prodReportId.Name)} " +
             $"WHERE pr.{q(prodProvider.Name)} = @production_provider AND pr.{q(prodType.Name)} = @production_report_type " +
             $"AND pr.{q(prodOutputType.Name)} = @production_output_type AND pr.{q(prodAccepted.Name)} = @production_accepted " +
             $"AND pr.{q(prodRevision.Name)} = @production_revision AND {producerPeriod} " +
-            $"AND pr.{q(prodReportCompanyFk.Name)} = ANY(@company_ids) AND pl.{q(prodValue.Name)} > 0 " +
+            $"AND {prodIdentity.Filter("pr", "= ANY(@company_ids)")} AND pl.{q(prodValue.Name)} > 0 " +
             $"AND BTRIM(pl.{q(prodTitle.Name)}) = ANY(@product_aliases)), " +
-            $"eligible_sales AS (SELECT sr.{q(salesReportCompanyFk.Name)} AS {q("CompanyId")}, " +
+            $"eligible_sales AS (SELECT c.{q(companyKey.Name)} AS {q("CompanyId")}, " +
             $"c.{q(companyName.Name)} AS {q("CompanyName")}, {ticker} AS {q("CompanySymbol")}, " +
             $"MIN(sr.{q(salesPeriodStart.Name)}) AS {q("PeriodStart")}, sr.{q(salesPeriodEnd.Name)} AS {q("PeriodEnd")}, " +
             $"SUM(sl.{q(salesValue.Name)}) AS {q("Value")}, MIN(sl.{q(salesUnit.Name)}) AS {q("SourceUnit")}, " +
@@ -1042,15 +1076,15 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             $"ARRAY_AGG(DISTINCT sr.{q(salesReportId.Name)}) AS {q("ReportIdentity")}, " +
             $"ARRAY_AGG(DISTINCT sr.{q(salesExternalId.Name)}) AS {q("ExternalReportId")}, " +
             $"ARRAY_AGG(DISTINCT sl.{q(salesFingerprint.Name)}) AS {q("SourceRowFingerprint")} " +
-            $"FROM producers p JOIN {qt(salesReports)} sr ON sr.{q(salesReportCompanyFk.Name)} = p.{q("CompanyId")} " +
+            $"FROM producers p JOIN {qt(companyTable)} c ON c.{q(companyKey.Name)} = p.{q("CompanyId")} " +
+            $"JOIN {qt(salesReports)} sr ON {salesIdentity.Join("sr", "c")} " +
             $"JOIN {qt(salesLines)} sl ON sl.{q(salesLineReportFk.Name)} = sr.{q(salesReportId.Name)} " +
-            $"JOIN {qt(companyTable)} c ON c.{q(companyKey.Name)} = sr.{q(salesReportCompanyFk.Name)} " +
             $"WHERE sr.{q(salesProvider.Name)} = @sales_provider AND sr.{q(salesType.Name)} = @sales_report_type " +
             $"AND sr.{q(salesOutputType.Name)} = @sales_output_type AND sr.{q(salesAccepted.Name)} = @sales_accepted " +
             $"AND sr.{q(salesRevision.Name)} = @sales_revision AND {salesPeriod}{productSalesPredicate} " +
-            $"GROUP BY sr.{q(salesReportCompanyFk.Name)}, c.{q(companyName.Name)}, {ticker}, sr.{q(salesPeriodEnd.Name)}), " +
+            $"GROUP BY c.{q(companyKey.Name)}, c.{q(companyName.Name)}, {ticker}, sr.{q(salesPeriodEnd.Name)}), " +
             $"common_periods AS (SELECT {q("PeriodStart")}, {q("PeriodEnd")} FROM eligible_sales " +
-            $"GROUP BY {q("PeriodStart")}, {q("PeriodEnd")} HAVING COUNT(DISTINCT {q("CompanyId")}) = (SELECT COUNT(*) FROM producers)), " +
+            $"GROUP BY {q("PeriodStart")}, {q("PeriodEnd")}{commonPeriodCoverage}), " +
             $"latest_common_period AS (SELECT {q("PeriodStart")}, {q("PeriodEnd")} FROM common_periods " +
             $"ORDER BY {q("PeriodEnd")} DESC, {q("PeriodStart")} DESC LIMIT 1) " +
             $"SELECT es.*, '{productMappingCoverage}' AS {q("ProductMappingCoverageStatus")}, " +
@@ -1082,6 +1116,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                 prodCompanyRelation.FromColumnCatalogId, prodCompanyRelation.ToColumnCatalogId,
                 salesRelation.FromColumnCatalogId, salesRelation.ToColumnCatalogId,
                 salesCompanyRelation.FromColumnCatalogId, salesCompanyRelation.ToColumnCatalogId })
+            .Concat(prodIdentity.CatalogIds).Concat(salesIdentity.CatalogIds)
             .Distinct(StringComparer.Ordinal).ToArray();
         var reviewApproved = plan.SemanticReviewApproved && production.SemanticApproved && sales.SemanticApproved
             && prodLines.SemanticApproved && prodReports.SemanticApproved && salesLines.SemanticApproved
@@ -1111,10 +1146,11 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
 
     private static StructuredQueryCompilationResult BuildCompiledMonthly(string sql, StructuredQueryPlan plan,
         StructuredQueryCatalogSnapshot snapshot, StructuredSqlMonthlyMeasure mapping,
-        IReadOnlyList<StructuredQueryParameter> parameters, IReadOnlyList<Guid> companyIds)
+        IReadOnlyList<StructuredQueryParameter> parameters, IReadOnlyList<Guid> companyIds, MonthlyCompanyIdentity company,
+        IReadOnlyList<string> companyLabelIds)
     {
         foreach (var identifier in new[] { mapping.LineItemsTableCatalogId, mapping.ReportsTableCatalogId,
-                     mapping.ValueColumnCatalogId, mapping.ProductCodeColumnCatalogId, mapping.ProductTitleColumnCatalogId,
+                     mapping.ValueColumnCatalogId, mapping.ProductTitleColumnCatalogId,
                      mapping.QuantityUnitColumnCatalogId, mapping.PeriodStartColumnCatalogId, mapping.PeriodEndColumnCatalogId,
                      mapping.ReportProviderColumnCatalogId, mapping.ReportTypeColumnCatalogId, mapping.OutputTypeColumnCatalogId,
                      mapping.CompanyIdColumnCatalogId, mapping.AcceptedColumnCatalogId, mapping.RevisionStatusColumnCatalogId,
@@ -1125,11 +1161,13 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var reports = snapshot.Tables.Single(x => x.CatalogId == mapping.ReportsTableCatalogId);
         var relationship = snapshot.Relationships.Single(x => x.CatalogId == mapping.RelationshipIds[0]);
         var physicalIds = MonthlyColumnIds(mapping).Append(relationship.FromColumnCatalogId).Append(relationship.ToColumnCatalogId)
-            .Append(relationship.CatalogId).Append(lineItems.CatalogId).Append(reports.CatalogId).Distinct(StringComparer.Ordinal).ToArray();
+            .Append(relationship.CatalogId).Append(lineItems.CatalogId).Append(reports.CatalogId).Concat(company.CatalogIds)
+            .Concat(companyLabelIds)
+            .Distinct(StringComparer.Ordinal).ToArray();
         var semanticApproved = plan.SemanticReviewApproved && mapping.SemanticApproved
             && lineItems.SemanticApproved && reports.SemanticApproved && relationship.SemanticApproved;
         var authorized = plan.QueryAuthorized && mapping.Queryable && lineItems.Queryable && reports.Queryable
-            && relationship.Queryable && relationship.QueryAuthorized
+            && relationship.Queryable && relationship.QueryAuthorized && company.Authorized(snapshot.Columns.ToDictionary(x => x.CatalogId, StringComparer.Ordinal))
             && physicalIds.Where(id => snapshot.Columns.Any(x => x.CatalogId == id))
                 .All(id => snapshot.Columns.Single(x => x.CatalogId == id).Queryable);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sql))).ToLowerInvariant();
@@ -1145,8 +1183,24 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             isMonthlyValueQuery: true, companyIds: companyIds), []);
     }
 
+    /// <summary>
+    /// The approved stock-symbol column of Companies. Noavaran stores the symbol in CompanySymbol (Ticker is
+    /// empty in production); Ticker is used only by a catalog that has not approved CompanySymbol.
+    /// </summary>
+    private static StructuredSqlColumn? CompanySymbolColumn(IReadOnlyDictionary<string, StructuredSqlColumn> columns,
+        string companyTableCatalogId) =>
+        columns.Values.SingleOrDefault(column => column.TableCatalogId == companyTableCatalogId
+            && column.Name == "CompanySymbol" && column.Queryable)
+        ?? columns.Values.SingleOrDefault(column => column.TableCatalogId == companyTableCatalogId
+            && column.Name == "Ticker" && column.Queryable);
+
+    private static bool IsBoundedProductSelection(MonthlyProductSelection? selection) =>
+        selection is { SourceTitles.Count: >= 1 and <= 64, SourceUnits.Count: >= 1 and <= 16 }
+        && selection.SourceTitles.All(title => !string.IsNullOrWhiteSpace(title) && title.Length <= 512)
+        && selection.SourceUnits.All(unit => unit is not null && unit.Length <= 128);
+
     private static IEnumerable<string> MonthlyColumnIds(StructuredSqlMonthlyMeasure x) =>
-    [x.ValueColumnCatalogId, x.ProductCodeColumnCatalogId, x.ProductTitleColumnCatalogId, x.QuantityUnitColumnCatalogId,
+    [x.ValueColumnCatalogId, x.ProductTitleColumnCatalogId, x.QuantityUnitColumnCatalogId,
         x.PeriodStartColumnCatalogId, x.PeriodEndColumnCatalogId, x.ReportProviderColumnCatalogId,
         x.ReportTypeColumnCatalogId, x.OutputTypeColumnCatalogId, x.CompanyIdColumnCatalogId,
         x.AcceptedColumnCatalogId, x.RevisionStatusColumnCatalogId, x.ExternalReportIdColumnCatalogId,
@@ -1218,7 +1272,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             return new(false, null, ["direct_source_relationship_column_binding_invalid"]);
         var (relationships, lineItems, statements, companies, sourceItems, columns, statementColumns, srcId, sourceCatalogId,
             lineSourceFk, lineStatementFk, statementId, statementCompanyFk, companyId, value, provider, unit, statementType,
-            statementProvider, persistedStatementType, isComposing, periodEnd) = bound;
+            statementProvider, persistedStatementType, isComposing, periodEnd, companyKey, companyProvider) = bound;
         var periodStart = statementColumns["PeriodStart"];
         var periodType = statementColumns["PeriodType"];
 
@@ -1264,7 +1318,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         {
             // A population answer must name its members from persisted identity, so the company label
             // columns must be catalog-approved for runtime query.
-            companySymbol = columns.Values.SingleOrDefault(x => x.TableCatalogId == companies.CatalogId && x.Name == "Ticker");
+            companySymbol = CompanySymbolColumn(columns, companies.CatalogId);
             companyName = columns.Values.SingleOrDefault(x => x.TableCatalogId == companies.CatalogId && x.Name == "Name");
             if (companySymbol is not { Queryable: true } || companyName is not { Queryable: true })
                 return new(false, null, ["statement_population_company_label_columns_unapproved"]);
@@ -1281,10 +1335,11 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             ? $", co.{Q(companySymbol!.Name)} AS \"CompanySymbol\", co.{Q(companyName!.Name)} AS \"CompanyName\""
             : string.Empty;
         var sql = "WITH candidate AS (\n" +
-                  $"  SELECT c_st.{Q(statementCompanyFk.Name)} AS \"CompanyId\", c_st.{Q(periodStart.Name)} AS \"PeriodStart\", " +
+                  $"  SELECT c_co.{Q(companyKey.Name)} AS \"CompanyId\", c_st.{Q(periodStart.Name)} AS \"PeriodStart\", " +
                   $"c_st.{Q(periodEnd.Name)} AS \"PeriodEnd\", c_st.{Q(periodType.Name)} AS \"PeriodType\", c_st.{Q(isComposing.Name)} AS \"IsComposing\"\n" +
                   $"  FROM {QT(statements)} c_st\n" +
-                  $"  WHERE c_st.{Q(statementCompanyFk.Name)} = ANY(@company_ids)\n" +
+                  $"  JOIN {QT(companies)} c_co ON {bound.CompanyJoin("c_st", "c_co")}\n" +
+                  $"  WHERE c_co.{Q(companyKey.Name)} = ANY(@company_ids)\n" +
                   $"    AND c_st.{Q(statementProvider.Name)} = @provider_name\n" +
                   $"    AND c_st.{Q(persistedStatementType.Name)} = @statement_type" + ScopeFilter("c_st") + "\n" +
                   "),\n" +
@@ -1313,8 +1368,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                   $"@source_item_catalog_id AS \"SourceItemCatalogId\", st.{Q(isComposing.Name)} AS \"IsComposing\", " +
                   string.Join(", ", auditColumns.Select(column => $"st.{Q(column.Name)} AS \"{column.Name}\"")) + labelColumns + filterColumns + "\n" +
                   "FROM company_coverage cc\n" +
-                  $"JOIN {QT(companies)} co ON co.{Q(companyId.Name)} = cc.\"CompanyId\"\n" +
-                  $"LEFT JOIN {QT(statements)} st ON st.{Q(statementCompanyFk.Name)} = cc.\"CompanyId\"\n" +
+                  $"JOIN {QT(companies)} co ON co.{Q(companyKey.Name)} = cc.\"CompanyId\"\n" +
+                  $"LEFT JOIN {QT(statements)} st ON {bound.CompanyJoin("st", "co")}\n" +
                   $"  AND st.{Q(statementProvider.Name)} = @provider_name AND st.{Q(persistedStatementType.Name)} = @statement_type" +
                   ScopeFilter("st") + "\n" +
                   $"  AND EXISTS (SELECT 1 FROM target_period tp WHERE tp.\"PeriodStart\" = st.{Q(periodStart.Name)} " +
@@ -1322,7 +1377,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                   $"LEFT JOIN {QT(lineItems)} li ON li.{Q(lineStatementFk.Name)} = st.{Q(statementId.Name)} " +
                   $"AND li.{Q(lineSourceFk.Name)} = @source_item_catalog_id\n" +
                   filterJoins +
-                  $"WHERE co.{Q(companyId.Name)} = ANY(@company_ids)\n" +
+                  $"WHERE co.{Q(companyKey.Name)} = ANY(@company_ids)\n" +
                   $"  AND EXISTS (SELECT 1 FROM {QT(sourceItems)} si WHERE si.{Q(sourceCatalogId.Name)} = @source_item_catalog_id " +
                   $"AND si.{Q(provider.Name)} = @provider_name AND si.{Q(statementType.Name)} = @statement_type AND si.{Q(srcId.Name)} = @source_item_id)\n" +
                   $"ORDER BY cc.\"CompanyId\", st.{Q(periodType.Name)}, st.{Q(statementId.Name)}\nLIMIT @row_limit";
@@ -1341,7 +1396,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var identifiers = new[] { lineItems.Schema, lineItems.Name, statements.Schema, statements.Name, companies.Schema, companies.Name,
                 sourceItems.Schema, sourceItems.Name, value.Name, periodEnd.Name, periodStart.Name, periodType.Name, statementId.Name,
                 provider.Name, statementType.Name, statementProvider.Name, persistedStatementType.Name, srcId.Name, lineSourceFk.Name,
-                isComposing.Name, lineStatementFk.Name, statementCompanyFk.Name, companyId.Name, unit.Name, sourceCatalogId.Name }
+                isComposing.Name, lineStatementFk.Name, statementCompanyFk.Name, companyId.Name, unit.Name, sourceCatalogId.Name,
+                companyKey.Name, companyProvider?.Name ?? companyKey.Name }
             .Concat(auditColumns.Select(column => column.Name))
             .Concat(population ? [companySymbol!.Name, companyName!.Name] : []);
         if (identifiers.Any(identifier => !Identifier.IsMatch(identifier))) return new(false, null, ["catalog_identifier_invalid"]);
@@ -1350,7 +1406,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                 srcId.CatalogId, unit.CatalogId, sourceCatalogId.CatalogId, lineSourceFk.CatalogId, lineStatementFk.CatalogId,
                 statementId.CatalogId, statementCompanyFk.CatalogId, companyId.CatalogId, value.CatalogId, provider.CatalogId,
                 statementType.CatalogId, statementProvider.CatalogId, persistedStatementType.CatalogId, isComposing.CatalogId,
-                periodEnd.CatalogId, periodStart.CatalogId, periodType.CatalogId }
+                periodEnd.CatalogId, periodStart.CatalogId, periodType.CatalogId, companyKey.CatalogId,
+                companyProvider?.CatalogId ?? companyKey.CatalogId }
             .Concat(auditColumns.Select(column => column.CatalogId))
             .Concat(population ? [companySymbol!.CatalogId, companyName!.CatalogId] : [])
             .Distinct(StringComparer.Ordinal).ToArray();
@@ -1393,7 +1450,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             return new(false, null, ["direct_source_relationship_column_binding_invalid"]);
         var (relationships, lineItems, statements, companies, sourceItems, columns, statementColumns, srcId, sourceCatalogId,
             lineSourceFk, lineStatementFk, statementId, statementCompanyFk, companyId, value, provider, unit, statementType,
-            statementProvider, persistedStatementType, isComposing, periodEnd) = bound;
+            statementProvider, persistedStatementType, isComposing, periodEnd, companyKey, companyProvider) = bound;
         var requestedConsolidationScope = plan.Statement.Scopes.Contains("consolidated", StringComparer.Ordinal)
             ? true
             : plan.Statement.Scopes.Contains("standalone", StringComparer.Ordinal) ? false : (bool?)null;
@@ -1411,7 +1468,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var sql = $"WITH latest_period AS (\n" +
                   $"  SELECT MAX(st_scope.{Q(periodEnd.Name)}) AS \"PeriodEnd\"\n" +
                   $"  FROM {QT(statements)} st_scope\n" +
-                  $"  WHERE st_scope.{Q(statementCompanyFk.Name)} = @company_id\n" +
+                  $"  JOIN {QT(companies)} co_scope ON {bound.CompanyJoin("st_scope", "co_scope")}\n" +
+                  $"  WHERE co_scope.{Q(companyKey.Name)} = @company_id\n" +
                   $"    AND st_scope.{Q(statementProvider.Name)} = @provider_name\n" +
                   $"    AND st_scope.{Q(persistedStatementType.Name)} = @statement_type" + scopeFilter + "\n" +
                   $"  GROUP BY st_scope.{Q(isComposing.Name)}\n" +
@@ -1421,17 +1479,17 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                   $"st.{Q(persistedStatementType.Name)} AS \"StatementType\", @source_item_id AS \"SourceItemId\", " +
                   $"(SELECT si.{Q(unit.Name)} FROM {QT(sourceItems)} si WHERE si.{Q(sourceCatalogId.Name)} = @source_item_catalog_id) AS \"SourceUnit\", " +
                   $"@source_item_catalog_id AS \"SourceItemCatalogId\", st.{Q(isComposing.Name)} AS \"IsComposing\", " +
-                  $"st.{Q(statementCompanyFk.Name)} AS \"CompanyId\", st.{Q(statementColumns["PeriodType"].Name)} AS \"PeriodType\", " +
+                  $"co.{Q(companyKey.Name)} AS \"CompanyId\", st.{Q(statementColumns["PeriodType"].Name)} AS \"PeriodType\", " +
                   $"st.{Q(statementColumns["IsAudited"].Name)} AS \"IsAudited\", st.{Q(statementColumns["IsRepresented"].Name)} AS \"IsRepresented\", " +
                   $"st.{Q(statementColumns["ExternalStatementId"].Name)} AS \"ExternalStatementId\", st.{Q(statementColumns["PeriodStart"].Name)} AS \"PeriodStart\", " +
                   $"st.{Q(statementColumns["SourcePayloadChecksum"].Name)} AS \"SourcePayloadChecksum\", st.{Q(statementColumns["PublishedAt"].Name)} AS \"PublishedAt\", " +
                   $"st.{Q(statementColumns["LastSynchronizedAt"].Name)} AS \"LastSynchronizedAt\", st.{Q(statementColumns["WarningsJson"].Name)} AS \"WarningsJson\", " +
                   $"st.{Q(statementColumns["LogicalVendor"].Name)} AS \"LogicalVendor\", st.{Q(statementColumns["SourceMode"].Name)} AS \"SourceMode\"\n" +
                   $"FROM {QT(statements)} st\n" +
-                  $"JOIN {QT(companies)} co ON st.{Q(statementCompanyFk.Name)} = co.{Q(companyId.Name)}\n" +
+                  $"JOIN {QT(companies)} co ON {bound.CompanyJoin("st", "co")}\n" +
                   $"LEFT JOIN {QT(lineItems)} li ON li.{Q(lineStatementFk.Name)} = st.{Q(statementId.Name)} " +
                   $"AND li.{Q(lineSourceFk.Name)} = @source_item_catalog_id\n" +
-                  $"WHERE co.{Q(companyId.Name)} = @company_id\n" +
+                  $"WHERE co.{Q(companyKey.Name)} = @company_id\n" +
                   $"  AND st.{Q(statementProvider.Name)} = @provider_name\n  AND st.{Q(persistedStatementType.Name)} = @statement_type\n" +
                   $"  AND EXISTS (SELECT 1 FROM {QT(sourceItems)} si WHERE si.{Q(sourceCatalogId.Name)} = @source_item_catalog_id " +
                   $"AND si.{Q(provider.Name)} = @provider_name AND si.{Q(statementType.Name)} = @statement_type AND si.{Q(srcId.Name)} = @source_item_id)\n" +
@@ -1447,7 +1505,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                      statementColumns["ExternalStatementId"].Name, statementColumns["PeriodStart"].Name, statementColumns["SourcePayloadChecksum"].Name,
                      statementColumns["PublishedAt"].Name, statementColumns["LastSynchronizedAt"].Name, statementColumns["WarningsJson"].Name,
                      statementColumns["LogicalVendor"].Name, statementColumns["SourceMode"].Name, statementColumns["PeriodType"].Name, lineStatementFk.Name,
-                     statementCompanyFk.Name, companyId.Name })
+                     statementCompanyFk.Name, companyId.Name, companyKey.Name, companyProvider?.Name ?? companyKey.Name })
             if (!Identifier.IsMatch(identifier)) return new(false, null, ["catalog_identifier_invalid"]);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sql))).ToLowerInvariant();
         var physicalObjectIds = new[] { sourceItems.CatalogId, lineItems.CatalogId, statements.CatalogId, companies.CatalogId,
@@ -1459,7 +1517,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             statementColumns["SourcePayloadChecksum"].CatalogId, statementColumns["PublishedAt"].CatalogId,
             statementColumns["LastSynchronizedAt"].CatalogId, statementColumns["WarningsJson"].CatalogId,
             statementColumns["LogicalVendor"].CatalogId, statementColumns["SourceMode"].CatalogId,
-            statementColumns["PeriodType"].CatalogId }.Distinct(StringComparer.Ordinal).ToArray();
+            statementColumns["PeriodType"].CatalogId, companyKey.CatalogId, companyProvider?.CatalogId ?? companyKey.CatalogId }
+            .Distinct(StringComparer.Ordinal).ToArray();
         var requiredTables = new[] { sourceItems, lineItems, statements, companies };
         var requiredColumnsAuthorized = physicalObjectIds.Where(columns.ContainsKey)
             .All(id => columns[id].Queryable);
@@ -1493,7 +1552,80 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         StructuredSqlColumn LineStatementFk, StructuredSqlColumn StatementId, StructuredSqlColumn StatementCompanyFk,
         StructuredSqlColumn CompanyId, StructuredSqlColumn Value, StructuredSqlColumn Provider, StructuredSqlColumn Unit,
         StructuredSqlColumn StatementType, StructuredSqlColumn StatementProvider, StructuredSqlColumn PersistedStatementType,
-        StructuredSqlColumn IsComposing, StructuredSqlColumn PeriodEnd);
+        StructuredSqlColumn IsComposing, StructuredSqlColumn PeriodEnd, StructuredSqlColumn CompanyKey,
+        StructuredSqlColumn? CompanyProvider)
+    {
+        /// <summary>
+        /// The statement-to-company join from the catalog relationship. Noavaran statements reference their company by the
+        /// provider identity (ProviderName, ExternalCompanyId), so that form also equates the providers; CompanyKey is Companies.Id.
+        /// </summary>
+        public string CompanyJoin(string statementAlias, string companyAlias) =>
+            $"{statementAlias}.{Q(StatementCompanyFk.Name)} = {companyAlias}.{Q(CompanyId.Name)}" +
+            (CompanyProvider is null ? string.Empty
+                : $" AND {statementAlias}.{Q(StatementProvider.Name)} = {companyAlias}.{Q(CompanyProvider.Name)}");
+    }
+
+    /// <summary>
+    /// How a monthly report row names its company, from the runtime-joinable catalog relationship between the reports table and
+    /// Companies. Noavaran reports carry no CompanyId: their relationship is the provider identity (ProviderName, ExternalCompanyId),
+    /// and <see cref="Key"/> yields Companies.Id. Without that relationship the report's CompanyId column is used as before.
+    /// </summary>
+    private sealed record MonthlyCompanyIdentity(StructuredSqlColumn ReportProvider, StructuredSqlColumn ReportKey,
+        StructuredSqlTable? Companies = null, StructuredSqlColumn? CompanyMatch = null, StructuredSqlColumn? CompanyId = null,
+        StructuredSqlColumn? CompanyProvider = null, StructuredSqlRelationship? Relationship = null)
+    {
+        private bool ProviderIdentity => CompanyProvider is not null;
+
+        /// <summary>Companies.Id of the report row.</summary>
+        public string Key(string reportAlias) => ProviderIdentity
+            ? $"(SELECT mc.{Q(CompanyId!.Name)} FROM {QT(Companies!)} mc WHERE {Join(reportAlias, "mc")})"
+            : $"{reportAlias}.{Q(ReportKey.Name)}";
+
+        /// <summary>Report rows of the companies whose Companies.Id satisfies the predicate (uses the report's provider identity index).</summary>
+        public string Filter(string reportAlias, string companyIdPredicate) => ProviderIdentity
+            ? $"({reportAlias}.{Q(ReportProvider.Name)}, {reportAlias}.{Q(ReportKey.Name)}) IN (SELECT mc.{Q(CompanyProvider!.Name)}, " +
+              $"mc.{Q(CompanyMatch!.Name)} FROM {QT(Companies!)} mc WHERE mc.{Q(CompanyId!.Name)} {companyIdPredicate})"
+            : $"{reportAlias}.{Q(ReportKey.Name)} {companyIdPredicate}";
+
+        /// <summary>A Companies display column of the report row; NULL without a provider identity or an approved column.</summary>
+        public string Label(string reportAlias, StructuredSqlColumn? column) => ProviderIdentity && column is not null
+            ? $"(SELECT mc.{Q(column.Name)} FROM {QT(Companies!)} mc WHERE {Join(reportAlias, "mc")})"
+            : "NULL::text";
+
+        public string Join(string reportAlias, string companyAlias) =>
+            $"{companyAlias}.{Q(CompanyMatch!.Name)} = {reportAlias}.{Q(ReportKey.Name)}" + (ProviderIdentity
+                ? $" AND {companyAlias}.{Q(CompanyProvider!.Name)} = {reportAlias}.{Q(ReportProvider.Name)}" : string.Empty);
+
+        public IEnumerable<string> CatalogIds => new[] { ReportProvider.CatalogId, ReportKey.CatalogId, Companies?.CatalogId,
+            CompanyMatch?.CatalogId, CompanyId?.CatalogId, CompanyProvider?.CatalogId, Relationship?.CatalogId,
+            Relationship?.FromColumnCatalogId, Relationship?.ToColumnCatalogId }.OfType<string>();
+
+        public bool Authorized(IReadOnlyDictionary<string, StructuredSqlColumn> columns) =>
+            (Companies is null || Companies.Queryable && Companies.SemanticApproved)
+            && (Relationship is null || Relationship.Queryable && Relationship.QueryAuthorized && Relationship.SemanticApproved)
+            && CatalogIds.Where(columns.ContainsKey).All(id => columns[id].Queryable);
+    }
+
+    /// <returns>The runtime company identity of report rows; null when the catalog's runtime relationship cannot be bound.</returns>
+    private static MonthlyCompanyIdentity? ResolveMonthlyCompanyIdentity(StructuredQueryCatalogSnapshot snapshot,
+        IReadOnlyDictionary<string, StructuredSqlColumn> columns, StructuredSqlTable reports, StructuredSqlColumn reportProvider)
+    {
+        var companies = snapshot.Tables.SingleOrDefault(table => table.Schema == "public" && table.Name == "Companies");
+        var relationship = companies is null ? null : snapshot.Relationships.SingleOrDefault(candidate => candidate.Verified
+            && candidate.Queryable && Connects(candidate, reports.CatalogId, companies.CatalogId));
+        if (companies is null || relationship is null) return null;
+        var (reportKey, companyMatch) = ColumnPair(relationship, reports.CatalogId, columns);
+        var companyId = columns.Values.SingleOrDefault(column => column.TableCatalogId == companies.CatalogId && column.Name == "Id");
+        var companyProvider = columns.Values.SingleOrDefault(column => column.TableCatalogId == companies.CatalogId && column.Name == "ProviderName");
+        if (companyId is null || reportKey.TableCatalogId != reports.CatalogId || companyMatch.TableCatalogId != companies.CatalogId)
+            return null;
+        if (reportKey.Name == "ExternalCompanyId" && companyMatch.Name == "ExternalCompanyId")
+            return companyProvider is null ? null
+                : new(reportProvider, reportKey, companies, companyMatch, companyId, companyProvider, relationship);
+        return reportKey.Name == "CompanyId" && companyMatch.Name == "Id"
+            ? new(reportProvider, reportKey, companies, companyMatch, companyId, Relationship: relationship)
+            : null;
+    }
 
     /// <summary>Binds a direct source's physical tables/columns through its verified relationships only.</summary>
     private static DirectSourcePhysicalBinding? BindDirectSourcePhysical(StructuredQueryCatalogSnapshot snapshot,
@@ -1515,13 +1647,19 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var (sourceCatalogId, lineSourceFk) = ColumnPair(sourceToLine, sourceItems.CatalogId, columns);
         var (lineStatementFk, statementId) = ColumnPair(lineToStatement, lineItems.CatalogId, columns);
         var (statementCompanyFk, companyId) = ColumnPair(statementToCompany, statements.CatalogId, columns);
+        var providerIdentity = statementCompanyFk.Name == "ExternalCompanyId" && companyId.Name == "ExternalCompanyId";
         if (sourceCatalogId.TableCatalogId != sourceItems.CatalogId || sourceCatalogId.Name != "Id"
             || lineSourceFk.TableCatalogId != lineItems.CatalogId || lineSourceFk.Name != "SourceItemCatalogId"
             || lineStatementFk.TableCatalogId != lineItems.CatalogId || lineStatementFk.Name != "FinancialStatementId"
             || statementId.TableCatalogId != statements.CatalogId || statementId.Name != "Id"
-            || statementCompanyFk.TableCatalogId != statements.CatalogId || statementCompanyFk.Name != "CompanyId"
-            || companyId.TableCatalogId != companies.CatalogId || companyId.Name != "Id")
+            || statementCompanyFk.TableCatalogId != statements.CatalogId || companyId.TableCatalogId != companies.CatalogId
+            || !providerIdentity && (statementCompanyFk.Name != "CompanyId" || companyId.Name != "Id"))
             return null;
+        var companyKey = columns.Values.SingleOrDefault(x => x.TableCatalogId == companies.CatalogId && x.Name == "Id");
+        var companyProvider = providerIdentity
+            ? columns.Values.SingleOrDefault(x => x.TableCatalogId == companies.CatalogId && x.Name == "ProviderName")
+            : null;
+        if (companyKey is null || providerIdentity && companyProvider is null) return null;
         var value = lineItemColumns["Value"];
         var provider = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "ProviderName");
         var unit = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "Unit");
@@ -1532,7 +1670,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var periodEnd = statementColumns["PeriodEnd"];
         return new(relationships, lineItems, statements, companies, sourceItems, columns, statementColumns, srcId,
             sourceCatalogId, lineSourceFk, lineStatementFk, statementId, statementCompanyFk, companyId, value, provider, unit,
-            statementType, statementProvider, persistedStatementType, isComposing, periodEnd);
+            statementType, statementProvider, persistedStatementType, isComposing, periodEnd, companyKey, companyProvider);
     }
 
     /// <summary>

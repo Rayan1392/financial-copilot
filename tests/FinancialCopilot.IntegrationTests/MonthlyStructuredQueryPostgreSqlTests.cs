@@ -22,6 +22,8 @@ namespace FinancialCopilot.IntegrationTests;
 public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValueSearch131PostgreSqlFixture fixture)
 {
     private const string Provider = "NoavaranCurrentApi";
+    // Fixture product names: they choose a line's source title (see FixtureTitle). The persisted ProductCode is
+    // production-like noise (see Line) and never a product identity (owner decision 2026-10-29).
     private const string ProductCode = "PRODUCT:MONTHLY-FIXTURE:PELLET";
     private const string AmbiguousProductCode = "PRODUCT:MONTHLY-FIXTURE:CEMENT";
     private static readonly Guid TenantId = Guid.Parse("5f655e78-07c5-4805-a757-a8d1927ab1d2");
@@ -51,29 +53,29 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             db.Companies.Add(new NormalizedCompanyRow
             {
                 Id = companyId, ProviderName = Provider, ExternalCompanyId = "monthly-fixture-company",
-                Name = "Monthly fixture company", Ticker = "MTH", MarketId = marketId, PrecedencyRight = 0,
+                Name = "Monthly fixture company", Ticker = "MTH", CompanySymbol = "MTH", MarketId = marketId, PrecedencyRight = 0,
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             });
             db.Companies.Add(new NormalizedCompanyRow
             {
                 Id = companyId2, ProviderName = Provider, ExternalCompanyId = "monthly-fixture-company-2",
-                Name = "Monthly fixture company 2", Ticker = "MTH2", MarketId = marketId, PrecedencyRight = 0,
+                Name = "Monthly fixture company 2", Ticker = "MTH2", CompanySymbol = "MTH2", MarketId = marketId, PrecedencyRight = 0,
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             });
             db.Companies.AddRange(
                 new NormalizedCompanyRow { Id = kgelId, ProviderName = Provider, ExternalCompanyId = "feature141-kgel",
-                    Name = "Fixture Kegel", Ticker = "کگل", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
+                    Name = "Fixture Kegel", Ticker = "کگل", CompanySymbol = "کگل", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
                 new NormalizedCompanyRow { Id = kgehrId, ProviderName = Provider, ExternalCompanyId = "feature141-kgehr",
-                    Name = "Fixture Kogهر", Ticker = "کگهر", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow });
+                    Name = "Fixture Kogهر", Ticker = "کگهر", CompanySymbol = "کگهر", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow });
             db.Companies.AddRange(
                 new NormalizedCompanyRow { Id = newlyAddedProducerId, ProviderName = Provider, ExternalCompanyId = "feature141-new-producer",
-                    Name = "Dynamically discovered producer", Ticker = "NEWP", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
+                    Name = "Dynamically discovered producer", Ticker = "NEWP", CompanySymbol = "NEWP", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
                 new NormalizedCompanyRow { Id = zeroProductionCompanyId, ProviderName = Provider, ExternalCompanyId = "feature141-zero-producer",
-                    Name = "No positive pellet production", Ticker = "ZERO", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
+                    Name = "No positive pellet production", Ticker = "ZERO", CompanySymbol = "ZERO", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
                 new NormalizedCompanyRow { Id = productionOnlyCompanyId, ProviderName = Provider, ExternalCompanyId = "feature141-production-only",
-                    Name = "Positive pellet producer without sales", Ticker = "NOSALES", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
+                    Name = "Positive pellet producer without sales", Ticker = "NOSALES", CompanySymbol = "NOSALES", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow },
                 new NormalizedCompanyRow { Id = unauthorizedProducerId, ProviderName = Provider, ExternalCompanyId = "feature141-unauthorized-producer",
-                    Name = "Unauthorized pellet producer", Ticker = "UNAUTH", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow });
+                    Name = "Unauthorized pellet producer", Ticker = "UNAUTH", CompanySymbol = "UNAUTH", MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = DateTimeOffset.UtcNow });
             var month1 = Report(companyId, "2026-03", new(2026, 3, 21), new(2026, 4, 20), "accepted-march", true, "Accepted", 0);
             var otherCompanyMonth1 = Report(companyId2, "company-2-2026-03", new(2026, 3, 21), new(2026, 4, 20),
                 "accepted-company2-march", true, "Accepted", 0, "monthly-fixture-company-2");
@@ -84,8 +86,10 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
                 "rejected-april", false, "RejectedOlder", 0);
             var cumulative = Report(companyId, "2026-04-ytd", new(2026, 1, 1), new(2026, 5, 21),
                 "cumulative-april", true, "Accepted", 1);
-            var acceptedAlias = Report(companyId, "2026-04-alias", new(2026, 4, 21), new(2026, 5, 21),
-                "accepted-april-alias", true, "Accepted", 0, "monthly-fixture-company-alias");
+            // A second accepted report of the same company identity for the same month (IX_MonthlyReports_LogicalPeriod
+            // allows it only with a different PeriodStart): two source rows for one company/period/product.
+            var acceptedAlias = Report(companyId, "2026-04-alias", new(2026, 4, 22), new(2026, 5, 21),
+                "accepted-april-alias", true, "Accepted", 0);
             var foreignProvider = Report(companyId, "2026-03-other-provider", new(2026, 3, 21), new(2026, 4, 20),
                 "foreign-provider-march", true, "Accepted", 0, providerName: "OtherMonthlyProvider");
             var shahrivarKgel = Report(kgelId, "kgel-shahrivar-1405", new(2026, 8, 23), new(2026, 9, 22),
@@ -198,7 +202,8 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             var companyScopedProductResolver = new CompanyScopedProductResolver(
                 new CompanyResolverService(bindingDb, NullLogger<CompanyResolverService>.Instance),
                 new EfCoreMonthlyProductComparisonRepository(bindingDb));
-            var productBinder = new StructuredQueryProductBinder(companyScopedProductResolver);
+            var productBinder = new StructuredQueryProductBinder(companyScopedProductResolver,
+                new EfCoreMonthlyProductComparisonRepository(bindingDb));
             var production = Assert.Single(snapshot.MonthlyMeasures, x => x.CatalogId == "metric_monthly_production_quantity");
             var shahrivarStart = new DateOnly(2026, 8, 23);
             var shahrivarEnd = new DateOnly(2026, 9, 22);
@@ -236,7 +241,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
                 await truthConnection.OpenAsync();
                 await using var truthCommand = truthConnection.CreateCommand();
                 truthCommand.CommandText = "SELECT c.\"Id\", li.\"Title\", li.\"ProductionQuantity\", r.\"PeriodStart\", r.\"PeriodEnd\" " +
-                    "FROM public.\"Companies\" c JOIN public.\"MonthlyReports\" r ON r.\"CompanyId\" = c.\"Id\" " +
+                    "FROM public.\"Companies\" c JOIN public.\"MonthlyReports\" r ON r.\"ProviderName\" = c.\"ProviderName\" AND r.\"ExternalCompanyId\" = c.\"ExternalCompanyId\" " +
                     "JOIN public.\"MonthlyReportLineItems\" li ON li.\"MonthlyReportId\" = r.\"Id\" " +
                     "WHERE c.\"Id\" = ANY(@company_ids) AND r.\"PeriodStart\" = @period_start AND r.\"PeriodEnd\" = @period_end " +
                     "AND li.\"ProductionQuantity\" > 0 ORDER BY c.\"Id\"";
@@ -309,7 +314,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             Assert.True(rankedProductionGrowth.Status == StructuredQueryExecutionStatus.Succeeded,
                 rankedProductionGrowth.DiagnosticCode);
             Assert.Contains(rankedProductionGrowth.Rows, row =>
-                Equals(row["ProductCode"], ProductKey("feature141-kgel", "\u06a9\u0646\u0633\u0627\u0646\u062a\u0631\u0647"))
+                Equals(row["ProductTitle"], "\u06a9\u0646\u0633\u0627\u0646\u062a\u0631\u0647")
                 && Convert.ToDecimal(row["GrowthPercentage"]) == 100m);
             Assert.Equal(rankedProductionGrowth.Rows.Select(row => Convert.ToDecimal(row["GrowthPercentage"]))
                     .OrderDescending(),
@@ -330,7 +335,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             Assert.Equal(850m, Convert.ToDecimal(Assert.Single(salesFixtureResult.Rows)["Value"]));
             var salesPersianAnswer = responseGenerator.Generate(new(salesAuthorizedForFixture, salesFixtureResult));
             Assert.Equal(StructuredAnswerStatus.Answered, salesPersianAnswer.Status);
-            Assert.Contains("۸۵۰ میلیون ریال", salesPersianAnswer.TextAnswer);
+            Assert.Contains("۸۵ میلیون تومان", salesPersianAnswer.TextAnswer);
 
             var twoCompanyBindings = new[]
             {
@@ -357,8 +362,8 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             Assert.Equal(StructuredAnswerStatus.Answered, latestCommonMonthAnswer.Status);
             Assert.Contains("MTH", latestCommonMonthAnswer.TextAnswer);
             Assert.Contains("MTH2", latestCommonMonthAnswer.TextAnswer);
-            Assert.Contains("۱۳۰ میلیون ریال", latestCommonMonthAnswer.TextAnswer);
-            Assert.Contains("۲۰۰ میلیون ریال", latestCommonMonthAnswer.TextAnswer);
+            Assert.Contains("۱۳ میلیون تومان", latestCommonMonthAnswer.TextAnswer);
+            Assert.Contains("۲۰ میلیون تومان", latestCommonMonthAnswer.TextAnswer);
 
             var topCompaniesPlan = latestCommonMonthPlan with
             {
@@ -382,8 +387,8 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             const string productEquivalenceApproval = "fixture-owner-review:pellet-equivalence:v1";
             var productEquivalence = new ProductEquivalenceResolution(ProductEquivalenceResolutionStatus.Resolved,
                 productEquivalenceId, "گندله",
-                [new(companyId, Provider, "provider-product:MTH:pellet", ProductCode, "گندله", "ton", "fixture-product:mth", true),
-                 new(companyId2, Provider, "provider-product:MTH2:pellet", "PRODUCT:MONTHLY-FIXTURE:MTH2:PELLET", "گندله", "ton", "fixture-product:mth2", true)],
+                [new(companyId, Provider, "provider-product:MTH:pellet", ProductCode, "Pellet", "ton", "fixture-product:mth", true),
+                 new(companyId2, Provider, "provider-product:MTH2:pellet", "PRODUCT:MONTHLY-FIXTURE:MTH2:PELLET", "Pellet", "ton", "fixture-product:mth2", true)],
                 "ton", productEquivalenceApproval, null);
             var populationProductRankingPlan = Plan(snapshot, production, companyId, PlanPresentation.RankedTable,
                 latest: true, productCode: productEquivalenceId) with
@@ -503,7 +508,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
                     executionMode = "deterministic replay + isolated PostgreSQL fixture",
                     semanticReferences = new[] { sales.CatalogId, "rel_31e410fb3ae11956" },
                     selectedMeasure = sales.CatalogId, companyBinding = new { ticker = "MTH", companyId },
-                    productBinding = new { ProductCode, identityProvenance = "fixture-product-key" },
+                    productBinding = new { sourceTitles = new[] { "Pellet" }, sourceUnits = new[] { "ton" }, identityProvenance = "fixture-product-labels" },
                     queryPlan = periodAlignedYoyPlan, sqlExecuted = periodAlignedYoyQuery.Sql,
                     sqlParameters = periodAlignedYoyQuery.Parameters, postgresStatus = periodAlignedYoyExecution.Status.ToString(),
                     expected = new { outcome = "Ambiguous", reason = "reporting-window boundaries differ; no approved calendar normalization exists" },
@@ -562,7 +567,8 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             Assert.Equal(StructuredQueryExecutionStatus.Succeeded, latestResult.Status);
             var latestRow = Assert.Single(latestResult.Rows);
             Assert.Equal(20m, Convert.ToDecimal(latestRow["Value"]));
-            Assert.Equal(ProductCode, latestRow["ProductCode"]);
+            Assert.Equal("Pellet", latestRow["ProductTitle"]);
+            Assert.False(latestRow.ContainsKey("ProductCode"));
             Assert.Equal("ton", latestRow["SourceUnit"]);
             Assert.Equal("Accepted", latestRow["RevisionStatus"]);
             Assert.Equal(0, Convert.ToInt32(latestRow["OutputType"]));
@@ -774,6 +780,30 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             Assert.Equal(StructuredQueryExecutionStatus.Ambiguous, ambiguousResult.Status);
             Assert.Equal("monthly_product_period_has_multiple_source_rows", ambiguousResult.DiagnosticCode);
 
+            // Critical acceptance: rewriting every persisted ProductCode (zero, duplicated across companies, changed
+            // between months) changes no Feature 141 monthly answer.
+            var probes = new[] { productionQuery, salesQuery, trendQuery, latest, series, growthQuery, absoluteChange,
+                yearOverYear, rankingQuery, quantityRanking, incompatibleQuantity, ambiguousQuery, populationProductRankingQuery };
+            async Task<string[]> AnswersAsync()
+            {
+                var answers = new List<string>();
+                foreach (var probe in probes)
+                    answers.Add(Render(await ExecuteAsync(probe, databaseName, role, restrictedConnection)));
+                answers.Add(Render(await ExecuteAsync(populationQuery, databaseName, role, restrictedConnection,
+                    [companyId, companyId2, kgelId, kgehrId, newlyAddedProducerId, zeroProductionCompanyId, productionOnlyCompanyId])));
+                return answers.ToArray();
+            }
+            var answersBefore = await AnswersAsync();
+            await using (var admin = new NpgsqlConnection(database.ConnectionString))
+            {
+                await admin.OpenAsync();
+                await using var rewrite = admin.CreateCommand();
+                rewrite.CommandText = "UPDATE public.\"MonthlyReportLineItems\" SET \"ProductCode\" = CASE WHEN random() < 0.3 THEN '0' " +
+                    "ELSE 'PRODUCT:NATURAL:' || substr(md5(random()::text), 1, 16) END";
+                Assert.True(await rewrite.ExecuteNonQueryAsync() > 0);
+            }
+            Assert.Equal(answersBefore, await AnswersAsync());
+
             var unauthorized = compiler.Compile(Plan(RuntimeSnapshot(), production, companyId,
                 PlanPresentation.Scalar, latest: true, ProductCode), RuntimeSnapshot());
             Assert.True(unauthorized.Success);
@@ -810,7 +840,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             db.Companies.Add(new NormalizedCompanyRow
             {
                 Id = companyId, ProviderName = Provider, ExternalCompanyId = "feature141-statement-kgehr",
-                Name = "Fixture Kogهر", Ticker = "کگهر", MarketId = marketId, PrecedencyRight = 0,
+                Name = "Fixture Kogهر", Ticker = "کگهر", CompanySymbol = "کگهر", MarketId = marketId, PrecedencyRight = 0,
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             });
             db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow
@@ -822,7 +852,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             });
             db.FinancialStatements.Add(new NormalizedFinancialStatementRow
             {
-                Id = statementId, CompanyId = companyId, ProviderName = source.ProviderName,
+                Id = statementId, CompanyId = null, ProviderName = source.ProviderName,
                 ExternalCompanyId = "feature141-statement-kgehr", ExternalStatementId = "fixture-income-2026-q2",
                 StatementType = source.StatementType, PeriodType = "ThreeMonths",
                 PeriodStart = new DateOnly(2026, 3, 21), PeriodEnd = new DateOnly(2026, 6, 21),
@@ -942,7 +972,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
                 ? x with { Queryable = true, SemanticApproved = true } : x).ToArray(),
             original.Columns.Select(x => x.TableCatalogId is lineTable or reportTable or companyTable
                 ? x with { Queryable = true } : x).ToArray(),
-            original.Relationships.Select(x => x.CatalogId is "rel_31e410fb3ae11956" or "rel_4e54d40aee8b45e4"
+            original.Relationships.Select(x => x.CatalogId is "rel_31e410fb3ae11956" or "rel_71eca79d3b7d6aa2"
                 ? x with { Queryable = true, SemanticApproved = true, QueryAuthorized = true } : x).ToArray(),
             original.DirectSources,
             original.MonthlyMeasures.Select(x => x with
@@ -1149,8 +1179,11 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             producerSalesExecution.Rows.Select(row => (Guid)row["CompanyId"]!));
         Assert.DoesNotContain(producerSalesExecution.Rows, row => Equals(row.GetValueOrDefault("CompanyId"), unauthorizedProducerId));
         var producerSalesAnswer = populationResponseGenerator.Generate(new(producerSalesPlan, producerSalesExecution));
+        // Owner decision 2026-10-30: approved-aliases-only product coverage still ranks the observed companies, labelled partial.
         Assert.Equal(StructuredAnswerStatus.Incomplete, producerSalesAnswer.Status);
-        Assert.DoesNotContain("۵۵", producerSalesAnswer.TextAnswer, StringComparison.Ordinal);
+        Assert.Contains("رتبهٔ ۱:", producerSalesAnswer.TextAnswer, StringComparison.Ordinal);
+        Assert.Contains("۵۵", producerSalesAnswer.TextAnswer, StringComparison.Ordinal);
+        Assert.Contains("پوشش کامل بازار را نشان نمی‌دهد", producerSalesAnswer.TextAnswer, StringComparison.Ordinal);
 
         var totalSales = Assert.Single(snapshot.MonthlyMeasures, measure => measure.CatalogId == "metric_monthly_sales");
         var totalProducerSalesPlan = ProducerSalesPlan(snapshot, totalSales, productConcept,
@@ -1426,6 +1459,8 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             : new[] { new PlanEntityReference("Company", "monthly fixture company", companyId),
                 new PlanEntityReference("Product", "pellet", ResolvedEntityKey: productCode,
                     IdentityProvenance: "feature-129-company-scoped-product-row", IdentityVerified: true) };
+        // A named company's product is selected by its source labels, as the product binder supplies them.
+        var selection = productCode is null ? null : new MonthlyProductSelection([FixtureTitle(productCode)], ["ton"]);
         return new(1, snapshot.CatalogVersion, snapshot.CatalogHash, TenantId,
             entities,
             [new PlanSourceReference(FinancialValueReferenceType.MonthlyMeasure, measure.CatalogId, null, null, null, null,
@@ -1435,8 +1470,11 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             new PlanStatementSelection([], [], [], [], false, true, true, true, true, true),
             [], [], new PlanPagination(0, 20), presentation,
             new PlanFinancialOperation(FinancialValueOperation.DirectValueRetrieval, PlanFinancialOperationKind.DirectValue,
-                PlanComparisonMode.None, [], false), true, true, true, false, []);
+                PlanComparisonMode.None, [], false), true, true, true, false, [], ProductSelection: selection);
     }
+
+    private static string Render(StructuredQueryExecutionResult result) =>
+        $"{result.Status}:{result.DiagnosticCode}:" + System.Text.Json.JsonSerializer.Serialize(result.Rows);
 
     private static async Task<OfflineStructuredQueryPlanningResult> ReplayCapturedQuestionAsync(
         StructuredQueryCatalogSnapshot snapshot, StructuredSqlMonthlyMeasure measure,
@@ -1484,11 +1522,12 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             CancellationToken.None);
     }
 
+    // The binder's semantic title/unit identity (StructuredQueryProductBinder.IdentityKey).
     private static string ProductKey(string externalCompanyId) =>
-        $"{Provider}:{externalCompanyId}:TITLE:گندله|UNIT:ton";
+        $"{externalCompanyId}:TITLE:گندله|UNIT:ton";
 
     private static string ProductKey(string externalCompanyId, string productTitle) =>
-        $"{Provider}:{externalCompanyId}:TITLE:{productTitle}|UNIT:ton";
+        $"{externalCompanyId}:TITLE:{productTitle}|UNIT:ton";
 
     private static StructuredQueryPlan ProducerSalesPlan(StructuredQueryCatalogSnapshot snapshot,
         StructuredSqlMonthlyMeasure sales, ProductConceptResolution productConcept, PopulationSalesScope scope)
@@ -1553,17 +1592,36 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
         SourcePayloadChecksum = fingerprint, LastSynchronizedAt = DateTimeOffset.UtcNow,
         LogicalReportKey = $"fixture-{suffix}", RevisionFingerprint = fingerprint,
         IsAccepted = accepted, RevisionStatus = revisionStatus, ReportType = "ProductSales", OutputType = outputType,
-        CompanyId = companyId
+        CompanyId = null // production Noavaran reports carry no CompanyId; companyId only names the fixture owner
     };
 
     private static NormalizedMonthlyReportLineItemRow Line(NormalizedMonthlyReportRow report,
-        decimal production, decimal salesQuantity, decimal amount, decimal rate, string unit, string? productCode = null,
+        decimal production, decimal salesQuantity, decimal amount, decimal rate, string unit, string? fixtureProduct = null,
         string? title = null) => new()
     {
-        Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{productCode ?? ProductCode}",
-        SourceMultiplicity = 1, ProductCode = productCode ?? ProductCode, Title = title ?? "Pellet", Unit = unit,
+        Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{fixtureProduct ?? ProductCode}",
+        SourceMultiplicity = 1, ProductCode = ProductionLikeProductCode(), Title = title ?? FixtureTitle(fixtureProduct ?? ProductCode), Unit = unit,
         ProductionQuantity = production, SalesQuantity = salesQuantity, SalesAmount = amount, SalesRate = rate,
         SourcePayloadChecksum = report.SourcePayloadChecksum
+    };
+
+    // Real Noavaran ProductCode values are per-row hashes that change every month, repeat across companies and
+    // products, or are zero; the fixture cycles through such values.
+    private static readonly string[] ProductionLikeProductCodes = ["0", "PRODUCT:NATURAL:22d58f29e3fedf1e", "PRODUCT:NATURAL:9a1f0c"];
+    private static int productCodeCursor;
+
+    private static string ProductionLikeProductCode() =>
+        ProductionLikeProductCodes[Interlocked.Increment(ref productCodeCursor) % ProductionLikeProductCodes.Length];
+
+    // Distinct products of one report have distinct source titles, as in real reports.
+    private static string FixtureTitle(string fixtureProduct) => fixtureProduct switch
+    {
+        ProductCode => "Pellet",
+        AmbiguousProductCode => "Cement",
+        "PRODUCT:MONTHLY-FIXTURE:ZERO" => "Zero product",
+        "PRODUCT:MONTHLY-FIXTURE:NEGATIVE" => "Negative product",
+        "PRODUCT:MONTHLY-FIXTURE:PIECES" => "Pieces product",
+        _ => fixtureProduct
     };
 
     private static async Task CreateRestrictedRoleAsync(string adminConnectionString, string databaseName,

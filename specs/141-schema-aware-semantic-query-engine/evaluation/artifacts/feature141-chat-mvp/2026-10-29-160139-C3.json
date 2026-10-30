@@ -1,0 +1,59 @@
+{
+  "testCase": {
+    "Id": "C3",
+    "Question": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+    "Refusal": false,
+    "Contains": [
+      "۷۰۰",
+      "میلیون ریال"
+    ],
+    "Excludes": [
+      "۶۵۰"
+    ],
+    "SpecialistContains": [
+      "۰٫۰۷",
+      "میلیارد تومان",
+      "۱۴۰۵/۰۶"
+    ],
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+    "Enabled": true,
+    "Answer": "فروش «گندله» شرکت کگهر در دوره ۱۴۰۵/۰۶ حدود ۰٫۰۷ میلیارد تومان بوده است.",
+    "PersistedUserMessage": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+    "PersistedAssistantMessage": "فروش «گندله» شرکت کگهر در دوره ۱۴۰۵/۰۶ حدود ۰٫۰۷ میلیارد تومان بوده است.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_value Disposition=SemanticPrimary CorrelationId=feature141-chat-mvp-730cea27572a4c129927ee067a334371 | Chat semantic route selected. Route=semantic_capability Capability=product_sales_value ExtractedEntities=CompanySymbol:کگهر,Product:گندله,FiscalPeriod:شهریور ۱۴۰۵ RequestedMetrics=فروش RequestedPeriod=شهریور ۱۴۰۵ RequestedComparison=(null) Presentation=Summary | Chat semantic route completed. Route=semantic_capability Capability=product_sales_value Status=Executed ReasonCode=none PayloadType=ProductSalesValuePayload",
+    "SemanticCapability": "product_sales_value",
+    "Intent": "MonthlyProductTrend",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 600,
+      "CompletionTokens": 381,
+      "TotalTokens": 981,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:product_sales_value"
+    },
+    "Feature141Log": [],
+    "ElapsedMs": 8642.6483,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_value Disposition=SemanticPrimary CorrelationId=feature141-chat-mvp-730cea27572a4c129927ee067a334371",
+      "Chat semantic route selected. Route=semantic_capability Capability=product_sales_value ExtractedEntities=CompanySymbol:کگهر,Product:گندله,FiscalPeriod:شهریور ۱۴۰۵ RequestedMetrics=فروش RequestedPeriod=شهریور ۱۴۰۵ RequestedComparison=(null) Presentation=Summary",
+      "Chat semantic route completed. Route=semantic_capability Capability=product_sales_value Status=Executed ReasonCode=none PayloadType=ProductSalesValuePayload",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-chat-mvp-730cea27572a4c129927ee067a334371 RolloutMode=Canary LegacyCapability=financial_statement_value_search LegacyConfidence=0.94 SemanticIntent=product_sales_value SemanticCapabilityCandidate=product_sales_value SemanticConfidence=0.99 ExtractedCompany=(null) ExtractedProduct=گندله ExtractedMetric=فروش ExtractedPeriod=شهریور ۱۴"
+    ]
+  }
+}

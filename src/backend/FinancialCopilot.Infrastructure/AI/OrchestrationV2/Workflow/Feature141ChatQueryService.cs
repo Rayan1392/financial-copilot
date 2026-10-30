@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
@@ -31,8 +32,76 @@ public static class Feature141DeveloperUatAuthorizationPolicy
 /// was produced and answered or refused by the engine, or a material constraint was refused with a typed outcome. A
 /// non-definitive answer (extraction failure, clarification, unbound measure) never replaces another route's answer.
 /// <paramref name="Refused"/> marks the typed Unsupported outcome (a material constraint the engine cannot honor).
+/// <paramref name="Answered"/> marks a result with verified rows (a value, comparison, ranking including a disclosed partial
+/// ranking, or a discovery list); NoData, Ambiguous, Unsupported, refused and failed results are not answers.
 /// </summary>
-internal sealed record Feature141ChatAnswer(string Text, bool Definitive, bool Refused = false);
+internal sealed record Feature141ChatAnswer(string Text, bool Definitive, bool Refused = false, bool Answered = false)
+{
+    /// <summary>Billing completion status of the turn: one credit for an answer, nothing for any other result.</summary>
+    public string CompletionStatus => Answered ? "Completed" : Definitive ? "ValidationFailed" : "ClarificationRequired";
+
+    /// <summary>The chat outcome a definitive result is presented with (the engine's refusal is the Unsupported outcome).</summary>
+    public DialogueOutcome Outcome => Refused ? DialogueOutcome.Unsupported : DialogueOutcome.Answered;
+}
+
+/// <summary>
+/// A named statement period («دوره شش‌ماهه منتهی به شهریور ۱۴۰۵»): the Jalali month it ends in and, when stated, its
+/// length in months. The verified statement retrieval reads the latest reported period only, so a named period is
+/// answered only when the returned latest statement is exactly that period; any other statement is refused.
+/// </summary>
+internal sealed record StatementPeriodRequirement(DateOnly EndMonthStart, DateOnly EndMonthEnd, int? Months)
+{
+    private static readonly Regex Duration = new(@"(سه|شش|نه|دوازده|۳|۶|۹|۱۲|3|6|9|12)\s*‌?\s*ماهه",
+        RegexOptions.CultureInvariant);
+
+    /// <summary>A single-company statement intent naming a period, rewritten to the latest period plus the period to verify.</summary>
+    internal static (CanonicalSemanticIntent Intent, StatementPeriodRequirement Requirement)? TryCreate(
+        CanonicalSemanticIntent intent, string question)
+    {
+        if (intent.Measures.Count == 0 || intent.Measures.Any(measure => measure.Kind != MeasureConceptKind.FinancialStatementItem)
+            || intent.EntityScope is not { Kind: EntityScopeKind.NamedCompanies, CompanyLabels.Count: 1 })
+            return null;
+        var end = intent.Period.Kind switch
+        {
+            ReportingPeriodKind.ExplicitMonth => PersianReportingPeriodNormalizer.Normalize(intent.Period),
+            ReportingPeriodKind.DateRange => PersianReportingPeriodNormalizer.NormalizeRange(intent.Period)?.Last,
+            _ => null
+        };
+        if (end is not { Status: PersianReportingPeriodStatus.Normalized, Start: { } start, End: { } finish }) return null;
+        var months = Duration.Match(question) is { Success: true } match ? MonthsOf(match.Groups[1].Value) : null;
+        return (intent with
+        {
+            Period = new ReportingPeriodIntent(ReportingPeriodKind.LatestAvailable),
+            // A period length the model restated as a constraint is verified on the result, not executed.
+            Constraints = intent.Constraints
+                .Where(constraint => !constraint.Name.Contains("period", StringComparison.OrdinalIgnoreCase)).ToArray()
+        }, new(start, finish, months));
+    }
+
+    /// <summary>True when every returned statement ends in the named month and, when stated, covers the named length.</summary>
+    internal bool IsSatisfiedBy(IReadOnlyList<StructuredAnswerEvidence> evidence) => evidence.Count > 0 && evidence.All(item =>
+        PersianReportingPeriodText.Parse(item.PeriodEnd) is { } periodEnd && periodEnd >= EndMonthStart && periodEnd <= EndMonthEnd
+        && (Months is null || MonthsOf(item.Facts.GetValueOrDefault("PeriodType")) == Months));
+
+    internal static string MismatchText(IReadOnlyList<StructuredAnswerEvidence> evidence)
+    {
+        var latest = evidence.Count == 0 ? null : PersianReportingPeriodText.StatementPeriod(
+            evidence[0].Facts.GetValueOrDefault("PeriodType"), PersianReportingPeriodText.Parse(evidence[0].PeriodStart),
+            PersianReportingPeriodText.Parse(evidence[0].PeriodEnd));
+        return "صورت مالی دورهٔ درخواستی، آخرین دورهٔ گزارش‌شدهٔ این شرکت نیست" +
+               (latest is null ? "" : $" (آخرین دورهٔ موجود: {latest})") +
+               "؛ در حال حاضر فقط آخرین دورهٔ گزارش‌شده پاسخ داده می‌شود و عددی برای دورهٔ دیگر گزارش نمی‌کنم.";
+    }
+
+    private static int? MonthsOf(string? value) => value switch
+    {
+        "سه" or "۳" or "3" or "ThreeMonths" => 3,
+        "شش" or "۶" or "6" or "SixMonths" => 6,
+        "نه" or "۹" or "9" or "NineMonths" => 9,
+        "دوازده" or "۱۲" or "12" or "TwelveMonths" => 12,
+        _ => null
+    };
+}
 
 /// <summary>
 /// Executes the catalog-governed Feature 141 pipeline for an authenticated chat request. SQL is
@@ -101,7 +170,12 @@ internal sealed class Feature141ChatQueryService(
                 correlationId: request.CorrelationId);
             var extraction = await extractor.ExtractAsync(request.Message, cancellationToken).ConfigureAwait(false);
             if (!extraction.Succeeded || extraction.Intent is null)
+            {
+                logger.LogInformation(
+                    "Feature141 intent extraction failed. FailureCategory={FailureCategory} Diagnostic={Diagnostic} CorrelationId={CorrelationId}",
+                    extraction.FailureCategory, extraction.SanitizedProviderDiagnostic, request.CorrelationId);
                 return Pending("برای تعیین دقیق قلم مالی، شرکت، دوره و نوع گزارش به توضیح بیشتری نیاز دارم.");
+            }
 
             var intent = extraction.Intent;
             // A router-validated symbol replaces the extracted label of a single-company request only;
@@ -115,6 +189,7 @@ internal sealed class Feature141ChatQueryService(
                     EntityScope = intent.EntityScope with { CompanyLabels = [validatedCompanySymbol] }
                 };
             }
+            intent = WithDefaultStatementBasis(intent, request.Message);
             logger.LogInformation(
                 "Feature141 intent extracted. Route={Route} CompanySymbols={CompanySymbols} Products={Products} RequestedMeasures={RequestedMeasures} PeriodKind={PeriodKind} PeriodCount={PeriodCount} ComparisonMode={ComparisonMode} Presentation={Presentation}",
                 "query_registered_financial_source",
@@ -126,6 +201,15 @@ internal sealed class Feature141ChatQueryService(
             if (intent.Ambiguity.RequiresClarification)
                 return Pending(RenderClarification(intent.Ambiguity.Questions,
                     "درخواست مالی برای اجرای دقیق نیاز به شفاف‌سازی دارد."));
+            // A named statement period is answered through the verified latest-period retrieval and then verified.
+            var statementPeriod = StatementPeriodRequirement.TryCreate(intent, request.Message);
+            if (statementPeriod is { } named)
+            {
+                intent = named.Intent;
+                logger.LogInformation(
+                    "Feature141 named statement period. EndMonthStart={EndMonthStart} EndMonthEnd={EndMonthEnd} Months={Months} CorrelationId={CorrelationId}",
+                    named.Requirement.EndMonthStart, named.Requirement.EndMonthEnd, named.Requirement.Months, request.CorrelationId);
+            }
             // Cross-company comparison, ranking and threshold filtering of statement items use the verified
             // cross-company handoff (StatementQueryShapeClassifier owns which intents are representable).
             var shapeResult = intent.Measures.Count > 0
@@ -171,6 +255,18 @@ internal sealed class Feature141ChatQueryService(
                         "Unsupported", "threshold_filter_not_supported_on_general_planner_path", request.CorrelationId);
                     return new("شرط عددی (مانند «بالای ۵۰۰ تن» یا «بیشتر از مبلغی مشخص») روی آمار تولید و فروش ماهانه هنوز پشتیبانی نمی‌شود؛ برای جلوگیری از پاسخ نادرست، پرس‌وجو بدون این شرط اجرا نشد. می‌توانید مقدار ماهانهٔ یک شرکت و محصول مشخص را بپرسید.", true, true);
                 }
+                // Monthly measures read single-month reports only (catalog OutputType 0); a cumulative/fiscal-year-to-date
+                // request would otherwise be answered with one month's value.
+                if (RequestsCumulativeMonthlyScope(intent))
+                {
+                    logger.LogInformation(
+                        "Feature141 typed outcome. Outcome={Outcome} Diagnostic={Diagnostic} CorrelationId={CorrelationId}",
+                        "Unsupported", "monthly_cumulative_reporting_scope_not_supported", request.CorrelationId);
+                    return new("آمار تجمعی (از ابتدای سال مالی) تولید و فروش هنوز پشتیبانی نمی‌شود و به‌جای آن عدد یک ماه گزارش نمی‌شود. می‌توانید مقدار یک ماه مشخص را بپرسید.", true, true);
+                }
+                // The typed monthly measure is always in the requirements outline: the question-ranked outline
+                // otherwise omits it when no multi-word alias occurs (e.g. «تولید گندله کگل در شهریور ۱۴۰۵»).
+                navigationRequest = navigationRequest with { RequiredCatalogIds = RequiredMonthlyMeasureIds(intent) };
                 // The model names the Persian year and month; the calendar bounds are computed here so
                 // model-generated Gregorian dates never become authoritative.
                 var requirements = await requirementsExtractor.ExtractAsync(navigationRequest, cancellationToken).ConfigureAwait(false);
@@ -186,8 +282,13 @@ internal sealed class Feature141ChatQueryService(
                     }
                     requirements = ReportingPeriodRequirementsNormalizer.Apply(requirements, period);
                 }
+                // A month range («از فروردین تا شهریور ۱۴۰۵») is bounded deterministically in the same way; a range
+                // that cannot be normalized keeps the extracted requirements and the planner validates them.
+                else if (intent.Period.Kind == ReportingPeriodKind.DateRange
+                    && PersianReportingPeriodNormalizer.NormalizeRange(intent.Period) is { } range)
+                    requirements = ReportingPeriodRequirementsNormalizer.Apply(requirements, range.First, range.Last);
                 var generalPlan = await planningService.PlanAsync(navigationRequest, requirements, cancellationToken).ConfigureAwait(false);
-                return new(await ExecutePlannedAsync(request, generalPlan, cancellationToken).ConfigureAwait(false), true);
+                return await ExecutePlannedAsync(request, generalPlan, cancellationToken).ConfigureAwait(false);
             }
 
             var references = await hierarchyProvider.GetFinancialSourceReferencesAsync(
@@ -243,7 +344,7 @@ internal sealed class Feature141ChatQueryService(
 
             var planned = await planningService.PlanAsync(
                 navigationRequest, handoff.Binding.PlannerRequirements, cancellationToken).ConfigureAwait(false);
-            return new(await ExecutePlannedAsync(request, planned, cancellationToken).ConfigureAwait(false), true);
+            return await ExecutePlannedAsync(request, planned, cancellationToken, statementPeriod?.Requirement).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -258,16 +359,22 @@ internal sealed class Feature141ChatQueryService(
         }
     }
 
-    private async Task<string> ExecutePlannedAsync(AiQueryRequest request,
-        OfflineStructuredQueryPlanningResult planned, CancellationToken cancellationToken)
+    /// <summary>Executes an engine-owned plan; every result is definitive, and only one with verified rows is an answer.</summary>
+    private async Task<Feature141ChatAnswer> ExecutePlannedAsync(AiQueryRequest request,
+        OfflineStructuredQueryPlanningResult planned, CancellationToken cancellationToken,
+        StatementPeriodRequirement? requiredStatementPeriod = null)
     {
             if (!planned.Validation.ExecutionEligible)
             {
                 logger.LogInformation(
-                    "Feature141 plan was not execution eligible. CorrelationId={CorrelationId} Diagnostics={Diagnostics}",
-                    request.CorrelationId, string.Join(',', planned.Validation.Diagnostics));
-                return responseGenerator.Generate(new StructuredQueryAnswerRequest(
-                    planned.Plan, null, "planning_validation", planned.Validation.Diagnostics)).TextAnswer;
+                    "Feature141 plan was not execution eligible. CorrelationId={CorrelationId} Diagnostics={Diagnostics} Operation={Operation} OperationKind={OperationKind} Presentation={Presentation} PeriodPolicies={PeriodPolicies} PeriodStart={PeriodStart} PeriodEnd={PeriodEnd} MaximumPeriods={MaximumPeriods} RequirementsUncertain={RequirementsUncertain} Uncertainty={Uncertainty}",
+                    request.CorrelationId, string.Join(',', planned.Validation.Diagnostics),
+                    planned.Plan.FinancialOperation.Operation, planned.Plan.FinancialOperation.Kind, planned.Plan.Presentation,
+                    string.Join(',', planned.Plan.Period.Policies), planned.Plan.Period.ReportingPeriodStart,
+                    planned.Plan.Period.ReportingPeriodEnd, planned.Plan.Period.MaximumPeriods,
+                    planned.Requirements.HasUnknownOrAmbiguousRequirements, planned.Requirements.UncertaintyReason);
+                return Definitive(responseGenerator.Generate(new StructuredQueryAnswerRequest(
+                    planned.Plan, null, "planning_validation", planned.Validation.Diagnostics)));
             }
 
             var compilation = compiler.Compile(planned.Plan, catalogSnapshot);
@@ -276,8 +383,8 @@ internal sealed class Feature141ChatQueryService(
                 logger.LogWarning(
                     "Feature141 compilation failed. CorrelationId={CorrelationId} Diagnostics={Diagnostics}",
                     request.CorrelationId, string.Join(',', compilation.Diagnostics));
-                return responseGenerator.Generate(new StructuredQueryAnswerRequest(
-                    planned.Plan, null, "sql_compilation", compilation.Diagnostics)).TextAnswer;
+                return Definitive(responseGenerator.Generate(new StructuredQueryAnswerRequest(
+                    planned.Plan, null, "sql_compilation", compilation.Diagnostics)));
             }
 
             var grant = authorizer.Authorize(compilation.Query, request.TenantId);
@@ -286,7 +393,7 @@ internal sealed class Feature141ChatQueryService(
                 logger.LogWarning(
                     "Feature141 catalog authorization rejected a compiled query. CorrelationId={CorrelationId} Fingerprint={Fingerprint}",
                     request.CorrelationId, compilation.Query.QueryFingerprint);
-                return "این درخواست با فهرست منابع مجاز یا دامنهٔ شرکت سازگار نیست؛ هیچ داده‌ای خوانده نشد.";
+                return new("این درخواست با فهرست منابع مجاز یا دامنهٔ شرکت سازگار نیست؛ هیچ داده‌ای خوانده نشد.", true);
             }
 
             var execution = await executor.ExecuteAsync(compilation.Query, grant, cancellationToken)
@@ -295,11 +402,25 @@ internal sealed class Feature141ChatQueryService(
                 "Feature141 query completed. CorrelationId={CorrelationId} Fingerprint={Fingerprint} Status={Status} Rows={RowCount} ElapsedMs={ElapsedMs}",
                 request.CorrelationId, compilation.Query.QueryFingerprint, execution.Status,
                 execution.Rows.Count, execution.Elapsed?.TotalMilliseconds);
-            return responseGenerator.Generate(new StructuredQueryAnswerRequest(
+            var response = responseGenerator.Generate(new StructuredQueryAnswerRequest(
                 planned.Plan, execution, "postgresql_execution",
-                planned.Validation.Diagnostics.Concat(compilation.Diagnostics).Distinct(StringComparer.Ordinal).ToArray()))
-                .TextAnswer;
+                planned.Validation.Diagnostics.Concat(compilation.Diagnostics).Distinct(StringComparer.Ordinal).ToArray()));
+            var answer = Definitive(response);
+            if (requiredStatementPeriod is null || !answer.Answered || requiredStatementPeriod.IsSatisfiedBy(response.Evidence))
+                return answer;
+            logger.LogInformation(
+                "Feature141 typed outcome. Outcome={Outcome} Diagnostic={Diagnostic} CorrelationId={CorrelationId}",
+                "NoData", "named_statement_period_is_not_the_latest_reported_period", request.CorrelationId);
+            return new(StatementPeriodRequirement.MismatchText(response.Evidence), true);
     }
+
+    /// <summary>
+    /// A rendered engine result. Only Answered rows, or the Incomplete rows of a disclosed partial ranking or discovery
+    /// list, answer the question; NoData, Ambiguous, Unsupported, Failed and row-less results do not.
+    /// </summary>
+    internal static Feature141ChatAnswer Definitive(PersianStructuredQueryResponse response) =>
+        new(response.TextAnswer, true, Answered: response.Status is StructuredAnswerStatus.Answered or StructuredAnswerStatus.Incomplete
+            && response.TableRows.Count > 0);
 
     /// <summary>
     /// True when the intent carries a numeric threshold the general planner path cannot honor. "Which companies produced X"
@@ -314,6 +435,50 @@ internal sealed class Feature141ChatQueryService(
                  MeasureConcept: CanonicalBusinessMeasureConceptRegistry.ProductionQuantity,
                  Threshold: { Operator: NumericComparisonOperator.GreaterThan, Value: 0m }
              });
+
+    /// <summary>True when a monthly production or sales measure is requested on a cumulative (fiscal-year-to-date) basis.</summary>
+    internal static bool RequestsCumulativeMonthlyScope(CanonicalSemanticIntent intent) =>
+        intent.Measures.Any(measure => measure.Qualifiers.ReportingBasis == MeasureReportingBasis.MonthlyCumulative
+            && measure.Kind is MeasureConceptKind.ProductionQuantity or MeasureConceptKind.SalesQuantity
+                or MeasureConceptKind.SalesAmount or MeasureConceptKind.SalesRate);
+
+    /// <summary>
+    /// The catalog monthly measure of a single typed monthly measure for named companies; nothing for other intents.
+    /// Unbound producer discovery keeps its deterministic planner rewrite, which applies only when the model did not
+    /// select the measure itself.
+    /// </summary>
+    internal static IReadOnlyList<string> RequiredMonthlyMeasureIds(CanonicalSemanticIntent intent) => intent.Measures.Count == 1
+        && intent.EntityScope is { Kind: EntityScopeKind.NamedCompanies, CompanyLabels.Count: > 0 }
+        ? intent.Measures[0].Kind switch
+        {
+            MeasureConceptKind.ProductionQuantity => ["metric_monthly_production_quantity"],
+            MeasureConceptKind.SalesQuantity => ["metric_monthly_sales_quantity"],
+            MeasureConceptKind.SalesAmount => ["metric_monthly_sales"],
+            _ => []
+        }
+        : [];
+
+    /// <summary>
+    /// The default statement basis: a statement-item question that names no basis is answered on the standalone statements
+    /// (غیرتلفیقی). The compiled query filters that basis, so a missing standalone statement is NoData, never a consolidated
+    /// substitute. A question with consolidated wording keeps the model's basis, so a consolidated request is never replaced.
+    /// </summary>
+    internal static CanonicalSemanticIntent WithDefaultStatementBasis(CanonicalSemanticIntent intent, string question)
+    {
+        if (intent.Measures.Count == 0 || intent.Measures.Any(measure =>
+                measure.Kind != MeasureConceptKind.FinancialStatementItem
+                || measure.Qualifiers.StatementScope != FinancialStatementScope.Unspecified))
+            return intent;
+        if (question.Contains("تلفیقی", StringComparison.Ordinal) || question.Contains("consolidat", StringComparison.OrdinalIgnoreCase))
+            return intent;
+        return intent with
+        {
+            Measures = intent.Measures.Select(measure => measure with
+            {
+                Qualifiers = measure.Qualifiers with { StatementScope = FinancialStatementScope.Standalone }
+            }).ToArray()
+        };
+    }
 
     private static bool ContainsThreshold(FilterExpression? filter) => filter switch
     {

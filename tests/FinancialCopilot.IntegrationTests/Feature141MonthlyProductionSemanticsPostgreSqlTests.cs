@@ -173,11 +173,11 @@ public sealed class Feature141MonthlyProductionSemanticsPostgreSqlTests(
             var second = await executor.ExecuteAsync(query, grant, CancellationToken.None);
             var value = first.Rows.Count == 1 && first.Rows[0].GetValueOrDefault("Value") is { } v ? Convert.ToDecimal(v, CultureInfo.InvariantCulture) : (decimal?)null;
             var unit = first.Rows.Count == 1 ? first.Rows[0].GetValueOrDefault("SourceUnit") as string : null;
-            var productCode = first.Rows.Count == 1 ? first.Rows[0].GetValueOrDefault("ProductCode") as string : null;
+            var productTitle = first.Rows.Count == 1 ? first.Rows[0].GetValueOrDefault("ProductTitle") as string : null;
             var answer = new PersianStructuredQueryResponseGenerator().Generate(new(planning.Plan, first));
             record["sqlExecuted"] = true;
             record["status"] = first.Status.ToString(); record["diagnostic"] = first.DiagnosticCode; record["value"] = value; record["unit"] = unit;
-            record["productCode"] = productCode; record["rows"] = first.Rows.Count; record["persianAnswerStatus"] = answer.Status.ToString();
+            record["productTitle"] = productTitle; record["rows"] = first.Rows.Count; record["persianAnswerStatus"] = answer.Status.ToString();
             record["persianAnswer"] = answer.TextAnswer; record["deterministic"] = Render(first.Rows) == Render(second.Rows) && first.Status == second.Status;
             results.Add(record);
             output.WriteLine($"{scenario.Id} [{scenario.Description}] status={first.Status} diag={first.DiagnosticCode} value={value} unit={unit} rows={first.Rows.Count} answer={answer.TextAnswer}");
@@ -188,7 +188,8 @@ public sealed class Feature141MonthlyProductionSemanticsPostgreSqlTests(
                     Check("status", StructuredQueryExecutionStatus.Succeeded, first.Status);
                     Check("value", scenario.ExpectedValue, value);
                     Check("unit", scenario.ExpectedUnit, unit);
-                    Check("productKey", planning.ProductBinding?.ProductKey, productCode);
+                    Check("productTitle", planning.ProductBinding?.DisplayTitle, productTitle);
+                    Check("productSourceLabels", true, planning.Plan.ProductSelection?.SourceTitles.Contains(productTitle!) == true);
                     Check("answer", StructuredAnswerStatus.Answered, answer.Status);
                     Check("answerUnit", "تن", answer.Unit);
                     break;
@@ -245,17 +246,19 @@ public sealed class Feature141MonthlyProductionSemanticsPostgreSqlTests(
                 Id = Guid.NewGuid(), ProviderName = Provider, ExternalCompanyId = $"mp-{companies[ticker]:N}", ExternalReportId = $"mp-{ticker}-{suffix}",
                 PeriodStart = start, PeriodEnd = end, SourcePayloadChecksum = $"mp-{ticker}-{suffix}", LastSynchronizedAt = now,
                 LogicalReportKey = $"mp-{ticker}-{start:yyyyMM}", RevisionFingerprint = $"mp-{ticker}-{suffix}", IsAccepted = accepted,
-                RevisionStatus = revision, ReportType = "ProductSales", OutputType = 0, CompanyId = companies[ticker]
+                RevisionStatus = revision, ReportType = "ProductSales", OutputType = 0, CompanyId = null
             };
             db.MonthlyReports.Add(report);
             return report;
         }
-        string Key(string ticker, string title, string unit) => $"{Provider}:mp-{companies[ticker]:N}:TITLE:{title}|UNIT:{unit}";
+        // Real Noavaran ProductCode values are per-row hashes reused across companies, or zero; never a product identity.
+        var codeCursor = 0;
+        string ProductionLikeCode() => ++codeCursor % 2 == 0 ? "0" : "PRODUCT:NATURAL:22d58f29e3fedf1e";
         void Line(NormalizedMonthlyReportRow report, string ticker, string title, decimal? production, string unit = "ton", string? code = null) =>
             db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
             {
                 Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{title}-{unit}-{Guid.NewGuid():N}",
-                SourceMultiplicity = 1, ProductCode = code ?? Key(ticker, title, unit), Title = title, Unit = unit, ProductionQuantity = production,
+                SourceMultiplicity = 1, ProductCode = code ?? ProductionLikeCode(), Title = title, Unit = unit, ProductionQuantity = production,
                 SalesQuantity = production, SalesAmount = production * 10, SalesRate = 10m, SourcePayloadChecksum = report.SourcePayloadChecksum
             });
 
@@ -269,11 +272,9 @@ public sealed class Feature141MonthlyProductionSemanticsPostgreSqlTests(
         Line(Report("کچاد", "1405-06", ShahrivarStart, ShahrivarEnd), "کچاد", "کنسانتره", 70m);
         // M6: فولاد two accepted reports for the same month. The schema's IX_MonthlyReports_LogicalPeriod unique
         // index forbids two accepted rows with the same provider/external company/period, so the realistic
-        // duplicate is a provider company alias (second ExternalCompanyId mapped to the same CompanyId).
+        // duplicate is a second accepted report of the same company identity whose PeriodStart differs.
         Line(Report("فولاد", "1405-06-a", ShahrivarStart, ShahrivarEnd), "فولاد", Pellet, 40m);
-        var alias = Report("فولاد", "1405-06-b", ShahrivarStart, ShahrivarEnd);
-        alias.ExternalCompanyId = $"mp-{companies["فولاد"]:N}-alias";
-        Line(alias, "فولاد", Pellet, 41m);
+        Line(Report("فولاد", "1405-06-b", ShahrivarStart.AddDays(1), ShahrivarEnd), "فولاد", Pellet, 41m);
         // M7: شپنا superseded (99) then accepted (30).
         Line(Report("شپنا", "1405-06-old", ShahrivarStart, ShahrivarEnd, accepted: false, revision: "Superseded"), "شپنا", Pellet, 99m);
         Line(Report("شپنا", "1405-06", ShahrivarStart, ShahrivarEnd), "شپنا", Pellet, 30m);

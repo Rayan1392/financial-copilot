@@ -24,9 +24,14 @@ internal sealed class RegisteredFinancialSourceCapabilityExecutor(
             return new(frame.CapabilityCode, frame.RegistryVersion,
                 CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.RequiredInputMissing);
 
-        var answer = await feature141ChatQueryService.ExecuteAsync(
+        var answer = await feature141ChatQueryService.AnswerAsync(
             request, companySymbol, cancellationToken).ConfigureAwait(false);
-        return new(frame.CapabilityCode, frame.RegistryVersion,
-            CapabilityExecutionStatus.Executed, DialogueOutcomeReasonCodes.None, answer);
+        // An answer settles as an executed capability. Any other result defers its settlement to the chat workflow,
+        // which presents the same text and settles it with the answer's own (free) completion status.
+        return answer.Answered
+            ? new(frame.CapabilityCode, frame.RegistryVersion,
+                CapabilityExecutionStatus.Executed, DialogueOutcomeReasonCodes.None, answer)
+            : new(frame.CapabilityCode, frame.RegistryVersion,
+                CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, answer);
     }
 }

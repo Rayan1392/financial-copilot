@@ -38,8 +38,12 @@ function NewChatPage() {
   ];
 
   const startChat = useMutation({
-    mutationFn: async ({ message, suggestedActionId }: { message: string; suggestedActionId?: string }) => {
-      const result = await send({ data: { message, scannerPage: 1, suggestedActionId } });
+    mutationFn: async ({ message, suggestedActionId, idempotencyKey }: {
+      message: string;
+      suggestedActionId?: string;
+      idempotencyKey: string;
+    }) => {
+      const result = await send({ data: { message, scannerPage: 1, suggestedActionId, idempotencyKey } });
       return result.threadId;
     },
     onSuccess: (id) => {
@@ -57,7 +61,7 @@ function NewChatPage() {
     if (startChat.isPending) return;
     setQueryError(null);
     setPendingMessage(text);
-    startChat.mutate({ message: text, suggestedActionId });
+    startChat.mutate({ message: text, suggestedActionId, idempotencyKey: crypto.randomUUID() });
   };
 
   return (

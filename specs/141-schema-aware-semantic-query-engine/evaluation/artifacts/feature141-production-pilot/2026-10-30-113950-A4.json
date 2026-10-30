@@ -1,0 +1,41 @@
+{
+  "id": "A4",
+  "run": {
+    "Question": "سود خالص کگل و کگهر را در دوره مشترک، بر اساس صورت‌های مالی جداگانه مقایسه کن.",
+    "Enabled": true,
+    "Answer": "این درخواست با تعریف‌های تأییدشدهٔ پرس‌وجو قابل اجرا نیست.",
+    "PersistedUserMessage": "سود خالص کگل و کگهر را در دوره مشترک، بر اساس صورت‌های مالی جداگانه مقایسه کن.",
+    "PersistedAssistantMessage": "این درخواست با تعریف‌های تأییدشدهٔ پرس‌وجو قابل اجرا نیست.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:کگهر,entity:دوره,entity:مشترک,entity:بر,entity:اساس,entity:جداگانه RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:symbol_metric_lookup:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": null,
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 0.0000,
+    "WalletBalanceBefore": 25.0000,
+    "WalletBalanceAfter": 25.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگل,کگهر Products= RequestedMeasures=netProfit PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=MultiCompany Presentation=Comparison",
+      "Feature141 statement shape classified. Shape=none Diagnostic=statement_query_shape_not_supported Operation=Compare Ranking=none Constraints=periodAlignment=commonPeriod/Explicit RequestedFields= Filters=none CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f",
+      "Feature141 plan was not execution eligible. CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f Diagnostics=retrieval_requirements_incomplete,retrieval_requirements_status:Incomplete,retrieval_requirement_missing:entity:company Operation=DirectValueRetrieval OperationKind=DirectValue Presentation=Table PeriodPolicies=latest PeriodStart=(null) PeriodEnd=(null) MaximumPeriods=(null) RequirementsUncertain=False Uncertainty=(null)"
+    ],
+    "ElapsedMs": 41618.7705,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:کگهر,entity:دوره,entity:مشترک,entity:بر,entity:اساس,entity:جداگانه RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:symbol_metric_lookup:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-05b1cd5871644416af0da5e15cd3222f RolloutMode=SemanticPrimary LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.88 ExtractedCompany=خالص ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) Resolved"
+    ],
+    "ExecutedQueries": []
+  }
+}

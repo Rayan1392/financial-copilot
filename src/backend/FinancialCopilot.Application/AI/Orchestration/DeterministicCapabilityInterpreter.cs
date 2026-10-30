@@ -109,7 +109,10 @@ public sealed class DeterministicCapabilityInterpreter(
                 : null;
         var productMention = isProductRevenueComposition
             ? null
-            : ProductSemanticIntentRules.ExtractProductMention(original) ?? monthlyProductTrendQuery?.ProductText;
+            : ProductSemanticIntentRules.ExtractProductMention(original) ?? monthlyProductTrendQuery?.ProductText ??
+              (ProductSemanticIntentRules.LooksLikeProductSalesValue(original)
+                  ? ProductSemanticIntentRules.ExtractUnmarkedProductMention(original)
+                  : null);
         if (productMention is not null)
         {
             var productParts = productMention

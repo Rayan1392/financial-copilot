@@ -18,13 +18,13 @@
     "inferredCardinality":  "many-to-one",
     "semantic":  {
                      "approved":  true,
-                     "status":  "owner-approved-runtime-join",
-                     "runtimeJoinable":  true,
+                     "status":  "physical-fk-not-runtime-join",
+                     "runtimeJoinable":  false,
                      "queryAuthorization":  {
-                                                "approved":  true,
-                                                "queryable":  true,
-                                                "reason":  "Join is limited to the verified source-item, statement, and company identity path.",
-                                                "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                                "approved":  false,
+                                                "queryable":  false,
+                                                "reason":  "CompanyId is NULL for every NoavaranCurrentApi statement; Feature 141 joins statements to companies through rel_26d0b2a4b006b368 (ProviderName, ExternalCompanyId).",
+                                                "provenance":  "product-owner-confirmed:Feature141-noavaran-company-mapping-2026-10-29"
                                             }
                  },
     "provenance":  {

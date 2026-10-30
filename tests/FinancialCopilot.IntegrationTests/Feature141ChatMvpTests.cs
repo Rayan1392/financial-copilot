@@ -66,7 +66,11 @@ public sealed class Feature141ChatMvpTests(FinancialStatementValueSearch131Postg
         // returned with an explicit partial-coverage disclosure and the engine status Incomplete.
         new("C8", "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟", false, ["کگل", "۲۵ تن", "کگهر", "۴۰ تن", "جزئی"], ["فملی", "فولاد"],
             ExpectedQueryStatus: "Incomplete"),
-        new("C9", "کدام شرکت‌ها تولید گندله بالای ۵۰۰ تن داشته‌اند؟", true, ["نمی‌توانم"], ["فولاد", "۹۹۹", "کگل", "کگهر"])
+        new("C9", "کدام شرکت‌ها تولید گندله بالای ۵۰۰ تن داشته‌اند؟", true, ["نمی‌توانم"], ["فولاد", "۹۹۹", "کگل", "کگهر"]),
+        // OutputType: only single-month reports (0) are monthly values. A fiscal-year-to-date request is refused, never
+        // answered with one month; a month whose only report is OutputType 3 has no monthly value (the 777 decoy).
+        new("C10", "تولید تجمعی گندله کگل از ابتدای سال مالی تا پایان شهریور ۱۴۰۵ چقدر بود؟", true, ["نمی‌توانم"], ["۲۵ تن", "۲۲ تن", "۴۷"]),
+        new("C11", "تولید گندله کگهر در مرداد ۱۴۰۵ چقدر بود؟", false, ["مرداد ۱۴۰۵"], ["۷۷۷", "۴۰ تن"], ExpectedQueryStatus: "NoData")
     ];
 
     public static IEnumerable<object[]> CaseIds() => Cases.Select(item => new object[] { item.Id });
@@ -234,7 +238,7 @@ public sealed class Feature141ChatMvpTests(FinancialStatementValueSearch131Postg
                 Name = "Feature 141 chat MVP fixture", LastSynchronizedAt = now });
             foreach (var (ticker, company) in companies)
                 db.Companies.Add(new NormalizedCompanyRow { Id = company.Id, ProviderName = Provider, ExternalCompanyId = company.External,
-                    Name = $"Fixture {ticker}", Ticker = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
+                    Name = $"Fixture {ticker}", Ticker = ticker, CompanySymbol = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
             foreach (var (id, source) in items)
                 db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow { Id = source.SourceItemCatalogId,
                     ProviderName = Provider, StatementType = "IncomeStatement", SourceItemId = id, TitleFa = source.TitleFa ?? $"item {id}",
@@ -252,7 +256,7 @@ public sealed class Feature141ChatMvpTests(FinancialStatementValueSearch131Postg
                 var externalId = $"f141chat-{company.External}-{(statement.Prior ? "prior" : "latest")}";
                 db.FinancialStatements.Add(new NormalizedFinancialStatementRow
                 {
-                    Id = id, CompanyId = company.Id, ProviderName = Provider, ExternalCompanyId = company.External, ExternalStatementId = externalId,
+                    Id = id, CompanyId = null, ProviderName = Provider, ExternalCompanyId = company.External, ExternalStatementId = externalId,
                     StatementType = "IncomeStatement", PeriodType = "ThreeMonths",
                     PeriodStart = statement.Prior ? PriorStart : StatementStart, PeriodEnd = statement.Prior ? PriorEnd : StatementEnd,
                     PublishedAt = (statement.Prior ? PriorEnd : StatementEnd).AddDays(31), IsComposing = false,
@@ -263,18 +267,19 @@ public sealed class Feature141ChatMvpTests(FinancialStatementValueSearch131Postg
                         { Id = Guid.NewGuid(), FinancialStatementId = id, SourceItemCatalogId = items[itemId].SourceItemCatalogId, Value = value });
             }
 
-            NormalizedMonthlyReportRow Report(string ticker, string suffix, DateOnly start, DateOnly end) => new()
+            NormalizedMonthlyReportRow Report(string ticker, string suffix, DateOnly start, DateOnly end, int outputType = 0) => new()
             {
                 Id = Guid.NewGuid(), ProviderName = Provider, ExternalCompanyId = companies[ticker].External, ExternalReportId = $"f141chat-{suffix}",
                 PeriodStart = start, PeriodEnd = end, SourcePayloadChecksum = $"f141chat-{suffix}", LastSynchronizedAt = now,
                 LogicalReportKey = $"f141chat-{companies[ticker].External}-{start:yyyyMM}", RevisionFingerprint = $"f141chat-{suffix}",
-                IsAccepted = true, RevisionStatus = "Accepted", ReportType = "ProductSales", OutputType = 0, CompanyId = companies[ticker].Id
+                IsAccepted = true, RevisionStatus = "Accepted", ReportType = "ProductSales", OutputType = outputType, CompanyId = null
             };
             NormalizedMonthlyReportLineItemRow Line(NormalizedMonthlyReportRow report, string ticker, string title, decimal production,
                 decimal salesQuantity, decimal salesAmount) => new()
             {
                 Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{title}", SourceMultiplicity = 1,
-                ProductCode = $"{Provider}:{companies[ticker].External}:TITLE:{title}|UNIT:ton", Title = title, Unit = "ton",
+                // Production-like ProductCode: a per-row hash reused across companies, never a product identity.
+                ProductCode = "PRODUCT:NATURAL:22d58f29e3fedf1e", Title = title, Unit = "ton",
                 ProductionQuantity = production, SalesQuantity = salesQuantity, SalesAmount = salesAmount, SalesRate = 10m,
                 SourcePayloadChecksum = report.SourcePayloadChecksum
             };
@@ -283,13 +288,16 @@ public sealed class Feature141ChatMvpTests(FinancialStatementValueSearch131Postg
             var kgehr = Report("کگهر", "kgehr-1405-06", MonthStart, MonthEnd);
             var fameli = Report("فملی", "fameli-1405-06", MonthStart, MonthEnd);
             var foolad = Report("فولاد", "foolad-1405-06", MonthStart, MonthEnd);
-            db.MonthlyReports.AddRange(kgol, kgolEarlier, kgehr, fameli, foolad);
+            // Corrected fiscal-year-to-previous-month (OutputType 3) is the only کگهر report for Mordad: not a monthly value.
+            var kgehrMordadCorrected = Report("کگهر", "kgehr-1405-05-corrected", MonthStart.AddMonths(-1), MonthStart.AddDays(-1), outputType: 3);
+            db.MonthlyReports.AddRange(kgol, kgolEarlier, kgehr, fameli, foolad, kgehrMordadCorrected);
             db.MonthlyReportLineItems.AddRange(
                 Line(kgol, "کگل", "گندله", 25m, 20m, 650m), Line(kgol, "کگل", "کنسانتره", 60m, 55m, 300m),
                 Line(kgolEarlier, "کگل", "گندله", 22m, 18m, 610m),
                 Line(kgehr, "کگهر", "گندله", 40m, 30m, 700m),
                 Line(fameli, "فملی", "کنسانتره", 80m, 70m, 400m),
-                Line(foolad, "فولاد", "گندله", 999m, 900m, 9_000m));
+                Line(foolad, "فولاد", "گندله", 999m, 900m, 9_000m),
+                Line(kgehrMordadCorrected, "کگهر", "گندله", 777m, 700m, 7_000m));
             await db.SaveChangesAsync();
         }
 

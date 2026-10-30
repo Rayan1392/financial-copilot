@@ -54,8 +54,16 @@ function ChatThreadPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: ({ message, scannerPage = 1, scannerPageSize = 20, disclosurePage = 1, suggestedActionId }: { message: string; scannerPage?: number; scannerPageSize?: number; disclosurePage?: number; suggestedActionId?: string }) =>
-      send({ data: { threadId, message, scannerPage, scannerPageSize, disclosurePage, suggestedActionId } }),
+    mutationFn: ({ message, scannerPage = 1, scannerPageSize = 20, disclosurePage = 1, suggestedActionId, idempotencyKey }: { message: string; scannerPage?: number; scannerPageSize?: number; disclosurePage?: number; suggestedActionId?: string; idempotencyKey: string }) =>
+      send({ data: {
+        threadId,
+        message,
+        scannerPage,
+        scannerPageSize,
+        disclosurePage,
+        suggestedActionId,
+        idempotencyKey,
+      } }),
     onSuccess: () => {
       setQueryError(null);
       qc.invalidateQueries({ queryKey: ["messages", threadId] });
@@ -73,20 +81,29 @@ function ChatThreadPage() {
     if (sendMutation.isPending) return;
     lastMessageRef.current = text;
     setQueryError(null);
-    sendMutation.mutate({ message: text, suggestedActionId });
+    sendMutation.mutate({ message: text, suggestedActionId, idempotencyKey: crypto.randomUUID() });
   };
 
   const handlePageChange = (page: number, originalQuery?: string, pageSize?: number) => {
     if (originalQuery) lastMessageRef.current = originalQuery;
     if (!lastMessageRef.current) return;
     setQueryError(null);
-    sendMutation.mutate({ message: lastMessageRef.current, scannerPage: page, scannerPageSize: pageSize });
+    sendMutation.mutate({
+      message: lastMessageRef.current,
+      scannerPage: page,
+      scannerPageSize: pageSize,
+      idempotencyKey: crypto.randomUUID(),
+    });
   };
 
   const handleDisclosurePageChange = (page: number, originalQuery: string) => {
     lastMessageRef.current = originalQuery;
     setQueryError(null);
-    sendMutation.mutate({ message: originalQuery, disclosurePage: page });
+    sendMutation.mutate({
+      message: originalQuery,
+      disclosurePage: page,
+      idempotencyKey: crypto.randomUUID(),
+    });
   };
 
   useEffect(() => {

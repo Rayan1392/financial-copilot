@@ -36,12 +36,12 @@
     "statement_comparison_period_policy:latest-common-reporting-period-v1"
   ],
   "companyBindings": [
-    "Found:70438df0-78f5-4a6d-816e-516545d807af",
-    "Found:696130c8-703a-4a98-ac50-b4d409c15a02"
+    "Found:73f62bff-7d0d-4218-a293-1c90e2e7f52f",
+    "Found:d80e2eef-825d-47a2-b7f0-32f1df46bf62"
   ],
   "compilationDiagnostics": [
     "statement_comparison_requires_resolved_effective_unit"
   ],
   "outcome": "refused_at_compilation",
-  "runAt": "2026-10-29T10:44:50.0447678+00:00"
+  "runAt": "2026-10-29T20:13:00.4202879+00:00"
 }

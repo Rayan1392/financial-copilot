@@ -1,8 +1,8 @@
 # Feature 141 Navigation Hierarchy
 
 Catalog version: `1`  
-Catalog hash: `2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28`  
-Hierarchy hash: `f163367205f4861a4f04c776ed9206bbf968da19196976a2b020e8a6d3ac4753`
+Catalog hash: `425b4087f0a266f09dd99f0b5bf8593deab4539f46edeb404beef2b607e74605`  
+Hierarchy hash: `e88cb3dc19ab24c6eb2129fe7b0b8cfbb94b6e794d5113a699883e926ccb68c8`
 
 Generated from canonical SemanticCatalog YAML. Navigation metadata approval, semantic approval, and query authorization are distinct. Nodes remain review-pending and runtime queries are unauthorized.
 

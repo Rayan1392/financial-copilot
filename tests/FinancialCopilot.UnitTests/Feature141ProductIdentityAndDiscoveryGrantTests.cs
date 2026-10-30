@@ -18,20 +18,25 @@ public sealed class Feature141ProductIdentityAndDiscoveryGrantTests
     private static readonly Guid CompanyId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private const string External = "ext-kgol";
 
-    private static CanonicalQueryProduct Product(string unit) =>
-        new(CompanyId, External, $"NoavaranCurrentApi:{External}:TITLE:گندله|UNIT:{unit}", "گندله", unit, null, null, "feature-129-company-scoped-product-row");
+    private static CanonicalQueryProduct Product(string unit, string title = "گندله") =>
+        new(CompanyId, External, $"NoavaranCurrentApi:{External}:TITLE:{title}|UNIT:{unit}", title, unit, null, null, "feature-129-company-scoped-product-row");
 
-    private static ProductSalesObservation Observation(string title, string unit, string key) =>
+    // Production-like rows: ProductCode is a per-row hash that changes every month and is not a product identity.
+    private static ProductSalesObservation Observation(string title, string unit, string? productCode = null) =>
         new(Guid.NewGuid(), Guid.NewGuid(), External, new JalaliPeriod(1405, 6), "NoavaranCurrentApi", "r1",
-            new(2026, 8, 23), new(2026, 9, 22), key, title, unit, 10m, 8m, 1m, 80m, ProductKey: key);
+            new(2026, 8, 23), new(2026, 9, 22), productCode ?? $"PRODUCT:NATURAL:{Guid.NewGuid():N}", title, unit,
+            10m, 8m, 1m, 80m);
+
+    private static readonly ReviewedProductConceptResolver PelletConcept = new([new ReviewedProductConcept(
+        "product_iron_ore_pellets", "product-catalog-v1", "گندله سنگ‌آهن", ["گندله", "گندله سنگ‌آهن"], "approved",
+        "owner-confirmed:feature141-product-equivalence:2026-10-09")]);
 
     [Fact]
     public async Task SameTitleReportedInTwoUnitsIsAmbiguousNotSilentlyChosen()
     {
         var binder = new StructuredQueryProductBinder(new FixedResolver(new ProductResolutionResult.Resolved(Product("kg"),
                 new ProductResolutionEvidence("exact_title_canonicalized", 1m))),
-            new FixedCatalog([Observation("گندله", "ton", Product("ton").ProductKey), Observation("گندله", "kg", Product("kg").ProductKey),
-                Observation("کنسانتره", "ton", "other")]));
+            new FixedCatalog([Observation("گندله", "ton"), Observation("گندله", "kg"), Observation("کنسانتره", "ton")]));
 
         var binding = await binder.ResolveAsync("کگل", "گندله", CancellationToken.None);
 
@@ -39,6 +44,7 @@ public sealed class Feature141ProductIdentityAndDiscoveryGrantTests
         Assert.Equal(StructuredQueryProductBinder.IncompatibleUnitsDiagnostic, binding.DiagnosticCode);
         Assert.Equal(2, binding.CandidateProductKeys.Count);
         Assert.Null(binding.ProductKey);
+        Assert.Null(binding.Selection);
     }
 
     [Fact]
@@ -46,14 +52,15 @@ public sealed class Feature141ProductIdentityAndDiscoveryGrantTests
     {
         var binder = new StructuredQueryProductBinder(new FixedResolver(new ProductResolutionResult.Resolved(Product("ton"),
                 new ProductResolutionEvidence("exact_title_canonicalized", 1m))),
-            new FixedCatalog([Observation("گندله", "ton", Product("ton").ProductKey), Observation("گندله", "TON", Product("ton").ProductKey),
-                Observation("کنسانتره", "kg", "other")]));
+            new FixedCatalog([Observation("گندله", "ton"), Observation("گندله", "TON"), Observation("کنسانتره", "kg")]));
 
         var binding = await binder.ResolveAsync("کگل", "گندله", CancellationToken.None);
 
         Assert.Equal(StructuredProductBindingStatus.Found, binding.Status);
-        Assert.Equal(Product("ton").ProductKey, binding.ProductKey);
+        Assert.Equal($"{External}:TITLE:گندله|UNIT:ton", binding.ProductKey);
         Assert.Equal("ton", binding.Unit);
+        Assert.Equal(["گندله"], binding.Selection!.SourceTitles);
+        Assert.Equal(["TON", "ton"], binding.Selection.SourceUnits);
     }
 
     [Fact]
@@ -64,6 +71,63 @@ public sealed class Feature141ProductIdentityAndDiscoveryGrantTests
         var binding = await binder.ResolveAsync("کگل", "گندله", CancellationToken.None);
         Assert.Equal(StructuredProductBindingStatus.Found, binding.Status);
         Assert.Equal("kg", binding.Unit);
+        Assert.Equal(["گندله"], binding.Selection!.SourceTitles);
+        Assert.Equal(["kg"], binding.Selection.SourceUnits);
+    }
+
+    [Fact]
+    public async Task SourceLabelsCarryEveryPersistedSpellingOfTitleAndUnit()
+    {
+        // Real Noavaran units carry trailing spaces and punctuation ("تن ", "تن."); they are one unit.
+        var binder = new StructuredQueryProductBinder(new FixedResolver(new ProductResolutionResult.Resolved(Product("تن"),
+                new ProductResolutionEvidence("exact_title", 1m))),
+            new FixedCatalog([Observation("گندله", "تن"), Observation("گندله", "تن "), Observation("گندله ", "تن."),
+                Observation("گندله فروش صادراتی", "تن"), Observation("گندله ریزدانه", "تن")]));
+
+        var binding = await binder.ResolveAsync("کگل", "گندله", CancellationToken.None);
+
+        Assert.Equal(StructuredProductBindingStatus.Found, binding.Status);
+        Assert.Equal(["گندله", "گندله "], binding.Selection!.SourceTitles);
+        Assert.Equal(["تن", "تن ", "تن."], binding.Selection.SourceUnits);
+    }
+
+    [Fact]
+    public async Task ApprovedConceptAliasesJoinTheSourceLabelsButOtherProductsDoNot()
+    {
+        var binder = new StructuredQueryProductBinder(new FixedResolver(new ProductResolutionResult.Resolved(Product("تن"),
+                new ProductResolutionEvidence("exact_title", 1m))),
+            new FixedCatalog([Observation("گندله", "تن"), Observation("گندله سنگ آهن", "تن"), Observation("گندله سنگ آهن", "هزار تن"),
+                Observation("گندله فروش صادراتی", "تن")]), PelletConcept);
+
+        var binding = await binder.ResolveAsync("کگل", "گندله", CancellationToken.None);
+
+        Assert.Equal(StructuredProductBindingStatus.Found, binding.Status);
+        Assert.Equal(["گندله", "گندله سنگ آهن"], binding.Selection!.SourceTitles);
+        Assert.Equal(["تن"], binding.Selection.SourceUnits);
+    }
+
+    [Fact]
+    public async Task ProductCodeValuesNeverChangeTheBinding()
+    {
+        CanonicalQueryProduct product = Product("تن");
+        async Task<StructuredProductBinding> Bind(params string?[] codes) =>
+            await new StructuredQueryProductBinder(new FixedResolver(new ProductResolutionResult.Resolved(product,
+                    new ProductResolutionEvidence("exact_title", 1m))),
+                new FixedCatalog([Observation("گندله", "تن", codes[0]), Observation("گندله", "تن ", codes[1]),
+                    Observation("کنسانتره", "تن", codes[2])]))
+                .ResolveAsync("کگل", "گندله", CancellationToken.None);
+
+        var hashed = await Bind("PRODUCT:NATURAL:22d58f29e3fedf1e", "PRODUCT:NATURAL:9a1f", "PRODUCT:NATURAL:22d58f29e3fedf1e");
+        var zero = await Bind("0", "0", "0");
+        var empty = await Bind(null, "", "x");
+
+        foreach (var other in new[] { zero, empty })
+        {
+            Assert.Equal(hashed.Status, other.Status);
+            Assert.Equal(hashed.ProductKey, other.ProductKey);
+            Assert.Equal(hashed.Selection!.SourceTitles, other.Selection!.SourceTitles);
+            Assert.Equal(hashed.Selection.SourceUnits, other.Selection.SourceUnits);
+        }
     }
 
     [Fact]

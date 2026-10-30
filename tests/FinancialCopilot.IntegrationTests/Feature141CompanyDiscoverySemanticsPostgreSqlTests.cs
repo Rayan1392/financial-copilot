@@ -62,8 +62,11 @@ public sealed class Feature141CompanyDiscoverySemanticsPostgreSqlTests(
                 Expect.Producers, ["کگل", "کگهر", "شپنا"], "population_discovery_authorized_company_coverage_incomplete"),
             new Scenario("D2", "گندله سنگ‌آهن", "شهریور ۱۴۰۵", "equivalent label resolves to the same approved concept and producer set",
                 Expect.Producers, ["کگل", "کگهر", "شپنا"], "population_discovery_authorized_company_coverage_incomplete"),
-            new Scenario("D3", "گندله", "مهر ۱۴۰۵", "duplicate accepted reports (company alias) for one producer make the whole discovery Ambiguous",
-                Expect.Ambiguous, null, "monthly_product_period_has_multiple_source_rows"),
+            // Company identity is (ProviderName, ExternalCompanyId) and IX_MonthlyReports_LogicalPeriod forbids two accepted reports
+            // of one identity for the same month, so the former "company alias" duplicate cannot exist; a second report of the same
+            // company whose window is not the requested month must not be counted as that month.
+            new Scenario("D3", "گندله", "مهر ۱۴۰۵", "a second accepted report of the producer with a different window is not counted as the month",
+                Expect.Producers, ["شستا"], "population_discovery_authorized_company_coverage_incomplete"),
             new Scenario("D4", "گندله", "آبان ۱۴۰۵", "no matching companies in the requested month", Expect.NoMatch),
             new Scenario("D5", "گندله", "اسفند ۱۴۰۴", "incorrect reporting period (no reports at all)", Expect.NoMatch),
             new Scenario("D6", "گندله", "شهریور ۱۴۰۵", "no approved discovery scope for the tenant: plan refused, no SQL", Expect.NoScope, WithScope: false),
@@ -182,6 +185,8 @@ public sealed class Feature141CompanyDiscoverySemanticsPostgreSqlTests(
                     Check("symbols", string.Join(",", scenario.ExpectedSymbols!.OrderBy(s => s, StringComparer.Ordinal)), string.Join(",", symbols));
                     Check("distinct", symbols.Length, symbols.Distinct().Count());
                     Check("allPositive", true, first.Rows.All(row => Convert.ToDecimal(row["Value"], CultureInfo.InvariantCulture) > 0));
+                    if (scenario.Id == "D3") // the Mehr report only: 5, never 6 (other window) or 11 (both)
+                        Check("value", 5m, Convert.ToDecimal(first.Rows.Single()["Value"], CultureInfo.InvariantCulture));
                     Check("answerLists", true, scenario.ExpectedSymbols!.All(s => answer.TextAnswer.Contains(s, StringComparison.Ordinal)));
                     Check("answerPartial", true, answer.TextAnswer.Contains("جزئی", StringComparison.Ordinal));
                     Check("noSumAcrossUnits", true, !answer.TextAnswer.Contains("مجموع", StringComparison.Ordinal));
@@ -221,7 +226,7 @@ public sealed class Feature141CompanyDiscoverySemanticsPostgreSqlTests(
         string External(string ticker) => $"cd-{companies[ticker]:N}";
         foreach (var (ticker, id) in companies)
             db.Companies.Add(new NormalizedCompanyRow { Id = id, ProviderName = Provider, ExternalCompanyId = External(ticker), Name = $"Fixture {ticker}",
-                Ticker = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
+                Ticker = ticker, CompanySymbol = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
         NormalizedMonthlyReportRow Report(string ticker, string suffix, DateOnly start, DateOnly end, string? externalCompany = null)
         {
             var report = new NormalizedMonthlyReportRow
@@ -229,7 +234,7 @@ public sealed class Feature141CompanyDiscoverySemanticsPostgreSqlTests(
                 Id = Guid.NewGuid(), ProviderName = Provider, ExternalCompanyId = externalCompany ?? External(ticker), ExternalReportId = $"cd-{ticker}-{suffix}",
                 PeriodStart = start, PeriodEnd = end, SourcePayloadChecksum = $"cd-{ticker}-{suffix}", LastSynchronizedAt = now,
                 LogicalReportKey = $"cd-{ticker}-{start:yyyyMM}-{suffix}", RevisionFingerprint = $"cd-{ticker}-{suffix}", IsAccepted = true,
-                RevisionStatus = "Accepted", ReportType = "ProductSales", OutputType = 0, CompanyId = companies[ticker]
+                RevisionStatus = "Accepted", ReportType = "ProductSales", OutputType = 0, CompanyId = null
             };
             db.MonthlyReports.Add(report);
             return report;
@@ -238,7 +243,8 @@ public sealed class Feature141CompanyDiscoverySemanticsPostgreSqlTests(
             db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
             {
                 Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{title}-{unit}",
-                SourceMultiplicity = 1, ProductCode = $"{Provider}:{report.ExternalCompanyId}:TITLE:{title}|UNIT:{unit}", Title = title, Unit = unit,
+                // Production-like ProductCode: a per-row hash reused across companies, never a product identity.
+                SourceMultiplicity = 1, ProductCode = "PRODUCT:NATURAL:22d58f29e3fedf1e", Title = title, Unit = unit,
                 ProductionQuantity = production, SalesQuantity = production, SalesAmount = production * 10, SalesRate = 10m,
                 SourcePayloadChecksum = report.SourcePayloadChecksum
             });
@@ -253,9 +259,9 @@ public sealed class Feature141CompanyDiscoverySemanticsPostgreSqlTests(
         Line(Report("وبملت", "1405-05", MordadStart, MordadEnd), "وبملت", "گندله", 30m);
         Line(Report("فولاد", "1405-06", ShahrivarStart, ShahrivarEnd), "فولاد", "کنسانتره", 60m);
         Line(Report("UNAUTH", "1405-06", ShahrivarStart, ShahrivarEnd), "UNAUTH", "گندله", 80m);
-        // Mehr 1405 (D3): شستا has two accepted reports for the month through a company alias.
+        // Mehr 1405 (D3): شستا has two accepted reports ending in the month (same company identity, different PeriodStart).
         Line(Report("شستا", "1405-07-a", MehrStart, MehrEnd), "شستا", "گندله", 5m);
-        Line(Report("شستا", "1405-07-b", MehrStart, MehrEnd, externalCompany: External("شستا") + "-alias"), "شستا", "گندله", 6m);
+        Line(Report("شستا", "1405-07-b", MehrStart.AddDays(1), MehrEnd), "شستا", "گندله", 6m);
         // Aban 1405 (D4): a report exists but no pellet line.
         Line(Report("فولاد", "1405-08", new(2026, 10, 23), new(2026, 11, 21)), "فولاد", "کنسانتره", 61m);
         await db.SaveChangesAsync();

@@ -17,7 +17,7 @@ public sealed class ProducerSalesQueryIntentClassifier
             || text.Contains("بالاترین", StringComparison.Ordinal)
             || text.Contains("رتبه", StringComparison.Ordinal)
             || text.Contains("رتبه‌بندی", StringComparison.Ordinal);
-        if (!mentionsProduction || !mentionsSales || !mentionsRanking)
+        if (!mentionsSales || !mentionsRanking)
             return new(false, null, null, false);
 
         var explicitTotalSales = ContainsAny(text, "کل مبلغ فروش شرکت", "مبلغ کل فروش شرکت", "مجموع مبلغ فروش شرکت",
@@ -28,6 +28,13 @@ public sealed class ProducerSalesQueryIntentClassifier
                 || text.Contains("فروش " + product, StringComparison.Ordinal)
                 || text.Contains("فروشِ " + product, StringComparison.Ordinal));
 
+        // Without a production verb only a ranking by the named product's own sales qualifies («شرکت‌ها را بر اساس
+        // مبلغ فروش گندله رتبه‌بندی کن»); its population is still the companies reporting that product.
+        if (!mentionsProduction)
+            return explicitProductSales
+                ? new(true, PopulationSalesScope.RequestedProductSales,
+                    text.Contains("مقدار فروش", StringComparison.Ordinal) ? "metric_monthly_sales_quantity" : "metric_monthly_sales", false)
+                : new(false, null, null, false);
         if (explicitTotalSales)
             return new(true, PopulationSalesScope.TotalCompanySales, "metric_monthly_sales", false);
         if (explicitProductSales)

@@ -762,6 +762,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             .Where(row => row.Status == ActiveStatus && row.ExpiresAtUtc <= now)
             .Select(row => row.CustomerAccountId)
             .Distinct()
+            .OrderBy(accountId => accountId)
             .Take(maximumCount)
             .ToListAsync(cancellationToken);
 

@@ -1,4 +1,4 @@
-const subscriptionCooldownPrefix = "اشتراک پولی شما غیرفعال شده است.";
+const subscriptionCooldownPrefix = "اشتراک شما به پایان رسیده است";
 
 export function formatSubscriptionCooldownDeniedMessage(
   cooldownUntilUtc: string | null | undefined,
@@ -12,8 +12,8 @@ export function formatSubscriptionCooldownDeniedMessage(
 
   if (!hasValidInstant) {
     return credits === null
-      ? `${subscriptionCooldownPrefix} در حال حاضر امکان ارسال پرسش ندارید. زمان فعال شدن حساب رایگان شما در دسترس نیست.`
-      : `${subscriptionCooldownPrefix} در حال حاضر امکان ارسال پرسش ندارید. حساب رایگان شما با ${credits} اعتبار پس از پایان دوره محدودیت فعال می‌شود.`;
+      ? `${subscriptionCooldownPrefix} و در حال حاضر نمی‌توانید پرسشی ارسال کنید. زمان فعال شدن طرح رایگان شما در دسترس نیست.`
+      : `${subscriptionCooldownPrefix} و در حال حاضر نمی‌توانید پرسشی ارسال کنید. طرح رایگان شما با ${credits} اعتبار پس از پایان دوره محدودیت فعال می‌شود.`;
   }
 
   try {
@@ -30,11 +30,11 @@ export function formatSubscriptionCooldownDeniedMessage(
       hourCycle: "h23",
     }).format(instant!);
     const allowance = credits === null ? "" : ` با ${credits} اعتبار`;
-    return `${subscriptionCooldownPrefix} در حال حاضر امکان ارسال پرسش ندارید. حساب رایگان شما${allowance} در تاریخ ${date} ساعت ${time} فعال می‌شود.`;
+    return `${subscriptionCooldownPrefix} و در حال حاضر نمی‌توانید پرسشی ارسال کنید. طرح رایگان شما در ${date} ساعت ${time}${allowance} فعال می‌شود.`;
   } catch {
     return credits === null
-      ? `${subscriptionCooldownPrefix} در حال حاضر امکان ارسال پرسش ندارید. زمان فعال شدن حساب رایگان شما در دسترس نیست.`
-      : `${subscriptionCooldownPrefix} در حال حاضر امکان ارسال پرسش ندارید. حساب رایگان شما با ${credits} اعتبار پس از پایان دوره محدودیت فعال می‌شود.`;
+      ? `${subscriptionCooldownPrefix} و در حال حاضر نمی‌توانید پرسشی ارسال کنید. زمان فعال شدن طرح رایگان شما در دسترس نیست.`
+      : `${subscriptionCooldownPrefix} و در حال حاضر نمی‌توانید پرسشی ارسال کنید. طرح رایگان شما با ${credits} اعتبار پس از پایان دوره محدودیت فعال می‌شود.`;
   }
 }
 

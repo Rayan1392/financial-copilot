@@ -1,0 +1,64 @@
+{
+  "testCase": {
+    "Id": "C7",
+    "Question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده.",
+    "Refusal": false,
+    "Contains": [
+      "فملی",
+      "۳٬۲۰۰",
+      "کگل",
+      "۲٬۴۰۰"
+    ],
+    "Excludes": [
+      "کگهر",
+      "فولاد"
+    ],
+    "SpecialistContains": null,
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده.",
+    "Enabled": true,
+    "Answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال» و «سود خالص هر سهم بیشتر از ۲٬۰۰۰ ریال به ازای هر سهم»، در آخرین دورهٔ گزارش مشترک (دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال؛ سود خالص هر سهم: ۳٬۲۰۰ ریال به ازای هر سهم\n- کگل: سود خالص ۱٬۲۰۰ میلیون ریال؛ سود خالص هر سهم: ۲٬۴۰۰ ریال به ازای هر سهم\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند.",
+    "PersistedUserMessage": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده.",
+    "PersistedAssistantMessage": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال» و «سود خالص هر سهم بیشتر از ۲٬۰۰۰ ریال به ازای هر سهم»، در آخرین دورهٔ گزارش مشترک (دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال؛ سود خالص هر سهم: ۳٬۲۰۰ ریال به ازای هر سهم\n- کگل: سود خالص ۱٬۲۰۰ میلیون ریال؛ سود خالص هر سهم: ۲٬۴۰۰ ریال به ازای هر سهم\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455 Fingerprint=76db4177a754f03e9b4a8ddba37d947380479b83d1773ffbdc42ce65b3a57e06 Status=Succeeded Rows=2 ElapsedMs=47.8201",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455 | Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities=entity:هایی,entity:خالص,entity:میلیون,entity:ریال RequestedMetrics=eps RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:stock_screening:ClarificationRequired Definitive=True CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455",
+    "SemanticCapability": "stock_screening",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 8617,
+      "CompletionTokens": 2160,
+      "TotalTokens": 10777,
+      "EstimatedCost": null,
+      "ExecutionRoute": "feature141_fallback"
+    },
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols= Products= RequestedMeasures=netProfit,earningsPerShare PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=None Presentation=Table",
+      "Feature141 statement shape classified. Shape=Filter Diagnostic=none Operation=DiscoverPopulation Ranking=none Constraints= RequestedFields= Filters=FilterGroup CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455",
+      "Feature141 query completed. CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455 Fingerprint=76db4177a754f03e9b4a8ddba37d947380479b83d1773ffbdc42ce65b3a57e06 Status=Succeeded Rows=2 ElapsedMs=47.8201"
+    ],
+    "ElapsedMs": 33545.3324,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455",
+      "Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities=entity:هایی,entity:خالص,entity:میلیون,entity:ریال RequestedMetrics=eps RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:stock_screening:ClarificationRequired Definitive=True CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-chat-mvp-d3b93be893d248009d53d16d60397455 RolloutMode=Shadow LegacyCapability=stock_screening LegacyConfidence=0.96 SemanticIntent=stock_screening SemanticCapabilityCandidate=stock_screening SemanticConfidence=0.96 ExtractedCompany=هایی ExtractedProduct=(null) ExtractedMetric=eps ExtractedPeriod=(null) ResolvedCompany=(null) Compan"
+    ]
+  }
+}

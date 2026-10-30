@@ -79,7 +79,7 @@ internal static class PersianStatementComparisonRenderer
         {
             var tie = row.GetValueOrDefault("TiedWithOthers") is true ? " (هم‌رتبه / مقدار برابر)" : string.Empty;
             var prefix = ranked ? $"{PersianStructuredQueryResponseGenerator.Digits(Convert.ToString(row["Rank"], CultureInfo.InvariantCulture)!)}. " : "- ";
-            return $"{prefix}{Label(row)}: {Value(row)} {unit}{tie}";
+            return $"{prefix}{Label(row)}: {Value(row, unit)}{tie}";
         });
         string header;
         if (ranked)
@@ -94,7 +94,7 @@ internal static class PersianStatementComparisonRenderer
             header = $"مقایسهٔ {title} در آخرین دورهٔ گزارش مشترک ({period}):";
         var body = header + "\n" + string.Join("\n", lines);
         if (!ranked) body += "\n" + Verdict(title, unit, rows);
-        body += $"\nمبنا: {basis}؛ واحد: {unit}" + (string.IsNullOrWhiteSpace(provider) ? "." : $"؛ منبع: {provider}.");
+        body += $"\nمبنا: {basis}؛ واحد: {PersianStructuredQueryResponseGenerator.DisplayUnit(unit)}" + SourceSuffix(provider);
         if (population)
             body += partial
                 ? "\nاین رتبه‌بندی جزئی است: پوشش دامنهٔ شرکت‌های مجاز شما کامل اعلام نشده است و جایگاه شرکت‌های خارج از این فهرست مشخص نیست."
@@ -119,11 +119,11 @@ internal static class PersianStatementComparisonRenderer
         {
             var prefix = ranked ? $"{PersianStructuredQueryResponseGenerator.Digits(Convert.ToString(row["Rank"], CultureInfo.InvariantCulture)!)}. " : "- ";
             var others = filters.Where(filter => filter.Title != title)
-                .Select(filter => $"؛ {filter.Title}: {(row.GetValueOrDefault(filter.ValueColumn) is { } value ? PersianStructuredQueryResponseGenerator.FormatValue(value) : "ثبت نشده")} {UnitLabel(filter.Unit)}");
-            return $"{prefix}{Label(row)}: {title} {Value(row)} {unit}{string.Concat(others)}";
+                .Select(filter => $"؛ {filter.Title}: {PersianStructuredQueryResponseGenerator.Amount(row.GetValueOrDefault(filter.ValueColumn), UnitLabel(filter.Unit), "ثبت نشده")}");
+            return $"{prefix}{Label(row)}: {title} {Value(row, unit)}{string.Concat(others)}";
         });
         var body = header + "\n" + string.Join("\n", lines);
-        body += $"\nمبنا: {basis}؛ واحد {title}: {unit}" + (string.IsNullOrWhiteSpace(provider) ? "." : $"؛ منبع: {provider}.");
+        body += $"\nمبنا: {basis}؛ واحد {title}: {PersianStructuredQueryResponseGenerator.DisplayUnit(unit)}" + SourceSuffix(provider);
         if (population)
             body += partial
                 ? "\nاین فهرست جزئی است: پوشش دامنهٔ شرکت‌های مجاز شما کامل اعلام نشده است."
@@ -155,11 +155,16 @@ internal static class PersianStatementComparisonRenderer
             _ => "برابر با"
         };
         var threshold = decimal.TryParse(filter.Threshold, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed)
-            ? PersianStructuredQueryResponseGenerator.FormatValue(parsed) : filter.Threshold;
-        return $"«{filter.Title} {comparison} {threshold} {UnitLabel(filter.Unit)}»";
+            ? PersianStructuredQueryResponseGenerator.Amount(parsed, UnitLabel(filter.Unit)) : $"{filter.Threshold} {UnitLabel(filter.Unit)}";
+        return $"«{filter.Title} {comparison} {threshold}»";
     }));
 
     /// <summary>States which company has the highest and lowest value; equal values are named as a tie.</summary>
+    /// <summary>The closing source mention; nothing for the product's default source (Noavaran).</summary>
+    private static string SourceSuffix(string? provider) =>
+        string.IsNullOrWhiteSpace(provider) || PersianStructuredQueryResponseGenerator.IsDefaultProvider(provider)
+            ? "." : $"؛ منبع: {provider}.";
+
     private static string Verdict(string title, string unit, IReadOnlyList<IReadOnlyDictionary<string, object?>> rows)
     {
         var values = rows.Select(row => (Label: Label(row), Value: Convert.ToDecimal(row["Value"], CultureInfo.InvariantCulture), Row: row))
@@ -167,14 +172,14 @@ internal static class PersianStatementComparisonRenderer
         var max = values.Max(item => item.Value);
         var min = values.Min(item => item.Value);
         if (max == min)
-            return $"مقدار {title} همهٔ این شرکت‌ها برابر است ({Value(values[0].Row)} {unit}).";
+            return $"مقدار {title} همهٔ این شرکت‌ها برابر است ({Value(values[0].Row, unit)}).";
         var top = values.Where(item => item.Value == max).Select(item => item.Label).ToArray();
         var bottom = values.Where(item => item.Value == min).Select(item => item.Label).ToArray();
         var topText = top.Length == 1 ? $"بیشترین {title} متعلق به {top[0]} است" : $"{string.Join(" و ", top)} با مقدار برابر بیشترین {title} را دارند";
         var bottomText = bottom.Length == 1 ? $"کمترین متعلق به {bottom[0]} است" : $"{string.Join(" و ", bottom)} با مقدار برابر کمترین را دارند";
-        var topValue = Value(values.First(item => item.Value == max).Row);
-        var bottomValue = Value(values.First(item => item.Value == min).Row);
-        return $"{topText} ({topValue} {unit})؛ {bottomText} ({bottomValue} {unit}).";
+        var topValue = Value(values.First(item => item.Value == max).Row, unit);
+        var bottomValue = Value(values.First(item => item.Value == min).Row, unit);
+        return $"{topText} ({topValue})؛ {bottomText} ({bottomValue}).";
     }
 
     private static string FailureText(StructuredQueryExecutionResult execution, string title, string unit,
@@ -193,7 +198,7 @@ internal static class PersianStatementComparisonRenderer
             {
                 var missing = Names(warned(CrossCompanyStatementComparisonPolicy.WarningCompanyValueMissing));
                 var available = rows.Count == 0 ? string.Empty
-                    : " مقادیر موجود (فقط برای اطلاع، بدون مقایسه): " + string.Join("؛ ", rows.Select(row => $"{Label(row)} {Value(row)} {unit}")) + ".";
+                    : " مقادیر موجود (فقط برای اطلاع، بدون مقایسه): " + string.Join("؛ ", rows.Select(row => $"{Label(row)} {Value(row, unit)}")) + ".";
                 var period = rows.Count == 0 ? string.Empty : $" در دورهٔ {PeriodText(rows[0])}";
                 return $"مقدار {title}{period} برای {missing} ثبت نشده است و مقدار گم‌شده صفر فرض نمی‌شود؛ مقایسه انجام نمی‌شود.{available}";
             }
@@ -294,8 +299,8 @@ internal static class PersianStatementComparisonRenderer
         ?? row.GetValueOrDefault("CompanyName") as string
         ?? "شرکت با هویت نامشخص";
 
-    private static string Value(IReadOnlyDictionary<string, object?> row) =>
-        row.GetValueOrDefault("Value") is { } value ? PersianStructuredQueryResponseGenerator.FormatValue(value) : "ثبت نشده";
+    private static string Value(IReadOnlyDictionary<string, object?> row, string unit) =>
+        PersianStructuredQueryResponseGenerator.Amount(row.GetValueOrDefault("Value"), unit, "ثبت نشده");
 
     /// <summary>The shared statement period in Jalali from the row's period type and bounds (rows keep their ISO dates).</summary>
     private static string PeriodText(IReadOnlyDictionary<string, object?> row) => PersianReportingPeriodText.StatementPeriod(
@@ -317,10 +322,10 @@ internal static class PersianStatementComparisonRenderer
 
     private static string UnitLabel(string? unit) => unit switch
     {
-        "MillionIRR" => "میلیون ریال",
+        "MillionIRR" => PersianStructuredQueryResponseGenerator.MillionIrrLabel,
         "BillionIRR" => "میلیارد ریال",
         "IRR" => "ریال",
-        "IRRPerShare" => "ریال به ازای هر سهم",
+        "IRRPerShare" => "ریال به‌ازای هر سهم",
         "Percent" or "percent" => "درصد",
         null or "" => "واحد نامشخص",
         _ => unit

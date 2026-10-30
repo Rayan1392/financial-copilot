@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Insights;
+using FinancialCopilot.Application.FinancialData.Semantics.Intent;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Entities;
@@ -278,6 +279,16 @@ public sealed class ProductSalesValueCapabilityExecutor(
         CancellationToken cancellationToken)
     {
         executionObserver?.BeforeExecute(CapabilityCode, frame, context);
+        // This capability answers only the monetary SalesAmount. A sold or produced volume (tons) is a different
+        // measure: report it as unsupported so the chat fallback can answer it, instead of returning an amount.
+        if (ProductSemanticIntentRules.RequestsPhysicalQuantity(frame.Interpretation.OriginalText))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported,
+                "requested_measure_is_physical_quantity");
+        // It answers only the latest reported month. A question naming a month or year must not be answered with
+        // the latest month's value: report it as unsupported so the chat fallback can answer the requested period.
+        if (PersianReportingPeriodNormalizer.MentionsReportingPeriod(frame.Interpretation.OriginalText))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported,
+                "requested_period_is_not_latest_month");
         var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
         var product = frame.Value(QuerySlotType.Product);
         if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(product))

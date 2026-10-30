@@ -265,6 +265,7 @@
       "approvedObjects": [
         "tbl_8e759d70dada6bd8_Id",
         "tbl_8e759d70dada6bd8_CompanyId",
+        "tbl_8e759d70dada6bd8_ExternalCompanyId",
         "tbl_8e759d70dada6bd8_ProviderName",
         "tbl_8e759d70dada6bd8_ReportType",
         "tbl_8e759d70dada6bd8_OutputType",

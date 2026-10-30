@@ -405,10 +405,12 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         scannerPageSize: z.number().int().min(1).max(100).default(20),
         disclosurePage: z.number().int().min(1).default(1),
         suggestedActionId: z.string().max(160).optional(),
+        idempotencyKey: z.string().uuid().optional(),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    const idempotencyKey = data.idempotencyKey ?? crypto.randomUUID();
     const result = await financialCopilotServerApi<QueryResponse>(context, "/api/ai/v1/query", {
       method: "POST",
       body: JSON.stringify({
@@ -418,6 +420,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         scannerPageSize: data.scannerPageSize,
         disclosurePage: data.disclosurePage,
         suggestedActionId: data.suggestedActionId,
+        idempotencyKey,
       }),
     });
     const createdAt = new Date().toISOString();

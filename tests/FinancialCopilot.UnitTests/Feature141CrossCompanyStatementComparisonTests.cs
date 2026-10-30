@@ -165,6 +165,28 @@ public sealed class Feature141CrossCompanyStatementComparisonTests
     }
 
     [Fact]
+    public async Task StatementsJoinCompaniesThroughTheNoavaranProviderIdentityNotCompanyId()
+    {
+        // Noavaran statements carry no CompanyId: the catalog's runtime join is (ProviderName, ExternalCompanyId).
+        var (_, snapshot) = Catalog();
+        var source = snapshot.DirectSources.Single(x => x.ProviderName == "NoavaranCurrentApi" && x.StatementType == "IncomeStatement"
+            && x.SourceItemId == 143);
+        Assert.Contains("rel_26d0b2a4b006b368", source.RelationshipIds);
+        Assert.DoesNotContain("rel_e4fa0fe989156533", source.RelationshipIds);
+        foreach (var intent in new[] { Compare(["کگل", "کگهر"]), RankPopulation("descending") })
+        {
+            var (plan, planSnapshot) = await PlanAsync(intent);
+            var query = new StructuredQueryCompiler().Compile(plan, planSnapshot).Query!;
+            Assert.Contains("JOIN \"public\".\"Companies\" c_co ON c_st.\"ExternalCompanyId\" = c_co.\"ExternalCompanyId\" " +
+                "AND c_st.\"ProviderName\" = c_co.\"ProviderName\"", query.Sql, StringComparison.Ordinal);
+            Assert.Contains("LEFT JOIN \"public\".\"FinancialStatements\" st ON st.\"ExternalCompanyId\" = co.\"ExternalCompanyId\" " +
+                "AND st.\"ProviderName\" = co.\"ProviderName\"", query.Sql, StringComparison.Ordinal);
+            Assert.DoesNotContain("st.\"CompanyId\"", query.Sql, StringComparison.Ordinal);
+            Assert.Contains("rel_26d0b2a4b006b368", query.RelationshipCatalogIds);
+        }
+    }
+
+    [Fact]
     public async Task PopulationRankingCompilesWithReviewedUniverseAndApprovedLabelColumnsOnly()
     {
         var (plan, snapshot) = await PlanAsync(RankPopulation("descending"), scopeConfigured: true);
@@ -344,6 +366,58 @@ public sealed class Feature141CrossCompanyStatementComparisonTests
         Assert.Empty(canonicalizer.Canonicalize(perMeasure).Constraints);
         var otherMeasure = Compare(["کگل", "کگهر"]) with { Constraints = [new("revenueValueGrain", "companyTotal", ConstraintProvenance.Inferred)] };
         Assert.Single(canonicalizer.Canonicalize(otherMeasure).Constraints);
+    }
+
+    [Fact]
+    public void StatedStatementBasisAndCommonPeriodConstraintsBecomeTheEngineSemantics()
+    {
+        var canonicalizer = new CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasureConceptRegistry.Default);
+        // Observed in chat: «سود خالص کگل و کگهر را در دوره مشترک، بر اساس صورت‌های مالی جداگانه مقایسه کن.»
+        var observed = Compare(["کگل", "کگهر"]) with
+        {
+            Constraints = [new("statementScope", "صورت‌های مالی جداگانه", ConstraintProvenance.Explicit),
+                new("commonPeriod", "دوره مشترک", ConstraintProvenance.Explicit)]
+        };
+        var canonical = canonicalizer.Canonicalize(observed);
+        Assert.Empty(canonical.Constraints);
+        Assert.Equal(FinancialStatementScope.Standalone, Assert.Single(canonical.Measures).Qualifiers.StatementScope);
+        Assert.Equal(StatementQueryShape.MultiCompanyComparison, StatementQueryShapeClassifier.Classify(canonical).Shape);
+        // The same question on another run: the model named the constraints "statementBasis" and "commonReportingPeriod".
+        var renamed = Compare(["کگل", "کگهر"]) with
+        {
+            Constraints = [new("statementBasis", "صورت‌های مالی جداگانه", ConstraintProvenance.Explicit),
+                new("commonReportingPeriod", "دوره مشترک بین دو شرکت", ConstraintProvenance.Explicit)]
+        };
+        Assert.Empty(canonicalizer.Canonicalize(renamed).Constraints);
+        foreach (var commonPeriod in new UserConstraint[] { new("periodAlignment", "commonPeriod", ConstraintProvenance.Explicit),
+                     new("دوره", "مشترک", ConstraintProvenance.Explicit) })
+            Assert.Empty(canonicalizer.Canonicalize(Compare(["کگل", "کگهر"]) with { Constraints = [commonPeriod] }).Constraints);
+        // A scope-named constraint that names no statement basis is left in place.
+        var productScope = Compare(["کگل", "کگهر"]) with { Constraints = [new("productScope", "گندله", ConstraintProvenance.Explicit)] };
+        Assert.Single(canonicalizer.Canonicalize(productScope).Constraints);
+        // A conflicting explicit qualifier keeps the constraint, so the request is refused rather than merged.
+        var conflicting = Compare(["کگل", "کگهر"], FinancialStatementScope.Consolidated) with
+        {
+            Constraints = [new("statementScope", "صورت‌های مالی جداگانه", ConstraintProvenance.Explicit)]
+        };
+        Assert.Single(canonicalizer.Canonicalize(conflicting).Constraints);
+        // Observed in the same chat question on another run: «دوره» as a requested field; every statement answer states its period.
+        var periodField = Compare(["کگل", "کگهر"]) with { Output = new(RequestedOutputKind.Comparison, ["دوره"]) };
+        Assert.Empty(canonicalizer.Canonicalize(periodField).Output.RequestedFields);
+        // Observed live (A2): «دوره شش‌ماهه منتهی به شهریور ۱۴۰۵» as a date range with only its end; for a statement item it
+        // is the period ending in that month, which the validator accepts and the chat path verifies against the result.
+        var endOnly = Retrieve(["وبملت"]) with
+        {
+            Period = new(ReportingPeriodKind.DateRange, ReportingPeriodGranularity.Month, "دوره شش‌ماهه منتهی به شهریور ۱۴۰۵", 6,
+                null, "شهریور ۱۴۰۵")
+        };
+        var endMonth = canonicalizer.Canonicalize(endOnly);
+        Assert.Equal(ReportingPeriodKind.ExplicitMonth, endMonth.Period.Kind);
+        Assert.True(new CanonicalSemanticIntentValidator().Validate(endMonth).IsValid);
+        Assert.Equal(new DateOnly(2026, 9, 22), PersianReportingPeriodNormalizer.Normalize(endMonth.Period).End);
+        // «دوره مشترک» restates the engine's policy only for several companies; for one company it is kept.
+        var single = Retrieve(["کگل"]) with { Constraints = [new("commonPeriod", "دوره مشترک", ConstraintProvenance.Explicit)] };
+        Assert.Single(canonicalizer.Canonicalize(single).Constraints);
     }
 
     [Fact]

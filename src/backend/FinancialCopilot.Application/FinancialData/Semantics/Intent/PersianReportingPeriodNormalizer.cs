@@ -52,6 +52,29 @@ public static class PersianReportingPeriodNormalizer
             : Parse(first);
     }
 
+    /// <summary>
+    /// Normalizes a month-range intent such as «از فروردین تا شهریور ۱۴۰۵» to its first and last report months.
+    /// A start month named without a year takes the end month's year (the previous year when it would
+    /// otherwise follow the end month). Null when either bound cannot be normalized or the range is inverted.
+    /// </summary>
+    public static (PersianReportingPeriod First, PersianReportingPeriod Last)? NormalizeRange(ReportingPeriodIntent period)
+    {
+        ArgumentNullException.ThrowIfNull(period);
+        if (period.Kind != ReportingPeriodKind.DateRange || string.IsNullOrWhiteSpace(period.StartLabel)
+            || string.IsNullOrWhiteSpace(period.EndLabel))
+            return null;
+        var last = Parse(period.EndLabel);
+        if (last.Status != PersianReportingPeriodStatus.Normalized) return null;
+        var first = Parse(period.StartLabel);
+        if (first.Status == PersianReportingPeriodStatus.Unparseable)
+        {
+            first = Parse($"{period.StartLabel} {last.PersianYear}");
+            if (first.Status == PersianReportingPeriodStatus.Normalized && first.Start > last.Start)
+                first = Parse($"{period.StartLabel} {last.PersianYear - 1}");
+        }
+        return first.Status == PersianReportingPeriodStatus.Normalized && first.Start <= last.Start ? (first, last) : null;
+    }
+
     /// <summary>Parses a Persian month label such as «شهریور ۱۴۰۵», «1405/06» or «شهریور ماه ۱۴۰۵».</summary>
     public static PersianReportingPeriod Parse(string label)
     {
@@ -80,6 +103,26 @@ public static class PersianReportingPeriodNormalizer
         var start = DateOnly.FromDateTime(Calendar.ToDateTime(year, month, 1, 0, 0, 0, 0));
         var end = DateOnly.FromDateTime(Calendar.ToDateTime(year, month, days, 0, 0, 0, 0));
         return new(PersianReportingPeriodStatus.Normalized, year, month, start, end, null, label);
+    }
+
+    /// <summary>
+    /// True when free text names a reporting period: a Jalali month («تیر», «تیرماه», «tir») or a Jalali year
+    /// («۱۴۰۵», «1405/04»). Detection only; use <see cref="Parse"/> for the period itself.
+    /// </summary>
+    public static bool MentionsReportingPeriod(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        foreach (Match token in Regex.Matches(NormalizeDigits(text).Replace('‌', ' '), @"[\p{L}\p{Nd}]+"))
+        {
+            var value = token.Value.ToLowerInvariant();
+            if (MonthNames.ContainsKey(value) ||
+                (value.EndsWith("ماه", StringComparison.Ordinal) && MonthNames.ContainsKey(value[..^3])))
+                return true;
+            if (value.Length == 4 && value.All(char.IsAsciiDigit) &&
+                int.Parse(value, CultureInfo.InvariantCulture) is >= 1300 and <= 1500)
+                return true;
+        }
+        return false;
     }
 
     private static string NormalizeDigits(string value)

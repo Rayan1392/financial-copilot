@@ -1,0 +1,48 @@
+{
+  "id": "P06",
+  "run": {
+    "Question": "سود خالص کگل و کگهر را در دوره مشترک مقایسه کن.",
+    "Enabled": true,
+    "Answer": "این درخواست با تعریف‌های تأییدشدهٔ پرس‌وجو قابل اجرا نیست.",
+    "PersistedUserMessage": "سود خالص کگل و کگهر را در دوره مشترک مقایسه کن.",
+    "PersistedAssistantMessage": "این درخواست با تعریف‌های تأییدشدهٔ پرس‌وجو قابل اجرا نیست.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18 | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:کگهر,entity:دوره,entity:مشترک RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:symbol_metric_lookup:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": null,
+    "Reservations": [
+      {
+        "IdempotencyKey": "feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18:reservation",
+        "Status": "Committed",
+        "ReservedCredits": 1.0000,
+        "CommittedCredits": 0.0000
+      }
+    ],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 0.0000,
+    "WalletBalanceBefore": 346.0000,
+    "WalletBalanceAfter": 346.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگل,کگهر Products= RequestedMeasures=netProfit PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=MultiCompany Presentation=Comparison",
+      "Feature141 statement shape classified. Shape=none Diagnostic=statement_query_shape_not_supported Operation=Compare Ranking=none Constraints=periodSelection=دوره مشترک/Explicit RequestedFields= Filters=none CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18",
+      "Feature141 plan was not execution eligible. CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18 Diagnostics=retrieval_requirements_incomplete"
+    ],
+    "ElapsedMs": 33114.3412,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:کگهر,entity:دوره,entity:مشترک RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:symbol_metric_lookup:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-717cef367f1c4c9fa4c6f6c964ac5d18 RolloutMode=Shadow LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.88 ExtractedCompany=خالص ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) ResolvedCompany=ک"
+    ],
+    "ExecutedQueries": []
+  }
+}

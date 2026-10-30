@@ -1,5 +1,9 @@
 namespace FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 
+/// <param name="RequiredCatalogIds">
+/// Catalog IDs already identified deterministically (for example the typed monthly measure of the canonical
+/// intent). The requirements outline always contains them; they grant nothing and are validated like any other ID.
+/// </param>
 public sealed record SchemaNavigationRequest(
     int ContractVersion,
     string Question,
@@ -7,7 +11,8 @@ public sealed record SchemaNavigationRequest(
     string CatalogHash,
     int MaximumExpansionDepth = 2,
     Guid TenantId = default,
-    string? CorrelationId = null);
+    string? CorrelationId = null,
+    IReadOnlyList<string>? RequiredCatalogIds = null);
 
 /// <summary>
 /// Independently validated user intent requirements. This is supplied to completeness validation
@@ -80,9 +85,23 @@ public sealed record FinancialValueSelection(
     [property: System.Text.Json.Serialization.JsonPropertyName("catalogId")] string CatalogId);
 
 public enum StructuredProductBindingStatus { Found, Ambiguous, NotFound, Missing, CompanyMismatch }
+/// <summary>
+/// A company-scoped semantic product. <see cref="ProductKey"/> is the normalized title/unit identity and
+/// <see cref="Selection"/> lists the persisted source labels that carry it; the persisted ProductCode is
+/// never a product identity (owner decision 2026-10-29).
+/// </summary>
 public sealed record StructuredProductBinding(StructuredProductBindingStatus Status, Guid? CompanyId,
     string? ProductKey, string? DisplayTitle, string? Unit, string? IdentityProvenance,
-    IReadOnlyList<string> CandidateProductKeys, string? DiagnosticCode);
+    IReadOnlyList<string> CandidateProductKeys, string? DiagnosticCode,
+    MonthlyProductSelection? Selection = null);
+
+/// <summary>
+/// The persisted source labels of one company's semantic product: every MonthlyReportLineItems Title and
+/// Unit spelling that the existing product normalization maps to it, approved concept aliases included.
+/// Every title/unit pair denotes the same product, so rows are matched by these labels alone. A missing
+/// unit is the empty string.
+/// </summary>
+public sealed record MonthlyProductSelection(IReadOnlyList<string> SourceTitles, IReadOnlyList<string> SourceUnits);
 
 public interface IStructuredQueryProductBinder
 {

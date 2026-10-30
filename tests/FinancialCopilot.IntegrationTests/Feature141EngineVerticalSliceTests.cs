@@ -184,7 +184,9 @@ public sealed class Feature141EngineVerticalSliceTests(
         Assert.Equal(true, trace.SqlParameters["is_accepted"]);
         Assert.Equal("Accepted", trace.SqlParameters["revision_status"]);
         Assert.Equal(trace.Fixture.CompanyId, trace.SqlParameters["company_id"]);
-        Assert.Equal(trace.Fixture.ProductKey, trace.SqlParameters["product_code"]);
+        // The product is selected by its source title and unit; ProductCode is never a parameter or predicate.
+        Assert.Equal([testCase.ExpectedProductLabel!], Assert.IsType<string[]>(trace.SqlParameters["product_titles"]));
+        Assert.DoesNotContain("product_code", trace.SqlParameters.Keys);
         Assert.Equal(testCase.ExpectedPeriodStart, trace.SqlParameters["period_start"]);
         Assert.Equal(testCase.ExpectedPeriodEnd, trace.SqlParameters["period_end"]);
         Assert.True(trace.CompiledQueryAuthorized && trace.CompiledSemanticReviewApproved);
@@ -202,7 +204,7 @@ public sealed class Feature141EngineVerticalSliceTests(
         Assert.Equal(testCase.ExpectedPeriodEnd, trace.ActualPeriodEnd);
         Assert.Equal("1405-06-01", trace.ActualPersianPeriodStart);
         Assert.Equal("1405-06-31", trace.ActualPersianPeriodEnd);
-        Assert.Equal(trace.Fixture.ProductKey, trace.ActualProductCode);
+        Assert.Equal(testCase.ExpectedProductLabel, trace.ActualProductTitle);
         Assert.Equal(testCase.ExpectedUnit, trace.ActualSourceUnit);
         Assert.Equal(trace.Fixture.CompanyId, trace.ActualRowCompanyId);
 
@@ -331,7 +333,7 @@ public sealed class Feature141EngineVerticalSliceTests(
             Assert.Equal(testCase.ExpectedPersianMonth, trace.NormalizedPersianMonth);
             Assert.Equal([testCase.ExpectedMeasureCatalogId!], trace.RequirementsMeasureIds);
             Assert.Equal(StructuredProductBindingStatus.Found, trace.ProductBindingStatus);
-            Assert.Equal(trace.Fixture.ProductKey, trace.SqlParameters["product_code"]);
+            Assert.Equal([testCase.ExpectedProductLabel!], Assert.IsType<string[]>(trace.SqlParameters["product_titles"]));
             Assert.Equal(testCase.ExpectedPeriodStart, trace.SqlParameters["period_start"]);
             Assert.Equal(testCase.ExpectedPeriodEnd, trace.SqlParameters["period_end"]);
         }
@@ -480,9 +482,11 @@ public sealed class Feature141EngineVerticalSliceTests(
         foreach (var row in trace.ComparisonRows)
         {
             Assert.Contains(row.Label, trace.PersianAnswer, StringComparison.Ordinal);
-            Assert.Contains(PersianStructuredQueryResponseGenerator.FormatValue(row.Value), trace.PersianAnswer, StringComparison.Ordinal);
+            // Million IRR amounts are displayed in Toman; per-share values keep their unit.
+            Assert.Contains(PersianStructuredQueryResponseGenerator.Amount(row.Value, testCase.ExpectedUnit == "IRRPerShare"
+                ? "ریال به‌ازای هر سهم" : PersianStructuredQueryResponseGenerator.MillionIrrLabel), trace.PersianAnswer, StringComparison.Ordinal);
         }
-        Assert.Contains(testCase.ExpectedUnit == "IRRPerShare" ? "ریال به ازای هر سهم" : "میلیون ریال", trace.PersianAnswer, StringComparison.Ordinal);
+        Assert.Contains(testCase.ExpectedUnit == "IRRPerShare" ? "ریال به‌ازای هر سهم" : "تومان", trace.PersianAnswer, StringComparison.Ordinal);
         foreach (var excluded in testCase.ExpectedExcludedCompanies ?? [])
             Assert.DoesNotContain(excluded, trace.PersianAnswer, StringComparison.Ordinal);
         // The shared period is stated in Jalali only ("… منتهی به ۳۱ خرداد ۱۴۰۵"); no Gregorian date reaches the answer.
@@ -900,7 +904,7 @@ public sealed record Feature141VerticalSliceFixtureInfo(
     IReadOnlyList<Guid>? ReviewedCompanyUniverse = null, Guid? UnauthorizedProducerId = null,
     IReadOnlyDictionary<string, Guid>? CompaniesBySymbol = null,
     Feature141MonthlyValueColumn MonthlyValueColumn = Feature141MonthlyValueColumn.ProductionQuantity,
-    Guid? SeededSourceItemCatalogId = null);
+    Guid? SeededSourceItemCatalogId = null, string? ProductTitle = null, string? ProductUnit = null);
 
 /// <summary>Stage-by-stage trace of one run. Null means the stage was not reached.</summary>
 public sealed class Feature141VerticalSliceTrace
@@ -984,7 +988,7 @@ public sealed class Feature141VerticalSliceTrace
     public DateOnly? NormalizedPeriodEnd { get; set; }
     public StructuredProductBindingStatus? ProductBindingStatus { get; set; }
     public string? ProductKey { get; set; }
-    public string? ActualProductCode { get; set; }
+    public string? ActualProductTitle { get; set; }
     public string? ActualSourceUnit { get; set; }
     public string? ProductConceptCatalogId { get; set; }
     public IReadOnlyList<string> ProductConceptAliases { get; set; } = [];
@@ -1383,7 +1387,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             trace.ActualPersianPeriodEnd = trace.ActualPeriodEnd is { } end ? ToPersianCalendar(end) : null;
             trace.ActualRowCompanyId = row.GetValueOrDefault("CompanyId") as Guid?;
             trace.ActualRowSourceItemId = row.GetValueOrDefault("SourceItemId") is { } item ? Convert.ToInt32(item, CultureInfo.InvariantCulture) : null;
-            trace.ActualProductCode = row.GetValueOrDefault("ProductCode") as string;
+            trace.ActualProductTitle = row.GetValueOrDefault("ProductTitle") as string;
             trace.ActualSourceUnit = row.GetValueOrDefault("SourceUnit") as string;
         }
 
@@ -1472,12 +1476,12 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             var decoyTicker = testCase.ExpectedCompanyLabel == "کگل" ? "کگهر" : "کگل";
             db.Companies.Add(new NormalizedCompanyRow
             {
-                Id = companyId, ProviderName = Provider, ExternalCompanyId = "feature141-vs-expected", Name = $"Fixture {testCase.ExpectedCompanyLabel}",
+                Id = companyId, ProviderName = Provider, ExternalCompanyId = "feature141-vs-kgehr", Name = $"Fixture {testCase.ExpectedCompanyLabel}",
                 Ticker = testCase.ExpectedCompanyLabel, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now
             });
             db.Companies.Add(new NormalizedCompanyRow
             {
-                Id = decoyCompanyId, ProviderName = Provider, ExternalCompanyId = "feature141-vs-decoy", Name = $"Fixture {decoyTicker}",
+                Id = decoyCompanyId, ProviderName = Provider, ExternalCompanyId = "feature141-vs-kgol", Name = $"Fixture {decoyTicker}",
                 Ticker = decoyTicker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now
             });
             db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow
@@ -1490,10 +1494,11 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
                 Id = decoySourceItemId, ProviderName = Provider, StatementType = testCase.ExpectedStatementType,
                 SourceItemId = 999_162, TitleFa = "قلم آزمایشی دیگر", Unit = "N/A", LastSynchronizedAt = now
             });
+            // As in production Noavaran data, statements carry no CompanyId: the company is (ProviderName, ExternalCompanyId).
             NormalizedFinancialStatementRow Statement(Guid id, Guid company, string externalCompany, string externalId,
                 DateOnly start, DateOnly end) => new()
             {
-                Id = id, CompanyId = company, ProviderName = Provider, ExternalCompanyId = externalCompany,
+                Id = id, CompanyId = null, ProviderName = Provider, ExternalCompanyId = externalCompany,
                 ExternalStatementId = externalId, StatementType = testCase.ExpectedStatementType, PeriodType = "ThreeMonths",
                 PeriodStart = start, PeriodEnd = end, PublishedAt = end.AddDays(31), IsComposing = false,
                 SourcePayloadChecksum = $"feature141-vs-{externalId}", LastSynchronizedAt = now
@@ -1543,9 +1548,10 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
         var periodEnd = testCase.ExpectedPeriodEnd ?? new DateOnly(2026, 9, 22);
         // Amount cases keep "ton" as the row (quantity) unit; the MillionIRR amount unit comes from the catalog.
         var rowUnit = testCase.MonthlyValueColumn == Feature141MonthlyValueColumn.SalesAmount ? "ton" : testCase.ExpectedUnit!;
-        var productKey = $"{Provider}:{externalCompany}:TITLE:{testCase.ExpectedProductLabel}|UNIT:{rowUnit}";
-        var otherProductKey = $"{Provider}:{externalCompany}:TITLE:کنسانتره|UNIT:{rowUnit}";
-        var decoyProductKey = $"{Provider}:{decoyExternalCompany}:TITLE:{testCase.ExpectedProductLabel}|UNIT:{rowUnit}";
+        // The binder's semantic title/unit identity; the row keys below only name fixture rows.
+        var productKey = $"{externalCompany}:TITLE:{testCase.ExpectedProductLabel}|UNIT:{rowUnit}";
+        var otherProductKey = $"{externalCompany}:TITLE:کنسانتره|UNIT:{rowUnit}";
+        var decoyProductKey = $"{decoyExternalCompany}:TITLE:{testCase.ExpectedProductLabel}|UNIT:{rowUnit}";
         Guid reportId;
         await using (var db = database.CreateContext())
         {
@@ -1562,14 +1568,15 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
                 Id = Guid.NewGuid(), ProviderName = Provider, ExternalCompanyId = externalCompanyId, ExternalReportId = $"vs-{suffix}",
                 PeriodStart = start, PeriodEnd = end, SourcePayloadChecksum = $"vs-{suffix}", LastSynchronizedAt = now,
                 LogicalReportKey = $"vs-{externalCompanyId}-{start:yyyyMM}", RevisionFingerprint = $"vs-{suffix}", IsAccepted = accepted,
-                RevisionStatus = revisionStatus, ReportType = "ProductSales", OutputType = 0, CompanyId = company
+                RevisionStatus = revisionStatus, ReportType = "ProductSales", OutputType = 0, CompanyId = null
             };
             // The case's expected value goes into the requested column; the other two columns carry distinct decoy
             // values so a wrong-column projection would surface.
             NormalizedMonthlyReportLineItemRow Line(NormalizedMonthlyReportRow report, string key, string title, decimal value) => new()
             {
                 Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{key}",
-                SourceMultiplicity = 1, ProductCode = key, Title = title, Unit = rowUnit,
+                // Production-like: one per-row hash shared by different products and companies, never an identity.
+                SourceMultiplicity = 1, ProductCode = "PRODUCT:NATURAL:22d58f29e3fedf1e", Title = title, Unit = rowUnit,
                 ProductionQuantity = testCase.MonthlyValueColumn == Feature141MonthlyValueColumn.ProductionQuantity ? value : value + 1_000m,
                 SalesQuantity = testCase.MonthlyValueColumn == Feature141MonthlyValueColumn.SalesQuantity ? value : value + 2_000m,
                 SalesAmount = testCase.MonthlyValueColumn == Feature141MonthlyValueColumn.SalesAmount ? value : value + 3_000m,
@@ -1600,7 +1607,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             $"GRANT SELECT ON TABLE public.\"MonthlyReports\", public.\"MonthlyReportLineItems\", public.\"Companies\" TO \"{role}\";";
         await command.ExecuteNonQueryAsync(cancellationToken);
         return new(databaseName, role, companyId, decoyCompanyId, Guid.Empty, Guid.Empty, SeededLineItemCount: 5, reportId, productKey,
-            MonthlyValueColumn: testCase.MonthlyValueColumn);
+            MonthlyValueColumn: testCase.MonthlyValueColumn, ProductTitle: testCase.ExpectedProductLabel, ProductUnit: rowUnit);
     }
 
     /// <summary>
@@ -1625,7 +1632,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
                 Name = "Feature 141 discovery fixture", LastSynchronizedAt = now });
             foreach (var (ticker, id) in companies)
                 db.Companies.Add(new NormalizedCompanyRow { Id = id, ProviderName = Provider, ExternalCompanyId = External(ticker),
-                    Name = $"Fixture {ticker}", Ticker = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
+                    Name = $"Fixture {ticker}", Ticker = ticker, CompanySymbol = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
             NormalizedMonthlyReportRow Report(string ticker, string suffix, DateOnly start, DateOnly end)
             {
                 var report = new NormalizedMonthlyReportRow
@@ -1633,7 +1640,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
                     Id = Guid.NewGuid(), ProviderName = Provider, ExternalCompanyId = External(ticker), ExternalReportId = $"vs-disc-{ticker}-{suffix}",
                     PeriodStart = start, PeriodEnd = end, SourcePayloadChecksum = $"vs-disc-{ticker}-{suffix}", LastSynchronizedAt = now,
                     LogicalReportKey = $"vs-disc-{ticker}-{start:yyyyMM}", RevisionFingerprint = $"vs-disc-{ticker}-{suffix}", IsAccepted = true,
-                    RevisionStatus = "Accepted", ReportType = "ProductSales", OutputType = 0, CompanyId = companies[ticker]
+                    RevisionStatus = "Accepted", ReportType = "ProductSales", OutputType = 0, CompanyId = null
                 };
                 db.MonthlyReports.Add(report);
                 return report;
@@ -1642,7 +1649,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
                 db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
                 {
                     Id = Guid.NewGuid(), MonthlyReportId = report.Id, SourceRowFingerprint = $"row-{report.ExternalReportId}-{title}-{unit}",
-                    SourceMultiplicity = 1, ProductCode = $"{Provider}:{External(ticker)}:TITLE:{title}|UNIT:{unit}", Title = title, Unit = unit,
+                    SourceMultiplicity = 1, ProductCode = "PRODUCT:NATURAL:22d58f29e3fedf1e", Title = title, Unit = unit,
                     ProductionQuantity = production, SalesQuantity = production, SalesAmount = production * 10, SalesRate = 10m,
                     SourcePayloadChecksum = report.SourcePayloadChecksum
                 });
@@ -1693,7 +1700,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
                 Name = "Feature 141 comparison fixture", LastSynchronizedAt = now });
             foreach (var (ticker, id) in companies)
                 db.Companies.Add(new NormalizedCompanyRow { Id = id, ProviderName = Provider, ExternalCompanyId = $"feature141-vs-cmp-{id:N}",
-                    Name = $"Fixture {ticker}", Ticker = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
+                    Name = $"Fixture {ticker}", Ticker = ticker, CompanySymbol = ticker, MarketId = marketId, PrecedencyRight = 0, LastSynchronizedAt = now });
             db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow { Id = sourceItem, ProviderName = Provider,
                 StatementType = testCase.ExpectedStatementType, SourceItemId = testCase.ExpectedSourceItemId, TitleFa = testCase.ExpectedTitleFa,
                 Unit = "N/A", LastSynchronizedAt = now });
@@ -1715,7 +1722,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
                 var externalId = $"vs-cmp-{statement.Ticker}-{start:yyyyMMdd}-{(statement.Composing ? "c" : "s")}-{statement.Suffix}";
                 db.FinancialStatements.Add(new NormalizedFinancialStatementRow
                 {
-                    Id = id, CompanyId = companies[statement.Ticker], ProviderName = Provider,
+                    Id = id, CompanyId = null, ProviderName = Provider, // production Noavaran statements carry no CompanyId
                     ExternalCompanyId = $"feature141-vs-cmp-{companies[statement.Ticker]:N}", ExternalStatementId = externalId,
                     StatementType = testCase.ExpectedStatementType, PeriodType = "ThreeMonths", PeriodStart = start, PeriodEnd = end,
                     PublishedAt = end.AddDays(31), IsComposing = statement.Composing, IsAudited = statement.Audited,
@@ -1769,7 +1776,8 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT li.\"Value\" FROM public.\"FinancialStatementLineItems\" li " +
                 "JOIN public.\"FinancialStatements\" st ON st.\"Id\" = li.\"FinancialStatementId\" " +
-                "WHERE st.\"CompanyId\" = @company AND st.\"PeriodEnd\" = @end AND li.\"SourceItemCatalogId\" = @source";
+                "JOIN public.\"Companies\" co ON co.\"ProviderName\" = st.\"ProviderName\" AND co.\"ExternalCompanyId\" = st.\"ExternalCompanyId\" " +
+                "WHERE co.\"Id\" = @company AND st.\"PeriodEnd\" = @end AND li.\"SourceItemCatalogId\" = @source";
             command.Parameters.AddWithValue("company", fixtureInfo.CompaniesBySymbol![expected.Label]);
             command.Parameters.AddWithValue("end", periodEnd ?? testCase.ExpectedPeriodEnd!.Value);
             command.Parameters.AddWithValue("source", fixtureInfo.SeededSourceItemCatalogId!.Value);
@@ -1788,7 +1796,7 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
         await using var connection = new NpgsqlConnection(database.ConnectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT (SELECT COUNT(DISTINCT r.\"CompanyId\") FROM public.\"MonthlyReportLineItems\" li " +
+        command.CommandText = "SELECT (SELECT COUNT(DISTINCT (r.\"ProviderName\", r.\"ExternalCompanyId\")) FROM public.\"MonthlyReportLineItems\" li " +
             "JOIN public.\"MonthlyReports\" r ON li.\"MonthlyReportId\" = r.\"Id\" WHERE r.\"IsAccepted\" AND r.\"RevisionStatus\" = 'Accepted' " +
             "AND r.\"PeriodStart\" = @start AND r.\"PeriodEnd\" = @end AND li.\"ProductionQuantity\" > 0 AND BTRIM(li.\"Title\") = ANY(@aliases)), " +
             "(SELECT COUNT(*) FROM public.\"MonthlyReportLineItems\")";
@@ -1826,10 +1834,11 @@ public sealed class Feature141EngineVerticalSliceRunner(LocalPostgreSqlTestDatab
             _ => "ProductionQuantity"
         };
         command.CommandText = $"SELECT (SELECT li.\"{column}\" FROM public.\"MonthlyReportLineItems\" li " +
-            "WHERE li.\"MonthlyReportId\" = @report AND li.\"ProductCode\" = @product), " +
+            "WHERE li.\"MonthlyReportId\" = @report AND li.\"Title\" = @title AND li.\"Unit\" = @unit), " +
             "(SELECT COUNT(*) FROM public.\"MonthlyReportLineItems\")";
         command.Parameters.AddWithValue("report", fixtureInfo.MonthlyReportId!.Value);
-        command.Parameters.AddWithValue("product", fixtureInfo.ProductKey!);
+        command.Parameters.AddWithValue("title", fixtureInfo.ProductTitle!);
+        command.Parameters.AddWithValue("unit", fixtureInfo.ProductUnit!);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) return (null, 0);
         return (reader.IsDBNull(0) ? null : reader.GetDecimal(0), (int)reader.GetInt64(1));

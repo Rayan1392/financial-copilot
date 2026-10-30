@@ -72,7 +72,8 @@ public sealed class LlmVectorlessSchemaNavigator(
         if (_budgets.MaximumModelCalls < 1) throw new SchemaNavigationBudgetException("model_call_budget_exhausted");
         using var total = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         total.CancelAfter(_budgets.EffectiveTotalTimeout);
-        var outline = await outlineProvider.GetCompactOutlineAsync(request.CatalogVersion, request.CatalogHash, request.Question, [],
+        var outline = await outlineProvider.GetCompactOutlineAsync(request.CatalogVersion, request.CatalogHash, request.Question,
+            request.RequiredCatalogIds ?? [],
             Math.Min(Math.Min(_budgets.MaximumHierarchyContextCharacters, _budgets.MaximumInputCharacters / 2),
                 _budgets.MaximumCatalogContextTokens * 2), total.Token);
         if ((outline.Length + 1) / 2 > _budgets.MaximumCatalogContextTokens)

@@ -5,6 +5,8 @@ using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
+using System.Net;
+using System.Text.RegularExpressions;
 using Testcontainers.PostgreSql;
 
 namespace FinancialCopilot.IntegrationTests;
@@ -17,7 +19,9 @@ public sealed class PostgreSqlIntegrationCollection : ICollectionFixture<Postgre
 
 public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
 {
+    private const string TestConnectionStringEnvironmentVariable = "FINANCIAL_COPILOT_TEST_POSTGRES_CONNECTION_STRING";
     private PostgreSqlContainer? container;
+    private string? configuredAdminConnectionString;
 
     public string? UnavailableReason { get; private set; }
 
@@ -25,12 +29,34 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
     {
         try
         {
+            var configuredConnectionString = Environment.GetEnvironmentVariable(TestConnectionStringEnvironmentVariable);
+            if (!string.IsNullOrWhiteSpace(configuredConnectionString))
+            {
+                var builder = new NpgsqlConnectionStringBuilder(configuredConnectionString);
+                var isLoopback = string.Equals(builder.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                    (IPAddress.TryParse(builder.Host, out var address) && IPAddress.IsLoopback(address));
+                if (!isLoopback || builder.Port is 5432 or 5433 ||
+                    !string.Equals(builder.Database, "postgres", StringComparison.OrdinalIgnoreCase))
+                {
+                    UnavailableReason =
+                        $"The {TestConnectionStringEnvironmentVariable} connection must target loopback, a non-application port, and the postgres admin database.";
+                    return;
+                }
+
+                builder.Pooling = false;
+                configuredAdminConnectionString = builder.ConnectionString;
+                await using var connection = new NpgsqlConnection(configuredAdminConnectionString);
+                await connection.OpenAsync();
+                return;
+            }
+
             container = new PostgreSqlBuilder("postgres:17-alpine")
                 .WithDatabase("postgres")
                 .WithUsername("feature125_tests")
                 .WithPassword("feature125_tests")
                 .Build();
             await container.StartAsync();
+            configuredAdminConnectionString = container.GetConnectionString();
         }
         catch (Exception exception)
         {
@@ -51,7 +77,7 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
             Skip.If(true, UnavailableReason);
 
         var databaseName = $"feature125_{Guid.NewGuid():N}";
-        var adminConnectionString = container!.GetConnectionString();
+        var adminConnectionString = GetAdminConnectionString();
         await using (var connection = new NpgsqlConnection(adminConnectionString))
         {
             await connection.OpenAsync();
@@ -75,13 +101,16 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
         return database;
     }
 
-    public async Task<PostgreSqlTestDatabase> CreateBillingDatabaseAsync()
+    public async Task<PostgreSqlTestDatabase> CreateBillingDatabaseAsync(string databasePrefix = "feature139_billing")
     {
         if (UnavailableReason is not null)
             Skip.If(true, UnavailableReason);
 
-        var databaseName = $"feature139_billing_{Guid.NewGuid():N}";
-        var adminConnectionString = container!.GetConnectionString();
+        if (!Regex.IsMatch(databasePrefix, "^[a-z0-9_]+$", RegexOptions.CultureInvariant))
+            throw new ArgumentException("Database prefix may contain only lowercase letters, digits, and underscores.", nameof(databasePrefix));
+
+        var databaseName = $"{databasePrefix}_{Guid.NewGuid():N}";
+        var adminConnectionString = GetAdminConnectionString();
         await using (var connection = new NpgsqlConnection(adminConnectionString))
         {
             await connection.OpenAsync();
@@ -100,6 +129,10 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
             await billing.Database.MigrateAsync();
         return database;
     }
+
+    private string GetAdminConnectionString() =>
+        configuredAdminConnectionString ?? container?.GetConnectionString() ??
+        throw new InvalidOperationException("PostgreSQL was not initialized.");
 }
 
 public sealed class PostgreSqlTestDatabase(

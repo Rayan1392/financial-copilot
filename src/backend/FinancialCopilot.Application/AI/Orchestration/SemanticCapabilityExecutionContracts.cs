@@ -201,6 +201,10 @@ public sealed class SemanticExecutionCoordinator(
         {
             RecordOutcomeEvent(frame, context, invalid);
             await feedbackCollector.TryCollectAsync(request, frame, invalid, context.Now, CancellationToken.None);
+            // The same deferral as an executed frame: a result the Feature 141 fallback can still answer keeps the
+            // turn's reservation open, so the answer is settled once on it instead of being recorded as a zero charge.
+            if (reservation is not null && deferSettlementForFallback && CanFallback(invalid.Status))
+                return new(invalid, null, reservation);
             var invalidUsage = reservation is null
                 ? null
                 : await billingHook.FinalizeAsync(reservation,

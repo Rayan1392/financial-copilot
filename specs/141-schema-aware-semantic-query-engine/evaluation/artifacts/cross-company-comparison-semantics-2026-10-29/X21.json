@@ -38,9 +38,9 @@
     "company_identity_not_found"
   ],
   "companyBindings": [
-    "Found:15d3e488-9cf5-4f0b-910d-620ff5fd4a00",
+    "Found:332df1f2-2d1c-4ffe-9a64-0d6e4eb1763b",
     "NotFound:"
   ],
   "outcome": "refused_before_sql",
-  "runAt": "2026-10-29T10:44:54.1418029+00:00"
+  "runAt": "2026-10-29T20:13:04.3496657+00:00"
 }

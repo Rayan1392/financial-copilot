@@ -1,12 +1,18 @@
--- PREPARATION ONLY: DBA-reviewed, explicit Development provisioning.
--- Replace the database placeholder, inspect the target identity, then run manually as its owner.
+-- PREPARATION ONLY: DBA-reviewed, explicit provisioning of the Feature 141 runtime read-only role.
+-- Run manually as the database owner, naming the exact target database:
+--   psql -v expected_database=<exact database name> -f feature141-read-role-setup.sql
+-- The application connects as feature141_reader (ConnectionStrings:Feature141ReadOnly), never as the owner.
 \set ON_ERROR_STOP on
-\set expected_dev_database 'REPLACE_WITH_EXACT_DEVELOPMENT_DATABASE'
-
-SELECT current_database() = :'expected_dev_database' AS correct_dev_database \gset
-\if :correct_dev_database
+\if :{?expected_database}
 \else
-  \echo 'Refusing: connected database does not equal expected Development database.'
+  \echo 'Refusing: pass -v expected_database=<exact target database name>.'
+  \quit 3
+\endif
+
+SELECT current_database() = :'expected_database' AS correct_database \gset
+\if :correct_database
+\else
+  \echo 'Refusing: connected database does not equal expected_database.'
   \quit 3
 \endif
 
@@ -51,7 +57,19 @@ GRANT SELECT (
   "SourcePayloadChecksum", "PublishedAt", "LastSynchronizedAt", "WarningsJson",
   "LogicalVendor", "SourceMode"
 ) ON TABLE public."FinancialStatements" TO feature141_reader;
-GRANT SELECT ("Id") ON TABLE public."Companies" TO feature141_reader;
+-- Provider company identity (ProviderName, ExternalCompanyId): Noavaran statements and monthly reports carry no CompanyId.
+GRANT SELECT ("ExternalCompanyId") ON TABLE public."FinancialStatements" TO feature141_reader;
+GRANT SELECT ("Id", "ProviderName", "ExternalCompanyId", "Name", "Ticker", "CompanySymbol") ON TABLE public."Companies" TO feature141_reader;
+-- Monthly production and sales (catalog monthly measures; OutputType is a bound parameter, 0 = single month).
+-- Products are matched by Title and Unit; the provider ProductCode is never read.
+GRANT SELECT (
+  "Id", "ProviderName", "ExternalCompanyId", "PeriodStart", "PeriodEnd", "ReportType", "OutputType",
+  "IsAccepted", "RevisionStatus", "ExternalReportId"
+) ON TABLE public."MonthlyReports" TO feature141_reader;
+GRANT SELECT (
+  "MonthlyReportId", "Title", "Unit", "ProductionQuantity", "SalesQuantity", "SalesAmount",
+  "SourceRowFingerprint", "SourceMultiplicity"
+) ON TABLE public."MonthlyReportLineItems" TO feature141_reader;
 
 -- Set the password with an interactive `psql` \password feature141_reader prompt.
 -- Never provide it in this file, source control, command-line arguments, or shell history.

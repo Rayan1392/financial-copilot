@@ -3,12 +3,12 @@
   "question": "\u0633\u0648\u062F \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC \u0647\u0631 \u0633\u0647\u0645 \u06A9\u06AF\u0647\u0631 \u0686\u0642\u062F\u0631 \u0627\u0633\u062A\u061F",
   "executionMode": "captured-navigation-plus-isolated-postgresql-fixture",
   "catalogVersion": "1",
-  "catalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+  "catalogHash": "425b4087f0a266f09dd99f0b5bf8593deab4539f46edeb404beef2b607e74605",
   "companyBinding": {
     "Status": 0,
-    "CompanyId": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d",
+    "CompanyId": "a8415e85-2f7f-419f-b5ad-723a049317ac",
     "CandidateCompanyIds": [
-      "bdcd984c-4f2e-4e9b-a742-5cae54267d8d"
+      "a8415e85-2f7f-419f-b5ad-723a049317ac"
     ],
     "IdentityProvenance": "exact_ticker",
     "DiagnosticCode": null
@@ -16,13 +16,13 @@
   "plan": {
     "ContractVersion": 1,
     "CatalogVersion": "1",
-    "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+    "CatalogHash": "425b4087f0a266f09dd99f0b5bf8593deab4539f46edeb404beef2b607e74605",
     "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
     "Entities": [
       {
         "EntityKind": "Company",
         "UserReference": "\u06A9\u06AF\u0647\u0631",
-        "ResolvedEntityId": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d",
+        "ResolvedEntityId": "a8415e85-2f7f-419f-b5ad-723a049317ac",
         "ResolvedEntityKey": null,
         "IdentityProvenance": "exact_ticker",
         "IdentityVerified": true
@@ -47,8 +47,8 @@
     ],
     "RelationshipIds": [
       "rel_2588cf95d01a651a",
-      "rel_cd8a77a2717ac71f",
-      "rel_e4fa0fe989156533"
+      "rel_26d0b2a4b006b368",
+      "rel_cd8a77a2717ac71f"
     ],
     "Projection": [
       {
@@ -123,13 +123,14 @@
     "ProductConcept": null,
     "CompanyDiscoveryScope": null,
     "PopulationCoveragePolicyId": null,
-    "PopulationSalesScope": null
+    "PopulationSalesScope": null,
+    "ProductSelection": null
   },
-  "sqlExecuted": "WITH latest_period AS (\n  SELECT MAX(st_scope.\u0022PeriodEnd\u0022) AS \u0022PeriodEnd\u0022\n  FROM \u0022public\u0022.\u0022FinancialStatements\u0022 st_scope\n  WHERE st_scope.\u0022CompanyId\u0022 = @company_id\n    AND st_scope.\u0022ProviderName\u0022 = @provider_name\n    AND st_scope.\u0022StatementType\u0022 = @statement_type AND st_scope.\u0022IsComposing\u0022 = @is_composing\n  GROUP BY st_scope.\u0022IsComposing\u0022\n)\nSELECT li.\u0022Value\u0022 AS \u0022Value\u0022, st.\u0022PeriodEnd\u0022 AS \u0022PeriodEnd\u0022, st.\u0022Id\u0022 AS \u0022StatementId\u0022, st.\u0022ProviderName\u0022 AS \u0022ProviderName\u0022, st.\u0022StatementType\u0022 AS \u0022StatementType\u0022, @source_item_id AS \u0022SourceItemId\u0022, (SELECT si.\u0022Unit\u0022 FROM \u0022public\u0022.\u0022FinancialStatementSourceItems\u0022 si WHERE si.\u0022Id\u0022 = @source_item_catalog_id) AS \u0022SourceUnit\u0022, @source_item_catalog_id AS \u0022SourceItemCatalogId\u0022, st.\u0022IsComposing\u0022 AS \u0022IsComposing\u0022, st.\u0022CompanyId\u0022 AS \u0022CompanyId\u0022, st.\u0022PeriodType\u0022 AS \u0022PeriodType\u0022, st.\u0022IsAudited\u0022 AS \u0022IsAudited\u0022, st.\u0022IsRepresented\u0022 AS \u0022IsRepresented\u0022, st.\u0022ExternalStatementId\u0022 AS \u0022ExternalStatementId\u0022, st.\u0022PeriodStart\u0022 AS \u0022PeriodStart\u0022, st.\u0022SourcePayloadChecksum\u0022 AS \u0022SourcePayloadChecksum\u0022, st.\u0022PublishedAt\u0022 AS \u0022PublishedAt\u0022, st.\u0022LastSynchronizedAt\u0022 AS \u0022LastSynchronizedAt\u0022, st.\u0022WarningsJson\u0022 AS \u0022WarningsJson\u0022, st.\u0022LogicalVendor\u0022 AS \u0022LogicalVendor\u0022, st.\u0022SourceMode\u0022 AS \u0022SourceMode\u0022\nFROM \u0022public\u0022.\u0022FinancialStatements\u0022 st\nJOIN \u0022public\u0022.\u0022Companies\u0022 co ON st.\u0022CompanyId\u0022 = co.\u0022Id\u0022\nLEFT JOIN \u0022public\u0022.\u0022FinancialStatementLineItems\u0022 li ON li.\u0022FinancialStatementId\u0022 = st.\u0022Id\u0022 AND li.\u0022SourceItemCatalogId\u0022 = @source_item_catalog_id\nWHERE co.\u0022Id\u0022 = @company_id\n  AND st.\u0022ProviderName\u0022 = @provider_name\n  AND st.\u0022StatementType\u0022 = @statement_type\n  AND EXISTS (SELECT 1 FROM \u0022public\u0022.\u0022FinancialStatementSourceItems\u0022 si WHERE si.\u0022Id\u0022 = @source_item_catalog_id AND si.\u0022ProviderName\u0022 = @provider_name AND si.\u0022StatementType\u0022 = @statement_type AND si.\u0022SourceItemId\u0022 = @source_item_id)\n  AND st.\u0022IsComposing\u0022 = @is_composing\n  AND st.\u0022PeriodEnd\u0022 IN (SELECT \u0022PeriodEnd\u0022 FROM latest_period)\nORDER BY st.\u0022PeriodEnd\u0022 DESC, st.\u0022PeriodType\u0022, st.\u0022Id\u0022\nLIMIT @row_limit OFFSET @row_offset",
+  "sqlExecuted": "WITH latest_period AS (\n  SELECT MAX(st_scope.\u0022PeriodEnd\u0022) AS \u0022PeriodEnd\u0022\n  FROM \u0022public\u0022.\u0022FinancialStatements\u0022 st_scope\n  JOIN \u0022public\u0022.\u0022Companies\u0022 co_scope ON st_scope.\u0022ExternalCompanyId\u0022 = co_scope.\u0022ExternalCompanyId\u0022 AND st_scope.\u0022ProviderName\u0022 = co_scope.\u0022ProviderName\u0022\n  WHERE co_scope.\u0022Id\u0022 = @company_id\n    AND st_scope.\u0022ProviderName\u0022 = @provider_name\n    AND st_scope.\u0022StatementType\u0022 = @statement_type AND st_scope.\u0022IsComposing\u0022 = @is_composing\n  GROUP BY st_scope.\u0022IsComposing\u0022\n)\nSELECT li.\u0022Value\u0022 AS \u0022Value\u0022, st.\u0022PeriodEnd\u0022 AS \u0022PeriodEnd\u0022, st.\u0022Id\u0022 AS \u0022StatementId\u0022, st.\u0022ProviderName\u0022 AS \u0022ProviderName\u0022, st.\u0022StatementType\u0022 AS \u0022StatementType\u0022, @source_item_id AS \u0022SourceItemId\u0022, (SELECT si.\u0022Unit\u0022 FROM \u0022public\u0022.\u0022FinancialStatementSourceItems\u0022 si WHERE si.\u0022Id\u0022 = @source_item_catalog_id) AS \u0022SourceUnit\u0022, @source_item_catalog_id AS \u0022SourceItemCatalogId\u0022, st.\u0022IsComposing\u0022 AS \u0022IsComposing\u0022, co.\u0022Id\u0022 AS \u0022CompanyId\u0022, st.\u0022PeriodType\u0022 AS \u0022PeriodType\u0022, st.\u0022IsAudited\u0022 AS \u0022IsAudited\u0022, st.\u0022IsRepresented\u0022 AS \u0022IsRepresented\u0022, st.\u0022ExternalStatementId\u0022 AS \u0022ExternalStatementId\u0022, st.\u0022PeriodStart\u0022 AS \u0022PeriodStart\u0022, st.\u0022SourcePayloadChecksum\u0022 AS \u0022SourcePayloadChecksum\u0022, st.\u0022PublishedAt\u0022 AS \u0022PublishedAt\u0022, st.\u0022LastSynchronizedAt\u0022 AS \u0022LastSynchronizedAt\u0022, st.\u0022WarningsJson\u0022 AS \u0022WarningsJson\u0022, st.\u0022LogicalVendor\u0022 AS \u0022LogicalVendor\u0022, st.\u0022SourceMode\u0022 AS \u0022SourceMode\u0022\nFROM \u0022public\u0022.\u0022FinancialStatements\u0022 st\nJOIN \u0022public\u0022.\u0022Companies\u0022 co ON st.\u0022ExternalCompanyId\u0022 = co.\u0022ExternalCompanyId\u0022 AND st.\u0022ProviderName\u0022 = co.\u0022ProviderName\u0022\nLEFT JOIN \u0022public\u0022.\u0022FinancialStatementLineItems\u0022 li ON li.\u0022FinancialStatementId\u0022 = st.\u0022Id\u0022 AND li.\u0022SourceItemCatalogId\u0022 = @source_item_catalog_id\nWHERE co.\u0022Id\u0022 = @company_id\n  AND st.\u0022ProviderName\u0022 = @provider_name\n  AND st.\u0022StatementType\u0022 = @statement_type\n  AND EXISTS (SELECT 1 FROM \u0022public\u0022.\u0022FinancialStatementSourceItems\u0022 si WHERE si.\u0022Id\u0022 = @source_item_catalog_id AND si.\u0022ProviderName\u0022 = @provider_name AND si.\u0022StatementType\u0022 = @statement_type AND si.\u0022SourceItemId\u0022 = @source_item_id)\n  AND st.\u0022IsComposing\u0022 = @is_composing\n  AND st.\u0022PeriodEnd\u0022 IN (SELECT \u0022PeriodEnd\u0022 FROM latest_period)\nORDER BY st.\u0022PeriodEnd\u0022 DESC, st.\u0022PeriodType\u0022, st.\u0022Id\u0022\nLIMIT @row_limit OFFSET @row_offset",
   "sqlParameters": [
     {
       "Name": "company_id",
-      "Value": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d"
+      "Value": "a8415e85-2f7f-419f-b5ad-723a049317ac"
     },
     {
       "Name": "source_item_catalog_id",
@@ -165,14 +166,14 @@
     {
       "Value": 3753,
       "PeriodEnd": "2026-06-21",
-      "StatementId": "632736b9-862f-4dac-b0af-304909c29ddf",
+      "StatementId": "ff47059c-41b9-4cdc-9a20-98e4ebd7d50f",
       "ProviderName": "NoavaranCurrentApi",
       "StatementType": "IncomeStatement",
       "SourceItemId": 161,
       "SourceUnit": "N/A",
       "SourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
       "IsComposing": false,
-      "CompanyId": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d",
+      "CompanyId": "a8415e85-2f7f-419f-b5ad-723a049317ac",
       "PeriodType": "ThreeMonths",
       "IsAudited": false,
       "IsRepresented": false,
@@ -180,7 +181,7 @@
       "PeriodStart": "2026-03-21",
       "SourcePayloadChecksum": "feature141-statement-fixture",
       "PublishedAt": "2026-07-22",
-      "LastSynchronizedAt": "2026-10-29T10:43:59.537896Z",
+      "LastSynchronizedAt": "2026-10-29T20:12:02.963024Z",
       "WarningsJson": "[]",
       "LogicalVendor": null,
       "SourceMode": null
@@ -189,7 +190,7 @@
   "expectedValue": 3753,
   "actualValue": 3753,
   "effectiveUnit": "IRRPerShare",
-  "finalPersianAnswer": "\u06A9\u06AF\u0647\u0631 \u062F\u0631 \u062F\u0648\u0631\u0647 \u0633\u0647\u200C\u0645\u0627\u0647\u0647 \u0645\u0646\u062A\u0647\u06CC \u0628\u0647 \u06F3\u06F1 \u062E\u0631\u062F\u0627\u062F \u06F1\u06F4\u06F0\u06F5\u060C \u0645\u0642\u062F\u0627\u0631 \u0645\u0627\u0644\u06CC \u06AF\u0632\u0627\u0631\u0634\u200C\u0634\u062F\u0647: \u06F3\u066C\u06F7\u06F5\u06F3 IRRPerShare.\n\u0645\u0646\u0628\u0639: NoavaranCurrentApi.",
+  "finalPersianAnswer": "\u06A9\u06AF\u0647\u0631 \u062F\u0631 \u062F\u0648\u0631\u0647 \u0633\u0647\u200C\u0645\u0627\u0647\u0647 \u0645\u0646\u062A\u0647\u06CC \u0628\u0647 \u06F3\u06F1 \u062E\u0631\u062F\u0627\u062F \u06F1\u06F4\u06F0\u06F5\u060C \u0645\u0642\u062F\u0627\u0631 \u0645\u0627\u0644\u06CC \u06AF\u0632\u0627\u0631\u0634\u200C\u0634\u062F\u0647: \u06F3\u066C\u06F7\u06F5\u06F3 \u0631\u06CC\u0627\u0644 \u0628\u0647\u200C\u0627\u0632\u0627\u06CC \u0647\u0631 \u0633\u0647\u0645.\n\u0645\u0646\u0628\u0639: NoavaranCurrentApi.",
   "evidence": [
     {
       "Company": "\u06A9\u06AF\u0647\u0631",

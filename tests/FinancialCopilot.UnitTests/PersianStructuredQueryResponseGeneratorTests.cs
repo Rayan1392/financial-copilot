@@ -19,8 +19,12 @@ public sealed class PersianStructuredQueryResponseGeneratorTests
 
         Assert.Equal(StructuredAnswerStatus.Answered, response.Status);
         Assert.Contains("۴۷ تن", response.TextAnswer);
-        Assert.Contains("NoavaranCurrentApi", response.TextAnswer);
+        // Noavaran is the default source: it is kept in the evidence and not repeated in the text.
+        Assert.DoesNotContain("NoavaranCurrentApi", response.TextAnswer);
+        Assert.DoesNotContain("منبع", response.TextAnswer);
+        Assert.Equal("NoavaranCurrentApi", Assert.Single(response.Evidence).Provider);
         Assert.Contains("گندله", response.TextAnswer);
+        Assert.Contains("برابر با ۴۷ تن بوده است.", response.TextAnswer);
         Assert.Equal("row-sha-17", Assert.Single(response.Evidence).SourceReferences.Single());
     }
 
@@ -32,18 +36,19 @@ public sealed class PersianStructuredQueryResponseGeneratorTests
             ("ProviderName", "NoavaranCurrentApi"), ("ReportIdentity", new[] { "r-1", "r-2" }),
             ("SourceUnit", "ton")), metric: "metric_monthly_sales", unit: "MillionIRR"));
 
-        Assert.Contains("۸۵۰ میلیون ریال", response.TextAnswer);
+        Assert.Contains("۸۵ میلیون تومان", response.TextAnswer);
         Assert.DoesNotContain("تن", response.TextAnswer);
-        Assert.Contains("r-1", response.TextAnswer);
+        Assert.DoesNotContain("r-1", response.TextAnswer);
+        Assert.Contains("r-1", Assert.Single(response.Evidence).ReportIdentities);
     }
 
     [Fact]
-    public void NumericFormatting_UsesPersianSeparatorsWithoutRounding()
+    public void NumericFormatting_UsesPersianSeparatorsAndBillionTomanWithTwoDecimals()
     {
         var response = _generator.Generate(Request(Row(("Value", 1234567.125m), ("CompanyId", CompanyId)),
             metric: "metric_monthly_sales", unit: "MillionIRR"));
 
-        Assert.Contains("۱٬۲۳۴٬۵۶۷٫۱۲۵ میلیون ریال", response.TextAnswer);
+        Assert.Contains("۱۲۳٫۴۶ میلیارد تومان", response.TextAnswer);
     }
 
     [Fact]
@@ -141,8 +146,8 @@ public sealed class PersianStructuredQueryResponseGeneratorTests
             Row(("Value", 150m), ("PeriodStart", new DateOnly(2026, 4, 1)), ("PeriodEnd", new DateOnly(2026, 4, 30))),
             kind: PlanFinancialOperationKind.TimeSeries, metric: "metric_monthly_sales", unit: "MillionIRR"));
 
-        Assert.Contains("۱۲۰ میلیون ریال", response.TextAnswer);
-        Assert.Contains("۱۵۰ میلیون ریال", response.TextAnswer);
+        Assert.Contains("۱۲ میلیون تومان", response.TextAnswer);
+        Assert.Contains("۱۵ میلیون تومان", response.TextAnswer);
         Assert.Equal(2, response.Evidence.Count);
     }
 
@@ -167,7 +172,9 @@ public sealed class PersianStructuredQueryResponseGeneratorTests
 
         Assert.Equal(StructuredAnswerStatus.Incomplete, response.Status);
         Assert.Contains("Fixture producer (FIX)", response.TextAnswer);
-        Assert.Contains("report-pellet-1", response.TextAnswer);
+        // Report identities are kept for audit in the evidence, never shown in the text.
+        Assert.DoesNotContain("report-pellet-1", response.TextAnswer);
+        Assert.Contains("report-pellet-1", Assert.Single(response.Evidence).ReportIdentities);
         // The observation's period is stated once, as its Jalali month (2026-08-23..2026-09-22 = Shahrivar 1405).
         Assert.Equal(1, CountOccurrences(response.TextAnswer, "در شهریور ۱۴۰۵"));
         Assert.DoesNotContain("۲۰۲۶", response.TextAnswer);
@@ -188,24 +195,78 @@ public sealed class PersianStructuredQueryResponseGeneratorTests
         Assert.Equal(StructuredAnswerStatus.Answered, response.Status);
         Assert.Contains("تولیدکنندگان گندله سنگ‌آهن", response.TextAnswer);
         Assert.Contains("فروش ماهانه کل شرکت", response.TextAnswer);
-        Assert.Contains("۸۵۰ میلیون ریال", response.TextAnswer);
-        Assert.Contains("sales-report-1", response.TextAnswer);
+        Assert.Contains("۸۵ میلیون تومان", response.TextAnswer);
+        Assert.DoesNotContain("sales-report-1", response.TextAnswer);
+        Assert.Contains("sales-report-1", Assert.Single(response.Evidence).ReportIdentities);
     }
 
     [Fact]
-    public void ProducerSalesRanking_IncompleteCoverageDoesNotRenderPartialNumericRanks()
+    public void ProducerSalesRanking_IncompleteCompanyCoverageDoesNotRenderPartialNumericRanks()
     {
         var plan = ProducerSalesPlan(PopulationSalesScope.TotalCompanySales, "metric_monthly_sales");
         var row = Row(("CompanyId", CompanyId), ("CompanyName", "Fixture producer"), ("Value", 850m),
             ("PeriodStart", new DateOnly(2026, 8, 23)), ("PeriodEnd", new DateOnly(2026, 9, 22)));
 
         var response = _generator.Generate(new(plan,
-            Execution(StructuredQueryExecutionStatus.Incomplete, [row], diagnostic: "population_discovery_product_alias_coverage_incomplete")));
+            Execution(StructuredQueryExecutionStatus.Incomplete, [row], diagnostic: "population_discovery_authorized_company_coverage_incomplete")));
 
         Assert.Equal(StructuredAnswerStatus.Incomplete, response.Status);
         Assert.Contains("پوشش جمعیت تولیدکنندگان", response.TextAnswer);
         Assert.DoesNotContain("۸۵۰", response.TextAnswer);
         Assert.Empty(response.Evidence);
+    }
+
+    [Fact]
+    public void ProducerSalesRanking_PartialProductCoverageRanksObservedCompaniesAndSaysSo()
+    {
+        var plan = ProducerSalesPlan(PopulationSalesScope.RequestedProductSales, "metric_monthly_sales") with
+        {
+            PopulationCoveragePolicyId = "explicit-reporting-period-v1",
+            Period = new(["explicit-period"], [], false, false, new DateOnly(2026, 7, 23), new DateOnly(2026, 8, 22))
+        };
+        var otherCompany = Guid.Parse("0d6b1f5e-2c3a-4b7d-9e8f-1a2b3c4d5e6f");
+        var missingCompany = Guid.Parse("7a8b9c0d-1e2f-4a3b-8c5d-6e7f8a9b0c1d");
+        IReadOnlyDictionary<string, object?> Sales(Guid id, string symbol, object? value, string report) =>
+            Row(("CompanyId", id), ("CompanyName", "شرکت " + symbol), ("CompanySymbol", symbol), ("Value", value),
+                ("SourceUnit", "تن"), ("PeriodStart", new DateOnly(2026, 7, 23)), ("PeriodEnd", new DateOnly(2026, 8, 22)),
+                ("ProviderName", "NoavaranCurrentApi"), ("ExternalReportId", new[] { report }));
+
+        var response = _generator.Generate(new(plan, Execution(StructuredQueryExecutionStatus.Incomplete,
+            // The executor's order (value descending); a NULL total sorts first in PostgreSQL and must not be ranked.
+            [Sales(missingCompany, "کنول", null, "r-null"), Sales(CompanyId, "کگل", 136_725_376m, "r-1"),
+             Sales(otherCompany, "کگهر", 39_580_764m, "r-2")],
+            unit: "MillionIRR", diagnostic: "population_discovery_product_alias_coverage_incomplete")));
+
+        Assert.Equal(StructuredAnswerStatus.Incomplete, response.Status);
+        Assert.StartsWith("در مرداد ۱۴۰۵، در میان شرکت‌های تولیدکنندهٔ گندله سنگ‌آهن که اطلاعات معتبر دارند", response.TextAnswer);
+        Assert.Contains("رتبهٔ ۱: شرکت کگل (کگل)، ۱۳٬۶۷۲٫۵۴ میلیارد تومان", response.TextAnswer);
+        Assert.Contains("رتبهٔ ۲: شرکت کگهر (کگهر)، ۳٬۹۵۸٫۰۸ میلیارد تومان", response.TextAnswer);
+        Assert.DoesNotContain("کنول", response.TextAnswer);
+        Assert.DoesNotContain("رتبهٔ ۳", response.TextAnswer);
+        Assert.Contains("پوشش کامل بازار را نشان نمی‌دهد", response.TextAnswer);
+        Assert.Equal(2, response.Evidence.Count);
+        Assert.Contains("population_ranking_partial_product_coverage", response.Diagnostics);
+    }
+
+    [Fact]
+    public void ProducerSalesRanking_PartialQuantityRankingKeepsThePhysicalUnitAndRefusesMixedUnits()
+    {
+        var plan = ProducerSalesPlan(PopulationSalesScope.RequestedProductSales, "metric_monthly_sales_quantity");
+        IReadOnlyDictionary<string, object?> Quantity(Guid id, decimal value, string unit) =>
+            Row(("CompanyId", id), ("CompanyName", "Fixture"), ("CompanySymbol", "FIX"), ("Value", value), ("SourceUnit", unit),
+                ("PeriodStart", new DateOnly(2026, 7, 23)), ("PeriodEnd", new DateOnly(2026, 8, 22)));
+
+        var tons = _generator.Generate(new(plan, Execution(StructuredQueryExecutionStatus.Incomplete,
+            [Quantity(CompanyId, 971_970m, "تن"), Quantity(Guid.NewGuid(), 277_281m, "تن")],
+            unit: "row-source-unit", diagnostic: "population_discovery_product_alias_coverage_incomplete")));
+        var mixed = _generator.Generate(new(plan, Execution(StructuredQueryExecutionStatus.Incomplete,
+            [Quantity(CompanyId, 971_970m, "تن"), Quantity(Guid.NewGuid(), 277_281m, "کیلوگرم")],
+            unit: "row-source-unit", diagnostic: "population_discovery_product_alias_coverage_incomplete")));
+
+        Assert.Contains("رتبهٔ ۱: Fixture (FIX)، ۹۷۱٬۹۷۰ تن", tons.TextAnswer);
+        Assert.Contains("رتبهٔ ۲: Fixture (FIX)، ۲۷۷٬۲۸۱ تن", tons.TextAnswer);
+        Assert.Equal(StructuredAnswerStatus.Ambiguous, mixed.Status);
+        Assert.DoesNotContain("۹۷۱", mixed.TextAnswer);
     }
 
     [Fact]
@@ -262,6 +323,53 @@ public sealed class PersianStructuredQueryResponseGeneratorTests
         Assert.Contains("هشدار: partial_source_coverage", response.TextAnswer);
         Assert.Contains("external-9", response.Evidence[0].ReportIdentities);
         Assert.Contains("source-fingerprint-9", response.Evidence[0].SourceReferences);
+    }
+
+    [Theory]
+    [InlineData("500", "۵۰ میلیون تومان")]
+    [InlineData("8500", "۸۵۰ میلیون تومان")]
+    [InlineData("10000", "۱ میلیارد تومان")]
+    [InlineData("15000", "۱٫۵ میلیارد تومان")]
+    [InlineData("154095165", "۱۵٬۴۰۹٫۵۲ میلیارد تومان")]
+    [InlineData("-25000", "منفی ۲٫۵ میلیارد تومان")]
+    [InlineData("1025278132", "۱۰۲٬۵۲۷٫۸۱ میلیارد تومان")]
+    public void MillionIrrAmountsAreDisplayedInToman(string millionIrr, string expected)
+    {
+        Assert.Equal(expected, PersianStructuredQueryResponseGenerator.Amount(
+            decimal.Parse(millionIrr, System.Globalization.CultureInfo.InvariantCulture), "میلیون ریال"));
+    }
+
+    [Fact]
+    public void OnlyMillionIrrIsConverted_PerShareAndQuantitiesKeepTheirUnits()
+    {
+        // Net profit of وبملت (statement item, Million IRR) and sales amount of کگل (monthly SalesAmount).
+        var netProfit = _generator.Generate(Request(Row(("Value", 1025278132m), ("CompanyId", CompanyId)), metric: "source_item_net_profit", unit: "MillionIRR"));
+        var sales = _generator.Generate(Request(Row(("Value", 154095165m), ("CompanyId", CompanyId)), metric: "metric_monthly_sales", unit: "MillionIRR"));
+        var eps = _generator.Generate(Request(Row(("Value", 303m), ("CompanyId", CompanyId)), metric: "source_item_eps", unit: "IRRPerShare"));
+        var production = _generator.Generate(Request(Row(("Value", 1085157m), ("CompanyId", CompanyId), ("SourceUnit", "تن")),
+            metric: "metric_monthly_production_quantity", unit: "row-source-unit"));
+
+        Assert.Contains("۱۰۲٬۵۲۷٫۸۱ میلیارد تومان", netProfit.TextAnswer);
+        Assert.Contains("۱۵٬۴۰۹٫۵۲ میلیارد تومان", sales.TextAnswer);
+        Assert.Contains("۳۰۳ ریال به‌ازای هر سهم", eps.TextAnswer);
+        Assert.Contains("۱٬۰۸۵٬۱۵۷ تن", production.TextAnswer);
+        Assert.DoesNotContain("تومان", eps.TextAnswer + production.TextAnswer);
+        // Typed evidence keeps the database value and unit.
+        Assert.Equal("154095165", sales.Evidence[0].Facts["Value"]);
+        Assert.Equal("میلیون ریال", sales.Unit);
+    }
+
+    [Theory]
+    [InlineData(false, "بر اساس صورت مالی جداگانه")]
+    [InlineData(true, "بر اساس صورت مالی تلفیقی")]
+    public void StatementValue_StatesItsReportingBasis(bool isComposing, string basisPhrase)
+    {
+        var response = _generator.Generate(Request(Row(("Value", 1234567.125m), ("CompanyId", CompanyId),
+            ("IsComposing", isComposing), ("PeriodEnd", new DateOnly(2026, 9, 22))), metric: "netProfit", unit: "MillionIRR"));
+
+        Assert.Equal(StructuredAnswerStatus.Answered, response.Status);
+        Assert.Contains(basisPhrase, response.TextAnswer);
+        Assert.Contains("۱۲۳٫۴۶ میلیارد تومان", response.TextAnswer);
     }
 
     private static StructuredQueryAnswerRequest Request(IReadOnlyDictionary<string, object?> row,

@@ -32,7 +32,8 @@ public sealed record StructuredQueryPlan(
     ProductConceptResolution? ProductConcept = null,
     AuthorizedCompanyDiscoveryScope? CompanyDiscoveryScope = null,
     string? PopulationCoveragePolicyId = null,
-    PopulationSalesScope? PopulationSalesScope = null);
+    PopulationSalesScope? PopulationSalesScope = null,
+    MonthlyProductSelection? ProductSelection = null);
 
 public enum PopulationSalesScope { TotalCompanySales, RequestedProductSales }
 
@@ -422,7 +423,7 @@ public sealed class StructuredQueryPlanValidator : IStructuredQueryPlanValidator
                 || string.IsNullOrWhiteSpace(equivalence.ApprovalReference)
                 || equivalence.Members.Select(member => member.CompanyId).Distinct().Count() != equivalence.Members.Count
                 || equivalence.Members.Any(member => !member.IdentityReviewed
-                    || string.IsNullOrWhiteSpace(member.CompanyProductKey)
+                    || string.IsNullOrWhiteSpace(member.NormalizedLabel)
                     || string.IsNullOrWhiteSpace(member.ProviderProductIdentity)
                     || string.IsNullOrWhiteSpace(member.IdentityReference)
                     || string.IsNullOrWhiteSpace(member.UnitCode))))
@@ -520,7 +521,13 @@ public sealed class StructuredQueryPlanValidator : IStructuredQueryPlanValidator
             || plan.Aggregations.Count(x => x.Operation == PlanAggregationOperation.Sum) != 1))
             issues.Add("multi_company_comparison_requires_common_bounded_period_and_sum");
         if (plan.FinancialOperation.FormulaAuthorized) issues.Add("offline_plan_cannot_authorize_formula_execution");
-        if (!completeness.RetrievalComplete) issues.Add("retrieval_requirements_incomplete");
+        if (!completeness.RetrievalComplete)
+        {
+            issues.Add("retrieval_requirements_incomplete");
+            // The exact typed requirement the catalog context lacks, for traces (diagnostics are never rendered).
+            issues.Add($"retrieval_requirements_status:{completeness.Status}");
+            issues.AddRange(completeness.MissingRequirements.Select(item => $"retrieval_requirement_missing:{item}"));
+        }
 
         var structural = issues.Count == 0;
         var directSourceIdentityAuthorized = plan.Sources.Count == 1
@@ -756,13 +763,18 @@ public sealed class OfflineStructuredQueryPlanningService(
                                 ? new[] { new PlanFilter("dim_product_identity", PlanFilterOperator.Equal,
                                     new PlanLiteral(PlanLiteralType.CatalogIdentifier, productConcept.CatalogId!)) }
                                 : Array.Empty<PlanFilter>();
+                            // An explicit, deterministically normalized month survives the rewrite (as for production
+                            // discovery below); only a question without one falls back to the trailing window.
+                            var explicitStart = requirements.StructuredShape?.ReportingPeriodStart;
+                            var explicitEnd = requirements.StructuredShape?.ReportingPeriodEnd;
+                            var explicitMonth = explicitStart is not null && explicitEnd is not null;
                             requirements = requirements with
                             {
                                 MeasureIds = [salesMeasureId],
                                 DimensionIds = dimensions,
                                 EntityKinds = ["company", "product"],
                                 RelationshipIds = [monthlyActivityRelationshipId],
-                                PeriodPolicies = [],
+                                PeriodPolicies = explicitMonth ? [ReportingPeriodRequirementsNormalizer.ExplicitPeriodPolicy] : [],
                                 ComparisonScopes = [],
                                 PresentationRequirements = ["ranked-table"],
                                 AggregationRequirements = ["sum"],
@@ -772,7 +784,7 @@ public sealed class OfflineStructuredQueryPlanningService(
                                 StructuredShape = new StructuredPlanShape([salesMeasureId], ["dim_company", "dim_monthly_period"],
                                     productSalesFilter, [new(salesMeasureId, PlanAggregationOperation.Sum)],
                                     [new(salesMeasureId, PlanSortDirection.Descending)], 0, 10,
-                                    PlanFinancialOperationKind.DirectValue),
+                                    PlanFinancialOperationKind.DirectValue, explicitStart, explicitEnd),
                                 PopulationSalesScope = selectedScope,
                                 HasUnknownOrAmbiguousRequirements = false,
                                 UncertaintyReason = null,
@@ -1008,6 +1020,7 @@ public sealed class OfflineStructuredQueryPlanningService(
                         IdentityVerified = productBinding.Status == StructuredProductBindingStatus.Found
                             && !string.IsNullOrWhiteSpace(productBinding.IdentityProvenance) }
                     : entity).ToArray(),
+                ProductSelection = productBinding.Status == StructuredProductBindingStatus.Found ? productBinding.Selection : null,
                 Diagnostics = plan.Diagnostics.Concat(productBinding.DiagnosticCode is null ? [] : [productBinding.DiagnosticCode])
                     .Distinct(StringComparer.Ordinal).ToArray()
             };

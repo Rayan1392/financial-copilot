@@ -11,15 +11,15 @@ public sealed class PersianFinancialResponseFormatterTests
     }
 
     [Fact]
-    public void FormatBillionToman_DecimalAmount_UsesOneDecimalForLargeValues()
+    public void FormatBillionToman_DecimalAmount_UsesTwoDecimalsForLargeValues()
     {
-        Assert.Equal("۱۲٬۲۹۵٫۳", PersianFinancialResponseFormatter.FormatBillionToman(122_953_413m));
+        Assert.Equal("۳٬۹۵۸٫۰۸", PersianFinancialResponseFormatter.FormatBillionToman(39_580_764m));
     }
 
     [Fact]
     public void FormatBillionToman_UsesPersianDigitsAndSeparators()
     {
-        Assert.Equal("۱۲٬۲۹۵٫۳", PersianFinancialResponseFormatter.FormatBillionToman(122_953_413m));
+        Assert.Equal("۱۲٬۲۹۵٫۳۴", PersianFinancialResponseFormatter.FormatBillionToman(122_953_413m));
     }
 
     [Theory]
@@ -35,7 +35,7 @@ public sealed class PersianFinancialResponseFormatterTests
         var response = PersianFinancialResponseFormatter.ProductSalesValue(
             "فولاد", "محصولات گرم", 1405, 4, 122_953_413m);
 
-        Assert.Equal("فروش «محصولات گرم» شرکت فولاد در دوره ۱۴۰۵/۰۴ حدود ۱۲٬۲۹۵٫۳ میلیارد تومان بوده است.", response);
+        Assert.Equal("فروش «محصولات گرم» شرکت فولاد در تیر ۱۴۰۵ حدود ۱۲٬۲۹۵٫۳۴ میلیارد تومان بوده است.", response);
         Assert.DoesNotContain("Product sales", response, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("million rial", response, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("122,953,413", response, StringComparison.Ordinal);

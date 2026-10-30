@@ -1,0 +1,100 @@
+{
+  "id": "P31",
+  "run": {
+    "Question": "مقدار فروش گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+    "Enabled": true,
+    "Answer": "معدنی و صنعتی گل گهر (کگل) گندله در شهریور ۱۴۰۵، مقدار فروش ماهانه: ۱٬۰۴۹٬۳۴۵ تن.\nمنبع: NoavaranCurrentApi، گزارش ProductSales:4:1405-06:output-0.",
+    "PersistedUserMessage": "مقدار فروش گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+    "PersistedAssistantMessage": "معدنی و صنعتی گل گهر (کگل) گندله در شهریور ۱۴۰۵، مقدار فروش ماهانه: ۱٬۰۴۹٬۳۴۵ تن.\nمنبع: NoavaranCurrentApi، گزارش ProductSales:4:1405-06:output-0.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6 Fingerprint=7c331449080d1dc02b6b953e29aa6a0259138d08c17bc5fa91d35f80b7e2970b Status=Succeeded Rows=1 ElapsedMs=37.4773",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_value_search Disposition=DeterministicFallback CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6 | Chat semantic route selected. Route=semantic_capability Capability=financial_statement_value_search ExtractedEntities=entity:مقدار,entity:گندله,entity:کگل,entity:شهریور RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=financial_statement_value_search Status=NoData ReasonCode=supported_but_no_rows PayloadType=FinancialStatementValueSearchResult | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_value_search:NoData Definitive=True CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6",
+    "SemanticCapability": "financial_statement_value_search",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 11077,
+      "CompletionTokens": 1634,
+      "TotalTokens": 12711,
+      "EstimatedCost": null,
+      "ExecutionRoute": "feature141_fallback"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 25.0000,
+    "WalletBalanceAfter": 24.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگل Products=گندله RequestedMeasures=salesQuantity PeriodKind=ExplicitMonth PeriodCount=1 ComparisonMode=None Presentation=Scalar",
+      "Feature141 statement shape classified. Shape=none Diagnostic=none Operation=Retrieve Ranking=none Constraints= RequestedFields= Filters=none CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6",
+      "Feature141 query completed. CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6 Fingerprint=7c331449080d1dc02b6b953e29aa6a0259138d08c17bc5fa91d35f80b7e2970b Status=Succeeded Rows=1 ElapsedMs=37.4773"
+    ],
+    "ElapsedMs": 40691.7012,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_value_search Disposition=DeterministicFallback CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6",
+      "Chat semantic route selected. Route=semantic_capability Capability=financial_statement_value_search ExtractedEntities=entity:مقدار,entity:گندله,entity:کگل,entity:شهریور RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=financial_statement_value_search Status=NoData ReasonCode=supported_but_no_rows PayloadType=FinancialStatementValueSearchResult",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_value_search:NoData Definitive=True CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-d0c9e216b00446e983d1661a3dc2ceb6 RolloutMode=Shadow LegacyCapability=financial_statement_value_search LegacyConfidence=0.94 SemanticIntent=financial_statement_value_search SemanticCapabilityCandidate=financial_statement_value_search SemanticConfidence=0.94 ExtractedCompany=مقدار ExtractedProduct=(null) ExtractedMetric=فروش Ex"
+    ],
+    "ExecutedQueries": [
+      {
+        "Sql": "WITH eligible_monthly_rows AS (SELECT (SELECT mc.\"Id\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r.\"ProviderName\") AS \"CompanyId\", (SELECT mc.\"Name\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r.\"ProviderName\") AS \"CompanyName\", (SELECT mc.\"CompanySymbol\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r.\"ProviderName\") AS \"CompanySymbol\", r.\"PeriodStart\" AS \"PeriodStart\", r.\"PeriodEnd\" AS \"PeriodEnd\", @product_identity::text AS \"ProductIdentity\", li.\"Title\" AS \"ProductTitle\", li.\"SalesQuantity\" AS \"Value\", li.\"Unit\" AS \"SourceUnit\", COUNT(*) OVER (PARTITION BY (SELECT mc.\"Id\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r.\"ProviderName\"), r.\"PeriodEnd\") AS \"SamePeriodCandidateCount\", r.\"ProviderName\" AS \"ProviderName\", r.\"ReportType\" AS \"ReportType\", r.\"OutputType\" AS \"OutputType\", r.\"RevisionStatus\" AS \"RevisionStatus\", r.\"Id\" AS \"ReportIdentity\", r.\"ExternalReportId\" AS \"ExternalReportId\", li.\"SourceRowFingerprint\" AS \"SourceRowFingerprint\", li.\"SourceMultiplicity\" AS \"SourceMultiplicity\" FROM \"public\".\"MonthlyReportLineItems\" li JOIN \"public\".\"MonthlyReports\" r ON li.\"MonthlyReportId\" = r.\"Id\" WHERE (r.\"ProviderName\", r.\"ExternalCompanyId\") IN (SELECT mc.\"ProviderName\", mc.\"ExternalCompanyId\" FROM \"public\".\"Companies\" mc WHERE mc.\"Id\" = @company_id) AND r.\"ProviderName\" = @provider_name AND r.\"ReportType\" = @report_type AND r.\"OutputType\" = @output_type AND r.\"IsAccepted\" = @is_accepted AND r.\"RevisionStatus\" = @revision_status AND li.\"Title\" = ANY(@product_titles) AND COALESCE(li.\"Unit\", '') = ANY(@product_units) AND r.\"PeriodStart\" >= @period_start AND r.\"PeriodEnd\" <= @period_end),\nprojected_monthly_rows AS (SELECT * FROM eligible_monthly_rows)\nSELECT *, \"ReportIdentity\" AS \"ReportId\" FROM projected_monthly_rows ORDER BY \"CompanyId\", \"PeriodEnd\" ASC, \"ProductIdentity\", \"SourceMultiplicity\" LIMIT @row_limit OFFSET @row_offset",
+        "Parameters": {
+          "provider_name": "NoavaranCurrentApi",
+          "report_type": "ProductSales",
+          "output_type": "0",
+          "is_accepted": "True",
+          "revision_status": "Accepted",
+          "row_limit": "2",
+          "row_offset": "0",
+          "company_id": "3386cf62-2fc7-427f-bbdf-364c4666d8df",
+          "product_titles": "[\"گندله\"]",
+          "product_units": "[\"تن\"]",
+          "product_identity": "4:TITLE:گندله|UNIT:تن",
+          "period_start": "2026-08-23",
+          "period_end": "2026-09-22"
+        },
+        "Status": "Succeeded",
+        "DiagnosticCode": null,
+        "EffectiveUnit": "row-source-unit",
+        "Rows": [
+          {
+            "CompanyId": "3386cf62-2fc7-427f-bbdf-364c4666d8df",
+            "CompanyName": "معدنی و صنعتی گل گهر",
+            "CompanySymbol": "کگل",
+            "PeriodStart": "2026-08-23",
+            "PeriodEnd": "2026-09-22",
+            "ProductIdentity": "4:TITLE:گندله|UNIT:تن",
+            "ProductTitle": "گندله",
+            "Value": "1049345",
+            "SourceUnit": "تن",
+            "SamePeriodCandidateCount": "1",
+            "ProviderName": "NoavaranCurrentApi",
+            "ReportType": "ProductSales",
+            "OutputType": "0",
+            "RevisionStatus": "Accepted",
+            "ReportIdentity": "cc49f26e-cb6d-4442-9cd9-dcd226811d98",
+            "ExternalReportId": "ProductSales:4:1405-06:output-0",
+            "SourceRowFingerprint": "1550746096aaa7d2",
+            "SourceMultiplicity": "1",
+            "ReportId": "cc49f26e-cb6d-4442-9cd9-dcd226811d98"
+          }
+        ]
+      }
+    ]
+  }
+}

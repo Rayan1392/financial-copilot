@@ -89,7 +89,8 @@ public sealed class StructuredQueryCompilationTests
         Assert.Contains("\"ReportType\" = @report_type", query.Sql);
         Assert.Contains("\"OutputType\" = @output_type", query.Sql);
         Assert.DoesNotContain("PRODUCT:COMPANY:PELLET", query.Sql);
-        Assert.Contains(query.Parameters, x => x.Name == "product_code" && Equals(x.Value, "PRODUCT:COMPANY:PELLET"));
+        Assert.DoesNotContain("گندله", query.Sql);
+        Assert.Contains(query.Parameters, x => x.Name == "product_titles" && x.Value is string[] titles && titles.SequenceEqual(["گندله"]));
         Assert.Contains(query.Parameters, x => x.Name == "output_type" && Equals(x.Value, 0));
         Assert.False(query.QueryAuthorized);
         Assert.False(query.SemanticReviewApproved);
@@ -213,7 +214,7 @@ public sealed class StructuredQueryCompilationTests
         var rankedGrowthResult = new StructuredQueryCompiler().Compile(rankedGrowth, snapshot);
         Assert.True(rankedGrowthResult.Success, string.Join(",", rankedGrowthResult.Diagnostics));
         Assert.Contains("LatestProductPeriodRank", rankedGrowthResult.Query!.Sql);
-        Assert.Contains("GrowthPercentage\" DESC, \"ProductCode\" ASC", rankedGrowthResult.Query.Sql);
+        Assert.Contains("GrowthPercentage\" DESC, \"ProductIdentity\" ASC", rankedGrowthResult.Query.Sql);
 
         var company2 = Guid.Parse("a91aa2bd-1d52-4ef9-9cb1-a59ab31f70e2");
         var multiCompany = single with
@@ -244,7 +245,7 @@ public sealed class StructuredQueryCompilationTests
                 ? table with { Queryable = true, SemanticApproved = true } : table).ToArray(),
             original.Columns.Select(column => column.TableCatalogId is lineItemsTableId or reportsTableId or companyTableId
                 ? column with { Queryable = true } : column).ToArray(),
-            original.Relationships.Select(relationship => relationship.CatalogId is "rel_31e410fb3ae11956" or "rel_4e54d40aee8b45e4"
+            original.Relationships.Select(relationship => relationship.CatalogId is "rel_31e410fb3ae11956" or "rel_71eca79d3b7d6aa2"
                 ? relationship with { Queryable = true, SemanticApproved = true, QueryAuthorized = true } : relationship).ToArray(),
             original.DirectSources,
             original.MonthlyMeasures.Select(measure => measure with
@@ -276,6 +277,10 @@ public sealed class StructuredQueryCompilationTests
         Assert.Contains("JOIN \"public\".\"Companies\"", compiled.Query.Sql, StringComparison.Ordinal);
         Assert.Contains("c.\"Id\" = ANY(@company_ids)", compiled.Query.Sql, StringComparison.Ordinal);
         Assert.DoesNotContain("r.\"Id\" = ANY(@company_ids)", compiled.Query.Sql, StringComparison.Ordinal);
+        // Noavaran stores the stock symbol in CompanySymbol; Ticker is empty in production.
+        Assert.Contains("c.\"CompanySymbol\" AS \"CompanySymbol\"", compiled.Query.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProductCode", compiled.Query.Sql, StringComparison.Ordinal);
+        Assert.True(original.Columns.Single(column => column.CatalogId == "tbl_8646d83cdb350f92_CompanySymbol").Queryable);
         Assert.Contains(compiled.Query.Parameters, parameter => parameter.Name == "product_aliases"
             && parameter.Value is string[] aliases && aliases.SequenceEqual(product.ApprovedAliases));
 
@@ -295,7 +300,7 @@ public sealed class StructuredQueryCompilationTests
                 ? table with { Queryable = true, SemanticApproved = true } : table).ToArray(),
             original.Columns.Select(column => column.TableCatalogId is lineItemsTableId or reportsTableId or companyTableId
                 ? column with { Queryable = true } : column).ToArray(),
-            original.Relationships.Select(relationship => relationship.CatalogId is "rel_31e410fb3ae11956" or "rel_4e54d40aee8b45e4"
+            original.Relationships.Select(relationship => relationship.CatalogId is "rel_31e410fb3ae11956" or "rel_71eca79d3b7d6aa2"
                 ? relationship with { Queryable = true, SemanticApproved = true, QueryAuthorized = true } : relationship).ToArray(),
             original.DirectSources,
             original.MonthlyMeasures.Select(measure => measure with
@@ -339,6 +344,21 @@ public sealed class StructuredQueryCompilationTests
 
         var ambiguous = new StructuredQueryCompiler().Compile(plan with { PopulationSalesScope = null }, snapshot);
         Assert.Contains("producer_sales_scope_ambiguous", ambiguous.Diagnostics);
+
+        // An explicitly requested month bounds both the producer population and the ranked sales to that month.
+        var explicitMonth = new StructuredQueryCompiler().Compile(plan with
+        {
+            PopulationCoveragePolicyId = "explicit-reporting-period-v1",
+            Period = new PlanPeriodSelection(["explicit-period"], [], false, false, new DateOnly(2026, 7, 23), new DateOnly(2026, 8, 22))
+        }, snapshot);
+        Assert.True(explicitMonth.Success, string.Join("|", explicitMonth.Diagnostics));
+        Assert.Contains("pr.\"PeriodStart\" = @period_start AND pr.\"PeriodEnd\" = @period_end", explicitMonth.Query!.Sql, StringComparison.Ordinal);
+        Assert.Contains("sr.\"PeriodStart\" = @period_start AND sr.\"PeriodEnd\" = @period_end", explicitMonth.Query.Sql, StringComparison.Ordinal);
+        Assert.Contains(explicitMonth.Query.Parameters, parameter => parameter.Name == "period_start" && Equals(parameter.Value, new DateOnly(2026, 7, 23)));
+        // In a fixed month a producer without an eligible sales observation is left out, not required (partial ranking).
+        Assert.DoesNotContain("(SELECT COUNT(*) FROM producers)", explicitMonth.Query.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProductCode", explicitMonth.Query.Sql, StringComparison.Ordinal);
+        Assert.Contains("ORDER BY es.\"Value\" DESC, es.\"CompanyName\" ASC, es.\"CompanyId\" ASC", explicitMonth.Query.Sql, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -375,7 +395,7 @@ public sealed class StructuredQueryCompilationTests
         var injected = new StructuredQueryCompiler().Compile(injectionPlan, snapshot);
         Assert.True(injected.Success, string.Join(",", injected.Diagnostics));
         Assert.DoesNotContain("x' OR TRUE --", injected.Query!.Sql);
-        Assert.Contains(injected.Query.Parameters, x => x.Name == "product_code" && Equals(x.Value, "x' OR TRUE --"));
+        Assert.Contains(injected.Query.Parameters, x => x.Name == "product_identity" && Equals(x.Value, "x' OR TRUE --"));
         Assert.Contains("monthly_product_binding_not_verified",
             new StructuredQueryCompiler().Compile(unresolvedProduct, snapshot).Diagnostics);
         Assert.Contains("monthly_sum_requires_company_or_product_grouping_without_product_filter",
@@ -416,11 +436,11 @@ public sealed class StructuredQueryCompilationTests
         Assert.True(result.Success, string.Join("|", result.Diagnostics));
         Assert.Contains("product_company_0", result.Query!.Sql);
         Assert.Contains("product_company_1", result.Query.Sql);
-        Assert.Contains(result.Query.Parameters, parameter => parameter.Name == "product_code_0"
-            && Equals(parameter.Value, "company-one-pellet"));
-        Assert.Contains(result.Query.Parameters, parameter => parameter.Name == "product_code_1"
-            && Equals(parameter.Value, "company-two-pellet"));
-        Assert.DoesNotContain("company-one-pellet", result.Query.Sql, StringComparison.Ordinal);
+        // Reviewed members are matched by their source label; the configured company key is never a row identity.
+        Assert.Contains(result.Query.Parameters, parameter => parameter.Name == "product_title_0" && Equals(parameter.Value, "گندله"));
+        Assert.Contains(result.Query.Parameters, parameter => parameter.Name == "product_title_1" && Equals(parameter.Value, "گندله"));
+        Assert.DoesNotContain(result.Query.Parameters, parameter => Equals(parameter.Value, "company-one-pellet"));
+        Assert.DoesNotContain("ProductCode", result.Query.Sql, StringComparison.Ordinal);
     }
 
     private static StructuredQueryCatalogSnapshot RuntimeSnapshot()
@@ -434,6 +454,7 @@ public sealed class StructuredQueryCompilationTests
     private static StructuredQueryPlan MonthlyPlan(StructuredQueryCatalogSnapshot snapshot,
         StructuredSqlMonthlyMeasure mapping, bool latest, string? productCode)
     {
+        // productCode is the binder's semantic title/unit key; rows are matched by the selection's source labels.
         return new StructuredQueryPlan(1, snapshot.CatalogVersion, snapshot.CatalogHash, TenantId,
             [new PlanEntityReference("Company", "کگهر", Guid.Parse("4843ec8e-d35a-4f87-98bb-152702dd6f4f")),
                 new PlanEntityReference("Product", "گندله", ResolvedEntityKey: productCode,
@@ -447,7 +468,78 @@ public sealed class StructuredQueryCompilationTests
             new PlanStatementSelection([], [], [], [], false, true, true, true, true, true),
             [], [], new PlanPagination(0, 20), latest ? PlanPresentation.Scalar : PlanPresentation.Table,
             new PlanFinancialOperation(FinancialValueOperation.DirectValueRetrieval, PlanFinancialOperationKind.DirectValue,
-                PlanComparisonMode.None, [], false), true, false, false, false, []);
+                PlanComparisonMode.None, [], false), true, false, false, false, [],
+            ProductSelection: productCode is null ? null : new MonthlyProductSelection(["گندله"], ["تن", "تن "]));
+    }
+
+    [Fact]
+    public void MonthlyCompiler_MatchesNamedCompanyProductByTitleAndUnitNeverByProductCode()
+    {
+        var snapshot = RuntimeSnapshot();
+        var production = Assert.Single(snapshot.MonthlyMeasures, x => x.CatalogId == "metric_monthly_production_quantity");
+        var plan = MonthlyPlan(snapshot, production, latest: true, productCode: "4:TITLE:گندله|UNIT:تن");
+
+        var compiled = new StructuredQueryCompiler().Compile(plan, snapshot);
+
+        Assert.True(compiled.Success, string.Join("|", compiled.Diagnostics));
+        var query = compiled.Query!;
+        Assert.Contains("li.\"Title\" = ANY(@product_titles) AND COALESCE(li.\"Unit\", '') = ANY(@product_units)", query.Sql, StringComparison.Ordinal);
+        Assert.Contains(query.Parameters, x => x.Name == "product_titles" && x.Value is string[] titles && titles.SequenceEqual(["گندله"]));
+        Assert.Contains(query.Parameters, x => x.Name == "product_units" && x.Value is string[] units && units.SequenceEqual(["تن", "تن "]));
+        Assert.DoesNotContain("ProductCode", query.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain(query.PhysicalObjectCatalogIds, id => id.EndsWith("_ProductCode", StringComparison.Ordinal));
+
+        var withoutLabels = new StructuredQueryCompiler().Compile(plan with { ProductSelection = null }, snapshot);
+        Assert.False(withoutLabels.Success);
+        Assert.Contains("monthly_product_source_labels_missing", withoutLabels.Diagnostics);
+    }
+
+    [Fact]
+    public void MonthlyCatalogSnapshotAndEveryMonthlyQueryShape_HaveNoProductCodeDependency()
+    {
+        var snapshot = RuntimeSnapshot();
+        var sales = Assert.Single(snapshot.MonthlyMeasures, x => x.CatalogId == "metric_monthly_sales");
+        var quantity = Assert.Single(snapshot.MonthlyMeasures, x => x.CatalogId == "metric_monthly_sales_quantity");
+        const string key = "4:TITLE:گندله|UNIT:تن";
+        var series = MonthlyPlan(snapshot, quantity, latest: false, productCode: key) with
+        {
+            Presentation = PlanPresentation.TimeSeries,
+            Period = new PlanPeriodSelection(["explicit-period"], [], false, false, new DateOnly(2026, 3, 21), new DateOnly(2026, 9, 22)),
+            FinancialOperation = new PlanFinancialOperation(FinancialValueOperation.DirectValueRetrieval,
+                PlanFinancialOperationKind.TimeSeries, PlanComparisonMode.None, [], false)
+        };
+        var growth = MonthlyPlan(snapshot, sales, latest: true, productCode: key) with
+        {
+            Period = new PlanPeriodSelection(["latest"], ["period-over-period"], true, false, MaximumPeriods: 2),
+            FinancialOperation = new PlanFinancialOperation(FinancialValueOperation.ApprovedPeriodComparison,
+                PlanFinancialOperationKind.GrowthPercentage, PlanComparisonMode.MonthOverMonth, [], FormulaAuthorized: true)
+        };
+        var productRanking = MonthlyPlan(snapshot, sales, latest: true, productCode: null) with
+        {
+            Entities = [new PlanEntityReference("Company", "company", Guid.Parse("4843ec8e-d35a-4f87-98bb-152702dd6f4f"))],
+            Aggregations = [new PlanAggregation(sales.CatalogId, PlanAggregationOperation.Sum)],
+            Presentation = PlanPresentation.RankedTable,
+            Sort = [new PlanSort(sales.CatalogId, PlanSortDirection.Descending)]
+        };
+
+        Assert.All(snapshot.MonthlyMeasures, measure => Assert.DoesNotContain(MappedColumnNames(snapshot, measure), name => name == "ProductCode"));
+        foreach (var plan in new[] { series, growth, productRanking })
+        {
+            var compiled = new StructuredQueryCompiler().Compile(plan, snapshot);
+            Assert.True(compiled.Success, string.Join("|", compiled.Diagnostics));
+            Assert.DoesNotContain("ProductCode", compiled.Query!.Sql, StringComparison.Ordinal);
+            Assert.DoesNotContain(compiled.Query.PhysicalObjectCatalogIds, id => id.EndsWith("_ProductCode", StringComparison.Ordinal));
+        }
+    }
+
+    private static IEnumerable<string> MappedColumnNames(StructuredQueryCatalogSnapshot snapshot, StructuredSqlMonthlyMeasure measure)
+    {
+        var mapped = new[] { measure.ValueColumnCatalogId, measure.ProductTitleColumnCatalogId, measure.QuantityUnitColumnCatalogId,
+            measure.PeriodStartColumnCatalogId, measure.PeriodEndColumnCatalogId, measure.ReportProviderColumnCatalogId,
+            measure.ReportTypeColumnCatalogId, measure.OutputTypeColumnCatalogId, measure.CompanyIdColumnCatalogId,
+            measure.AcceptedColumnCatalogId, measure.RevisionStatusColumnCatalogId, measure.ExternalReportIdColumnCatalogId,
+            measure.SourceRowFingerprintColumnCatalogId, measure.SourceMultiplicityColumnCatalogId };
+        return snapshot.Columns.Where(column => mapped.Contains(column.CatalogId)).Select(column => column.Name);
     }
 
     [Fact]

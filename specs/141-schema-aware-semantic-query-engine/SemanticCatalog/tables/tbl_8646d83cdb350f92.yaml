@@ -421,14 +421,20 @@
                                                 "approvedObjects":  [
                                                                         "tbl_8646d83cdb350f92_Id",
                                                                         "tbl_8646d83cdb350f92_Name",
-                                                                        "tbl_8646d83cdb350f92_Ticker"
+                                                                        "tbl_8646d83cdb350f92_Ticker",
+                                                                        "tbl_8646d83cdb350f92_CompanySymbol",
+                                                                        "tbl_8646d83cdb350f92_ProviderName",
+                                                                        "tbl_8646d83cdb350f92_ExternalCompanyId"
                                                                     ],
-                                                "reason":  "Limited to compiler-referenced SELECT columns for registered financial source retrieval; Name and Ticker are display labels that let a population answer (statement ranking over the authorized company universe, company discovery) name its members. They are never join keys.",
+                                                "reason":  "Limited to compiler-referenced SELECT columns for registered financial source retrieval; Name, CompanySymbol and Ticker are display labels (Noavaran stores the stock symbol in CompanySymbol; Ticker is empty in production) that let a population answer (statement ranking over the authorized company universe, company discovery) name its members. They are never join keys. ProviderName and ExternalCompanyId are the provider company identity that Noavaran financial statements reference (unique index IX_Companies_ProviderName_ExternalCompanyId).",
                                                 "provenance":  "product-owner-approved:Feature141-full-chat-activation",
                                                 "approvedObjectProvenance":  {
                                                                                  "tbl_8646d83cdb350f92_Id":  "product-owner-approved:Feature141-full-chat-activation",
                                                                                  "tbl_8646d83cdb350f92_Name":  "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (decision request D1-companies-output-columns; owner countersign pending)",
-                                                                                 "tbl_8646d83cdb350f92_Ticker":  "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (decision request D1-companies-output-columns; owner countersign pending)"
+                                                                                 "tbl_8646d83cdb350f92_Ticker":  "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (decision request D1-companies-output-columns; owner countersign pending)",
+                                                                                 "tbl_8646d83cdb350f92_CompanySymbol":  "product-owner-directive:Feature141-monthly-product-retrieval-fix-2026-10-29 (Task E: the stock symbol is Companies.CompanySymbol)",
+                                                                                 "tbl_8646d83cdb350f92_ProviderName":  "product-owner-confirmed:Feature141-noavaran-company-mapping-2026-10-29",
+                                                                                 "tbl_8646d83cdb350f92_ExternalCompanyId":  "product-owner-confirmed:Feature141-noavaran-company-mapping-2026-10-29"
                                                                              }
                                             }
                  },

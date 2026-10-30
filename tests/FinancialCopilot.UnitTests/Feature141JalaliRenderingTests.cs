@@ -67,15 +67,15 @@ public sealed class Feature141JalaliRenderingTests
         var answer = Generate(plan, [StatementRow(Kgol, 1_200m)]);
         Assert.Equal(StructuredAnswerStatus.Answered, answer.Status);
         Assert.Contains("کگل در دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵", answer.TextAnswer, StringComparison.Ordinal);
-        Assert.Contains("۱٬۲۰۰", answer.TextAnswer, StringComparison.Ordinal);
+        Assert.Contains("۱۲۰ میلیون تومان", answer.TextAnswer, StringComparison.Ordinal);
         AssertNoGregorian(answer.TextAnswer);
         Assert.Equal("2026-03-21", answer.Evidence[0].PeriodStart);
         Assert.Equal("2026-06-21", answer.Evidence[0].PeriodEnd);
     }
 
     [Theory]
-    [InlineData("metric_monthly_production_quantity", "مقدار تولید ماهانه")]
-    [InlineData("metric_monthly_sales", "مبلغ فروش ماهانه")]
+    [InlineData("metric_monthly_production_quantity", "تولید گندله")]
+    [InlineData("metric_monthly_sales", "مبلغ فروش گندله")]
     public void MonthlyAnswersStateTheJalaliMonth(string metric, string measure)
     {
         var plan = Plan([Company("کگل", Kgol), new PlanEntityReference("Product", "گندله")], Monthly(metric), PlanPresentation.Scalar,
@@ -97,12 +97,12 @@ public sealed class Feature141JalaliRenderingTests
         var comparison = Comparison(rows, labels, ranked: false);
         var compared = Generate(Plan([], Statement(), PlanPresentation.Table, comparison: true), comparison.Rows, comparison.Warnings);
         Assert.Contains("در آخرین دورهٔ گزارش مشترک (دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵)", compared.TextAnswer, StringComparison.Ordinal);
-        Assert.Contains("کگل: ۱٬۲۰۰ میلیون ریال", compared.TextAnswer, StringComparison.Ordinal);
+        Assert.Contains("کگل: ۱۲۰ میلیون تومان", compared.TextAnswer, StringComparison.Ordinal);
         AssertNoGregorian(compared.TextAnswer);
 
         var ranking = Comparison(rows, labels, ranked: true);
         var ranked = Generate(Plan([], Statement(), PlanPresentation.RankedTable, comparison: true), ranking.Rows, ranking.Warnings);
-        Assert.Contains("۱. فملی: ۱٬۶۰۰ میلیون ریال", ranked.TextAnswer, StringComparison.Ordinal);
+        Assert.Contains("۱. فملی: ۱۶۰ میلیون تومان", ranked.TextAnswer, StringComparison.Ordinal);
         Assert.Contains("دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵", ranked.TextAnswer, StringComparison.Ordinal);
         AssertNoGregorian(ranked.TextAnswer);
 
@@ -112,7 +112,7 @@ public sealed class Feature141JalaliRenderingTests
             new StatementComparisonSpecification(PlanSortDirection.Descending, null, false, null, labels, false,
                 Filters: [new(0, "source_item_net_profit", "سود خالص", PlanFilterOperator.GreaterThan, 1_000m, "MillionIRR")]));
         var filtered = Generate(Plan([], Statement(), PlanPresentation.Table, comparison: true), filter.Rows, filter.Warnings);
-        Assert.Contains("با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال»، در آخرین دورهٔ گزارش مشترک (دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵)",
+        Assert.Contains("با شرط «سود خالص بیشتر از ۱۰۰ میلیون تومان»، در آخرین دورهٔ گزارش مشترک (دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵)",
             filtered.TextAnswer, StringComparison.Ordinal);
         Assert.DoesNotContain("کگهر", filtered.TextAnswer, StringComparison.Ordinal);
         AssertNoGregorian(filtered.TextAnswer);

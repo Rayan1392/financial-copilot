@@ -1,0 +1,49 @@
+{
+  "id": "S3-flag-off",
+  "run": {
+    "Question": "سود خالص وبملت در آخرین دوره",
+    "Enabled": false,
+    "Answer": "نماد یا شرکت درخواست‌شده در فهرست شرکت‌های معتبر پیدا نشد.",
+    "PersistedUserMessage": "سود خالص وبملت در آخرین دوره",
+    "PersistedAssistantMessage": "نماد یا شرکت درخواست‌شده در فهرست شرکت‌های معتبر پیدا نشد.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-9da6ad5b898c4522a5c01adbc8e4d118 | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=symbol:وبملت RequestedMetrics=سود RequestedPeriod=LatestAvailable RequestedComparison=(null) Presentation=Summary | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "SymbolLookup",
+    "Outcome": "ClarificationNeeded",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "ValidationFailed",
+      "CreditsCharged": 0,
+      "RemainingSpendingCapacity": 25.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 590,
+      "CompletionTokens": 263,
+      "TotalTokens": 853,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:symbol_metric_lookup"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 0.0000,
+    "WalletBalanceBefore": 121.0000,
+    "WalletBalanceAfter": 121.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 6596.131,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-9da6ad5b898c4522a5c01adbc8e4d118",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=symbol:وبملت RequestedMetrics=سود RequestedPeriod=LatestAvailable RequestedComparison=(null) Presentation=Summary",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-9da6ad5b898c4522a5c01adbc8e4d118 RolloutMode=Shadow LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.98 ExtractedCompany=وبملت ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=LatestAvailable Resolve"
+    ],
+    "ExecutedQueries": []
+  }
+}

@@ -433,8 +433,13 @@ public sealed class ConversationDialogueGate(
         var effectiveSlots = state?.Slots ?? slots;
         var effectiveCapability = detectedCapability ?? state?.ActiveCapability ?? capability;
         var frameSlotsByType = validatedFrameSlots.ToDictionary(slot => slot.Type);
+        // A question about a set of companies is never narrowed to the company of an earlier turn.
+        var populationQuestion = ProductSemanticIntentRules.AsksForCompanyPopulation(request.OriginalUserMessage ?? request.Message);
         foreach (var slot in effectiveSlots)
         {
+            if (populationQuestion && slot.Provenance == QueryValueProvenance.ConversationInferred
+                && slot.Type is QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols)
+                continue;
             if (frameSlotsByType.TryGetValue(slot.Type, out var current) &&
                 current.ValidationState is QuerySlotValidationState.Ambiguous or QuerySlotValidationState.Invalid or QuerySlotValidationState.Unsupported)
                 continue;

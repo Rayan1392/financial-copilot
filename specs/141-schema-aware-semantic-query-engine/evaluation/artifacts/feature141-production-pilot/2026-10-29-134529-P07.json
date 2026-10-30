@@ -1,0 +1,66 @@
+{
+  "id": "P07",
+  "run": {
+    "Question": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "Enabled": true,
+    "Answer": "در دامنهٔ شرکت‌های مجاز، مقدار معتبری برای سود خالص پیدا نشد.",
+    "PersistedUserMessage": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "PersistedAssistantMessage": "در دامنهٔ شرکت‌های مجاز، مقدار معتبری برای سود خالص پیدا نشد.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce Fingerprint=fd12a1f34e800695b259a73c62a4c58474c9ed261f3ed868b668d0bcacef1062 Status=NoData Rows=0 ElapsedMs=4.332",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_sales_quality_ranking Disposition=DeterministicFallback CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce | Chat semantic route selected. Route=semantic_capability Capability=monthly_sales_quality_ranking ExtractedEntities=entity:بر,entity:اساس,entity:خالص,entity:رتبه,entity:بندی RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=monthly_sales_quality_ranking Status=NoData ReasonCode=supported_but_no_rows PayloadType=MonthlySalesQualityRankingResponse | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:monthly_sales_quality_ranking:NoData Definitive=True CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce",
+    "SemanticCapability": "monthly_sales_quality_ranking",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 23.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 8371,
+      "CompletionTokens": 1378,
+      "TotalTokens": 9749,
+      "EstimatedCost": null
+    },
+    "Reservations": [
+      {
+        "IdempotencyKey": "feature141-pilot-d938c5d6c9694421997bf91e67e401ce:feature141:reservation",
+        "Status": "Committed",
+        "ReservedCredits": 1.0000,
+        "CommittedCredits": 1.0000
+      },
+      {
+        "IdempotencyKey": "feature141-pilot-d938c5d6c9694421997bf91e67e401ce:reservation",
+        "Status": "Committed",
+        "ReservedCredits": 1.0000,
+        "CommittedCredits": 1.0000
+      }
+    ],
+    "LedgerEntries": 2,
+    "LedgerCreditsCharged": 2.0000,
+    "WalletBalanceBefore": 220.0000,
+    "WalletBalanceAfter": 218.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols= Products= RequestedMeasures=netProfit PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=None Presentation=RankedList",
+      "Feature141 statement shape classified. Shape=Ranking Diagnostic=none Operation=Rank Ranking=descending:netProfit: Constraints= RequestedFields= Filters=none CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce",
+      "Feature141 query completed. CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce Fingerprint=fd12a1f34e800695b259a73c62a4c58474c9ed261f3ed868b668d0bcacef1062 Status=NoData Rows=0 ElapsedMs=4.332"
+    ],
+    "ElapsedMs": 19262.2215,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_sales_quality_ranking Disposition=DeterministicFallback CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce",
+      "Chat semantic route selected. Route=semantic_capability Capability=monthly_sales_quality_ranking ExtractedEntities=entity:بر,entity:اساس,entity:خالص,entity:رتبه,entity:بندی RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=monthly_sales_quality_ranking Status=NoData ReasonCode=supported_but_no_rows PayloadType=MonthlySalesQualityRankingResponse",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:monthly_sales_quality_ranking:NoData Definitive=True CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-d938c5d6c9694421997bf91e67e401ce RolloutMode=Shadow LegacyCapability=monthly_sales_quality_ranking LegacyConfidence=0.9 SemanticIntent=monthly_sales_quality_ranking SemanticCapabilityCandidate=monthly_sales_quality_ranking SemanticConfidence=0.9 ExtractedCompany=بر ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=("
+    ]
+  }
+}

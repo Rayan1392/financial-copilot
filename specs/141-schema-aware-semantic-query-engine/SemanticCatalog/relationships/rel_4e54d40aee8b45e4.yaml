@@ -18,12 +18,14 @@
   "inferredCardinality": "many-to-one",
   "semantic": {
     "approved": true,
-    "status": "owner-approved",
-    "runtimeJoinable": true,
+    "status": "physical-fk-not-runtime-join",
+    "runtimeJoinable": false,
     "queryAuthorization": {
-      "approved": true,
-      "queryable": true,
-      "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "approved": false,
+      "queryable": false,
+      "reason": "Noavaran monthly reports carry no CompanyId; Feature 141 joins reports to companies through rel_71eca79d3b7d6aa2 (ProviderName, ExternalCompanyId).",
+      "provenance": "product-owner-confirmed:Feature141-noavaran-monthly-company-mapping-2026-10-29",
+      "previousProvenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
       "decisionRecord": "evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json"
     }
   },

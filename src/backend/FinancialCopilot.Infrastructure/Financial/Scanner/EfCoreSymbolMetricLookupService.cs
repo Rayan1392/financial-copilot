@@ -98,6 +98,8 @@ public sealed class EfCoreSymbolMetricLookupService(
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
             .Where(dm => externalCompanyIds.Contains(dm.ExternalCompanyId) && lookupMetricCodes.Contains(dm.MetricCode))
             .ToListAsync(cancellationToken);
+        // Feature 148 C1/C1-M: drop legacy and mixed CyclicalWaves-derived rows before any latest-row selection.
+        derivedRows = LegacyCyclicalWavesDerivedMetricFilter.Apply(derivedRows);
 
         LogPeLookupQueryScope(
             request.QueryText,

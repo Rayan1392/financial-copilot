@@ -1,3 +1,5 @@
+> NOTE (Feature 148): comprehensive analysis is disabled in NoavaranAmin mode (decision C2) and served from `cyclicalwaves.Analyses` in CyclicalWaves mode; the published-analysis detector is disabled.
+
 # Tasks — Comprehensive Analysis AI Query
 
 **Spec:** `066-comprehensive-analysis-ai-query`

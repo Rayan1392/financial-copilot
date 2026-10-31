@@ -226,6 +226,30 @@ destructive company-catalog clean-slate path is maintenance-only through DataAdm
 by the scheduled worker. DataAdmin operators can inspect scheduler health/history and trigger an
 on-demand scheduled workflow through the protected `nadpcoapi/scheduled-sync/*` admin endpoints.
 
+## CyclicalWaves v2 Provider and Chat Provider Selection (Feature 148)
+
+The CyclicalWaves v2 (TahlilApp API v2) provider is configured through the `CyclicalWavesV2` section
+(contracts in [docs/providers/cyclicalwaves-v2](docs/providers/cyclicalwaves-v2/README.md)). Credentials are
+required only while ingestion is enabled and come from secrets or environment variables:
+
+```powershell
+$env:CyclicalWavesV2__Identifier = "<account-identifier>"
+$env:CyclicalWavesV2__Password = "<account-password>"
+$env:CyclicalWavesV2__IngestionEnabled = "true"      # Worker and Admin sync
+$env:CyclicalWavesV2__DailySyncEnabled = "true"      # daily Full run, cron CyclicalWavesV2__DailySyncCronUtc (default 30 23 * * *)
+```
+
+Data lands in schema `cyclicalwaves` only. DataAdmin operators use `/admin/data/cyclicalwaves-v2`
+(API `api/v1/admin/cyclicalwaves-v2/*`): catalog and single-ticker syncs run inline; screener, income
+statements, analysis and Full runs are queued for the Worker.
+
+Chat answers from one provider, selected by `FinancialData:ChatProvider` (`NoavaranAmin` default, or
+`CyclicalWaves`); there is no fallback between providers. Legacy CyclicalWaves-derived `DerivedMetrics` rows,
+including rows that mix a CyclicalWaves and a NoavaranAmin operand, are always excluded from NoavaranAmin lookups,
+scans, professional scans and financial-metric alerts; there is no setting to include them. The legacy `back1.cyclicalwaves.com` integration is
+retired: `CyclicalWavesLegacy:AllowCalls=false` blocks every legacy request before transmission and its
+credentials are optional.
+
 ## Market View Configuration
 
 Actor-scoped watchlists and `GET /api/v1/market/summary` read normalized StockMarketDB

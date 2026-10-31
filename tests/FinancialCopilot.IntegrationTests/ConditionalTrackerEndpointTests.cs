@@ -194,6 +194,96 @@ public sealed class ConditionalTrackerEndpointTests : IClassFixture<FollowedSymb
         Assert.Contains("quote:", trigger.EvidenceIdentity, StringComparison.Ordinal);
     }
 
+    // Feature 148 N1: an alert whose current value is legacy CyclicalWaves-derived is neither evaluated nor notified.
+    [Fact]
+    public async Task FinancialMetricAlert_OnLegacyCyclicalWavesValue_IsSkippedWithReasonAndKept()
+    {
+        SeedDerivedMetric("PE_TTM", 5m, "CyclicalWaves");
+        using var client = UserClient();
+        using var create = await client.PostAsJsonAsync("/api/v1/trackers/me", FinancialMetricRule("n1-legacy"), CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var processor = scope.ServiceProvider.GetRequiredService<IConditionalTrackerEvaluationProcessor>();
+            var result = await processor.EvaluateDueAsync(10, CancellationToken.None);
+            Assert.Equal(0, result.Triggered);
+        }
+
+        using var assertionScope = _factory.Services.CreateScope();
+        var db = assertionScope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+        var rule = Assert.Single(db.AlertRules);
+        var state = Assert.Single(db.AlertRuleEvaluationStates);
+        Assert.Equal("Active", rule.State);
+        Assert.Equal("LegacyDataRetired", state.LastDecision);
+        Assert.Contains("CyclicalWaves", state.LastSkipReason);
+        Assert.Empty(db.AlertRuleTriggers);
+        Assert.Empty(db.NotificationIntents.Where(row => row.EventType == "ConditionalTrackerTriggered"));
+    }
+
+    [Fact]
+    public async Task FinancialMetricAlert_OnNoavaranValue_StillTriggersAndNotifies()
+    {
+        SeedDerivedMetric("PE_TTM", 5m, "NoavaranCurrentApi");
+        using var client = UserClient();
+        using var create = await client.PostAsJsonAsync("/api/v1/trackers/me", FinancialMetricRule("n1-valid"), CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var processor = scope.ServiceProvider.GetRequiredService<IConditionalTrackerEvaluationProcessor>();
+            var result = await processor.EvaluateDueAsync(10, CancellationToken.None);
+            Assert.Equal(1, result.Triggered);
+        }
+
+        using var assertionScope = _factory.Services.CreateScope();
+        var db = assertionScope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+        var trigger = Assert.Single(db.AlertRuleTriggers);
+        Assert.Equal("DerivedMetrics", trigger.SourceProvider);
+        Assert.Single(db.NotificationIntents.Where(row => row.EventType == "ConditionalTrackerTriggered"));
+    }
+
+    private static object FinancialMetricRule(string idempotencyKey) => new
+    {
+        externalCompanyId = "100",
+        ruleType = "FinancialMetric",
+        metricOrEventCode = "PE_TTM",
+        @operator = "LessThan",
+        threshold = 10m,
+        unit = "Ratio",
+        recurrence = "Recurring",
+        cooldownMinutes = 0,
+        resetPolicy = "CrossBack",
+        sessionPolicy = "Any",
+        confirmImmediately = true,
+        idempotencyKey
+    };
+
+    private void SeedDerivedMetric(string metricCode, decimal value, string sourceProvider)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+        db.DerivedMetrics.RemoveRange(db.DerivedMetrics.Where(row => row.ExternalCompanyId == "100" && row.MetricCode == metricCode));
+        var observedAt = DateTimeOffset.Parse("2026-07-05T08:00:00Z");
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "100",
+            MetricCode = metricCode,
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "test-v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = new DateOnly(2025, 7, 1),
+            PeriodEnd = new DateOnly(2026, 6, 30),
+            Value = value,
+            Unit = "Ratio",
+            ObservedAt = observedAt,
+            LastSynchronizedAt = observedAt,
+            SourceEvidenceJson = $"[{{\"sourceProvider\":\"{sourceProvider}\",\"sourceObservedAt\":\"2026-07-05T08:00:00+00:00\",\"lastSynchronizedAt\":\"2026-07-05T08:00:00+00:00\"}}]"
+        });
+        db.SaveChanges();
+    }
+
     [Fact]
     public async Task TrackersWithoutCredentials_ReturnUnauthorized()
     {

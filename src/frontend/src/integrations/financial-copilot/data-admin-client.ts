@@ -284,6 +284,107 @@ export const runStockMarketSync = (dataset: string, fullReload = false) =>
   );
 
 // --------------------------------------------------------------------------
+// Feature 148 — CyclicalWaves v2 (independent financial data provider)
+// --------------------------------------------------------------------------
+
+export type CyclicalWavesV2RunStatus =
+  | "Requested"
+  | "Running"
+  | "Succeeded"
+  | "CompletedWithErrors"
+  | "Failed"
+  | "SkippedAlreadyRunning";
+
+export type CyclicalWavesV2AnalysisMode = "incremental" | "full";
+
+export type CyclicalWavesV2RunCounts = {
+  total: number;
+  processed: number;
+  updated: number;
+  unchanged: number;
+  failed: number;
+};
+
+export type CyclicalWavesV2Run = {
+  runId: string;
+  scope: string;
+  ticker: string | null;
+  analysisMode: string | null;
+  trigger: string;
+  status: CyclicalWavesV2RunStatus | string;
+  requestedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  counts: CyclicalWavesV2RunCounts;
+  errorSummary: string | null;
+  requestedBy: string | null;
+};
+
+export type CyclicalWavesV2InlineRunResponse = {
+  runId: string | null;
+  status: CyclicalWavesV2RunStatus | string;
+  counts: CyclicalWavesV2RunCounts;
+  errorSummary: string | null;
+};
+
+export type CyclicalWavesV2QueuedRunResponse = {
+  runId: string;
+  status: "Requested" | string;
+};
+
+export type CyclicalWavesV2StatusResponse = {
+  ingestionEnabled: boolean;
+  dailySyncEnabled: boolean;
+  dailySyncCronUtc: string;
+  nextScheduledRunUtc: string | null;
+  credentialsConfigured: boolean;
+  chatProvider: string;
+  activeRun: CyclicalWavesV2Run | null;
+  lastSuccessByScope: { scope: string; completedAt: string }[];
+  recentRuns: CyclicalWavesV2Run[];
+};
+
+const CYCLICAL_WAVES_V2_BASE = "/api/v1/admin/cyclicalwaves-v2";
+
+export const getCyclicalWavesV2Status = (recent = 10) =>
+  financialCopilotApi<CyclicalWavesV2StatusResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/status?recent=${recent}`,
+  );
+
+export const runCyclicalWavesV2CatalogSync = () =>
+  financialCopilotApi<CyclicalWavesV2InlineRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/catalog/sync`, {
+    method: "POST",
+  });
+
+export const runCyclicalWavesV2TickerSync = (ticker: string) =>
+  financialCopilotApi<CyclicalWavesV2InlineRunResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/tickers/${encodeURIComponent(ticker.trim())}/sync`,
+    { method: "POST" },
+  );
+
+export const queueCyclicalWavesV2ScreenerSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/screener/sync`, {
+    method: "POST",
+  });
+
+export const queueCyclicalWavesV2IncomeStatementsSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/income-statements/sync`,
+    { method: "POST" },
+  );
+
+export const queueCyclicalWavesV2AnalysisSync = (mode: CyclicalWavesV2AnalysisMode) =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/analysis/sync?mode=${mode}`,
+    { method: "POST" },
+  );
+
+export const queueCyclicalWavesV2FullSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/sync`, {
+    method: "POST",
+  });
+
+// --------------------------------------------------------------------------
 // Spec 058 — live data sync monitor types
 // --------------------------------------------------------------------------
 

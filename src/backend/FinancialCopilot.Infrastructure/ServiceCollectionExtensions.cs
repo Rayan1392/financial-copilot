@@ -1842,6 +1842,9 @@ public static class ServiceCollectionExtensions
         services.AddHostedService(provider =>
             provider.GetRequiredService<PollingDataSyncActivityMonitor>());
 
+        // Feature 148 must stay last: CyclicalWaves-mode Chat registrations replace the defaults above.
+        services.AddCyclicalWavesV2AndProviderSelection(configuration);
+
         return services;
     }
 

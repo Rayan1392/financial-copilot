@@ -1566,6 +1566,7 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
     }
 
     [Fact]
+    // Feature 148 decision C2: in NoavaranAmin mode comprehensive analysis is disabled; no analysis table is read.
     public async Task V2AiQuery_FundamentalAnalysis_ReturnsPersistedAnalysisWhenLiveMetricsFail()
     {
         using var client = _factory.CreateClient();
@@ -1579,19 +1580,12 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
-        Assert.Equal("ComprehensiveAnalysis", root.GetProperty("intent").GetString());
         Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
-        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
-        Assert.True(root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal() > 0m);
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
-
-        var analyses = root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray();
-        var analysis = Assert.Single(analyses);
-        Assert.Equal("تحلیل بنیادی فولاژ", analysis.GetProperty("title").GetString());
-        Assert.Equal("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", analysis.GetProperty("plainTextSummary").GetString());
-        var textAnswer = root.GetProperty("textAnswer").GetString();
-        Assert.Contains("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", textAnswer);
-        Assert.DoesNotContain("Found metric data for 0 symbol(s)", textAnswer);
+        Assert.Equal(
+            FinancialCopilot.Application.AI.Orchestration.ChatCapabilityAvailability.ComprehensiveAnalysisUnavailableMessageFa,
+            root.GetProperty("textAnswer").GetString());
+        Assert.True(root.GetProperty("comprehensiveAnalysisResult").ValueKind == JsonValueKind.Null, root.ToString());
     }
 
     [Fact]

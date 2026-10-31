@@ -196,6 +196,8 @@ public static class AiDialogueOutcomePolicy
             DialogueOutcome.NoData =>
                 detail
                 ?? "درخواست شما پشتیبانی می‌شود، اما داده قابل استفاده‌ای برای آن در بازه موجود پیدا نشد.",
+            DialogueOutcome.Unsupported when ChatCapabilityAvailability.MessageForReasonCode(outcome.ReasonCode, persian: true) is { } availabilityMessage =>
+                availabilityMessage,
             DialogueOutcome.Unsupported =>
                 "این پرسش را نمی‌توانم به‌صورت قابل اتکا پاسخ بدهم. می‌توانم نمادها را با معیارهای مالی فیلتر کنم، شاخص‌های یک نماد را نشان بدهم، روند فروش ماهانه را نمایش دهم یا تحلیل‌های ثبت‌شده را ارائه کنم.",
             DialogueOutcome.TemporarilyUnavailable =>
@@ -218,6 +220,8 @@ public static class AiDialogueOutcomePolicy
             DialogueOutcome.NoData =>
                 detail
                 ?? "This request is supported, but no usable data was found for the available period.",
+            DialogueOutcome.Unsupported when ChatCapabilityAvailability.MessageForReasonCode(outcome.ReasonCode, persian: false) is { } availabilityMessage =>
+                availabilityMessage,
             DialogueOutcome.Unsupported =>
                 "I cannot answer this question reliably yet. I can screen symbols by financial conditions, show metrics for a symbol, display monthly sales trends, or provide stored analysis posts.",
             DialogueOutcome.TemporarilyUnavailable =>

@@ -1,3 +1,5 @@
+> DISABLED by Feature 148: depends on discontinued CyclicalWaves endpoints; stored data retained.
+
 # Feature 115 Design Amendment - P/S TTM Marker Source
 
 ## Scope

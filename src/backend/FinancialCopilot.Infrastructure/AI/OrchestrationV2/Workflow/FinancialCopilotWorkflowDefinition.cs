@@ -74,8 +74,16 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     ISemanticRoutingLatencySink? routingLatencySink = null,
     ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null,
     ISemanticRoutingDiagnosticSink? routingDiagnosticSink = null,
-    Feature141ChatQueryService? feature141ChatQueryService = null)
+    Feature141ChatQueryService? feature141ChatQueryService = null,
+    IChatCapabilityAvailability? capabilityAvailability = null)
 {
+    // Feature 148: which provider answers Chat. The registered financial source (Feature 141) reads
+    // NoavaranAmin data, so it never answers in CyclicalWaves mode.
+    private bool IsCyclicalWavesMode => capabilityAvailability?.Provider == FinancialDataChatProvider.CyclicalWaves;
+
+    private ChatCapabilityAvailabilityOutcome Availability(string executionRoute) =>
+        capabilityAvailability?.Evaluate(executionRoute) ?? ChatCapabilityAvailabilityOutcome.Available;
+
     internal static readonly ActivitySource ActivitySource =
         new("FinancialCopilot.AI.OrchestrationV2.Workflow", "2.0");
 
@@ -90,7 +98,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         AiQueryRequest request, BillingReservationHandle? turnReservation, string previousRoute, CancellationToken ct,
         bool billSeparately = true)
     {
-        if (feature141ChatQueryService?.IsEnabled(request) != true) return null;
+        if (IsCyclicalWavesMode || feature141ChatQueryService?.IsEnabled(request) != true) return null;
         // The derived reservation keeps its own idempotency keys, while the engine's model calls
         // are recorded under the turn's correlation id that its usage-based charge reads.
         var reservation = turnReservation ?? (!billSeparately
@@ -390,14 +398,16 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
             }
             if (monthlyActivityTrendResult is not null &&
-                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart)
+                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart &&
+                Availability(CapabilityExecutionRoutes.PsGaugeVisualization).IsAvailable)
             {
                 semanticPsVisualizationResult = await psVisualizationExperienceUseCase.ExecuteAsync(
                     new PsVisualizationQuery(monthlyActivityTrendResult.CompanySymbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
             }
             // The registered financial source capability is Feature 141 itself: its result is settled here and never re-run.
             var directFeature141 = semantic.Execution.Payload as Feature141ChatAnswer;
-            var canUseFeature141 = directFeature141 is null
+            var policyBlocked = ChatCapabilityAvailability.MessageForReasonCode(semantic.Execution.ReasonCode, persian: true) is not null;
+            var canUseFeature141 = directFeature141 is null && !policyBlocked && !IsCyclicalWavesMode
                 && semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired
                 or CapabilityExecutionStatus.DisambiguationRequired
                 or CapabilityExecutionStatus.Unsupported
@@ -539,6 +549,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticReplyLanguage: replyLanguage);
         }
 
+        // Feature 148: the legacy (non-semantic) route obeys the same provider policy as the dispatcher.
+        var legacyRoute = request.SemanticShadowFrame is { } shadowFrame && IsSemanticProductRoute(shadowFrame.CapabilityCode)
+            ? shadowFrame.CapabilityCode!
+            : DetectLegacyDirectRoute(request, isMonthlyProductComparison, isMonthlyProductTrend);
+        if (legacyRoute is not null && Availability(legacyRoute) is { IsAvailable: false } unavailableRoute)
+            return await UnavailableCapabilityAsync(msg, unavailableRoute, legacyRoute);
+
         // Shadow and non-admitted Canary requests deliberately execute the legacy route.
         // The validated shadow frame is nevertheless the canonical identity boundary; do
         // not rebuild a product query from raw/display text after resolution has succeeded.
@@ -631,10 +648,27 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "from_date_iso: ISO 8601 date to filter analyses published after this date (optional). " +
                          "limit: max results 1-5 (default 3).");
 
+        var cyclicalWavesAnalysisTool = AIFunctionFactory.Create(
+            async (string[]? symbolNames, string[]? topicTags, string? fromDateIso, int limit) =>
+            {
+                var result = await comprehensiveAnalysisAdapter.QueryAsync(
+                    symbolNames, topicTags, fromDateIso, limit <= 0 ? 5 : limit, ct);
+                comprehensiveAnalysisResult = result;
+                return result.AgentSummary;
+            },
+            name: "query_comprehensive_analysis",
+            description: "Retrieve published comprehensive analysis posts (تحلیل جامع) from the CyclicalWaves data source. " +
+                         "Only each post's title, published summary and publication date are available; there is no full article text, " +
+                         "so never claim to have read or quote a full article. " +
+                         "symbol_names: Persian stock tickers (e.g. فولاد, شتوکا). " +
+                         "topic_tags: optional categories: تحلیل_تکنیکال, قیمت_تعادلی, رصد_معاملات_عمده, گزارش_فصلی, گزارش_ماهانه, P-S, P-E. " +
+                         "from_date_iso: ISO 8601 date to keep posts published on or after it (optional). " +
+                         "limit: max results 1-10 (default 5).");
+
         string? feature141Answer = null;
         string? feature141CompletionStatus = null;
         AIFunction? feature141Tool = null;
-        if (feature141ChatQueryService?.IsEnabled(request) == true)
+        if (!IsCyclicalWavesMode && feature141ChatQueryService?.IsEnabled(request) == true)
         {
             feature141Tool = AIFunctionFactory.Create(
                 async (string query) =>
@@ -787,7 +821,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             // leaving the frontend with no PsVisualizationResult to render.
             PsVisualizationResult? monthlyTrendGauge = null;
             if (monthlyActivityTrendResult is not null &&
-                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart)
+                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart &&
+                Availability(CapabilityExecutionRoutes.PsGaugeVisualization).IsAvailable)
             {
                 monthlyTrendGauge = await psVisualizationExperienceUseCase.ExecuteAsync(
                     new PsVisualizationQuery(symbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
@@ -1047,7 +1082,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticReplyLanguage: directFallbackOutcome is null ? null : AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message));
         }
 
-        var agentTools = new List<AITool> { scannerTool, lookupTool, comprehensiveAnalysisTool };
+        var agentTools = new List<AITool> { scannerTool, lookupTool };
+        // C2: the analysis tool exists only where the policy allows comprehensive analysis (CyclicalWaves mode).
+        if (Availability(CapabilityExecutionRoutes.ComprehensiveAnalysis).IsAvailable)
+            agentTools.Add(IsCyclicalWavesMode ? cyclicalWavesAnalysisTool : comprehensiveAnalysisTool);
         if (feature141Tool is not null) agentTools.Add(feature141Tool);
         var systemInstructions = BuildSystemInstructions();
         if (feature141Tool is not null)
@@ -1894,6 +1932,49 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown
     };
+
+    /// <summary>The execution route the legacy path would take directly, mirroring its own branch order.</summary>
+    private static string? DetectLegacyDirectRoute(AiQueryRequest request, bool isMonthlyProductComparison, bool isMonthlyProductTrend)
+    {
+        var message = request.Message;
+        if (request.Context?.InsightEventId is not null) return CapabilityExecutionRoutes.PersonalizedInsightExplanation;
+        if (MonthlySalesQualityRankingIntentRules.LooksLikeMonthlySalesQualityRankingQuery(message)) return CapabilityExecutionRoutes.MonthlySalesQualityRanking;
+        if (DisclosureListingIntentRules.LooksLikeDisclosureListingQuery(message)) return CapabilityExecutionRoutes.DisclosureListing;
+        if (isMonthlyProductComparison) return CapabilityExecutionRoutes.MonthlyProductComparison;
+        if (isMonthlyProductTrend) return CapabilityExecutionRoutes.ProductSalesTrend;
+        if (MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(message)) return CapabilityExecutionRoutes.MonthlyActivityTrend;
+        if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(message) ||
+            ProductSemanticIntentRules.LooksLikeProductRevenueComposition(message)) return CapabilityExecutionRoutes.ProductRevenueMix;
+        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message) ||
+            FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(message)) return CapabilityExecutionRoutes.FinancialStatementTable;
+        if (FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(message)) return CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis;
+        if (PsGaugeIntentRules.ExtractCompanySymbol(message) is not null) return CapabilityExecutionRoutes.PsGaugeVisualization;
+        return null;
+    }
+
+    /// <summary>Answers a policy-blocked legacy route with the policy message; no data is read and the turn is not charged.</summary>
+    private async Task<AgentExecutedMessage> UnavailableCapabilityAsync(
+        BillingReservedMessage msg,
+        ChatCapabilityAvailabilityOutcome outcome,
+        string route)
+    {
+        var request = msg.Request;
+        var replyLanguage = AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message);
+        var response = AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+            DialogueOutcome.Unsupported, outcome.ReasonCode!, replyLanguage, null, false));
+        UsageAccountingResult? usage = null;
+        if (msg.Reservation is not null)
+            usage = await billingFunctions.FinalizeAsync(msg.Reservation, "ValidationFailed", false, CancellationToken.None);
+        logger.LogInformation(
+            "Chat legacy route blocked by provider policy. Route={Route} ReasonCode={ReasonCode} CorrelationId={CorrelationId}",
+            route, outcome.ReasonCode, request.CorrelationId);
+        return new AgentExecutedMessage(
+            request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext,
+            msg.Reservation, response, null, null, null, null, null, null, null, null,
+            "ValidationFailed", false, null, usage,
+            SemanticOutcome: DialogueOutcome.Unsupported, SemanticOutcomeReasonCode: outcome.ReasonCode,
+            SemanticReplyLanguage: replyLanguage);
+    }
 
     private static DialogueOutcome SemanticDialogueOutcome(CapabilityExecutionStatus status) => status switch
     {

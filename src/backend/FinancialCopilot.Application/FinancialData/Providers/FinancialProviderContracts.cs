@@ -161,7 +161,10 @@ public enum FinancialProviderErrorCode
     Timeout,
     Unauthorized,
     RemoteUnavailable,
-    InvalidResponse
+    InvalidResponse,
+
+    // Feature 148: the provider integration was retired; no request was sent.
+    ProviderRetired
 }
 
 public sealed class FinancialProviderException(

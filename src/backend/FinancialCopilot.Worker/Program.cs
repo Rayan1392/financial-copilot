@@ -121,12 +121,10 @@ builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
-builder.Services.AddHostedService<ComprehensiveAnalysisDailySyncWorker>();
-builder.Services.AddHostedService<CyclicalWavesDataAcquisitionWorker>();
-builder.Services.AddHostedService<IndustryRelativeValuationCalculationWorker>();
-// Feature 114 remains available for visualization reads and retained admin read paths only.
-// Persisted CyclicalWaves acquisition owns provider interaction. Industry-relative valuation
-// runs independently and consumes only stored snapshots and successful acquisition checks.
+// Feature 148 retired the legacy CyclicalWaves integration: ComprehensiveAnalysisDailySyncWorker,
+// CyclicalWavesDataAcquisitionWorker and IndustryRelativeValuationCalculationWorker are no longer hosted
+// (their classes stay for history). CyclicalWaves v2 synchronization replaces them.
+builder.Services.AddHostedService<CyclicalWavesV2SyncWorker>();
 
 var host = builder.Build();
 host.Run();

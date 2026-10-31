@@ -186,6 +186,36 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<CyclicalWavesAcquisitionCheckRow> CyclicalWavesAcquisitionChecks =>
         Set<CyclicalWavesAcquisitionCheckRow>();
 
+    // Feature 148: CyclicalWaves v2 provider data (schema "cyclicalwaves").
+    public DbSet<CyclicalWavesV2TickerRow> CyclicalWavesV2Tickers => Set<CyclicalWavesV2TickerRow>();
+
+    public DbSet<CyclicalWavesV2MetricDefinitionRow> CyclicalWavesV2MetricDefinitions =>
+        Set<CyclicalWavesV2MetricDefinitionRow>();
+
+    public DbSet<CyclicalWavesV2FinancialValueRow> CyclicalWavesV2FinancialValues =>
+        Set<CyclicalWavesV2FinancialValueRow>();
+
+    public DbSet<CyclicalWavesV2ScreenerMetadataRow> CyclicalWavesV2ScreenerMetadata =>
+        Set<CyclicalWavesV2ScreenerMetadataRow>();
+
+    public DbSet<CyclicalWavesV2IncomeStatementLineDefinitionRow> CyclicalWavesV2IncomeStatementLineDefinitions =>
+        Set<CyclicalWavesV2IncomeStatementLineDefinitionRow>();
+
+    public DbSet<CyclicalWavesV2IncomeStatementRow> CyclicalWavesV2IncomeStatements =>
+        Set<CyclicalWavesV2IncomeStatementRow>();
+
+    public DbSet<CyclicalWavesV2IncomeStatementValueRow> CyclicalWavesV2IncomeStatementValues =>
+        Set<CyclicalWavesV2IncomeStatementValueRow>();
+
+    public DbSet<CyclicalWavesV2AnalysisRow> CyclicalWavesV2Analyses => Set<CyclicalWavesV2AnalysisRow>();
+
+    public DbSet<CyclicalWavesV2AnalysisCategoryRow> CyclicalWavesV2AnalysisCategories =>
+        Set<CyclicalWavesV2AnalysisCategoryRow>();
+
+    public DbSet<CyclicalWavesV2AnalysisTagRow> CyclicalWavesV2AnalysisTags => Set<CyclicalWavesV2AnalysisTagRow>();
+
+    public DbSet<CyclicalWavesV2SyncRunRow> CyclicalWavesV2SyncRuns => Set<CyclicalWavesV2SyncRunRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

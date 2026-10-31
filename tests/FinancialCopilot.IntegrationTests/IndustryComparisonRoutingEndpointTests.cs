@@ -28,6 +28,8 @@ public sealed class IndustryComparisonRoutingEndpointTests : IClassFixture<Indus
     [InlineData("کگهر نسبت به شرکت‌های هم‌گروه چطوره؟")]
     [InlineData("وضعیت کگهر در مقایسه با هم‌صنعتی‌ها")]
     [InlineData("کگهر را با شرکت‌های صنعت خودش مقایسه کن")]
+    // Feature 148: industry relative valuation (Feature 125) depends on the retired legacy CyclicalWaves
+    // integration, so the routed capability now answers with the retired-capability message in both modes.
     public async Task Api_ResolvesExactTickerAndReturnsExistingIndustryValuationTable(string message)
     {
         using var client = factory.CreateClient();
@@ -44,15 +46,9 @@ public sealed class IndustryComparisonRoutingEndpointTests : IClassFixture<Indus
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
         Assert.Equal("symbol_vs_industry_relative_valuation", root.GetProperty("semanticCapabilityCode").GetString());
-        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
         var answer = root.GetProperty("textAnswer").GetString()!;
-        Assert.True(answer.Contains("کگهر", StringComparison.Ordinal), root.ToString());
-        Assert.Contains("P/E", answer, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("P/S", answer, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("قیمت به تعادلی", answer);
-        Assert.Contains("میانگین صنعت", answer);
-        Assert.DoesNotContain("مطلوب‌تر از معیار گروه", answer);
-        Assert.Contains("AAA", answer);
+        Assert.Equal(FinancialCopilot.Application.AI.Orchestration.ChatCapabilityAvailability.RetiredMessageFa, answer);
+        Assert.DoesNotContain("میانگین صنعت", answer);
     }
 }
 

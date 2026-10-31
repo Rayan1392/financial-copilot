@@ -1,3 +1,5 @@
+> DISABLED by Feature 148: depends on discontinued CyclicalWaves endpoints; stored data retained.
+
 # Feature 125 — Industry Relative Valuation Ranking
 
 ## Workflow status

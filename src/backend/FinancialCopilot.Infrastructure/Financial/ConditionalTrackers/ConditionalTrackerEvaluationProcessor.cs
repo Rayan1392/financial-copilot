@@ -6,6 +6,7 @@ using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Scanner;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,12 @@ public sealed class ConditionalTrackerEvaluationProcessor(
     TimeProvider timeProvider,
     ILogger<ConditionalTrackerEvaluationProcessor> logger) : IConditionalTrackerEvaluationProcessor
 {
+    // Feature 148 N1: a financial-metric alert whose current value is legacy CyclicalWaves-derived is not
+    // evaluated, triggered or notified; the rule itself is kept and records this reason.
+    public const string LegacyDataRetiredDecision = "LegacyDataRetired";
+    public const string LegacyDataRetiredReason =
+        "این هشدار به دادهٔ منبع قدیمی CyclicalWaves وابسته است که بازنشسته شده است؛ تا انتشار دادهٔ معتبر جدید ارزیابی نمی‌شود.";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Meter Meter = new("FinancialCopilot.ConditionalTrackers", "1.0.0");
     private static readonly Counter<long> Evaluations = Meter.CreateCounter<long>("financialcopilot.tracker.evaluations");
@@ -113,6 +120,15 @@ public sealed class ConditionalTrackerEvaluationProcessor(
         }
 
         var resolved = await ResolveObservationAsync(rule, cancellationToken);
+        if (resolved?.LegacyRetired == true)
+        {
+            // No substitution from another source: the alert waits until a valid observation exists.
+            await SaveDecisionAsync(stateRow, LegacyDataRetiredDecision, LegacyDataRetiredReason, now, cancellationToken);
+            await CommitAsync(transaction, cancellationToken);
+            Skips.Add(1, new TagList { { "reason", "legacy_data_retired" }, { "rule.type", rule.Definition.RuleType.ToString() } });
+            return AlertEvaluationDecision.MissingData;
+        }
+
         AlertEvaluationOutcome outcome;
         if (resolved is null)
         {
@@ -391,6 +407,8 @@ public sealed class ConditionalTrackerEvaluationProcessor(
             .ThenByDescending(item => item.ObservedAt)
             .FirstOrDefaultAsync(cancellationToken);
         if (row is null || row.Value is null) return null;
+        if (LegacyCyclicalWavesDerivedMetricFilter.IsExcluded(row))
+            return LegacyRetired;
         var value = rule.Definition.Unit is AlertRuleUnit.Rial or AlertRuleUnit.Toman
             ? ConvertMoney(row.Value.Value, rule.Definition.Unit)
             : row.Value.Value;
@@ -473,5 +491,11 @@ public sealed class ConditionalTrackerEvaluationProcessor(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private sealed record ResolvedAlertObservation(AlertObservation Observation, TimeSpan MaximumAge);
+    private sealed record ResolvedAlertObservation(AlertObservation Observation, TimeSpan MaximumAge, bool LegacyRetired = false);
+
+    private static readonly ResolvedAlertObservation LegacyRetired = new(
+        new AlertObservation("legacy-cyclicalwaves-retired", 0m, AlertRuleUnit.Ratio, DateTimeOffset.MinValue, DateTimeOffset.MinValue,
+            "CyclicalWaves", null, false, false, "{}"),
+        TimeSpan.Zero,
+        LegacyRetired: true);
 }

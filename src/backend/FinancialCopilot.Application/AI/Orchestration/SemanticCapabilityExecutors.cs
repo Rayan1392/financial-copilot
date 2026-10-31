@@ -111,6 +111,16 @@ public sealed class StockScreeningCapabilityExecutor(
             : cached with { ExecutionFacts = cached.ExecutionFacts with { FromCache = true } };
         if (cached is null)
             await scannerCache.SetResultAsync(cacheScope, dataVersion, executionRequest, table, cancellationToken);
+        // Feature 148: an unavailable criterion or a missing unit is answered with its own message, not as "no rows".
+        if (table.Issue is { } issue)
+            return new CapabilityExecutionResult(
+                frame.CapabilityCode,
+                frame.RegistryVersion,
+                issue.Kind == ScannerExecutionIssueKind.ClarificationRequired
+                    ? CapabilityExecutionStatus.ClarificationRequired
+                    : CapabilityExecutionStatus.Unsupported,
+                issue.ReasonCode,
+                issue.Message);
         var payload = new SemanticScannerPayload(parsed.Plan, table);
         return table.Rows.Count == 0 ? NoData(frame, payload) : Success(frame, payload);
     }

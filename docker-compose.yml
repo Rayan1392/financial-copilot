@@ -139,12 +139,23 @@ services:
         TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
         TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
         CyclicalWaves__BaseAddress: ${CYCLICAL_WAVES_BASE_ADDRESS:-https://back1.cyclicalwaves.com/api/}
-        CyclicalWaves__UserName: ${CYCLICAL_WAVES_USER_NAME:?CYCLICAL_WAVES_USER_NAME is required}
-        CyclicalWaves__Password: ${CYCLICAL_WAVES_PASSWORD:?CYCLICAL_WAVES_PASSWORD is required}
+        # Feature 148: the legacy CyclicalWaves integration is retired, so its credentials are optional.
+        CyclicalWaves__UserName: ${CYCLICAL_WAVES_USER_NAME:-}
+        CyclicalWaves__Password: ${CYCLICAL_WAVES_PASSWORD:-}
         CyclicalWaves__TimeoutSeconds: ${CYCLICAL_WAVES_TIMEOUT_SECONDS:-30}
         CyclicalWaves__RetryCount: ${CYCLICAL_WAVES_RETRY_COUNT:-2}
         CyclicalWaves__CircuitBreakSeconds: ${CYCLICAL_WAVES_CIRCUIT_BREAK_SECONDS:-60}
         CyclicalWaves__CircuitFailureThreshold: ${CYCLICAL_WAVES_CIRCUIT_FAILURE_THRESHOLD:-5}
+        CyclicalWavesLegacy__AllowCalls: "false"
+        # Feature 148: Chat provider selection (legacy CyclicalWaves-derived metrics are always excluded).
+        FinancialData__ChatProvider: ${FINANCIAL_DATA_CHAT_PROVIDER:-NoavaranAmin}
+        # Feature 148: CyclicalWaves v2 provider. Credentials only in the ignored .env file.
+        CyclicalWavesV2__Identifier: ${CYCLICALWAVES_V2_IDENTIFIER:-}
+        CyclicalWavesV2__Password: ${CYCLICALWAVES_V2_PASSWORD:-}
+        CyclicalWavesV2__IngestionEnabled: ${CYCLICALWAVES_V2_INGESTION_ENABLED:-false}
+        CyclicalWavesV2__DailySyncEnabled: ${CYCLICALWAVES_V2_DAILY_SYNC_ENABLED:-false}
+        CyclicalWavesV2__DailySyncCronUtc: ${CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC:-30 23 * * *}
+        CyclicalWavesV2__RequestDelayMilliseconds: ${CYCLICALWAVES_V2_REQUEST_DELAY_MILLISECONDS:-300}
         CyclicalWavesPsVisualization__Enabled: "false"
         CyclicalWavesPsVisualization__EnableStandaloneGauge: ${CYCLICAL_WAVES_STANDALONE_GAUGE:-true}
         CyclicalWavesPsVisualization__IncludeGaugeInMonthlySalesTrendChart: ${CYCLICAL_WAVES_INCLUDE_GAUGE_IN_MONTHLY_TREND:-false}
@@ -177,7 +188,8 @@ services:
         Feature126__Observability__MaxRetryAttempts: ${FEATURE126_SEQ_MAX_RETRY_ATTEMPTS:-3}
         Feature126__Observability__RetryBudgetSeconds: ${FEATURE126_SEQ_RETRY_BUDGET_SECONDS:-20}
         Feature126__Observability__RetentionDays: ${FEATURE126_SEQ_RETENTION_DAYS:-730}
-        IndustryRelativeValuation__Enabled: ${IndustryRelativeValuation__Enabled:?IndustryRelativeValuation__Enabled is required}
+        # Feature 125 is retired with the legacy CyclicalWaves integration (Feature 148).
+        IndustryRelativeValuation__Enabled: ${IndustryRelativeValuation__Enabled:-false}
         IndustryRelativeValuation__DailyCadenceMinutes: ${IndustryRelativeValuation__DailyCadenceMinutes:-1440}
         IndustryRelativeValuation__SourceFreshnessHours: ${IndustryRelativeValuation__SourceFreshnessHours:-26}
         IndustryRelativeValuation__IqrMultiplier: ${IndustryRelativeValuation__IqrMultiplier:-1.5}

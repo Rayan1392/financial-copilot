@@ -161,8 +161,9 @@ public sealed class CleanArchitectureDependencyTests
             "FinancialCopilot.Worker",
             "IndustryRelativeValuationCalculationWorker.cs"));
 
-        Assert.Contains("AddHostedService<CyclicalWavesDataAcquisitionWorker>", workerProgram, StringComparison.Ordinal);
-        Assert.Contains("AddHostedService<IndustryRelativeValuationCalculationWorker>", workerProgram, StringComparison.Ordinal);
+        // Feature 148 retired the legacy CyclicalWaves integration: both workers remain as classes but are unhosted.
+        Assert.DoesNotContain("AddHostedService<CyclicalWavesDataAcquisitionWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddHostedService<IndustryRelativeValuationCalculationWorker>", workerProgram, StringComparison.Ordinal);
         Assert.DoesNotContain("AddHostedService<CyclicalWavesRelativeValuationWorker>", workerProgram, StringComparison.Ordinal);
         Assert.Contains("ICyclicalWavesMetricSnapshotReader, CyclicalWavesMetricSnapshotReader", registrations, StringComparison.Ordinal);
         Assert.DoesNotContain("AddScoped<ICyclicalWavesRelativeValuationProviderClient>", registrations, StringComparison.Ordinal);
@@ -174,6 +175,66 @@ public sealed class CleanArchitectureDependencyTests
         Assert.DoesNotContain("CyclicalWavesTokenCache", calculationWorker, StringComparison.Ordinal);
         Assert.DoesNotContain("ICyclicalWavesDataAcquisitionService", calculationWorker, StringComparison.Ordinal);
         Assert.DoesNotContain("ICyclicalWavesRelativeValuationProviderClient", calculationWorker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Feature148_LegacyCyclicalWavesSchedulesAreUnhostedAndV2WorkerIsHosted()
+    {
+        var root = FindSolutionRoot();
+        var workerProgram = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Worker", "Program.cs"));
+
+        foreach (var retired in new[]
+                 {
+                     "ComprehensiveAnalysisDailySyncWorker", "CyclicalWavesDataAcquisitionWorker",
+                     "IndustryRelativeValuationCalculationWorker", "CyclicalWavesPsSyncWorker", "CyclicalWavesRelativeValuationWorker"
+                 })
+        {
+            Assert.DoesNotContain($"AddHostedService<{retired}>", workerProgram, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("AddHostedService<CyclicalWavesV2SyncWorker>", workerProgram, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Feature148_EveryLegacyCyclicalWavesClientCarriesTheRetirementGuard()
+    {
+        var root = FindSolutionRoot();
+        var registrations = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "ServiceCollectionExtensions.cs"));
+        var retirement = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "CyclicalWavesV2ServiceCollectionExtensions.cs"));
+        var legacyClients = System.Text.RegularExpressions.Regex.Matches(
+                registrations,
+                @"AddHttpClient<(?:[A-Za-z]+, )?((?:CyclicalWaves|ComprehensiveAnalysis)[A-Za-z]*Client)>")
+            .Select(match => match.Groups[1].Value)
+            .Distinct()
+            .ToArray();
+
+        Assert.NotEmpty(legacyClients);
+        Assert.All(legacyClients, client =>
+            Assert.Contains($"nameof({client})", retirement, StringComparison.Ordinal));
+        Assert.Contains("handlers.Insert(0, new LegacyCyclicalWavesCallBlockingHandler(", retirement, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Feature148_CyclicalWavesV2CoreHasNoInfrastructureOrFrameworkReferences()
+    {
+        var root = FindSolutionRoot();
+        var failures = new[]
+            {
+                Path.Combine(root, "FinancialCopilot.Domain", "Financial", "CyclicalWavesV2"),
+                Path.Combine(root, "FinancialCopilot.Application", "FinancialData", "CyclicalWavesV2"),
+                Path.Combine(root, "FinancialCopilot.Application", "Scanner", "CyclicalWavesV2")
+            }
+            .SelectMany(directory => Directory.GetFiles(directory, "*.cs", SearchOption.AllDirectories))
+            .SelectMany(file => File.ReadAllLines(file)
+                .Where(line => line.TrimStart().StartsWith("using ", StringComparison.Ordinal) &&
+                               (line.Contains("Infrastructure", StringComparison.Ordinal) ||
+                                line.Contains("Microsoft.EntityFrameworkCore", StringComparison.Ordinal) ||
+                                line.Contains("System.Net.Http", StringComparison.Ordinal) ||
+                                line.Contains("Microsoft.AspNetCore", StringComparison.Ordinal)))
+                .Select(line => $"{Path.GetFileName(file)}: {line.Trim()}"))
+            .ToArray();
+
+        Assert.Empty(failures);
     }
 
     [Fact]

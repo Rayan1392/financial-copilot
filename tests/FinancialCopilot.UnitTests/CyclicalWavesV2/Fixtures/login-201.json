@@ -1,0 +1,5 @@
+{
+  "access_token": "header.eyJleHAiOjE3OTk5OTk5OTksImlhdCI6MTc5OTk5OTA5OX0.signature",
+  "refresh_token": "REDACTED_REFRESH",
+  "used_secondary_password": false
+}

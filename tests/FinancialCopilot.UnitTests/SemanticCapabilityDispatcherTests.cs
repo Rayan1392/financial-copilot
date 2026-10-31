@@ -268,6 +268,51 @@ public sealed class SemanticCapabilityDispatcherTests
         Assert.Equal(reason, result?.ReasonCode);
     }
 
+    // Feature 148: the provider policy decides before any executor (and therefore any data read) runs.
+    [Theory]
+    [InlineData(FinancialDataChatProvider.NoavaranAmin, "comprehensive_analysis", ChatCapabilityAvailability.ComprehensiveAnalysisUnavailableReasonCode)]
+    [InlineData(FinancialDataChatProvider.NoavaranAmin, "ps_gauge_visualization", ChatCapabilityAvailability.RetiredReasonCode)]
+    [InlineData(FinancialDataChatProvider.CyclicalWaves, "ps_gauge_visualization", ChatCapabilityAvailability.RetiredReasonCode)]
+    [InlineData(FinancialDataChatProvider.CyclicalWaves, "monthly_activity_trend", ChatCapabilityAvailability.UnavailableForProviderReasonCode)]
+    public async Task Feature148_PolicyBlockedCapabilityNeverReachesItsExecutor(
+        FinancialDataChatProvider provider, string capability, string reasonCode)
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var executor = new Executor(capability);
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [executor], availability: new ChatCapabilityAvailability(provider));
+        var frame = Frame(capability) with { RegistryVersion = registry.Find(capability)!.Version };
+
+        var result = await dispatcher.DispatchAsync(frame, Context(), default);
+
+        Assert.Equal(CapabilityExecutionStatus.Unsupported, result.Status);
+        Assert.Equal(reasonCode, result.ReasonCode);
+        Assert.Equal(0, executor.Calls);
+    }
+
+    [Fact]
+    public async Task Feature148_CyclicalWavesModeStillRunsComprehensiveAnalysis()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var executor = new Executor("comprehensive_analysis");
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [executor],
+            availability: new ChatCapabilityAvailability(FinancialDataChatProvider.CyclicalWaves));
+        var frame = Frame("comprehensive_analysis") with { RegistryVersion = registry.Find("comprehensive_analysis")!.Version };
+
+        var result = await dispatcher.DispatchAsync(frame, Context(), default);
+
+        Assert.NotEqual(ChatCapabilityAvailability.ComprehensiveAnalysisUnavailableReasonCode, result.ReasonCode);
+    }
+
+    [Fact]
+    public async Task Feature148_C2UnavailableAnalysisReadsNothing()
+    {
+        var response = await new FinancialCopilot.Application.FinancialData.Ingestion.UnavailableComprehensiveAnalysisQueryUseCase()
+            .ExecuteAsync(new(["فولاد"], [], null, 5), default);
+
+        Assert.Empty(response.Items);
+        Assert.Equal(["فولاد"], response.UnresolvedSymbols);
+    }
+
     private static ValidatedQueryFrame Frame(string capability) => new(
         capability,
         1,

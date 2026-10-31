@@ -145,6 +145,9 @@ public class V2ComprehensiveAnalysisApiFactory : AiFacadeApiFactory
     protected virtual bool SemanticPrimary => true;
     protected virtual TimeSpan AnalysisAge => TimeSpan.Zero;
 
+    // Feature 148 (C2): comprehensive analysis is answered only in CyclicalWaves mode, from cyclicalwaves.Analyses.
+    protected virtual string ChatProvider => "CyclicalWaves";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
@@ -153,6 +156,8 @@ public class V2ComprehensiveAnalysisApiFactory : AiFacadeApiFactory
             ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
             ["SemanticRouting:Capabilities:comprehensive_analysis"] = SemanticPrimary ? "SemanticPrimary" : "Shadow"
         }));
+        // The Chat provider is read while services are composed, so it must be a host setting, not late app configuration.
+        builder.UseSetting("FinancialData:ChatProvider", ChatProvider);
         builder.ConfigureTestServices(services =>
         {
             ReplaceIngestionDbContext(services, _dbName);
@@ -213,6 +218,41 @@ public class V2ComprehensiveAnalysisApiFactory : AiFacadeApiFactory
             db.ComprehensiveAnalysisTags.Add(new ComprehensiveAnalysisTagRow
             {
                 AnalysisId = 66001, TagId = 66001, TagName = "فولاد", TagSlug = "foolad", TagTypeId = 1, IsAnalytic = false
+            });
+
+            // The same article in the independent CyclicalWaves v2 store; v2 ticker ids are the canonical ids.
+            foreach (var (id, ticker) in new[]
+                     {
+                         ("66000000-0000-0000-0000-000000000007", "فولاد"), ("66000000-0000-0000-0000-000000000008", "فخوز"),
+                         ("66000000-0000-0000-0000-000000000009", "فولاژ"), ("66000000-0000-0000-0000-000000000005", "کگل")
+                     })
+            {
+                db.CyclicalWavesV2Tickers.Add(new CyclicalWavesV2TickerRow
+                {
+                    Id = Guid.Parse(id), Ticker = ticker, NormalizedTicker = ticker, IsActive = true,
+                    CreatedAt = now, UpdatedAt = now, LastSeenInCatalogAt = now
+                });
+            }
+
+            db.CyclicalWavesV2Analyses.Add(new CyclicalWavesV2AnalysisRow
+            {
+                Id = 66001,
+                Title = "تحلیل بنیادی فولاد مبارکه",
+                Summary = "<p>ارزش ذاتی فولاد بالاتر از قیمت بازار است</p>",
+                PlainTextSummary = "ارزش ذاتی فولاد بالاتر از قیمت بازار است",
+                PublishedAt = now - AnalysisAge,
+                ContentHash = new string('0', 64),
+                FirstSyncedAt = now,
+                LastSyncedAt = now,
+                UpdatedAt = now
+            });
+            db.CyclicalWavesV2AnalysisTags.Add(new CyclicalWavesV2AnalysisTagRow
+            {
+                AnalysisId = 66001, ProviderTagId = 66001, Name = "فولاد", NormalizedName = "فولاد"
+            });
+            db.CyclicalWavesV2AnalysisTags.Add(new CyclicalWavesV2AnalysisTagRow
+            {
+                AnalysisId = 66001, ProviderTagId = 1, Name = "تحلیل_تکنیکال", NormalizedName = "تحلیلتکنیکال"
             });
             db.SaveChanges();
             _seeded = true;
@@ -315,6 +355,8 @@ public sealed class RecordingLegacyAnalysisParser : IComprehensiveAnalysisQueryP
 /// </summary>
 public sealed class V2ComprehensiveAnalysisProductionConfigApiFactory : V2ComprehensiveAnalysisApiFactory
 {
+    // Characterizes the legacy NoavaranAmin route; unchanged by Feature 148.
+    protected override string ChatProvider => "NoavaranAmin";
     protected override bool SemanticPrimary => false;
     protected override TimeSpan AnalysisAge => TimeSpan.FromDays(45);
 }
@@ -389,9 +431,9 @@ public sealed class V2ComprehensiveAnalysisSemanticPrimaryStaleEvidenceTests
         Assert.Equal("66000000-0000-0000-0000-000000000007", invocation.Frame.Slots
             .Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).CanonicalEntity!.CanonicalId.ToString());
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
-        // The 45-day-old stored analysis for the resolved symbol is silently excluded by the 30-day default window.
-        Assert.True(root.GetProperty("comprehensiveAnalysisResult").ValueKind == JsonValueKind.Null
-            || !root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().Any(), root.ToString());
+        // Feature 148: v2 retrieval has no hidden 30-day window; the older article is returned with its own date.
+        var item = Assert.Single(root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray());
+        Assert.Equal(66001, item.GetProperty("analysisId").GetInt64());
     }
 }
 

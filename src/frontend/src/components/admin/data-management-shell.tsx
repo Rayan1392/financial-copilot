@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   GitCompare,
   ArrowLeft,
+  Waves,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ const navItems: NavItem[] = [
   { label: "ورود آرشیو", to: "/admin/data/archive", icon: Archive },
   { label: "رابط فعلی نواوران", to: "/admin/data/noavaran", icon: BarChart2 },
   { label: "پل StockMarketDB", to: "/admin/data/stockmarket", icon: Database, badge: "پل" },
+  { label: "CyclicalWaves v2", to: "/admin/data/cyclicalwaves-v2", icon: Waves },
   { label: "پایش زنده", to: "/admin/data/monitor", icon: Activity },
   { label: "تطبیق داده‌ها", to: "/admin/data/reconciliation", icon: GitCompare },
 ];

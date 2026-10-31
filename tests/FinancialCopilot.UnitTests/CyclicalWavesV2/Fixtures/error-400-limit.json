@@ -1,0 +1,4 @@
+{
+  "statusCode": 400,
+  "message": "`limit` must be a whole number of at least 1."
+}

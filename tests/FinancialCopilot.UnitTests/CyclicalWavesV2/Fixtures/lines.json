@@ -1,0 +1,412 @@
+[
+  {
+    "key": 54,
+    "name": "Sales, General and Administrative Expense",
+    "nameFa": "هزینه‌های عمومی، اداری و فروش"
+  },
+  {
+    "key": 56,
+    "name": "Operating Profit (Loss)",
+    "nameFa": "سود (زیان) عملیاتی"
+  },
+  {
+    "key": 57,
+    "name": "Finance Expense",
+    "nameFa": "هزینه مالی"
+  },
+  {
+    "key": 60,
+    "name": "Net Income from Continuing Operations before Tax",
+    "nameFa": "سود عملیات در حال تداوم قبل از مالیات"
+  },
+  {
+    "key": 62,
+    "name": "Earning Before Tax",
+    "nameFa": "سود قبل از مالیات"
+  },
+  {
+    "key": 63,
+    "name": "Income Tax Expense",
+    "nameFa": "هزینه مالیات"
+  },
+  {
+    "key": 64,
+    "name": "Net Income (Loss) from Continuing Operation",
+    "nameFa": "سود (زیان) خالص عملیات در حال تداوم"
+  },
+  {
+    "key": 65,
+    "name": "Discontinued Operations Profit (Loss)",
+    "nameFa": "سود (زیان) عملیات متوقف‌شده"
+  },
+  {
+    "key": 66,
+    "name": "Net Income (Loss)",
+    "nameFa": "سود (زیان) خالص"
+  },
+  {
+    "key": 85,
+    "name": "Earning Per Share",
+    "nameFa": "سود هر سهم"
+  },
+  {
+    "key": 86,
+    "name": "Listed Capital",
+    "nameFa": "سرمایه ثبت‌شده"
+  },
+  {
+    "key": 6220,
+    "name": "Normalized Earning Per Share",
+    "nameFa": "سود هر سهم تعدیل‌شده"
+  },
+  {
+    "key": 126,
+    "name": "Income Tax Expense-Current Year",
+    "nameFa": "مالیات بر درآمد سال جاری"
+  },
+  {
+    "key": 127,
+    "name": "Income Tax Expense-Prior Years",
+    "nameFa": "مالیات بر درآمد سال‌های قبل"
+  },
+  {
+    "key": 128,
+    "name": "Basic Earning Per Share from Continuing Operation",
+    "nameFa": "سود پایه هر سهم از عملیات در حال تداوم"
+  },
+  {
+    "key": 67,
+    "name": "Basic Earning Per Share from Continuing Operation-Operating",
+    "nameFa": "سود پایه هر سهم — عملیاتی"
+  },
+  {
+    "key": 68,
+    "name": "Basic Earning Per Share from Continuing Operation-Non-operating",
+    "nameFa": "سود پایه هر سهم — غیرعملیاتی"
+  },
+  {
+    "key": 69,
+    "name": "Basic Earning Per Share from Discontinued Operations",
+    "nameFa": "سود پایه هر سهم از عملیات متوقف‌شده"
+  },
+  {
+    "key": 44,
+    "name": "Sales",
+    "nameFa": "فروش"
+  },
+  {
+    "key": 48,
+    "name": "Cost of Sales",
+    "nameFa": "بهای تمام‌شده فروش"
+  },
+  {
+    "key": 52,
+    "name": "Gross Profit (Loss)",
+    "nameFa": "سود (زیان) ناخالص"
+  },
+  {
+    "key": 55,
+    "name": "Other Operating Revenue (Expenses)",
+    "nameFa": "سایر درآمدها و هزینه‌های عملیاتی"
+  },
+  {
+    "key": 59,
+    "name": "Net Miscellaneous Revenue",
+    "nameFa": "خالص درآمدها و هزینه‌های متفرقه"
+  },
+  {
+    "key": 125,
+    "name": "Cost of Decrease in Receivables Value (Exceptional Cost)",
+    "nameFa": "هزینه کاهش ارزش دریافتنی‌ها (غیرعادی)"
+  },
+  {
+    "key": 58,
+    "name": "Income from Investment",
+    "nameFa": "درآمد حاصل از سرمایه‌گذاری‌ها"
+  },
+  {
+    "key": 3101,
+    "name": "Other Operating Revenue",
+    "nameFa": "سایر درآمدهای عملیاتی"
+  },
+  {
+    "key": 3102,
+    "name": "Other Operating Expense",
+    "nameFa": "سایر هزینه‌های عملیاتی"
+  },
+  {
+    "key": 46,
+    "name": "Service Revenue",
+    "nameFa": "درآمد ارائه خدمات"
+  },
+  {
+    "key": 50,
+    "name": "Cost Of Revenue",
+    "nameFa": "بهای تمام‌شده خدمات ارائه‌شده"
+  },
+  {
+    "key": 124,
+    "name": "Total Revenue",
+    "nameFa": "جمع درآمدها"
+  },
+  {
+    "key": 3108,
+    "name": "Dividend Income",
+    "nameFa": "درآمد سود سهام"
+  },
+  {
+    "key": 3109,
+    "name": "Interest Income",
+    "nameFa": "درآمد سود تضمین‌شده"
+  },
+  {
+    "key": 3110,
+    "name": "Gains (Losses) from Sale of Investment in Securities",
+    "nameFa": "سود (زیان) فروش سرمایه‌گذاری‌ها"
+  },
+  {
+    "key": 3111,
+    "name": "Gains (Losses) from Changes in Fair Value of Investment in Securities",
+    "nameFa": "سود (زیان) تغییر ارزش سرمایه‌گذاری‌ها"
+  },
+  {
+    "key": 47,
+    "name": "Leasing Operation Revenue",
+    "nameFa": "درآمد عملیات لیزینگ"
+  },
+  {
+    "key": 51,
+    "name": "Finance Cost of Leasing Operation",
+    "nameFa": "هزینه تأمین مالی عملیات لیزینگ"
+  },
+  {
+    "key": 6360,
+    "name": "Fair Value of Agricultural Production",
+    "nameFa": "ارزش منصفانه محصول کشاورزی"
+  },
+  {
+    "key": 6361,
+    "name": "Net Increase (Decrease) in Fair Value of Unproductive Biological Assets",
+    "nameFa": "خالص افزایش (کاهش) ارزش منصفانه دارایی‌های زیستی غیرمولد"
+  },
+  {
+    "key": 6362,
+    "name": "Net Revenue of Agricultural production and Unproductive Biological Assets",
+    "nameFa": "درآمد خالص محصول کشاورزی و دارایی‌های زیستی غیرمولد"
+  },
+  {
+    "key": 6372,
+    "name": "Cost of Sales",
+    "nameFa": "بهای تمام‌شده فروش"
+  },
+  {
+    "key": 6363,
+    "name": "Production Cost",
+    "nameFa": "بهای تمام‌شده تولید"
+  },
+  {
+    "key": 6364,
+    "name": "Productive Biological Assets Profit (Loss)",
+    "nameFa": "سود (زیان) دارایی‌های زیستی مولد"
+  },
+  {
+    "key": 993,
+    "name": "Other Non-operating Income and Expense - Miscellaneous Items",
+    "nameFa": "سایر درآمدها و هزینه‌های غیرعملیاتی — اقلام متفرقه"
+  },
+  {
+    "key": 113,
+    "name": "Income on granted facilities, deposits and debt securities",
+    "nameFa": "درآمد تسهیلات اعطایی، سپرده‌ها و اوراق بدهی"
+  },
+  {
+    "key": 593,
+    "name": "Depositors Interest Share",
+    "nameFa": "سود سهم سپرده‌گذاران"
+  },
+  {
+    "key": 6271,
+    "name": "Net Facility And Deposit Income",
+    "nameFa": "خالص درآمد تسهیلات و سپرده‌گذاری"
+  },
+  {
+    "key": 596,
+    "name": "Commission Income",
+    "nameFa": "درآمد کارمزد"
+  },
+  {
+    "key": 601,
+    "name": "Commission Expense",
+    "nameFa": "هزینه کارمزد"
+  },
+  {
+    "key": 6275,
+    "name": "Net Commission Income",
+    "nameFa": "خالص درآمد کارمزد"
+  },
+  {
+    "key": 114,
+    "name": "Net profit (loss) on investments",
+    "nameFa": "خالص سود (زیان) سرمایه‌گذاری‌ها"
+  },
+  {
+    "key": 597,
+    "name": "Foreign Exchange Transaction Gain (Loss)",
+    "nameFa": "سود (زیان) مبادلات ارزی"
+  },
+  {
+    "key": 6276,
+    "name": "Other Operating Income And Expenses",
+    "nameFa": "سایر درآمدها و هزینه‌های عملیاتی"
+  },
+  {
+    "key": 6283,
+    "name": "Net operating income",
+    "nameFa": "درآمد عملیاتی خالص"
+  },
+  {
+    "key": 6277,
+    "name": "Non-operating Income on Investments and Deposits",
+    "nameFa": "درآمد غیرعملیاتی سرمایه‌گذاری‌ها و سپرده‌ها"
+  },
+  {
+    "key": 2001,
+    "name": "Corporate and Administrative Expenses",
+    "nameFa": "هزینه‌های اداری و عمومی"
+  },
+  {
+    "key": 600,
+    "name": "Doubtful Debts Expense",
+    "nameFa": "هزینه مطالبات مشکوک‌الوصول"
+  },
+  {
+    "key": 111,
+    "name": "Depreciation Expense",
+    "nameFa": "هزینه استهلاک"
+  },
+  {
+    "key": 590,
+    "name": "Gross Interest Income",
+    "nameFa": "درآمد مشاع"
+  },
+  {
+    "key": 591,
+    "name": "On-account Payment to Depositors",
+    "nameFa": "سود علی‌الحساب سپرده‌گذاران"
+  },
+  {
+    "key": 592,
+    "name": "Actual and On-account Payment Difference",
+    "nameFa": "تفاوت سود قطعی و علی‌الحساب"
+  },
+  {
+    "key": 594,
+    "name": "Interest Income (Bank's Share )",
+    "nameFa": "سهم بانک از درآمد مشاع"
+  },
+  {
+    "key": 595,
+    "name": "Income on Investments and Deposits",
+    "nameFa": "درآمد سرمایه‌گذاری‌ها و سپرده‌ها"
+  },
+  {
+    "key": 598,
+    "name": "Other Income",
+    "nameFa": "سایر درآمدها"
+  },
+  {
+    "key": 599,
+    "name": "Total Income",
+    "nameFa": "جمع درآمدها"
+  },
+  {
+    "key": 603,
+    "name": "Other Expense",
+    "nameFa": "سایر هزینه‌ها"
+  },
+  {
+    "key": 604,
+    "name": "Total Expense",
+    "nameFa": "جمع هزینه‌ها"
+  },
+  {
+    "key": 660,
+    "name": "Non-interest Income",
+    "nameFa": "درآمدهای غیرمشاع"
+  },
+  {
+    "key": 390,
+    "name": "Premium Earned",
+    "nameFa": "درآمد حق بیمه"
+  },
+  {
+    "key": 393,
+    "name": "Expense of Reinsurance Transfer Premium",
+    "nameFa": "حق بیمه اتکایی واگذاری"
+  },
+  {
+    "key": 394,
+    "name": "Premium Earned (Retention)",
+    "nameFa": "درآمد حق بیمه سهم نگهداری"
+  },
+  {
+    "key": 358,
+    "name": "Investment Income from Technical Reserves",
+    "nameFa": "درآمد سرمایه‌گذاری از محل ذخایر فنی"
+  },
+  {
+    "key": 411,
+    "name": "Other Insurance Income",
+    "nameFa": "سایر درآمدهای بیمه‌ای"
+  },
+  {
+    "key": 412,
+    "name": "InsuranceIncome",
+    "nameFa": "درآمدهای بیمه‌ای"
+  },
+  {
+    "key": 395,
+    "name": "Cost of Claims",
+    "nameFa": "هزینه خسارت"
+  },
+  {
+    "key": 398,
+    "name": "Cost of Claims (Reinsurers' Share)",
+    "nameFa": "خسارت سهم بیمه‌گران اتکایی"
+  },
+  {
+    "key": 399,
+    "name": "Cost of Claims (Retention)",
+    "nameFa": "خسارت سهم نگهداری"
+  },
+  {
+    "key": 413,
+    "name": "Cost of Interest Participating",
+    "nameFa": "هزینه سهم مشارکت در منافع"
+  },
+  {
+    "key": 403,
+    "name": "Other Technical Reserves Changes",
+    "nameFa": "تغییر سایر ذخایر فنی"
+  },
+  {
+    "key": 414,
+    "name": "Other Insurance Costs",
+    "nameFa": "سایر هزینه‌های بیمه‌ای"
+  },
+  {
+    "key": 415,
+    "name": "Insurance Costs",
+    "nameFa": "هزینه‌های بیمه‌ای"
+  },
+  {
+    "key": 352,
+    "name": "Gross Profit of Insurance Activities",
+    "nameFa": "سود ناخالص فعالیت بیمه‌ای"
+  },
+  {
+    "key": 361,
+    "name": "Net Other Non-operating Gains and Expenses",
+    "nameFa": "خالص سایر درآمدها و هزینه‌های غیرعملیاتی"
+  }
+]

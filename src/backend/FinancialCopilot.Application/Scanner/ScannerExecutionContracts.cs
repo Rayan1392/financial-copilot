@@ -96,7 +96,20 @@ public sealed record ScannerTableResult(
     IReadOnlyCollection<ScannerTableRow> Rows,
     ScannerExecutionFacts ExecutionFacts,
     IReadOnlyCollection<string> MissingDataWarnings,
-    SalesGrowthTableMetadata? SalesGrowthMetadata = null);
+    SalesGrowthTableMetadata? SalesGrowthMetadata = null,
+    ScannerExecutionIssue? Issue = null);
+
+public enum ScannerExecutionIssueKind
+{
+    /// <summary>A criterion cannot be answered from the active data source.</summary>
+    Unavailable,
+
+    /// <summary>The plan needs user input before it can run (for example a monetary unit).</summary>
+    ClarificationRequired
+}
+
+/// <summary>Feature 148: why a scan did not run, with the user-facing message. Absent for a normal result.</summary>
+public sealed record ScannerExecutionIssue(ScannerExecutionIssueKind Kind, string ReasonCode, string Message);
 
 public sealed record ScannerExecutionRequest(
     ScannerQueryPlan Plan,

@@ -17,7 +17,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1607,6 +1607,709 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                             t.HasCheckConstraint("CK_CyclicalWavesMetricSnapshots_ResponseHash", "\"ResponseHash\" ~ '^[0-9a-f]{64}$'");
                         });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisCategoryRow", b =>
+                {
+                    b.Property<long>("AnalysisId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProviderCategoryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("AnalysisId", "ProviderCategoryId");
+
+                    b.ToTable("AnalysisCategories", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTimeOffset>("FirstSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PlainTextSummary")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublishedAt")
+                        .HasDatabaseName("IX_CyclicalWavesV2Analyses_PublishedAt");
+
+                    b.ToTable("Analyses", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisTagRow", b =>
+                {
+                    b.Property<long>("AnalysisId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProviderTagId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("AnalysisId", "ProviderTagId");
+
+                    b.HasIndex("NormalizedName")
+                        .HasDatabaseName("IX_CyclicalWavesV2AnalysisTags_NormalizedName");
+
+                    b.ToTable("AnalysisTags", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2FinancialValueRow", b =>
+                {
+                    b.Property<Guid>("TickerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<short>("MetricDefinitionId")
+                        .HasColumnType("smallint");
+
+                    b.Property<decimal?>("NumericValue")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TickerId", "MetricDefinitionId");
+
+                    b.HasIndex("MetricDefinitionId")
+                        .HasDatabaseName("IX_CyclicalWavesV2FinancialValues_Metric");
+
+                    b.ToTable("FinancialValues", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementLineDefinitionRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("IncomeStatementLineDefinitions", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool?>("Audited")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CodalUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FiscalMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("PeriodEndingDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("PublishDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TickerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TickerId", "PeriodEndingDate", "FiscalMonth")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2IncomeStatements_Period");
+
+                    b.ToTable("IncomeStatements", "cyclicalwaves", t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesV2IncomeStatements_FiscalMonth", "\"FiscalMonth\" BETWEEN 1 AND 12");
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementValueRow", b =>
+                {
+                    b.Property<Guid>("StatementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("LineDefinitionId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Quarter")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("TrailingYear")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.Property<decimal?>("YearToDate")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.HasKey("StatementId", "LineDefinitionId");
+
+                    b.HasIndex("LineDefinitionId")
+                        .HasDatabaseName("IX_CyclicalWavesV2IncomeStatementValues_Line");
+
+                    b.ToTable("IncomeStatementValues", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2MetricDefinitionRow", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("FieldKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FieldKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2MetricDefinitions_FieldKey");
+
+                    b.ToTable("MetricDefinitions", "cyclicalwaves", t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesV2MetricDefinitions_Category", "\"Category\" IN ('MonthlySales', 'QuarterlySales', 'Profit', 'ProfitMargin', 'Valuation')");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesV2MetricDefinitions_Unit", "\"Unit\" IN ('Irr', 'Percent', 'Ratio')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = (short)1,
+                            Category = "QuarterlySales",
+                            FieldKey = "lastQuarterSale",
+                            NameEn = "Last quarter sales",
+                            NameFa = "فروش آخرین فصل مالی",
+                            SortOrder = (short)1,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)2,
+                            Category = "QuarterlySales",
+                            FieldKey = "penultimateQuarterSale",
+                            NameEn = "Penultimate quarter sales",
+                            NameFa = "فروش فصل ماقبل آخر",
+                            SortOrder = (short)2,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)3,
+                            Category = "QuarterlySales",
+                            FieldKey = "lastYearSameQuarterSale",
+                            NameEn = "Same quarter last year sales",
+                            NameFa = "فروش فصل مشابه سال قبل",
+                            SortOrder = (short)3,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)4,
+                            Category = "QuarterlySales",
+                            FieldKey = "average4QuarterSale",
+                            NameEn = "Average sales of the four quarters before the last quarter",
+                            NameFa = "میانگین فروش چهار فصل پیش از فصل آخر",
+                            SortOrder = (short)4,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)5,
+                            Category = "Profit",
+                            FieldKey = "lastQuarterNetProfit",
+                            NameEn = "Last quarter net profit",
+                            NameFa = "سود خالص آخرین فصل",
+                            SortOrder = (short)5,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)6,
+                            Category = "Profit",
+                            FieldKey = "penultimateQuarterNetProfit",
+                            NameEn = "Penultimate quarter net profit",
+                            NameFa = "سود خالص فصل ماقبل آخر",
+                            SortOrder = (short)6,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)7,
+                            Category = "Profit",
+                            FieldKey = "lastYearSameQuarterNetProfit",
+                            NameEn = "Same quarter last year net profit",
+                            NameFa = "سود خالص فصل مشابه سال قبل",
+                            SortOrder = (short)7,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)8,
+                            Category = "Profit",
+                            FieldKey = "lastQuarterGrossProfit",
+                            NameEn = "Last quarter gross profit",
+                            NameFa = "سود ناخالص آخرین فصل",
+                            SortOrder = (short)8,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)9,
+                            Category = "Profit",
+                            FieldKey = "penultimateQuarterGrossProfit",
+                            NameEn = "Penultimate quarter gross profit",
+                            NameFa = "سود ناخالص فصل ماقبل آخر",
+                            SortOrder = (short)9,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)10,
+                            Category = "Profit",
+                            FieldKey = "lastYearSameQuarterGrossProfit",
+                            NameEn = "Same quarter last year gross profit",
+                            NameFa = "سود ناخالص فصل مشابه سال قبل",
+                            SortOrder = (short)10,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)11,
+                            Category = "Profit",
+                            FieldKey = "lastQuarterOperatingProfit",
+                            NameEn = "Last quarter operating profit",
+                            NameFa = "سود عملیاتی آخرین فصل",
+                            SortOrder = (short)11,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)12,
+                            Category = "Profit",
+                            FieldKey = "penultimateQuarterOperatingProfit",
+                            NameEn = "Penultimate quarter operating profit",
+                            NameFa = "سود عملیاتی فصل ماقبل آخر",
+                            SortOrder = (short)12,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)13,
+                            Category = "Profit",
+                            FieldKey = "lastYearSameQuarterOperatingProfit",
+                            NameEn = "Same quarter last year operating profit",
+                            NameFa = "سود عملیاتی فصل مشابه سال قبل",
+                            SortOrder = (short)13,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)14,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastQuarterNetProfitMargin",
+                            NameEn = "Last quarter net profit margin",
+                            NameFa = "حاشیه سود خالص آخرین فصل",
+                            SortOrder = (short)14,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)15,
+                            Category = "ProfitMargin",
+                            FieldKey = "penultimateQuarterNetProfitMargin",
+                            NameEn = "Penultimate quarter net profit margin",
+                            NameFa = "حاشیه سود خالص فصل ماقبل آخر",
+                            SortOrder = (short)15,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)16,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastYearSameQuarterNetProfitMargin",
+                            NameEn = "Same quarter last year net profit margin",
+                            NameFa = "حاشیه سود خالص فصل مشابه سال قبل",
+                            SortOrder = (short)16,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)17,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastQuarterGrossProfitMargin",
+                            NameEn = "Last quarter gross profit margin",
+                            NameFa = "حاشیه سود ناخالص آخرین فصل",
+                            SortOrder = (short)17,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)18,
+                            Category = "ProfitMargin",
+                            FieldKey = "penultimateQuarterGrossProfitMargin",
+                            NameEn = "Penultimate quarter gross profit margin",
+                            NameFa = "حاشیه سود ناخالص فصل ماقبل آخر",
+                            SortOrder = (short)18,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)19,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastYearSameQuarterGrossProfitMargin",
+                            NameEn = "Same quarter last year gross profit margin",
+                            NameFa = "حاشیه سود ناخالص فصل مشابه سال قبل",
+                            SortOrder = (short)19,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)20,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastQuarterOperatingProfitMargin",
+                            NameEn = "Last quarter operating profit margin",
+                            NameFa = "حاشیه سود عملیاتی آخرین فصل",
+                            SortOrder = (short)20,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)21,
+                            Category = "ProfitMargin",
+                            FieldKey = "penultimateQuarterOperatingProfitMargin",
+                            NameEn = "Penultimate quarter operating profit margin",
+                            NameFa = "حاشیه سود عملیاتی فصل ماقبل آخر",
+                            SortOrder = (short)21,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)22,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastYearSameQuarterOperatingProfitMargin",
+                            NameEn = "Same quarter last year operating profit margin",
+                            NameFa = "حاشیه سود عملیاتی فصل مشابه سال قبل",
+                            SortOrder = (short)22,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)23,
+                            Category = "MonthlySales",
+                            FieldKey = "average12MonthSale",
+                            NameEn = "Average monthly sales over 12 months, excluding the latest month",
+                            NameFa = "میانگین فروش ۱۲ ماه، بدون احتساب تازه‌ترین ماه",
+                            SortOrder = (short)23,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)24,
+                            Category = "MonthlySales",
+                            FieldKey = "lastYearAverage12MonthSale",
+                            NameEn = "Average monthly sales of the previous fiscal year",
+                            NameFa = "میانگین فروش ماهانه سال مالی قبل",
+                            SortOrder = (short)24,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)25,
+                            Category = "MonthlySales",
+                            FieldKey = "lastMonthSale",
+                            NameEn = "Last month sales",
+                            NameFa = "فروش آخرین ماه",
+                            SortOrder = (short)25,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)26,
+                            Category = "MonthlySales",
+                            FieldKey = "penultimateMonthSale",
+                            NameEn = "Penultimate month sales",
+                            NameFa = "فروش ماه ماقبل آخر",
+                            SortOrder = (short)26,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)27,
+                            Category = "MonthlySales",
+                            FieldKey = "lastYearSameMonthSale",
+                            NameEn = "Same month last year sales",
+                            NameFa = "فروش ماه مشابه سال قبل",
+                            SortOrder = (short)27,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)28,
+                            Category = "Valuation",
+                            FieldKey = "pe",
+                            NameEn = "Price to earnings (P/E)",
+                            NameFa = "نسبت قیمت به سود (P/E)",
+                            SortOrder = (short)28,
+                            Unit = "Ratio"
+                        },
+                        new
+                        {
+                            Id = (short)29,
+                            Category = "Valuation",
+                            FieldKey = "ps",
+                            NameEn = "Price to sales (P/S)",
+                            NameFa = "نسبت قیمت به فروش (P/S)",
+                            SortOrder = (short)29,
+                            Unit = "Ratio"
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2ScreenerMetadataRow", b =>
+                {
+                    b.Property<Guid>("TickerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("LastChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("LastMonthSaleDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("LastQuarterDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ProviderUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TickerId");
+
+                    b.ToTable("ScreenerMetadata", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2SyncRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AnalysisMode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorSummary")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<int>("FailedItems")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LockLeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockOwner")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ProcessedItems")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TickerFilter")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("TotalItems")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TriggerSource")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("UnchangedItems")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UpdatedItems")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestedAt")
+                        .IsDescending()
+                        .HasDatabaseName("IX_CyclicalWavesV2SyncRuns_RequestedAt");
+
+                    b.HasIndex("Status")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2SyncRuns_SingleRunning")
+                        .HasFilter("\"Status\" = 'Running'");
+
+                    b.ToTable("SyncRuns", "cyclicalwaves", t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesV2SyncRuns_Scope", "\"Scope\" IN ('Catalog', 'Ticker', 'Screener', 'IncomeStatements', 'Analysis', 'Full')");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesV2SyncRuns_Status", "\"Status\" IN ('Requested', 'Running', 'Succeeded', 'CompletedWithErrors', 'Failed', 'SkippedAlreadyRunning')");
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Enticker")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastSeenInCatalogAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedTicker")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Ticker")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Enticker")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2Tickers_Enticker")
+                        .HasFilter("\"Enticker\" IS NOT NULL");
+
+                    b.HasIndex("NormalizedTicker")
+                        .HasDatabaseName("IX_CyclicalWavesV2Tickers_NormalizedTicker");
+
+                    b.HasIndex("Ticker")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2Tickers_Ticker");
+
+                    b.ToTable("Tickers", "cyclicalwaves");
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.DailyIndexSnapshotRow", b =>
@@ -6261,6 +6964,72 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .WithMany()
                         .HasForeignKey("PreviousSnapshotId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisCategoryRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisRow", null)
+                        .WithMany()
+                        .HasForeignKey("AnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisTagRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisRow", null)
+                        .WithMany()
+                        .HasForeignKey("AnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2FinancialValueRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2MetricDefinitionRow", null)
+                        .WithMany()
+                        .HasForeignKey("MetricDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", null)
+                        .WithMany()
+                        .HasForeignKey("TickerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", null)
+                        .WithMany()
+                        .HasForeignKey("TickerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementValueRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementLineDefinitionRow", null)
+                        .WithMany()
+                        .HasForeignKey("LineDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementRow", null)
+                        .WithMany()
+                        .HasForeignKey("StatementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2ScreenerMetadataRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", null)
+                        .WithOne()
+                        .HasForeignKey("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2ScreenerMetadataRow", "TickerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.DailyIndexSnapshotRow", b =>

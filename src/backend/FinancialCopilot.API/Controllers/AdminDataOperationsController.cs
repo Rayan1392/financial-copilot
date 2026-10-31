@@ -16,6 +16,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 
 namespace FinancialCopilot.API.Controllers;
 
@@ -61,8 +63,12 @@ public sealed class AdminDataOperationsController(
     IComprehensiveAnalysisSyncRunReader comprehensiveAnalysisSyncRunReader,
     IComprehensiveAnalysisPlainTextBackfillService comprehensiveAnalysisBackfill,
     IBackfillCyclicalWavesCompanyIdService cyclicalWavesCompanyIdBackfill,
-    TimeProvider timeProvider) : ControllerBase
+    TimeProvider timeProvider,
+    IOptions<CyclicalWavesLegacyOptions>? legacyOptions = null) : ControllerBase
 {
+    // Feature 148: legacy triggers stay retired unless a test explicitly re-enables legacy calls.
+    private bool LegacyIngestionRetired => legacyOptions?.Value.AllowCalls != true;
+
     [HttpPost("data-sync/symbols")]
     public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueSymbolSync(
         [FromBody] AdminDataSyncRequest? request,
@@ -247,6 +253,9 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminCyclicalWavesFullSyncResponse>> RunCyclicalWavesFullSync(
         CancellationToken cancellationToken)
     {
+        if (LegacyIngestionRetired)
+            return LegacyCyclicalWavesRetirement.Gone(this);
+
         var result = await cyclicalWavesFullSync.ExecuteAsync(cancellationToken);
         return Ok(new AdminCyclicalWavesFullSyncResponse(
             result.SymbolsSynced,
@@ -262,6 +271,9 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminComprehensiveAnalysisFullSyncResponse>> RunComprehensiveAnalysisFullSync(
         CancellationToken cancellationToken)
     {
+        if (LegacyIngestionRetired)
+            return LegacyCyclicalWavesRetirement.Gone(this);
+
         var result = await comprehensiveAnalysisFullSync.ExecuteAsync(cancellationToken);
         return Ok(new AdminComprehensiveAnalysisFullSyncResponse(
             result.PagesTotal,
@@ -273,6 +285,9 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminComprehensiveAnalysisDailySyncResponse>> RunComprehensiveAnalysisDailySync(
         CancellationToken cancellationToken)
     {
+        if (LegacyIngestionRetired)
+            return LegacyCyclicalWavesRetirement.Gone(this);
+
         var result = await comprehensiveAnalysisDailySync.ExecuteAsync(cancellationToken);
         return Ok(new AdminComprehensiveAnalysisDailySyncResponse(
             result.PagesTotal,
@@ -1196,6 +1211,14 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminProviderHealthResponse>> GetProviderHealth(
         CancellationToken cancellationToken)
     {
+        // The only registered health service is the retired legacy CyclicalWaves client: report it without I/O.
+        if (LegacyIngestionRetired)
+            return Ok(new AdminProviderHealthResponse(
+                ProviderSources.CyclicalWavesName,
+                LegacyCyclicalWavesRetirement.Code,
+                timeProvider.GetUtcNow(),
+                LegacyCyclicalWavesRetirement.Detail));
+
         var health = await providerHealth.CheckAsync(cancellationToken);
         return Ok(new AdminProviderHealthResponse(
             health.ProviderName,
@@ -1365,6 +1388,9 @@ public sealed class AdminDataOperationsController(
         var selectedProviderName = string.IsNullOrWhiteSpace(providerName)
             ? request?.ProviderName?.Trim()
             : providerName;
+        if (LegacyIngestionRetired && selectedProviderName is not null &&
+            string.Equals(ProviderSources.NormalizeName(selectedProviderName), ProviderSources.CyclicalWavesName, StringComparison.OrdinalIgnoreCase))
+            return LegacyCyclicalWavesRetirement.Gone(this);
         var now = timeProvider.GetUtcNow();
         var idempotencyKey = string.IsNullOrWhiteSpace(request?.IdempotencyKey)
             ? $"admin-data-sync:{dataset}:{externalReference ?? "all"}:{Guid.NewGuid():N}"

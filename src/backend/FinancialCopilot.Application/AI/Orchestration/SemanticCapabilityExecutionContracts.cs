@@ -83,7 +83,8 @@ public interface ISemanticCapabilityDispatcher
 public sealed class SemanticCapabilityDispatcher(
     IConversationalCapabilityRegistry registry,
     IEnumerable<IConversationalCapabilityExecutor> executors,
-    ISemanticCapabilityFailureObserver? failureObserver = null) : ISemanticCapabilityDispatcher
+    ISemanticCapabilityFailureObserver? failureObserver = null,
+    IChatCapabilityAvailability? availability = null) : ISemanticCapabilityDispatcher
 {
     private readonly IReadOnlyDictionary<string, IConversationalCapabilityExecutor> executors = executors.ToDictionary(item => item.CapabilityCode, StringComparer.Ordinal);
 
@@ -91,6 +92,9 @@ public sealed class SemanticCapabilityDispatcher(
     {
         if (registry.Find(frame.CapabilityCode) is not { Enabled: true } definition || definition.Version != frame.RegistryVersion)
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, DialogueOutcomeReasonCodes.CapabilityNotRecognized);
+        // Feature 148: the provider policy decides before any executor (and so any data read) runs.
+        if (availability?.Evaluate(definition.ExecutionRoute) is { IsAvailable: false } unavailable)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, unavailable.ReasonCode!);
         if (!executors.ContainsKey(frame.CapabilityCode))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, "executor_not_registered");
 

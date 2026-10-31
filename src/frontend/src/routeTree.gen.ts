@@ -32,6 +32,7 @@ import { Route as AdminDataStockmarketRouteImport } from './routes/admin_.data.s
 import { Route as AdminDataReconciliationRouteImport } from './routes/admin_.data.reconciliation'
 import { Route as AdminDataNoavaranRouteImport } from './routes/admin_.data.noavaran'
 import { Route as AdminDataMonitorRouteImport } from './routes/admin_.data.monitor'
+import { Route as AdminDataCyclicalwavesV2RouteImport } from './routes/admin_.data.cyclicalwaves-v2'
 import { Route as AdminDataArchiveRouteImport } from './routes/admin_.data.archive'
 import { Route as AdminDataManagementFundReportsRouteImport } from './routes/admin_.data-management.fund-reports'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
@@ -150,6 +151,12 @@ const AdminDataMonitorRoute = AdminDataMonitorRouteImport.update({
   path: '/admin/data/monitor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDataCyclicalwavesV2Route =
+  AdminDataCyclicalwavesV2RouteImport.update({
+    id: '/admin_/data/cyclicalwaves-v2',
+    path: '/admin/data/cyclicalwaves-v2',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminDataArchiveRoute = AdminDataArchiveRouteImport.update({
   id: '/admin_/data/archive',
   path: '/admin/data/archive',
@@ -187,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
+  '/admin/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
@@ -214,6 +222,7 @@ export interface FileRoutesByTo {
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
+  '/admin/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
@@ -243,6 +252,7 @@ export interface FileRoutesById {
   '/_app/c/$threadId': typeof AppCThreadIdRoute
   '/admin_/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin_/data/archive': typeof AdminDataArchiveRoute
+  '/admin_/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
   '/admin_/data/monitor': typeof AdminDataMonitorRoute
   '/admin_/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin_/data/reconciliation': typeof AdminDataReconciliationRoute
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
+    | '/admin/data/cyclicalwaves-v2'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
+    | '/admin/data/cyclicalwaves-v2'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/_app/c/$threadId'
     | '/admin_/data-management/fund-reports'
     | '/admin_/data/archive'
+    | '/admin_/data/cyclicalwaves-v2'
     | '/admin_/data/monitor'
     | '/admin_/data/noavaran'
     | '/admin_/data/reconciliation'
@@ -349,6 +362,7 @@ export interface RootRouteChildren {
   AdminGetCompanyIdRoute: typeof AdminGetCompanyIdRoute
   AdminDataManagementFundReportsRoute: typeof AdminDataManagementFundReportsRoute
   AdminDataArchiveRoute: typeof AdminDataArchiveRoute
+  AdminDataCyclicalwavesV2Route: typeof AdminDataCyclicalwavesV2Route
   AdminDataMonitorRoute: typeof AdminDataMonitorRoute
   AdminDataNoavaranRoute: typeof AdminDataNoavaranRoute
   AdminDataReconciliationRoute: typeof AdminDataReconciliationRoute
@@ -520,6 +534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDataMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/data/cyclicalwaves-v2': {
+      id: '/admin_/data/cyclicalwaves-v2'
+      path: '/admin/data/cyclicalwaves-v2'
+      fullPath: '/admin/data/cyclicalwaves-v2'
+      preLoaderRoute: typeof AdminDataCyclicalwavesV2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin_/data/archive': {
       id: '/admin_/data/archive'
       path: '/admin/data/archive'
@@ -580,6 +601,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminGetCompanyIdRoute: AdminGetCompanyIdRoute,
   AdminDataManagementFundReportsRoute: AdminDataManagementFundReportsRoute,
   AdminDataArchiveRoute: AdminDataArchiveRoute,
+  AdminDataCyclicalwavesV2Route: AdminDataCyclicalwavesV2Route,
   AdminDataMonitorRoute: AdminDataMonitorRoute,
   AdminDataNoavaranRoute: AdminDataNoavaranRoute,
   AdminDataReconciliationRoute: AdminDataReconciliationRoute,

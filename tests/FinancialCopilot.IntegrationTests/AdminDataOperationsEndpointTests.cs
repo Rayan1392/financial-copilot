@@ -224,8 +224,9 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         Assert.True(run.TryGetProperty("completedAt", out _));
     }
 
+    // Feature 148: the only health service is the retired legacy CyclicalWaves client; it is reported without I/O.
     [Fact]
-    public async Task DataAdmin_CanViewProviderHealth()
+    public async Task DataAdmin_ProviderHealthReportsTheRetiredLegacyProvider()
     {
         using var client = CreateDataAdminClient();
 
@@ -233,8 +234,8 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("TestFinancialProvider", document.RootElement.GetProperty("providerName").GetString());
-        Assert.Equal("Healthy", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("CyclicalWaves", document.RootElement.GetProperty("providerName").GetString());
+        Assert.Equal("ProviderRetired", document.RootElement.GetProperty("status").GetString());
     }
 
     [Fact]
@@ -1098,6 +1099,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
     private readonly StubDataSyncActivityMonitor _activityMonitor = new();
     private readonly StubEligibleCompanyReferenceReader _eligibleCompanyReader = new();
+    private readonly LegacyCyclicalWavesTriggerSpy _legacySpy = new();
+    public LegacyCyclicalWavesTriggerSpy LegacySpy => _legacySpy;
 
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
     public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
@@ -1164,6 +1167,14 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<IFundamentalIndexCatchUpRunReader>(_fundamentalIndexCatchUp);
             services.AddSingleton<INoavaranEligibleCompanyReferenceReader>(_eligibleCompanyReader);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
+            services.RemoveAll<ICyclicalWavesFullSyncService>();
+            services.RemoveAll<IComprehensiveAnalysisFullSyncService>();
+            services.RemoveAll<IComprehensiveAnalysisDailySyncService>();
+            services.RemoveAll<ICyclicalWavesPsVisualizationSyncService>();
+            services.AddSingleton<ICyclicalWavesFullSyncService>(_legacySpy);
+            services.AddSingleton<IComprehensiveAnalysisFullSyncService>(_legacySpy);
+            services.AddSingleton<IComprehensiveAnalysisDailySyncService>(_legacySpy);
+            services.AddSingleton<ICyclicalWavesPsVisualizationSyncService>(_legacySpy);
         });
     }
 
@@ -1827,5 +1838,32 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         public void SetSnapshot(DataSyncActivitySnapshot snapshot) => Snapshot = snapshot;
 
         public void Reset() => Snapshot = EmptySnapshot();
+    }
+}
+
+
+/// <summary>Feature 148: counts any call into a retired legacy CyclicalWaves sync service; tests expect zero.</summary>
+public sealed class LegacyCyclicalWavesTriggerSpy :
+    ICyclicalWavesFullSyncService,
+    IComprehensiveAnalysisFullSyncService,
+    IComprehensiveAnalysisDailySyncService,
+    ICyclicalWavesPsVisualizationSyncService
+{
+    private int _calls;
+
+    public int Calls => Volatile.Read(ref _calls);
+
+    Task<CyclicalWavesFullSyncResult> ICyclicalWavesFullSyncService.ExecuteAsync(CancellationToken cancellationToken) => Fail<CyclicalWavesFullSyncResult>();
+
+    Task<ComprehensiveAnalysisFullSyncResult> IComprehensiveAnalysisFullSyncService.ExecuteAsync(CancellationToken cancellationToken) => Fail<ComprehensiveAnalysisFullSyncResult>();
+
+    Task<ComprehensiveAnalysisDailySyncResult> IComprehensiveAnalysisDailySyncService.ExecuteAsync(CancellationToken cancellationToken) => Fail<ComprehensiveAnalysisDailySyncResult>();
+
+    public Task<PsVisualizationSyncResult> SyncAsync(PsVisualizationSyncRequest request, CancellationToken cancellationToken) => Fail<PsVisualizationSyncResult>();
+
+    private Task<T> Fail<T>()
+    {
+        Interlocked.Increment(ref _calls);
+        throw new InvalidOperationException("A retired legacy CyclicalWaves service was called.");
     }
 }

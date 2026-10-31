@@ -5,6 +5,7 @@ using System.Text.Json;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -44,6 +45,111 @@ public sealed class AdminManagementEndpointTests : IClassFixture<AdminManagement
         Assert.Equal(HttpStatusCode.Forbidden, apiKeyForbidden.StatusCode);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
         Assert.Contains(FinancialCopilotPermissions.AdminCreditsAdjust, json.RootElement.EnumerateArray().Select(item => item.GetString()));
+    }
+
+    [Fact]
+    public async Task CustomerChatHistory_PagesTurnsAndAuditsFullContentReads()
+    {
+        await _factory.ResetAsync();
+        var conversationId = Guid.NewGuid();
+        var firstTurnId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var firstTime = DateTimeOffset.Parse("2026-10-30T10:00:00Z");
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ConversationDbContext>();
+            context.Conversations.Add(new ConversationRow
+            {
+                Id = conversationId, TenantId = AuthenticationApiFactory.TenantId,
+                ActorId = AdminManagementApiFactory.ManagedUserId, StartedAt = firstTime,
+                UpdatedAt = firstTime.AddMinutes(3), MessageCount = 4, Title = "Support conversation"
+            });
+            context.Messages.AddRange(
+                new MessageRow { Id = firstTurnId, ConversationId = conversationId, Role = "User", Content = "question one", CreatedAt = firstTime },
+                new MessageRow { Id = Guid.Parse("00000000-0000-0000-0000-000000000002"), ConversationId = conversationId, Role = "Assistant", Content = "same-time answer", CreatedAt = firstTime },
+                new MessageRow { Id = Guid.NewGuid(), ConversationId = conversationId, Role = "Tool", Content = "secret tool output", CreatedAt = firstTime.AddMinutes(1) },
+                new MessageRow { Id = Guid.NewGuid(), ConversationId = conversationId, Role = "Assistant", Content = "answer one", CreatedAt = firstTime.AddMinutes(2) },
+                new MessageRow { Id = Guid.NewGuid(), ConversationId = conversationId, Role = "Assistant", Content = "answer continuation", AssistantPayloadJson = "{\"ScannerTable\":{\"safe\":true},\"ScannerPlan\":{\"secret\":\"do not expose\"},\"Usage\":{\"credits\":99}}", CreatedAt = firstTime.AddMinutes(3) },
+                new MessageRow { Id = Guid.NewGuid(), ConversationId = conversationId, Role = "User", Content = "question two incomplete", CreatedAt = firstTime.AddMinutes(4) });
+            for (var index = 3; index <= 22; index++)
+            {
+                context.Messages.Add(new MessageRow
+                {
+                    Id = Guid.NewGuid(), ConversationId = conversationId, Role = "User",
+                    Content = $"question {index}", CreatedAt = firstTime.AddMinutes(index * 2)
+                });
+            }
+            await context.SaveChangesAsync();
+        }
+
+        using var client = UserClient(FinancialCopilotPermissions.AdminUsersRead, FinancialCopilotPermissions.AdminSecurityAuditRead);
+        using var pageResponse = await client.GetAsync($"/api/v1/admin/users/{AdminManagementApiFactory.ManagedUserId}/chat-history?page=1");
+        using var pageJson = await ReadJsonAsync(pageResponse);
+        var items = pageJson.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal(HttpStatusCode.OK, pageResponse.StatusCode);
+        Assert.Equal(22, pageJson.RootElement.GetProperty("totalCount").GetInt32());
+        Assert.Equal(20, items.Length);
+        Assert.Equal(20, pageJson.RootElement.GetProperty("pageSize").GetInt32());
+        Assert.Equal("question 22", items[0].GetProperty("questionSummary").GetString());
+        Assert.Equal("question 3", items[^1].GetProperty("questionSummary").GetString());
+        Assert.DoesNotContain("secret tool output", pageJson.ToString(), StringComparison.Ordinal);
+
+        using var secondPageResponse = await client.GetAsync($"/api/v1/admin/users/{AdminManagementApiFactory.ManagedUserId}/chat-history?page=2");
+        using var secondPageJson = await ReadJsonAsync(secondPageResponse);
+        Assert.Equal(HttpStatusCode.OK, secondPageResponse.StatusCode);
+        Assert.Equal(2, secondPageJson.RootElement.GetProperty("items").GetArrayLength());
+        var finalItems = secondPageJson.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal("question two incomplete", finalItems[0].GetProperty("questionSummary").GetString());
+        Assert.False(finalItems[0].GetProperty("hasAnswer").GetBoolean());
+
+        using var detailResponse = await client.GetAsync($"/api/v1/admin/users/{AdminManagementApiFactory.ManagedUserId}/chat-history/{firstTurnId}");
+        using var detailJson = await ReadJsonAsync(detailResponse);
+        var answers = detailJson.RootElement.GetProperty("answers").EnumerateArray().ToArray();
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        Assert.Equal(3, answers.Length);
+        Assert.Equal("same-time answer", answers[0].GetProperty("content").GetString());
+        Assert.Equal("answer continuation", answers[2].GetProperty("content").GetString());
+        Assert.True(answers[2].GetProperty("structuredPayload").GetProperty("ScannerTable").GetProperty("safe").GetBoolean());
+        Assert.False(answers[2].GetProperty("structuredPayload").TryGetProperty("ScannerPlan", out _));
+        Assert.False(answers[2].GetProperty("structuredPayload").TryGetProperty("Usage", out _));
+
+        using var audits = await client.GetAsync("/api/v1/admin/audits/security");
+        using var auditJson = await ReadJsonAsync(audits);
+        var audit = Assert.Single(auditJson.RootElement.EnumerateArray());
+        Assert.Equal("admin.customer-chat-history.turn-read", audit.GetProperty("actionCode").GetString());
+        Assert.Equal(firstTurnId.ToString("D"), audit.GetProperty("targetId").GetString());
+        Assert.DoesNotContain("answer one", audit.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("question one", audit.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CustomerChatHistory_RequiresPermissionAndHidesCrossUserTurnIds()
+    {
+        await _factory.ResetAsync();
+        using var normalClient = UserClient();
+        using var forbidden = await normalClient.GetAsync($"/api/v1/admin/users/{AdminManagementApiFactory.ManagedUserId}/chat-history");
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        var conversationId = Guid.NewGuid();
+        var foreignTurnId = Guid.NewGuid();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ConversationDbContext>();
+            context.Conversations.Add(new ConversationRow
+            {
+                Id = conversationId, TenantId = AuthenticationApiFactory.TenantId,
+                ActorId = AuthenticationApiFactory.UserId, StartedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow, Title = "Other user's conversation"
+            });
+            context.Messages.Add(new MessageRow
+            {
+                Id = foreignTurnId, ConversationId = conversationId, Role = "User",
+                Content = "private question", CreatedAt = DateTimeOffset.UtcNow
+            });
+            await context.SaveChangesAsync();
+        }
+        using var adminClient = UserClient(FinancialCopilotPermissions.AdminUsersRead);
+        using var crossUser = await adminClient.GetAsync($"/api/v1/admin/users/{AdminManagementApiFactory.ManagedUserId}/chat-history/{foreignTurnId}");
+        Assert.Equal(HttpStatusCode.NotFound, crossUser.StatusCode);
     }
 
     [Fact]
@@ -219,6 +325,7 @@ public sealed class AdminManagementApiFactory : AuthenticationApiFactory
 {
     private readonly string _authDatabaseName = $"admin-auth-{Guid.NewGuid():N}";
     private readonly string _billingDatabaseName = $"admin-billing-{Guid.NewGuid():N}";
+    private readonly string _conversationDatabaseName = $"admin-conversation-{Guid.NewGuid():N}";
     public static readonly Guid ManagedUserId = Guid.Parse("d1408f88-af7d-4fbc-a86e-67d6d767b04b");
     public static readonly Guid CustomerAccountId = Guid.Parse("ca8ec616-884c-4d49-90d6-fabec8c399cf");
 
@@ -235,6 +342,10 @@ public sealed class AdminManagementApiFactory : AuthenticationApiFactory
             services.RemoveAll<DbContextOptions<BillingDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<BillingDbContext>>();
             services.AddDbContext<BillingDbContext>(options => options.UseInMemoryDatabase(_billingDatabaseName));
+            services.RemoveAll<ConversationDbContext>();
+            services.RemoveAll<DbContextOptions<ConversationDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<ConversationDbContext>>();
+            services.AddDbContext<ConversationDbContext>(options => options.UseInMemoryDatabase(_conversationDatabaseName));
         });
     }
 
@@ -243,10 +354,13 @@ public sealed class AdminManagementApiFactory : AuthenticationApiFactory
         using var scope = Services.CreateScope();
         var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
         var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var conversations = scope.ServiceProvider.GetRequiredService<ConversationDbContext>();
         await auth.Database.EnsureDeletedAsync();
         await auth.Database.EnsureCreatedAsync();
         await billing.Database.EnsureDeletedAsync();
         await billing.Database.EnsureCreatedAsync();
+        await conversations.Database.EnsureDeletedAsync();
+        await conversations.Database.EnsureCreatedAsync();
         auth.Tenants.Add(new TenantRow { Id = TenantId, Name = "Integration Tenant" });
         auth.Users.AddRange(
             new FinancialCopilotUser { Id = UserId, UserName = "admin@example.test", NormalizedUserName = "ADMIN@EXAMPLE.TEST", Email = "admin@example.test", NormalizedEmail = "ADMIN@EXAMPLE.TEST", SecurityStamp = Guid.NewGuid().ToString(), ConcurrencyStamp = Guid.NewGuid().ToString(), IsEnabled = true },

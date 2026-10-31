@@ -188,6 +188,36 @@ export type AdminPurchaseHistoryPage = {
   hasMore: boolean;
   asOfUtc: string;
 };
+export type AdminChatHistoryPage = {
+  items: AdminChatHistoryItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
+export type AdminChatHistoryItem = {
+  turnId: string;
+  conversationId: string;
+  conversationTitle: string | null;
+  questionSummary: string;
+  answerSummary: string | null;
+  questionCreatedAtUtc: string;
+  answerCreatedAtUtc: string | null;
+  hasAnswer: boolean;
+};
+export type AdminChatHistoryTurn = {
+  turnId: string;
+  conversationId: string;
+  conversationTitle: string | null;
+  question: string;
+  questionCreatedAtUtc: string;
+  answers: {
+    messageId: string;
+    content: string;
+    createdAtUtc: string;
+    structuredPayload: unknown | null;
+  }[];
+};
 export type AdminRole = { roleId: string; name: string; isEnabled: boolean; permissions: string[] };
 export type AdminTenant = { tenantId: string; name: string };
 export type AdminTenantMember = { userId: string; email: string; isDefault: boolean };
@@ -306,6 +336,12 @@ export const adminApi = {
   },
   customer360: (id: string) =>
     financialCopilotApi<AdminCustomer360>(`/api/v1/admin/users/${id}/customer-360`),
+  customerChatHistory: (id: string, page = 1) =>
+    financialCopilotApi<AdminChatHistoryPage>(
+      `/api/v1/admin/users/${id}/chat-history?page=${page}`,
+    ),
+  customerChatHistoryTurn: (id: string, turnId: string) =>
+    financialCopilotApi<AdminChatHistoryTurn>(`/api/v1/admin/users/${id}/chat-history/${turnId}`),
   customerCreditHistory: (id: string, pageSize = 10, cursor?: string | null) => {
     const params = new URLSearchParams({ pageSize: String(pageSize) });
     if (cursor) params.set("cursor", cursor);

@@ -540,6 +540,7 @@ public sealed class Feature146PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
             new TestActorContext(actor),
             null!,
             queries,
+            null!,
             new TestAuthorizationService(allowedPolicies));
         controller.ControllerContext = new ControllerContext
         {

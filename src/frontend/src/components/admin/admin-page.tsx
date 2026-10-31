@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { AdminCustomerChatHistory } from "@/components/admin/admin-customer-chat-history";
 import {
   Table,
   TableBody,
@@ -617,6 +618,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
     null,
   );
   const [customer, setCustomer] = useState<AdminCustomer360 | null>(null);
+  const [customerTab, setCustomerTab] = useState<"account" | "chat-history">("account");
   const [creditHistory, setCreditHistory] = useState<AdminCreditHistoryPage | null>(null);
   const [purchaseHistory, setPurchaseHistory] = useState<AdminPurchaseHistoryPage | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -749,6 +751,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
 
   async function selectUser(item: AdminUserDirectoryItem) {
     setSelectedDirectoryItem(item);
+    setCustomerTab("account");
     setSelected(null);
     setCustomer(null);
     setCreditHistory(null);
@@ -1137,6 +1140,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
           onOpenChange={(open) => {
             if (!open) {
               setSelectedDirectoryItem(null);
+              setCustomerTab("account");
               setSelected(null);
               setCustomer(null);
               setCreditHistory(null);
@@ -1161,286 +1165,332 @@ function UsersPanel({ user }: { user: AuthUser }) {
                 </span>
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div
+              id="customer-360-tabpanel"
+              role="tabpanel"
+              aria-labelledby={
+                customerTab === "account" ? "customer-account-tab" : "customer-chat-history-tab"
+              }
+              className="space-y-4"
+            >
               <Loading active={detailLoading} />
-              {customer && selected && selectedDirectoryItem ? (
-                <div className="space-y-4 text-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                    <div className="min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-slate-900">
-                          {selectedDirectoryItem.displayName ??
-                            selectedDirectoryItem.email ??
-                            "بدون ایمیل"}
+              <div
+                role="tablist"
+                aria-label="بخش‌های نمای مشتری"
+                className="flex gap-2 border-b pb-2"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  id="customer-account-tab"
+                  aria-controls="customer-360-tabpanel"
+                  aria-selected={customerTab === "account"}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium ${customerTab === "account" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100"}`}
+                  onClick={() => setCustomerTab("account")}
+                >
+                  اطلاعات حساب
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="customer-chat-history-tab"
+                  aria-controls="customer-360-tabpanel"
+                  aria-selected={customerTab === "chat-history"}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium ${customerTab === "chat-history" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100"}`}
+                  onClick={() => setCustomerTab("chat-history")}
+                >
+                  تاریخچه گفتگوها
+                </button>
+              </div>
+              {customerTab === "account" ? (
+                customer && selected && selectedDirectoryItem ? (
+                  <div className="space-y-4 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-slate-900">
+                            {selectedDirectoryItem.displayName ??
+                              selectedDirectoryItem.email ??
+                              "بدون ایمیل"}
+                          </p>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${customer.isEnabled ? (customer.isLockedOut ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700") : "bg-slate-200 text-slate-600"}`}
+                          >
+                            {customer.isEnabled
+                              ? customer.isLockedOut
+                                ? "قفل‌شده"
+                                : "فعال"
+                              : "غیرفعال"}
+                          </span>
+                        </div>
+                        <p dir="ltr" className="text-left font-mono text-xs text-slate-400">
+                          {customer.userId}
                         </p>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${customer.isEnabled ? (customer.isLockedOut ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700") : "bg-slate-200 text-slate-600"}`}
-                        >
+                        <p className="text-xs leading-6 text-slate-600">
+                          وضعیت:{" "}
                           {customer.isEnabled
                             ? customer.isLockedOut
                               ? "قفل‌شده"
                               : "فعال"
-                            : "غیرفعال"}
-                        </span>
+                            : "غیرفعال"}{" "}
+                          · منبع جذب: {sourceLabel(customer.acquisitionSourceCode)}
+                        </p>
+                        <p className="text-xs leading-6 text-slate-600">
+                          ثبت‌نام: {dateLabel(customer.registeredAtUtc)} · آخرین ورود موفق:{" "}
+                          {dateLabel(customer.lastSuccessfulLoginAtUtc)} (
+                          {customer.lastLoginProviderCode ?? "نامشخص"})
+                        </p>
+                        <p className="text-xs leading-6 text-slate-600">
+                          اعتبار بومی: {customer.hasNativeCredential ? "دارد" : "ندارد"} · ایمیل
+                          تأییدشده: {customer.emailConfirmed ? "بله" : "خیر"}
+                        </p>
+                        <p className="text-xs leading-6 text-slate-600">
+                          نشست‌های نوسازی فعال:{" "}
+                          {customer.activeRefreshSessions.toLocaleString("fa-IR")}
+                        </p>
                       </div>
-                      <p dir="ltr" className="text-left font-mono text-xs text-slate-400">
-                        {customer.userId}
-                      </p>
-                      <p className="text-xs leading-6 text-slate-600">
-                        وضعیت:{" "}
-                        {customer.isEnabled
-                          ? customer.isLockedOut
-                            ? "قفل‌شده"
-                            : "فعال"
-                          : "غیرفعال"}{" "}
-                        · منبع جذب: {sourceLabel(customer.acquisitionSourceCode)}
-                      </p>
-                      <p className="text-xs leading-6 text-slate-600">
-                        ثبت‌نام: {dateLabel(customer.registeredAtUtc)} · آخرین ورود موفق:{" "}
-                        {dateLabel(customer.lastSuccessfulLoginAtUtc)} (
-                        {customer.lastLoginProviderCode ?? "نامشخص"})
-                      </p>
-                      <p className="text-xs leading-6 text-slate-600">
-                        اعتبار بومی: {customer.hasNativeCredential ? "دارد" : "ندارد"} · ایمیل
-                        تأییدشده: {customer.emailConfirmed ? "بله" : "خیر"}
-                      </p>
-                      <p className="text-xs leading-6 text-slate-600">
-                        نشست‌های نوسازی فعال:{" "}
-                        {customer.activeRefreshSessions.toLocaleString("fa-IR")}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {canManage && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="rounded-lg"
-                            onClick={() => void status(!selected.isEnabled)}
-                          >
-                            {selected.isEnabled ? "غیرفعال‌سازی" : "فعال‌سازی"}
-                          </Button>
+                      <div className="flex flex-wrap gap-2">
+                        {canManage && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="rounded-lg"
+                              onClick={() => void status(!selected.isEnabled)}
+                            >
+                              {selected.isEnabled ? "غیرفعال‌سازی" : "فعال‌سازی"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="rounded-lg"
+                              variant="outline"
+                              onClick={() => void status(true, true)}
+                            >
+                              رفع قفل
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="rounded-lg"
+                              variant="destructive"
+                              onClick={() => void revoke()}
+                            >
+                              ابطال نشست‌ها
+                            </Button>
+                          </>
+                        )}
+                        {canManageRoles && (
                           <Button
                             size="sm"
                             className="rounded-lg"
                             variant="outline"
-                            onClick={() => void status(true, true)}
+                            onClick={() => void saveRoles()}
                           >
-                            رفع قفل
+                            تنظیم نقش‌ها
                           </Button>
-                          <Button
-                            size="sm"
-                            className="rounded-lg"
-                            variant="destructive"
-                            onClick={() => void revoke()}
-                          >
-                            ابطال نشست‌ها
-                          </Button>
-                        </>
-                      )}
-                      {canManageRoles && (
-                        <Button
-                          size="sm"
-                          className="rounded-lg"
-                          variant="outline"
-                          onClick={() => void saveRoles()}
-                        >
-                          تنظیم نقش‌ها
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                    عضویت در مستأجر: {customer.tenantMemberships.join("، ") || "عضویتی ثبت نشده"}
-                  </p>
-                  <div>
-                    <h3 className="mb-2 font-semibold text-slate-800">هویت‌های پیوندخورده</h3>
-                    {customer.linkedProviders.length ? (
-                      providerLinksPagination.pageItems.map((link) => (
-                        <p
-                          key={`${link.providerCode}:${link.maskedExternalId}`}
-                          className="mb-2 rounded-lg border border-slate-100 p-3 text-xs leading-6 text-slate-600"
-                        >
-                          {link.providerCode} · {link.status} · {link.maskedExternalId}{" "}
-                          {link.displayMetadata ? `(${link.displayMetadata})` : ""} · پیوند:{" "}
-                          {dateLabel(link.linkedAtUtc)} · تازگی پروفایل:{" "}
-                          {dateLabel(link.profileSyncedAtUtc)}
-                        </p>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">هویت پیوندخورده‌ای ثبت نشده است.</p>
-                    )}
-                    {customer.linkedProviders.length > 10 && (
-                      <AdminPagination
-                        {...providerLinksPagination}
-                        onPageChange={providerLinksPagination.setPageIndex}
-                      />
-                    )}
-                  </div>
-                  <CustomerSection title="اشتراک" section={customer.subscription}>
-                    {(data) => (
-                      <div className="space-y-1">
-                        <p>
-                          طرح: {data.planName ?? data.planCode ?? "نامشخص"} · فعال:{" "}
-                          {data.isActive ? "بله" : "خیر"}
-                        </p>
-                        <p>
-                          بازه: {dateLabel(data.effectiveFromUtc)} تا{" "}
-                          {dateLabel(data.effectiveToUtc)} · بازبینی: {data.revision}
-                        </p>
-                        <p>
-                          قابلیت‌ها: {data.capabilities.map((item) => item.code).join("، ") || "-"}
-                        </p>
-                        <p>
-                          همگام‌سازی بیرونی: {data.externalSyncStatus ?? "نامشخص"} · آخرین
-                          همگام‌سازی: {dateLabel(data.externalLastSyncedAtUtc)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
+                        )}
                       </div>
-                    )}
-                  </CustomerSection>
-                  <CustomerSection title="اعتبارها" section={customer.credits}>
-                    {(data) => (
-                      <div className="space-y-1">
-                        <p>
-                          ظرفیت قابل‌مصرف: {data.spendableCredits ?? "نامشخص"} · رزروشده:{" "}
-                          {data.reservedCredits ?? "نامشخص"} · سقف اعتباری:{" "}
-                          {data.approvedCreditLine ?? "ندارد"}
-                        </p>
-                        <p>
-                          مانده دوره‌های اشتراک: {data.activeSubscriptionCredits} · نزدیک‌ترین
-                          انقضا: {dateLabel(data.nextExpiryUtc)}
-                        </p>
-                        {creditPeriodsPagination.pageItems.map((period) => (
+                    </div>
+                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      عضویت در مستأجر: {customer.tenantMemberships.join("، ") || "عضویتی ثبت نشده"}
+                    </p>
+                    <div>
+                      <h3 className="mb-2 font-semibold text-slate-800">هویت‌های پیوندخورده</h3>
+                      {customer.linkedProviders.length ? (
+                        providerLinksPagination.pageItems.map((link) => (
                           <p
-                            key={period.id}
-                            className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-600"
+                            key={`${link.providerCode}:${link.maskedExternalId}`}
+                            className="mb-2 rounded-lg border border-slate-100 p-3 text-xs leading-6 text-slate-600"
                           >
-                            {period.planCode}: {period.remainingCredits} از {period.grantedCredits}{" "}
-                            · انقضا {dateLabel(period.expiresAtUtc)} · {period.status}
+                            {link.providerCode} · {link.status} · {link.maskedExternalId}{" "}
+                            {link.displayMetadata ? `(${link.displayMetadata})` : ""} · پیوند:{" "}
+                            {dateLabel(link.linkedAtUtc)} · تازگی پروفایل:{" "}
+                            {dateLabel(link.profileSyncedAtUtc)}
                           </p>
-                        ))}
-                        {data.activePeriods.length > 0 && (
-                          <AdminPagination
-                            {...creditPeriodsPagination}
-                            onPageChange={creditPeriodsPagination.setPageIndex}
-                          />
-                        )}
-                        <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
-                        {!creditHistory && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-lg"
-                            onClick={() => void loadCreditHistory()}
-                          >
-                            بارگذاری تاریخچه اعتبار
-                          </Button>
-                        )}
-                        {creditHistoryPagination.pageItems.map((entry) => (
-                          <div
-                            key={`${entry.recordType}:${entry.id}`}
-                            className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
-                          >
-                            <p>
-                              {dateLabel(entry.occurredAtUtc)} ·{" "}
-                              {entry.operationCode === "Billing.ManualAdjustment"
-                                ? "افزودن دستی اعتبار"
-                                : (entry.entryType ?? entry.operationCode ?? "-")}{" "}
-                              ·{" "}
-                              <span
-                                className={`font-semibold ${entry.credits < 0 ? "text-rose-700" : "text-emerald-700"}`}
-                              >
-                                {entry.operationCode === "Billing.ManualAdjustment" ? "+" : ""}
-                                {entry.credits.toLocaleString("fa-IR")}
-                              </span>
-                              {entry.allocationSource && ` · ${entry.allocationSource}`} ·{" "}
-                              {entry.operationCode === "Billing.ManualAdjustment"
-                                ? "ثبت‌شده"
-                                : entry.status}
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">هویت پیوندخورده‌ای ثبت نشده است.</p>
+                      )}
+                      {customer.linkedProviders.length > 10 && (
+                        <AdminPagination
+                          {...providerLinksPagination}
+                          onPageChange={providerLinksPagination.setPageIndex}
+                        />
+                      )}
+                    </div>
+                    <CustomerSection title="اشتراک" section={customer.subscription}>
+                      {(data) => (
+                        <div className="space-y-1">
+                          <p>
+                            طرح: {data.planName ?? data.planCode ?? "نامشخص"} · فعال:{" "}
+                            {data.isActive ? "بله" : "خیر"}
+                          </p>
+                          <p>
+                            بازه: {dateLabel(data.effectiveFromUtc)} تا{" "}
+                            {dateLabel(data.effectiveToUtc)} · بازبینی: {data.revision}
+                          </p>
+                          <p>
+                            قابلیت‌ها:{" "}
+                            {data.capabilities.map((item) => item.code).join("، ") || "-"}
+                          </p>
+                          <p>
+                            همگام‌سازی بیرونی: {data.externalSyncStatus ?? "نامشخص"} · آخرین
+                            همگام‌سازی: {dateLabel(data.externalLastSyncedAtUtc)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
+                        </div>
+                      )}
+                    </CustomerSection>
+                    <CustomerSection title="اعتبارها" section={customer.credits}>
+                      {(data) => (
+                        <div className="space-y-1">
+                          <p>
+                            ظرفیت قابل‌مصرف: {data.spendableCredits ?? "نامشخص"} · رزروشده:{" "}
+                            {data.reservedCredits ?? "نامشخص"} · سقف اعتباری:{" "}
+                            {data.approvedCreditLine ?? "ندارد"}
+                          </p>
+                          <p>
+                            مانده دوره‌های اشتراک: {data.activeSubscriptionCredits} · نزدیک‌ترین
+                            انقضا: {dateLabel(data.nextExpiryUtc)}
+                          </p>
+                          {creditPeriodsPagination.pageItems.map((period) => (
+                            <p
+                              key={period.id}
+                              className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-600"
+                            >
+                              {period.planCode}: {period.remainingCredits} از{" "}
+                              {period.grantedCredits} · انقضا {dateLabel(period.expiresAtUtc)} ·{" "}
+                              {period.status}
                             </p>
-                            {entry.operationCode === "Billing.ManualAdjustment" &&
-                              entry.auditDescription && (
-                                <p className="mt-1 text-slate-500">
-                                  دلیل: {entry.auditDescription}
-                                </p>
-                              )}
-                          </div>
-                        ))}
-                        {creditHistory?.hasMore && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-lg"
-                            onClick={() => void loadCreditHistory()}
-                          >
-                            دریافت ۱۰ مورد بعدی
-                          </Button>
-                        )}
-                        {creditHistoryRows.length > 0 && (
-                          <AdminPagination
-                            {...creditHistoryPagination}
-                            onPageChange={creditHistoryPagination.setPageIndex}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </CustomerSection>
-                  <CustomerSection title="خریدها" section={customer.purchases}>
-                    {(data) => (
-                      <div className="space-y-1">
-                        <p>
-                          تعداد خرید محلی تکمیل‌شده:{" "}
-                          {data.completedLocalPurchaseCount ?? "در دسترس نیست"} · وضعیت استحقاق
-                          بیرونی: {data.externalEntitlementsStatus}
-                        </p>
-                        {purchaseHistoryPagination.pageItems.map((purchase) => (
-                          <p
-                            key={purchase.checkoutIntentId}
-                            className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
-                          >
-                            {dateLabel(purchase.createdAtUtc)} · {purchase.productDisplayName} ·{" "}
-                            {purchase.amount} {purchase.currency} · {purchase.status} ·{" "}
-                            {purchase.channel} · {purchase.providerName ?? "بدون ارائه‌دهنده"} ·
-                            تطبیق: {purchase.reconciliationState ?? "نامشخص"}
+                          ))}
+                          {data.activePeriods.length > 0 && (
+                            <AdminPagination
+                              {...creditPeriodsPagination}
+                              onPageChange={creditPeriodsPagination.setPageIndex}
+                            />
+                          )}
+                          <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
+                          {!creditHistory && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-lg"
+                              onClick={() => void loadCreditHistory()}
+                            >
+                              بارگذاری تاریخچه اعتبار
+                            </Button>
+                          )}
+                          {creditHistoryPagination.pageItems.map((entry) => (
+                            <div
+                              key={`${entry.recordType}:${entry.id}`}
+                              className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
+                            >
+                              <p>
+                                {dateLabel(entry.occurredAtUtc)} ·{" "}
+                                {entry.operationCode === "Billing.ManualAdjustment"
+                                  ? "افزودن دستی اعتبار"
+                                  : (entry.entryType ?? entry.operationCode ?? "-")}{" "}
+                                ·{" "}
+                                <span
+                                  className={`font-semibold ${entry.credits < 0 ? "text-rose-700" : "text-emerald-700"}`}
+                                >
+                                  {entry.operationCode === "Billing.ManualAdjustment" ? "+" : ""}
+                                  {entry.credits.toLocaleString("fa-IR")}
+                                </span>
+                                {entry.allocationSource && ` · ${entry.allocationSource}`} ·{" "}
+                                {entry.operationCode === "Billing.ManualAdjustment"
+                                  ? "ثبت‌شده"
+                                  : entry.status}
+                              </p>
+                              {entry.operationCode === "Billing.ManualAdjustment" &&
+                                entry.auditDescription && (
+                                  <p className="mt-1 text-slate-500">
+                                    دلیل: {entry.auditDescription}
+                                  </p>
+                                )}
+                            </div>
+                          ))}
+                          {creditHistory?.hasMore && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-lg"
+                              onClick={() => void loadCreditHistory()}
+                            >
+                              دریافت ۱۰ مورد بعدی
+                            </Button>
+                          )}
+                          {creditHistoryRows.length > 0 && (
+                            <AdminPagination
+                              {...creditHistoryPagination}
+                              onPageChange={creditHistoryPagination.setPageIndex}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </CustomerSection>
+                    <CustomerSection title="خریدها" section={customer.purchases}>
+                      {(data) => (
+                        <div className="space-y-1">
+                          <p>
+                            تعداد خرید محلی تکمیل‌شده:{" "}
+                            {data.completedLocalPurchaseCount ?? "در دسترس نیست"} · وضعیت استحقاق
+                            بیرونی: {data.externalEntitlementsStatus}
                           </p>
-                        ))}
-                        <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
-                        {!purchaseHistory && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-lg"
-                            onClick={() => void loadPurchaseHistory()}
-                          >
-                            بارگذاری تاریخچه خرید
-                          </Button>
-                        )}
-                        {purchaseHistory?.hasMore && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-lg"
-                            onClick={() => void loadPurchaseHistory()}
-                          >
-                            دریافت ۱۰ مورد بعدی
-                          </Button>
-                        )}
-                        {purchaseHistoryRows.length > 0 && (
-                          <AdminPagination
-                            {...purchaseHistoryPagination}
-                            onPageChange={purchaseHistoryPagination.setPageIndex}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </CustomerSection>
-                  <p className="text-xs text-muted-foreground">
-                    زمان مبنای پاسخ: {dateLabel(customer.asOfUtc)} · نشست‌های نوسازی شاخص حضور
-                    آنلاین نیستند.
-                  </p>
-                </div>
+                          {purchaseHistoryPagination.pageItems.map((purchase) => (
+                            <p
+                              key={purchase.checkoutIntentId}
+                              className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
+                            >
+                              {dateLabel(purchase.createdAtUtc)} · {purchase.productDisplayName} ·{" "}
+                              {purchase.amount} {purchase.currency} · {purchase.status} ·{" "}
+                              {purchase.channel} · {purchase.providerName ?? "بدون ارائه‌دهنده"} ·
+                              تطبیق: {purchase.reconciliationState ?? "نامشخص"}
+                            </p>
+                          ))}
+                          <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
+                          {!purchaseHistory && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-lg"
+                              onClick={() => void loadPurchaseHistory()}
+                            >
+                              بارگذاری تاریخچه خرید
+                            </Button>
+                          )}
+                          {purchaseHistory?.hasMore && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-lg"
+                              onClick={() => void loadPurchaseHistory()}
+                            >
+                              دریافت ۱۰ مورد بعدی
+                            </Button>
+                          )}
+                          {purchaseHistoryRows.length > 0 && (
+                            <AdminPagination
+                              {...purchaseHistoryPagination}
+                              onPageChange={purchaseHistoryPagination.setPageIndex}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </CustomerSection>
+                    <p className="text-xs text-muted-foreground">
+                      زمان مبنای پاسخ: {dateLabel(customer.asOfUtc)} · نشست‌های نوسازی شاخص حضور
+                      آنلاین نیستند.
+                    </p>
+                  </div>
+                ) : selectedDirectoryItem ? (
+                  <p className="text-sm text-muted-foreground">جزئیات بارگذاری نشد.</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">یک کاربر را از فهرست انتخاب کنید.</p>
+                )
               ) : selectedDirectoryItem ? (
-                <p className="text-sm text-muted-foreground">جزئیات بارگذاری نشد.</p>
+                <AdminCustomerChatHistory
+                  key={selectedDirectoryItem.userId}
+                  userId={selectedDirectoryItem.userId}
+                />
               ) : (
                 <p className="text-sm text-muted-foreground">یک کاربر را از فهرست انتخاب کنید.</p>
               )}

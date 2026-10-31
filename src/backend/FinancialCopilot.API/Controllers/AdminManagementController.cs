@@ -16,6 +16,7 @@ public sealed class AdminManagementController(
     ICurrentActorContext actorContext,
     IAdminManagementService administration,
     IAdminUserQueries userQueries,
+    IAdminChatHistoryQueries chatHistoryQueries,
     IAuthorizationService authorizationService) : ControllerBase
 {
     [HttpGet("users")]
@@ -50,6 +51,36 @@ public sealed class AdminManagementController(
             (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminBillingAuditRead)).Succeeded);
         return await userQueries.GetCustomer360Async(Actor.TenantId, userId, permissions, cancellationToken);
     }
+
+    [HttpGet("users/{userId:guid}/chat-history")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<ActionResult<AdminChatHistoryPage>> GetCustomerChatHistory(
+        Guid userId,
+        [FromQuery] int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1 || page > int.MaxValue / 20)
+        {
+            return BadRequest("Page must be a positive value within the supported range.");
+        }
+
+        return Ok(await chatHistoryQueries.GetPageAsync(Actor.TenantId, userId, page, cancellationToken));
+    }
+
+    [HttpGet("users/{userId:guid}/chat-history/{turnId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<ActionResult<AdminChatHistoryTurn>> GetCustomerChatHistoryTurn(
+        Guid userId,
+        Guid turnId,
+        CancellationToken cancellationToken) =>
+        (await chatHistoryQueries.GetTurnAsync(
+            Actor.TenantId,
+            userId,
+            Actor.ActorId,
+            Actor.ActorType.ToString(),
+            HttpContext.TraceIdentifier,
+            turnId,
+            cancellationToken)) is { } turn ? Ok(turn) : NotFound();
 
     [HttpGet("users/{userId:guid}/customer-360/credits")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]

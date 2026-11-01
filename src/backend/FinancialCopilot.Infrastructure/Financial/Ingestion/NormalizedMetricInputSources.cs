@@ -232,14 +232,16 @@ public abstract class MonthlyReportAggregateInputSource(
             .SelectMany(group =>
             {
                 var productReports = group
-                    .Where(report => report.ReportType == "ProductSales" &&
+                    .Where(report => report.IsAccepted &&
+                        report.ReportType == "ProductSales" &&
                         (report.OutputType == 0 || report.OutputType == null))
                     .Where(report => lineItemsByReport[report.Id].Any())
                     .ToArray();
 
                 return productReports.Length > 0
                     ? productReports
-                    : group.Where(report => report.ReportType == "ServiceSales" && report.OutputType == null);
+                    : group.Where(report => report.IsAccepted &&
+                        report.ReportType == "ServiceSales" && report.OutputType == null);
             })
             .ToArray();
     }

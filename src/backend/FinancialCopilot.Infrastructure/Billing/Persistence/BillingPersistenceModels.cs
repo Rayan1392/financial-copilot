@@ -125,6 +125,15 @@ public sealed class UsageCreditAllocationRow
     public decimal CreditsApplied { get; set; }
 }
 
+/// <summary>A reservation's claim on an expiring allowance source.</summary>
+public sealed class UsageCreditHoldRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageReservationId { get; set; }
+    public Guid SubscriptionCreditPeriodId { get; set; }
+    public decimal CreditsHeld { get; set; }
+}
+
 /// <summary>One authoritative TahlilApp paid-plan window, identified only by the confirmed fields.</summary>
 public sealed class ExternalPlanSubscriptionRow
 {
@@ -173,6 +182,9 @@ public sealed class SubscriptionCreditPeriodRow
 
     public decimal GrantedCredits { get; set; }
 
+    /// <summary>The catalog allowance captured at grant time, excluding any explicit transfer.</summary>
+    public decimal AllowanceCredits { get; set; }
+
     public decimal RemainingCredits { get; set; }
 
     public Guid GrantLedgerEntryId { get; set; }
@@ -184,6 +196,17 @@ public sealed class SubscriptionCreditPeriodRow
     public DateTimeOffset? ClosedAtUtc { get; set; }
 
     public long Revision { get; set; }
+}
+
+/// <summary>Permanent proof that a local user has received the one-time Free allowance.</summary>
+public sealed class FreeCreditGrantEvidenceRow
+{
+    public Guid UserId { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public Guid? GrantLedgerEntryId { get; set; }
+    public DateTimeOffset GrantedAtUtc { get; set; }
+    public DateTimeOffset? AssignedExpiresAtUtc { get; set; }
+    public string EvidenceSource { get; set; } = string.Empty;
 }
 
 public sealed class DailyFreeAllowanceGrantRow

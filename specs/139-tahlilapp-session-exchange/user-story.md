@@ -1,3 +1,5 @@
+> CURRENT CREDIT RULES: Feature 139 pending T-40-T-43 and the current integration contract supersede earlier monthly Free/Plus/Pro stories below. Their implemented status is historical evidence, not compliance with the confirmed full-window and Free-once policy.
+
 # Feature 139 — User Stories
 
 ## Revision 8 — Temporary Closed Registration policy
@@ -123,3 +125,9 @@ This revision supersedes conflicting earlier assumptions; task implementation st
 - **AC-102:** Allocate each eligible purchase once; include legitimate credits from both, apply Plus-to-Pro transfer only to unused Plus credit, and preserve append-only ledger and source attribution.
 - **AC-103:** When all paid windows have expired, start a persistent 30-day cooldown at the greatest authoritative paid `expires_at`; authentication continues, but no AI-credit reservation succeeds.
 - **AC-104:** Existing Free balances cannot bypass cooldown or be restored after it. No Free grant occurs during cooldown; keyed Free grants resume afterward. Paid reactivation permits paid use immediately.
+
+## Current correction (2026-11-02): Free and paid credit behavior
+
+This current story supersedes the historical monthly Free/Plus/Pro stories above. A new local user receives the database-configured Free allowance once when the wallet is first provisioned. Billing persists the provisioning anchor and assigned expiry at anchor plus 30 days. Repeated login/synchronization, exhaustion, expiry, or paid-plan expiry cannot extend or recreate that grant. Historical Free grant evidence, including 25-credit grants, permanently prevents another grant; no retrospective difference is awarded.
+
+A paid Plus or Pro subscription grants its configured catalog allowance once for the full authoritative TahlilApp window. Day 30/day 60 never refill. A distinct renewal grants once without carrying expired credits. Source-aware reservation/settlement/refund preserves accounting history, and expired source refunds never restore spendable credits. Null paid subscription does not by itself establish Free grant eligibility.

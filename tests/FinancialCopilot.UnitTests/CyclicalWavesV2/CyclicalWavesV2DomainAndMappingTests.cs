@@ -185,6 +185,8 @@ public sealed class CyclicalWavesV2DomainAndMappingTests
     [InlineData("MONTHLY_SALES", SymbolLookupPeriodSelector.SameMonthLastYear, "lastYearSameMonthSale")]
     [InlineData("AVG_12M_MONTHLY_SALES", SymbolLookupPeriodSelector.LastYearAverage12Month, "lastYearAverage12MonthSale")]
     [InlineData("PE_TTM", null, "pe")]
+    [InlineData("PE_TTM", SymbolLookupPeriodSelector.LatestMonth, "pe")]
+    [InlineData("PS_TTM", SymbolLookupPeriodSelector.LatestQuarter, "ps")]
     public void LookupMapping_FollowsDesignTable(string code, SymbolLookupPeriodSelector? selector, string field) =>
         Assert.Equal(field, ScreenerMetricMapping.ForLookup(new MetricCode(code), selector).FieldKey);
 

@@ -418,6 +418,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
+        services.AddScoped<IExpiryAwareWalletReadService>(provider =>
+            (IExpiryAwareWalletReadService)provider.GetRequiredService<IWalletProjectionRepository>());
         services.AddScoped<IWalletService>(provider =>
             provider.GetRequiredService<IWalletProjectionRepository>());
         services.AddScoped<IUsageReservationRepository, UsageReservationRepository>();

@@ -12,7 +12,9 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
 
     public DbSet<UsageLedgerEntryRow> UsageLedgerEntries => Set<UsageLedgerEntryRow>();
     public DbSet<SubscriptionCreditPeriodRow> SubscriptionCreditPeriods => Set<SubscriptionCreditPeriodRow>();
+    public DbSet<FreeCreditGrantEvidenceRow> FreeCreditGrantEvidence => Set<FreeCreditGrantEvidenceRow>();
     public DbSet<UsageCreditAllocationRow> UsageCreditAllocations => Set<UsageCreditAllocationRow>();
+    public DbSet<UsageCreditHoldRow> UsageCreditHolds => Set<UsageCreditHoldRow>();
     public DbSet<ExternalPlanSubscriptionRow> ExternalPlanSubscriptions => Set<ExternalPlanSubscriptionRow>();
     public DbSet<PaidExpiryCooldownRow> PaidExpiryCooldowns => Set<PaidExpiryCooldownRow>();
     public DbSet<DailyFreeAllowanceGrantRow> DailyFreeAllowanceGrants => Set<DailyFreeAllowanceGrantRow>();

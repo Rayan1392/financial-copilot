@@ -74,14 +74,14 @@ public sealed class TahlilAppBillingSyncTests
             SubscriptionEffectiveTo = DateTimeOffset.UtcNow.AddDays(-1)
         });
         dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 260, PricingPolicyVersion = "v1" });
-        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25, PricingPolicyVersion = "v1" });
+        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 250, PricingPolicyVersion = "v1" });
         await dbContext.SaveChangesAsync();
 
         var result = await new SubscriptionPlanRepository(dbContext).FindForCustomerAsync(accountId, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal("Free", result.Code);
-        Assert.Equal(25m, result.IncludedCredits);
+        Assert.Equal(250m, result.IncludedCredits);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class TahlilAppBillingSyncTests
             ExternalSubscriptionManaged = true
         });
         dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 2600, PricingPolicyVersion = "v1" });
-        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25, PricingPolicyVersion = "v1" });
+        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 250, PricingPolicyVersion = "v1" });
         dbContext.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
         {
             Id = Guid.NewGuid(),
@@ -117,11 +117,11 @@ public sealed class TahlilAppBillingSyncTests
 
         Assert.NotNull(result);
         Assert.Equal("Free", result.Code);
-        Assert.Equal(25m, result.IncludedCredits);
+        Assert.Equal(250m, result.IncludedCredits);
     }
 
     [Fact]
-    public async Task Sync_IsIdempotent_AndGrantsOnlyOneApprovedCreditPeriod()
+    public async Task Sync_IsIdempotent_ButLegacyPlanPayloadDoesNotCreateAnAuthoritativeWindowGrant()
     {
         await using var dbContext = CreateBillingDbContext();
         var (tenantId, userId) = (Guid.NewGuid(), Guid.NewGuid());
@@ -146,12 +146,15 @@ public sealed class TahlilAppBillingSyncTests
         Assert.Equal(2, account.SubscriptionRevision);
         Assert.Equal(18, account.ExternalSubscriptionRevision);
         Assert.Equal(1, await dbContext.AdminAudits.CountAsync(row => row.TenantId == tenantId));
-        Assert.Equal(260m, balanceAfterFirst);
+        Assert.Equal(0m, balanceAfterFirst);
         Assert.Equal(balanceAfterFirst, balance);
+        var historicalFreePeriod = await dbContext.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal("Free", historicalFreePeriod.PlanCode);
+        Assert.Equal(SubscriptionCreditLifecycleService.ForfeitedStatus, historicalFreePeriod.Status);
+        Assert.Equal(250m, historicalFreePeriod.GrantedCredits);
+        Assert.Equal(1, await dbContext.FreeCreditGrantEvidence.CountAsync(row => row.UserId == userId));
         Assert.Equal(1, await dbContext.UsageLedgerEntries.CountAsync(row =>
-            row.CustomerAccountId == account.Id &&
-            row.OperationCode == "Billing.SubscriptionCreditGrant" &&
-            row.CreditsCharged == 260m));
+            row.CustomerAccountId == account.Id && row.OperationCode == "Billing.SubscriptionCreditGrant"));
     }
 
     [Fact]
@@ -195,9 +198,11 @@ public sealed class TahlilAppBillingSyncTests
         var account = await dbContext.CustomerAccounts.SingleAsync(row => row.UserId == userId);
         Assert.Equal("Plus", account.SubscriptionPlanCode);
         Assert.Equal(21, account.ExternalSubscriptionRevision);
-        Assert.Equal(260m, (await dbContext.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id)).Balance);
-        Assert.Equal(2, await dbContext.SubscriptionCreditPeriods.CountAsync(row => row.CustomerAccountId == account.Id));
-        Assert.Single(await dbContext.SubscriptionCreditPeriods.Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Plus").ToListAsync());
+        Assert.Equal(0m, (await dbContext.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id)).Balance);
+        var historicalFreePeriod = await dbContext.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal("Free", historicalFreePeriod.PlanCode);
+        Assert.Equal(SubscriptionCreditLifecycleService.ForfeitedStatus, historicalFreePeriod.Status);
+        Assert.Equal(250m, historicalFreePeriod.GrantedCredits);
     }
 
     private static BillingDbContext CreateBillingDbContext() =>
@@ -207,7 +212,7 @@ public sealed class TahlilAppBillingSyncTests
 
     private static void SeedCanonicalPlans(BillingDbContext dbContext) =>
         dbContext.SubscriptionPlans.AddRange(
-            new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25m, PricingPolicyVersion = "v1" },
+            new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 250m, PricingPolicyVersion = "v1" },
             new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 260m, PricingPolicyVersion = "v1" },
             new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 2600m, PricingPolicyVersion = "v1" });
 }

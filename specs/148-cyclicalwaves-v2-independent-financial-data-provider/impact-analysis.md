@@ -108,7 +108,7 @@ All endpoints in this section are on `https://back1.cyclicalwaves.com/api/` (con
 | `specs/066`, `specs/084` | Note: comprehensive analysis is disabled in NoavaranAmin mode (C2) and served from `cyclicalwaves.Analyses` in CyclicalWaves mode; the published-analysis detector is disabled. |
 | `specs/073` | Note: in NoavaranAmin mode, reads exclude legacy CyclicalWaves-derived rows (C1). |
 | `specs/README.md`, `specs/implementation-checklist.md` | Add a Feature 148 entry; annotate the superseded and disabled rows. |
-| Root `README.md` | Document `FinancialData:ChatProvider`, `ExcludeLegacyCyclicalWavesDerivedMetrics`, `CyclicalWavesV2__*` and `CyclicalWavesLegacy:AllowCalls`. |
+| Root `README.md` | Document `FinancialData:ChatProvider`, the unconditional C1/C1-M exclusion, `CyclicalWavesV2__*` and `CyclicalWavesLegacy:AllowCalls`. |
 | `docs/providers/cyclicalwaves-v2/` | Add the two v2 PDFs plus a provenance note. Label `docs/cw_api.txt` and `docs/Cyclical Waves_api_document_2026_05_26.pdf` as legacy. |
 
 ## 5. Behavior that must remain unchanged

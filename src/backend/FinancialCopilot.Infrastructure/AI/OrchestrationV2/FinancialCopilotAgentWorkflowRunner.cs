@@ -409,6 +409,15 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             clarificationMessage,
             state.ScannerResult is not null || state.LookupResult is not null || detectedIntent != DetectedIntent.Unknown,
             state.ScannerResult?.Table is not null || state.LookupResult?.Table?.Rows.Count > 0);
+        if (state.LookupResult?.UnsupportedMessage is { } unsupportedMessage)
+        {
+            outcome = new DialogueOutcomeResult(
+                DialogueOutcome.Unsupported,
+                ChatCapabilityAvailability.UnavailableForProviderReasonCode,
+                AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message),
+                unsupportedMessage,
+                LanguageGuardApplied: false);
+        }
         outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
             outcome,
             outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : groundedAnswer));
@@ -617,6 +626,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         string? candidateProse,
         AnswerConsistencyContext context)
     {
+        if (state.LookupResult?.UnsupportedMessage is { } unsupportedMessage)
+            return unsupportedMessage;
+
         if (intent == DetectedIntent.SymbolLookup && state.LookupResult?.Table is not null)
             return consistencyValidator
                 .ValidateSymbolLookup(state.LookupResult.Table, candidateProse, context)

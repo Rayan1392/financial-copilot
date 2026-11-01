@@ -78,7 +78,8 @@ public sealed class UsageFinalizationService(
             command.ActualCharge.CreditsCharged,
             command.AllocationSource,
             command.AllowanceDateKey,
-            cancellationToken);
+            cancellationToken,
+            reservationRow.Id);
         reservation.Commit(command.ActualCharge.CreditsCharged);
         var updatedWallet = wallet.Commit(
             reservation.ReservedCredits,
@@ -240,6 +241,7 @@ public sealed class UsageFinalizationService(
 
         reservationRow.Status = reservation.Status.ToString();
         reservationRow.FinalizationReason = reservation.FinalizationReason;
+        await creditLifecycle.ReleaseHoldsAsync(reservationRow.Id, cancellationToken);
         walletRow.Balance = updatedWallet.Balance;
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;

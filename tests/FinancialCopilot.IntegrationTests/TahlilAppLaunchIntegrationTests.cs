@@ -159,12 +159,12 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         var account = await billing.CustomerAccounts.SingleAsync(row => row.UserId ==
             firstBody.RootElement.GetProperty("user").GetProperty("userId").GetGuid());
         var wallet = await billing.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
-        var period = await billing.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id);
         Assert.Equal("Free", account.SubscriptionPlanCode);
-        Assert.Equal(25m, wallet.Balance);
-        Assert.Equal(25m, period.GrantedCredits);
-        Assert.Equal(TimeSpan.Zero, period.StartsAtUtc.Offset);
-        Assert.Equal(period.StartsAtUtc.AddDays(30), period.ExpiresAtUtc);
+        Assert.Equal(250m, wallet.Balance);
+        var freePeriod = await billing.SubscriptionCreditPeriods.SingleAsync(row =>
+            row.CustomerAccountId == account.Id && row.PlanCode == "Free");
+        Assert.Equal(250m, freePeriod.AllowanceCredits);
+        Assert.Equal(1, await billing.FreeCreditGrantEvidence.CountAsync(row => row.UserId == account.UserId));
         Assert.Equal(1, await billing.UsageLedgerEntries.CountAsync(row =>
             row.CustomerAccountId == account.Id && row.OperationCode == "Billing.SubscriptionCreditGrant"));
         Assert.Empty(await billing.PaidExpiryCooldowns.Where(row => row.CustomerAccountId == account.Id).ToListAsync());
@@ -199,9 +199,10 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
         var account = await billing.CustomerAccounts.SingleAsync(row => row.UserId == users[0]);
         var wallet = await billing.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
-        Assert.Equal(25m, wallet.Balance);
+        Assert.Equal(250m, wallet.Balance);
         Assert.Equal(1, await billing.SubscriptionCreditPeriods.CountAsync(row =>
             row.CustomerAccountId == account.Id && row.PlanCode == "Free"));
+        Assert.Equal(1, await billing.FreeCreditGrantEvidence.CountAsync(row => row.UserId == users[0]));
         Assert.Equal(1, await billing.UsageLedgerEntries.CountAsync(row =>
             row.CustomerAccountId == account.Id && row.OperationCode == "Billing.SubscriptionCreditGrant"));
         Assert.Empty(await billing.PaidExpiryCooldowns.Where(row => row.CustomerAccountId == account.Id).ToListAsync());

@@ -33,7 +33,7 @@ function NewChatPage() {
     { text: "آخرین فروش فخاس چقدر بوده است؟", icon: Package },
     { text: "رتبه بندی گزارش ماهانه؟", icon: FileText },
     { text: "آخرین قیمت اخابر چقدر بوده؟", icon: Activity },
-    { text: "کگهر را با صنعت خودش مقایسه کن", icon: BarChart3 },
+    { text: "سود خالص وبملت در آخرین دوره چقدر بوده؟", icon: BarChart3 },
     { text: "گزارش‌های فصلی فولاد؟", icon: FileText },
   ];
 

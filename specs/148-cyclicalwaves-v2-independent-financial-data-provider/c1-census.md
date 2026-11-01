@@ -46,13 +46,38 @@ All 4 130 are **growth metrics** whose two operands come from different provider
 - (d) = 0: **met**.
 - (c) = 0: **not met** — 4 130 mixed rows.
 
-Provenance is fully determinable (every operand's provider is recorded; nothing is inferred from values or dates), so
-the C1 filter was implemented under the Product Owner's 2026-10-31 instruction ("stop only if provenance cannot be
-reliably determined"). The open question is classification, not provenance:
+Provenance is fully determinable for these rows (every operand's provider is recorded; nothing is inferred from values or
+dates).
 
-- **Default (design §10.6, "any evidence item from CyclicalWaves"):** mixed rows are excluded —
-  `FinancialData:LegacyCyclicalWavesMixedProvenance = Exclude`.
-- **Alternative:** `Include` keeps the mixed growth rows and excludes only rows whose evidence is exclusively CyclicalWaves.
+## C1-M — final rule (Product Owner decision, 2026-10-31)
 
-**REQUIRES_PRODUCT_OWNER_DECISION (C1-M):** confirm `Exclude` (current default) or switch to `Include`. The switch is
-configuration only; no code or data change is needed either way.
+**Mixed-provenance rows are permanently excluded.** The former `FinancialData:LegacyCyclicalWavesMixedProvenance` option
+(`Exclude` | `Include`) and the `FinancialData:ExcludeLegacyCyclicalWavesDerivedMetrics` switch were removed; no
+configuration can include legacy or mixed rows again. No row was modified or deleted.
+
+### Follow-up census: rows that record no provider (read-only, 2026-10-31)
+
+The 68 803 rows without any `sourceProvider` were broken down by calculation policy:
+
+| `CalculationPolicyVersion` | Rows | Evidence | Classification |
+|---|---|---|---|
+| `nadpco-api-fundamental-index-source-v1` | 57 176 | `[{"source":"NoavaranCurrentApi", …}]` (provider in a different property) | NotLegacy (NoavaranAmin) |
+| `codal-ratio-source-v1` | 3 740 | source evidence present, dependency empty | NotLegacy (CodalDB) |
+| `cw-avg-12m-monthly-sales-passthrough-v1` | **7 887** | both arrays empty | **Legacy**: this policy reads only the `AVG_12M` line item, which only `CyclicalWavesMonthlyReportNormalizer` writes; every attributed row of the policy (2 259) is CyclicalWaves |
+
+The substring census (b) missed these 7 887 rows because the policy name is `cw-…`, not `CyclicalWaves`. They are now
+classified by the registered policy (`LegacyCalculationPolicy`). The policy name alone is **not** used where it is shared:
+`cw-net-profit-passthrough-v1` and other `cw-*` statement policies also carry NoavaranCurrentApi rows, so a recorded
+provider always wins. Evidence that is not a JSON array: 0 rows (such rows would be excluded as undetermined).
+
+### Final classification (read-only, 2026-10-31)
+
+| Class | Rows | Companies | Read by NoavaranAmin Chat |
+|---|---|---|---|
+| ExclusivelyLegacy | 32 969 | 607 | never |
+| MixedWithLegacy | 4 130 | 517 | never |
+| LegacyCalculationPolicy | 7 887 | 625 | never |
+| NotLegacy | 136 480 | 1 193 | yes |
+
+Effect: `AVG_12M_MONTHLY_SALES` has no valid row left in `DerivedMetrics` (10 146 rows, 625 companies, all legacy).
+NoavaranAmin answers for that metric come only from paths that do not read these rows; otherwise they are Missing.

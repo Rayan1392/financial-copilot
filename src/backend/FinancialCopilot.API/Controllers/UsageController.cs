@@ -16,6 +16,7 @@ public sealed class UsageController(
     ICurrentActorContext actorContext,
     IBillableAccountResolver accountResolver,
     IWalletService wallets,
+    FinancialCopilot.Billing.Contracts.IExpiryAwareWalletReadService spendableWallets,
     IApiUsageReportService usageReports,
     ISubscriptionPlanRepository subscriptionPlans,
     TimeProvider timeProvider) : ControllerBase
@@ -44,7 +45,7 @@ public sealed class UsageController(
                 actor.ApiClientId,
                 ExternalUserId: null),
             cancellationToken);
-        var wallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
+        var wallet = await spendableWallets.GetSpendableSnapshotAsync(account.Id, cancellationToken);
         var entries = await usageReports.QueryUsageAsync(
             account.Id,
             periodFrom,

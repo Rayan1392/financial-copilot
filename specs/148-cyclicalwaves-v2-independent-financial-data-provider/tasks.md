@@ -295,7 +295,7 @@ Rules for every task:
   - **Dependencies:** T148-02.1
   - **Actions:**
     - Map `CyclicalWavesV2__*` from `CYCLICALWAVES_V2_*` (credentials optional, ingestion default `false`).
-    - Add `FinancialData__ChatProvider` (default `NoavaranAmin`) and `FinancialData__ExcludeLegacyCyclicalWavesDerivedMetrics` (default `true`).
+    - Add `FinancialData__ChatProvider` (default `NoavaranAmin`). The C1 exclusion has no setting (C1-M).
     - Add a README configuration paragraph.
   - **Verification:** `docker compose config` resolves with v2 variables unset. A secret scan of the diff is clean.
 
@@ -451,9 +451,9 @@ Rules for every task:
     - The evidence file exists.
     - **Gate:** (a) and (b) match, and (c) and (d) are both 0. Otherwise stop T148-06.7 and report to the Product Owner.
 
-- [x] **T148-06.7 — C1 filter in NoavaranAmin reads** · DONE — mixed-row classification is configurable; REQUIRES_PRODUCT_OWNER_DECISION C1-M (default Exclude)
+- [x] **T148-06.7 — C1 filter in NoavaranAmin reads** · DONE — superseded in part by T148-06.10 (C1-M: no setting, mixed rows always excluded)
   - **Objective:** Exclude legacy CyclicalWaves-derived rows at the read boundary.
-  - **Components:** `Infrastructure/Financial/Scanner/LegacyCyclicalWavesDerivedMetricFilter.cs`; call sites in `EfCoreSymbolMetricLookupService.cs`, `EfCoreScannerExecutionService.cs` (both `DerivedMetrics` queries) and `ProfessionalScanners/ProfessionalScannerUseCases.cs`; option `FinancialData:ExcludeLegacyCyclicalWavesDerivedMetrics`
+  - **Components:** `Infrastructure/Financial/Scanner/LegacyCyclicalWavesDerivedMetricFilter.cs`; call sites in `EfCoreSymbolMetricLookupService.cs`, `EfCoreScannerExecutionService.cs` (both `DerivedMetrics` queries) and `ProfessionalScanners/ProfessionalScannerUseCases.cs`
   - **Dependencies:** T148-06.6 gate passed
   - **Actions:**
     - Parse the evidence JSON for structured `SourceProvider`. Exclude a row when any source or dependency evidence item equals `ProviderSources.CyclicalWavesName`.
@@ -465,7 +465,6 @@ Rules for every task:
     - NoavaranAmin rows are selected.
     - With no valid row the result is Missing.
     - `DerivedMetrics` row counts are unchanged.
-    - Flag `false` restores the current behavior.
 
 - [x] **T148-06.8 — CyclicalWaves comprehensive analysis retrieval** · DONE (2026-10-31)
   - **Objective:** Deterministic article search over v2 tables.
@@ -488,6 +487,16 @@ Rules for every task:
     - Classify the selected latest row by structured `SourceProvider` (same rule and switches as C1).
     - When legacy: record `LastDecision = LegacyDataRetired` with a Persian reason, keep the rule `Active`, create no trigger and no notification intent, and never substitute another row or source.
   - **Verification:** T148-08.9.
+
+- [x] **T148-06.10 — C1-M: permanent exclusion of legacy and mixed provenance** · DONE (2026-10-31)
+  - **Objective:** Product Owner decision C1-M: legacy and mixed-provenance metrics are never valid evidence; the `Include` option is removed.
+  - **Components:** `LegacyCyclicalWavesDerivedMetricFilter.cs` (static rule, no options), `FinancialDataOptions` (only `ChatProvider` remains), call sites in `EfCoreSymbolMetricLookupService`, `EfCoreScannerExecutionService` (2 queries), `ProfessionalScannerUseCases` (availability and freshness), `ConditionalTrackerEvaluationProcessor` (N1); API/Worker `appsettings.json`, `docker-compose.yml`, `.env.example`, root `README.md`.
+  - **Dependencies:** T148-06.7
+  - **Actions:**
+    - Remove `ExcludeLegacyCyclicalWavesDerivedMetrics` and `LegacyCyclicalWavesMixedProvenance` and every branch on them.
+    - Exclude exclusively-legacy and mixed rows always; classify provider-less rows by the four registered legacy-only calculation policies; exclude unparseable evidence.
+    - Apply the rule to the professional scanner's availability and freshness query, which previously counted legacy rows.
+  - **Verification:** unit tests (classification incl. policy and undetermined cases, removed settings cannot reactivate, inputs unchanged, every listed policy is registered) and the NoavaranAmin Chat E2E tests (legacy P/E and monthly sales skipped, mixed growth row excluded from the scanner with a valid control row kept, historical rows still stored). Census in `c1-census.md`.
 
 ## T148-07 — Basic Financial Scanner (C3)
 
@@ -582,7 +591,7 @@ Rules for every task:
     - `provider-health` returns the retired status.
   - **Verification:** Green.
 
-- [~] **T148-08.4 — Chat routing and isolation tests** · PARTIAL — dispatcher, policy, DI-swap and legacy-path gates tested; no end-to-end AI-facade/LLM or Telegram Chat run
+- [~] **T148-08.4 — Chat routing and isolation tests** · PARTIAL (2026-10-31) — end-to-end Chat and Telegram suites added and green (28 tests); every provider requirement is proven, but 5 of the 10 acceptance questions (and Q10 partly) in their exact wording are stopped by pre-existing, provider-independent routing defects (see Verification)
   - **Objective:** AC-14 to AC-17, AC-19 and AC-21.
   - **Components:** unit and integration Chat tests (AI facade V2 path)
   - **Dependencies:** T148-06
@@ -591,7 +600,12 @@ Rules for every task:
     - **NoavaranAmin mode:** an analysis question gets the C2 answer, with zero reads of the legacy or v2 analysis tables.
     - **Both modes:** P/S gauge and relative valuation get the retired answer.
     - **Telegram:** the same rules apply through the shared orchestrator.
-  - **Verification:** Green.
+  - **Verification (2026-10-31):** `tests/FinancialCopilot.IntegrationTests/Feature148ChatProviderE2ETests.cs`, 28/28 passed. Real pipeline: `POST /api/ai/v1/query` (API key, conversation, MAF V2, semantic routing, provider selection, executors, presentation, billing, persistence), the V1 orchestrator, the Shadow routing mode, and Telegram `POST /api/v1/telegram/assistant/updates` (gateway key, account link, replay). Only the LLM is faked; v2 data is seeded through the real parser and store from recorded provider payloads. Each test asserts values, units, the source label, the entity types read (EF materialization recorder) and zero outbound HTTP (no legacy call, no live call).
+    - Q1 monthly sales 639,418,160 million IRR from v2, persisted and replayed; Q3 quarterly statement (provider `CyclicalWavesV2`, sales 1,675,255,385, net profit 471,272,793); Q8 analysis 148001 from v2 only; Q9 answered as unsupported; NoavaranAmin mode returns 123,456,000 and 9.37 (newer legacy rows skipped), excludes the mixed growth row with a valid control kept, returns the C2 message with no analysis-table read; switching `ChatProvider` switches value and source in both directions.
+    - Router-supported wordings prove the data paths of Q4–Q7: four stored quarters of net profit; P/E < 5 → شستا, فملی (`pe = 0` not computable); P/S < 1 → فملی, وبملت, کگل; MoM sales growth > 20% → فملی 33.33%, کگل 25%; net-profit growth 291.56% (v2) vs. mixed row excluded (NoavaranAmin).
+    - **Not met for the exact wording (pre-existing, identical in NoavaranAmin mode, shared routing code unchanged by Feature 148):** Q2 and Q10 («سود»/«خالص» and product words become unresolvable entity mentions → clarification), Q4 (no statement type → "no data"), Q5/Q6 (`CapabilityRoutingPrecedence` ignores «کمتر از/بیشتر از» → symbol lookup), Q7 (classified as `product_sales_trend` → unavailable). Root amplifier: `LlmQueryInterpretationProposalProvider.Parse` rejects every proposal with `"periodCount": null`, so the LLM never corrects deterministic routing (confirmed empirically: `JsonElement.TryGetInt32()` throws `InvalidOperationException` on a `Null`-kind element; it does not return `false`). These are pinned as characterization tests.
+    - **Product Owner decision (2026-10-31): closed with this limitation documented, not fixed here.** General Chat routing defects are repaired in a separate feature, not by expanding Feature 148's scope. See `specs/150-shared-chat-routing-intent-and-entity-resolution-fixes/spec.md` (R1–R6, one per defect above). Feature 148's implementation status is **IMPLEMENTED_WITH_KNOWN_CHAT_ROUTING_LIMITATIONS**; this task remains PARTIAL, not DONE, and is not retroactively marked passed.
+    - Feature 148 defects found and fixed by these runs: Feature 116 baseline/growth/multiple columns were empty in the v2 scanner; a "latest" selector carried over by the conversation made v2 P/E "not published".
 
 - [x] **T148-08.5 — Scanner tests** · DONE (2026-10-31)
   - **Objective:** AC-22.
@@ -662,4 +676,4 @@ Rules for every task:
 
 ---
 
-**Task count:** 49 = 46 original + 3 N1 (00: 3 · 01: 6 · 02: 4 · 03: 4 · 04: 4 · 05: 6 · 06: 9 · 07: 4 · 08: 9). The earlier summary reported 41 and the per-group figures 42; the file actually contained 46 tasks before N1. Result: 48 done, 1 partial (T148-08.4).
+**Task count:** 50 = 46 original + 3 N1 + T148-06.10 C1-M (00: 3 · 01: 6 · 02: 4 · 03: 4 · 04: 4 · 05: 6 · 06: 10 · 07: 4 · 08: 9). The earlier summary reported 41 and the per-group figures 42; the file actually contained 46 tasks before N1. Result: 49 done, 1 partial (T148-08.4), 0 blocked.

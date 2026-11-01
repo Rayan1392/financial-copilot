@@ -91,11 +91,11 @@ The task-level breakdown is in [tasks.md](./tasks.md). Effort is in focused engi
 
 ## Rollout
 
-1. **Deploy.** Use the defaults: `IngestionEnabled=false`, `ChatProvider=NoavaranAmin`, `AllowCalls=false`, and `ExcludeLegacyCyclicalWavesDerivedMetrics=true` (census already passed). Legacy calls, schedules and triggers stop; C1 and C2 take effect.
+1. **Deploy.** Use the defaults: `IngestionEnabled=false`, `ChatProvider=NoavaranAmin`, and `AllowCalls=false`. The C1/C1-M exclusion is unconditional (census passed; no setting). Legacy calls, schedules and triggers stop; C1 and C2 take effect.
 2. **Load data.** Set the credentials and enable ingestion. From Admin, run catalog, one ticker, analysis full, then Full. Spot-check the results.
 3. **Enable the schedule.** Turn on `DailySyncEnabled` and observe two runs.
 4. **Trial CyclicalWaves mode.** Run `ChatProvider=CyclicalWaves` in non-production with the acceptance set, including the scanner examples. Promote only by explicit decision.
-5. **Rollback options:** `ChatProvider=NoavaranAmin`, `IngestionEnabled=false`, `ExcludeLegacyCyclicalWavesDerivedMetrics=false`.
+5. **Rollback options:** `ChatProvider=NoavaranAmin`, `IngestionEnabled=false`. Re-including legacy CyclicalWaves-derived metrics is not an option (C1-M).
 
 ## Blockers and verifications
 

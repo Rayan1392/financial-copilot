@@ -101,7 +101,9 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
         return database;
     }
 
-    public async Task<PostgreSqlTestDatabase> CreateBillingDatabaseAsync(string databasePrefix = "feature139_billing")
+    public async Task<PostgreSqlTestDatabase> CreateBillingDatabaseAsync(
+        string databasePrefix = "feature139_billing",
+        string? targetMigration = null)
     {
         if (UnavailableReason is not null)
             Skip.If(true, UnavailableReason);
@@ -126,7 +128,7 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
         };
         var database = new PostgreSqlTestDatabase(adminConnectionString, databaseName, builder.ConnectionString);
         await using (var billing = database.CreateBillingContext())
-            await billing.Database.MigrateAsync();
+            await billing.Database.MigrateAsync(targetMigration);
         return database;
     }
 

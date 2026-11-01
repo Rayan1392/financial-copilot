@@ -11,6 +11,13 @@ public sealed class DeterministicCapabilityInterpreter(
     IConversationalCapabilityRegistry registry,
     IQueryInterpretationTelemetrySink? telemetrySink = null) : ICapabilityInterpreter
 {
+    private static readonly HashSet<string> FinancialAndPeriodEntityExclusions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "\u0633\u0648\u062f", "\u062e\u0627\u0644\u0635", "\u0631\u0634\u062f", "\u0641\u0631\u0648\u0634",
+        "\u0645\u0627\u0647\u0627\u0646\u0647", "\u0631\u0648\u0646\u062f", "\u0628\u06cc\u0634\u062a\u0631", "\u06a9\u0645\u062a\u0631", "\u0627\u0632",
+        "\u062f\u0631\u0635\u062f", "\u0641\u0635\u0644", "\u0686\u0647\u0627\u0631", "\u0627\u062e\u06cc\u0631",
+        "\u0622\u062e\u0631\u06cc\u0646", "\u062a\u0648\u0644\u06cc\u062f"
+    };
     private static readonly string[] ScreeningWords = ["screen", "filter", "stocks", "سهام", "فیلتر", "شرط"];
     private static readonly string[] TrendWords = ["trend", "chart", "graph", "روند", "چارت", "نمودار"];
     private static readonly string[] AnalysisWords = ["analysis", "analyze", "review", "تحلیل", "بررسی", "ارزیابی", "وضعیت"];
@@ -351,7 +358,8 @@ public sealed class DeterministicCapabilityInterpreter(
         var tokens = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         foreach (var token in tokens)
         {
-            if (token.Length < 2 || NonEntityWords.Contains(token) || token is "\u062e\u0648\u062f" or "\u062f\u0631" or "\u0628\u0627" || QueryNormalization.IsEntityDistractor(token) || token.All(char.IsDigit))
+            if (token.Length < 2 || NonEntityWords.Contains(token) || FinancialAndPeriodEntityExclusions.Contains(token) ||
+                token is "\u062e\u0648\u062f" or "\u062f\u0631" or "\u0628\u0627" || QueryNormalization.IsEntityDistractor(token) || token.All(char.IsDigit))
                 continue;
             if (!token.Any(character => char.IsLetter(character))) continue;
             var tokenForMarker = QueryNormalization.Normalize(token);

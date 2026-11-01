@@ -16,9 +16,10 @@ public static class FinancialStatementTableIntentRules
             return false;
 
         var hasIncomeStatement = ResolveStatementType(normalized) == FinancialStatementType.IncomeStatement ||
+                                 ContainsAny(normalized, "\u0633\u0648\u062f \u062e\u0627\u0644\u0635", "\u0632\u06cc\u0627\u0646 \u062e\u0627\u0644\u0635") ||
                                  ContainsAny(normalized, "income statement", "income statements", "profit and loss", "profit & loss", "financial report", "financial reports");
-        var hasTableIntent = ContainsAny(normalized,
-            "جدول", "گزارش", "صورت سود", "صورت درآمد", "جدول درآمد",
+        var hasTableIntent = ContainsAny(normalized, "trend", "\u0631\u0648\u0646\u062f") || ContainsAny(normalized,
+            "جدول", "گزارش", "صورت سود", "صورت درآمد", "جدول درآمد", "چقدر", "بوده", "چطور بوده", "آخرین",
             "table", "report", "show", "display", "give me", "latest", "last");
         var hasAnalysisIntent = ContainsAny(normalized, "تحلیل", "بررسی", "ارزیابی", "analyze", "analyse", "analysis", "review");
         if (hasIncomeStatement)
@@ -32,6 +33,7 @@ public static class FinancialStatementTableIntentRules
     {
         if (string.IsNullOrWhiteSpace(query)) return 5;
         var normalized = NormalizeText(query);
+        if (normalized.Contains("\u0686\u0647\u0627\u0631 \u0641\u0635\u0644", StringComparison.Ordinal)) return 4;
         var match = Regex.Match(normalized, @"(?<count>\d+)\s*(?:فصل|دوره|quarters?)");
         if (!match.Success || !int.TryParse(match.Groups["count"].Value, out var count)) return 5;
         return count;
@@ -146,6 +148,9 @@ public static class FinancialStatementTableIntentRules
         "me",
         "recent",
         "recently",
+        "\u0633\u0648\u062f",
+        "\u062e\u0627\u0644\u0635",
+        "\u0632\u06cc\u0627\u0646",
         "دوره",
         "اخیر",
         "لطفا",
@@ -325,6 +330,7 @@ public static class FinancialStatementTableIntentRules
             .Concat(CashFlowAliases)
             .Concat(TableActionAliases)
             .Concat(AnalysisAliases)
+            .Concat(["trend", "\u0631\u0648\u0646\u062f", "\u0686\u0647\u0627\u0631 \u0641\u0635\u0644 \u0627\u062e\u06cc\u0631", "\u0686\u0637\u0648\u0631 \u0628\u0648\u062f\u0647"])
             .Concat(["گزارشات", "گزارش ها", "گزارش های", "گزارشها", "گزارشهای"])
             .OrderByDescending(phrase => phrase.Length);
         foreach (var phrase in phraseCues)

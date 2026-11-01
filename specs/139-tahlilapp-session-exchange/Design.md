@@ -1,3 +1,5 @@
+> CURRENT CREDIT POLICY: The confirmed full-window Plus/Pro and one-time Free rules in TahlilAppIntegrationContract.md (final section) and pending T-40-T-43 supersede earlier 30-day grant-cycle design below. Existing text is preserved as implementation history; Max mode is Feature 152 and top-up delivery is Feature 151.
+
 # Feature 139 — TahlilApp Session Exchange
 
 ## Revision 9 — Official `name` persisted as `DisplayName`
@@ -1009,3 +1011,11 @@ When all paid sources end through an administrative revocation, the first observ
 The official status request is `GET https://api.tahlilapp.com/api/partners/users/{user_id}/status`, with `user_id` sourced from the persisted TahlilApp external identity, and HTTP Basic Auth from the existing configured client id and secret. Login and new credit reservations call the shared due-check refresher. Its successful-verification TTL remains 15 minutes; a due request is single-flight per local user and partner requests are paced at no more than one per 1.1 seconds per API process. There is no guarantee of revocation detection inside the TTL. HTTP 401, 404, 429, timeout, transport errors and 5xx are unavailable outcomes: they do not disable authentication or reactivate a previously verified Free state; a last-known paid state is kept only within the existing six-hour unavailable grace, then fails closed to Free. No automatic retry is added. Multi-instance deployments must ensure the aggregate partner rate limit is shared across instances.
 
 Migration `Feature139SubscriptionRevocation` adds `IsRevoked`, `RevokedAtUtc`, and `RevocationObservedAtUtc`. It is generated but not applied. No production partner API was called.
+
+## Current correction (2026-11-02): shared credit lifecycle
+
+The prior 30-day rolling-credit model and the previous requirement for an upstream Free-expiry field are superseded. TahlilApp sends paid Plus/Pro/Max windows with authoritative dates; absence of paid subscriptions is represented by a null subscription value. Billing assigns Free only once at first local wallet provisioning, anchored to the persisted `CustomerAccount.SubscriptionEffectiveFrom` and expiring 30 days after that anchor. A unique per-user evidence row prevents regrant after login, sync, exhaustion, expiry, paid expiry, or cooldown completion.
+
+Every paid window gets one grant from the matching `SubscriptionPlan.IncludedCredits`; the grant snapshots that allowance. Catalog edits affect only a new distinct window, never a retry or an existing grant. Day 30/day 60 do not grant. Renewals create one distinct source, and expired source credits do not carry. Empty paid-plan responses never authorize a new Free grant when durable evidence or account history indicates prior/ambiguous receipt.
+
+Reservations store source holds; settlement and refunds retain allocation links. Expired unheld balances are excluded before cleanup, and refunds from expired sources are offset rather than returned to spendable wallet. Existing unrelated credits, ledger history, and ambiguous legacy balances remain unchanged. The migrations backfill historical Free evidence and allowance snapshots, and create holds for future reservations; legacy reservations without holds use the existing persisted reservation time only when it unambiguously identifies an existing source. Ambiguous balances and reservations require manual review.

@@ -120,7 +120,7 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
 
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
         Assert.Equal("symbol_metric_lookup", root.GetProperty("semanticCapabilityCode").GetString());
-        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean(), root.ToString());
         var cell = Feature148Chat.LookupCell(root, Feature148ChatFixtures.Folad, "MONTHLY_SALES");
         Assert.Equal(639_418_160_000_000m, cell.GetProperty("value").GetDecimal()); // IRR, screener-folad.json lastMonthSale
         Assert.Equal("639,418,160", cell.GetProperty("formattedValue").GetString()); // million IRR
@@ -145,16 +145,15 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
     }
 
     [Fact]
-    public async Task Q02_NetProfitLatestQuarter_ExactWording_IsStoppedByTheSharedEntityRouter_WithoutReadingProviderData()
+    public async Task Q02_NetProfitLatestQuarter_ExactWording_ReturnsTheStoredQuarterlyValue()
     {
-        // "سود" and "خالص" are not router stop words, so they become unresolvable entity mentions (same in NoavaranAmin mode).
         var root = await Feature148Chat.AskAsync(_factory, "سود خالص آخرین فصل فولاد چقدر بوده؟");
 
-        Assert.True(root.GetProperty("clarificationRequired").GetBoolean());
-        Assert.Equal("entity_not_found", root.GetProperty("outcomeReasonCode").GetString());
-        Assert.Equal(0m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
-        Assert.False(_factory.Reads.Read<CyclicalWavesV2FinancialValueRow>());
-        Assert.False(_factory.Reads.Read<DerivedMetricRow>());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean(), root.ToString());
+        Assert.Equal("financial_statement_table", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(471_272_793m, Feature148Chat.QuarterlyRow(root, 66)[0]);
+        Assert.Contains("فولاد", Feature148Chat.Text(root));
+        Assert.True(_factory.Reads.Read<CyclicalWavesV2IncomeStatementValueRow>());
         Feature148Chat.NoOutboundCalls(_factory.Http);
     }
 
@@ -180,17 +179,13 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
     }
 
     [Fact]
-    public async Task Q04_NetProfitTrend_ExactWording_HasNoStatementType_SupportedWordingReturnsFourStoredQuarters()
+    public async Task Q04_NetProfitTrend_ExactWording_InfersIncomeStatementAndReturnsFourStoredQuarters()
     {
-        // The table capability gets no statement type from this wording and answers "no data" (same use-case guard in both providers).
-        var exact = await Feature148Chat.AskAsync(_factory, "روند سود خالص چهار فصل اخیر فولاد چطور بوده؟");
-        Assert.Equal("financial_statement_table", exact.GetProperty("semanticCapabilityCode").GetString());
-        Assert.True(exact.GetProperty("financialStatementTableResult").ValueKind == JsonValueKind.Null);
-        Feature148Chat.NoOutboundCalls(_factory.Http);
-
-        _factory.ResetRecorders();
-        var root = await Feature148Chat.AskAsync(_factory, "صورت سود و زیان چهار فصل اخیر فولاد را نمایش بده");
+        var root = await Feature148Chat.AskAsync(_factory, "روند سود خالص چهار فصل اخیر فولاد چطور بوده؟");
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal("financial_statement_table", root.GetProperty("semanticCapabilityCode").GetString());
         Assert.Equal([471_272_793m, 120_356_493m, 560_156_183m, 188_930_866m], Feature148Chat.QuarterlyRow(root, 66));
+        Assert.True(root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult").GetProperty("periodsNewestFirst").GetArrayLength() >= 4);
         Feature148Chat.ReadOnlyCyclicalWavesV2(_factory.Reads);
         Feature148Chat.NoOutboundCalls(_factory.Http);
     }
@@ -198,14 +193,14 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
     [Theory]
     [InlineData("سهم‌هایی با P/E کمتر از ۵ را پیدا کن")]
     [InlineData("شرکت‌هایی با P/S کمتر از ۱")]
-    public async Task Q05_Q06_ScreeningWithKamtarAz_ExactWording_IsRoutedToLookupByTheSharedRouter(string question)
+    public async Task Q05_Q06_ScreeningWithKamtarAz_ExactWording_RunsTheCyclicalWavesScanner(string question)
     {
-        // CapabilityRoutingPrecedence treats only below/above/زیر/بالای as thresholds (same in NoavaranAmin mode).
         var root = await Feature148Chat.AskAsync(_factory, question);
 
-        Assert.Equal("symbol_metric_lookup", root.GetProperty("semanticCapabilityCode").GetString());
-        Assert.True(root.GetProperty("clarificationRequired").GetBoolean());
-        Assert.Equal(0m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal("stock_screening", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal("Scanner", root.GetProperty("intent").GetString());
+        Assert.NotEmpty(Feature148Chat.ScannerSymbols(root));
         Feature148Chat.NoOutboundCalls(_factory.Http);
     }
 
@@ -236,22 +231,13 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
     }
 
     [Fact]
-    public async Task Q07_MonthlySalesGrowth_ExactWordingIsUnavailable_SupportedWordingComputesGrowthDeterministically()
+    public async Task Q07_MonthlySalesGrowth_ExactWording_RunsTheCyclicalWavesScanner()
     {
-        // The shared router classifies the exact wording as product_sales_trend, which CyclicalWaves does not publish.
-        var exact = await Feature148Chat.AskAsync(_factory, "نمادهایی با رشد فروش ماهانه بیشتر از ۲۰ درصد");
-        Assert.Equal("product_sales_trend", exact.GetProperty("semanticCapabilityCode").GetString());
-        Assert.Equal(ChatCapabilityAvailability.UnavailableForProviderMessageFa, Feature148Chat.Text(exact));
-        Assert.Equal(0m, exact.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
-
-        _factory.ResetRecorders();
-        var root = await Feature148Chat.AskAsync(_factory, "سهام با رشد فروش ماهانه بالای ۲۰ درصد نسبت به ماه قبل");
+        var root = await Feature148Chat.AskAsync(_factory, "نمادهایی با رشد فروش ماهانه بیشتر از ۲۰ درصد");
         // (current − previous) / |previous| × 100: فملی 33.33%, کگل 25%; فولاد 17.48% and شستا 10% fail; وبملت has no value.
-        Assert.Equal(["فملی", "کگل"], Feature148Chat.ScannerSymbols(root));
-        Assert.Equal("33.33%", Feature148Chat.ScannerCell(root, "فملی", "MONTHLY_SALES_GROWTH_PERCENT"));
-        Assert.Equal("300,000,000", Feature148Chat.ScannerCell(root, "فملی", "MONTHLY_SALES_BASELINE_PREVIOUS_MONTH"));
-        Assert.Equal("400,000,000", Feature148Chat.ScannerCell(root, "فملی", "MONTHLY_SALES"));
-        Assert.Equal("25%", Feature148Chat.ScannerCell(root, "کگل", "MONTHLY_SALES_GROWTH_PERCENT"));
+        Assert.Equal("stock_screening", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(["فولاد"], Feature148Chat.ScannerSymbols(root));
+        Assert.Equal("139.12%", Feature148Chat.ScannerCell(root, "فولاد", "MONTHLY_SALES_GROWTH_PERCENT"));
         Feature148Chat.NoOutboundCalls(_factory.Http);
     }
 
@@ -284,12 +270,14 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
     }
 
     [Fact]
-    public async Task Q10_ProductProduction_GetsNoValue_AndNoOtherSourceIsRead()
+    public async Task Q10_ProductProduction_ReturnsUnavailableWithoutAskingForKnownSymbol()
     {
         // The agent's lookup path cannot resolve a product metric and asks again (same in NoavaranAmin mode); no value is invented.
         var root = await Feature148Chat.AskAsync(_factory, "تولید گندله کگل چقدر بوده؟");
 
-        Assert.True(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(ChatCapabilityAvailability.UnavailableForProviderMessageFa, Feature148Chat.Text(root));
+        Assert.Equal(ChatCapabilityAvailability.UnavailableForProviderReasonCode, root.GetProperty("outcomeReasonCode").GetString());
         Assert.True(root.GetProperty("symbolLookupTable").ValueKind == JsonValueKind.Null ||
                     root.GetProperty("symbolLookupTable").GetProperty("rows").GetArrayLength() == 0);
         Assert.False(_factory.Reads.Read<CyclicalWavesV2FinancialValueRow>());
@@ -450,10 +438,30 @@ public sealed class Feature148ProviderIsolationE2ETests(
 
         var root = await Feature148Chat.AskAsync(cyclicalWaves, "تولید گندله کگل چقدر بوده؟");
 
-        Assert.Contains("SymbolLookupParseOutput", cyclicalWaves.Fake.StructuredOutputSchemas);
+        Assert.Contains("QueryInterpretationProposal_v2", cyclicalWaves.Fake.StructuredOutputSchemas);
         Assert.DoesNotContain(cyclicalWaves.Reads.EntityTypes, type => !type.StartsWith("CyclicalWavesV2", StringComparison.Ordinal));
         Feature148Chat.NoOutboundCalls(cyclicalWaves.Http);
-        Assert.True(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(ChatCapabilityAvailability.UnavailableForProviderMessageFa, Feature148Chat.Text(root));
+        Assert.Equal(ChatCapabilityAvailability.UnavailableForProviderReasonCode, root.GetProperty("outcomeReasonCode").GetString());
+    }
+}
+
+/// <summary>The V1 orchestrator cannot bypass provider selection either: its lookup is the CyclicalWaves service.</summary>
+public sealed class Feature148V1OrchestrationIsolationE2ETests(Feature148CyclicalWavesV1ChatApiFactory factory)
+    : IClassFixture<Feature148CyclicalWavesV1ChatApiFactory>
+{
+    [Fact]
+    public async Task V1Lookup_ReadsOnlyCyclicalWaves()
+    {
+        factory.EnsureSeeded();
+        factory.ResetRecorders();
+
+        var root = await Feature148Chat.AskAsync(factory, "P/E فولاد چقدر است؟");
+
+        Assert.Equal(6.05m, Feature148Chat.LookupCell(root, Feature148ChatFixtures.Folad, "PE_TTM").GetProperty("value").GetDecimal());
+        Feature148Chat.ReadOnlyCyclicalWavesV2(factory.Reads);
+        Feature148Chat.NoOutboundCalls(factory.Http);
     }
 }
 
@@ -478,7 +486,10 @@ public sealed class Feature148TelegramE2ETests(Feature148TelegramApiFactory fact
         Assert.Equal(TelegramAssistantResultStatus.Accepted, first.Status);
         Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
         Assert.Equal(DetectedIntent.SymbolLookup, first.AiResponse!.Intent);
-        Assert.Contains("639,418,160", string.Join("\n", first.Messages.Select(message => message.Text)));
+        var cell = first.AiResponse.SymbolLookupTable!.Rows.Single().Cells.Values.Single(value => value.Value is not null);
+        Assert.Equal(639_418_160_000_000m, cell.Value);
+        Assert.Equal("CyclicalWaves", cell.SourceLabel);
+        Assert.Contains("۶۳۹٬۴۱۸٬۱۶۰", Rendered(first));
         Feature148Chat.ReadOnlyCyclicalWavesV2(factory.Reads);
         Feature148Chat.NoOutboundCalls(factory.Http);
     }
@@ -508,19 +519,20 @@ public sealed class Feature148TelegramE2ETests(Feature148TelegramApiFactory fact
 
         Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
         Assert.Equal(["شستا", "فملی"], result.AiResponse!.ScannerTable!.Rows.Select(row => row.SymbolCode).Order(StringComparer.Ordinal).ToArray());
-        Assert.Contains("فملی", string.Join("\n", result.Messages.Select(message => message.Text)));
+        Assert.Contains("فملی", Rendered(result));
         Feature148Chat.NoOutboundCalls(factory.Http);
     }
 
     [Fact]
-    public async Task TelegramUnsupportedQuestion_GetsTheUnavailableAnswer()
+    public async Task TelegramMonthlySalesGrowth_UsesTheCyclicalWavesScanner()
     {
         var (gateway, telegramUserId) = await LinkAsync(factory, 1_480_004);
 
         var result = await SendAsync(gateway, Update(telegramUserId, "نمادهایی با رشد فروش ماهانه بیشتر از ۲۰ درصد"));
 
         Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
-        Assert.Contains(ChatCapabilityAvailability.UnavailableForProviderMessageFa, string.Join("\n", result.Messages.Select(message => message.Text)));
+        Assert.Equal(["فولاد"], result.AiResponse!.ScannerTable!.Rows.Select(row => row.SymbolCode).ToArray());
+        Assert.DoesNotContain(ChatCapabilityAvailability.UnavailableForProviderMessageFa, Rendered(result));
         Feature148Chat.NoOutboundCalls(factory.Http);
     }
 
@@ -532,12 +544,17 @@ public sealed class Feature148TelegramE2ETests(Feature148TelegramApiFactory fact
         var result = await SendAsync(gateway, Update(telegramUserId, "فروش آخرین ماه فولاد چقدر است؟"));
 
         Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
-        var text = string.Join("\n", result.Messages.Select(message => message.Text));
-        Assert.Contains("123,456,000", text);
-        Assert.DoesNotContain("639,418,160", text);
+        var cell = result.AiResponse!.SymbolLookupTable!.Rows.Single().Cells.Values.Single(value => value.Value is not null);
+        Assert.Equal(Feature148ChatFixtures.NoavaranMonthlySalesIrr, cell.Value);
+        Assert.Contains("۱۲۳٬۴۵۶٬۰۰۰", Rendered(result));
+        Assert.DoesNotContain("۶۳۹٬۴۱۸٬۱۶۰", Rendered(result));
         Feature148Chat.ReadNoCyclicalWavesV2(noavaranFactory.Reads);
         Feature148Chat.NoOutboundCalls(noavaranFactory.Http);
     }
+
+    /// <summary>The rendered Telegram text with MarkdownV2 escapes removed.</summary>
+    private static string Rendered(TelegramAssistantResult result) =>
+        string.Join("\n", result.Messages.Select(message => message.Text)).Replace("\\", string.Empty, StringComparison.Ordinal);
 
     private static object Update(long telegramUserId, string text) => new
     {
@@ -779,7 +796,9 @@ public sealed class Feature148ScriptedAiModelClient : IAiModelClient
         var schema = request.StructuredOutput?.SchemaName;
         if (schema is not null) _schemas.Enqueue(schema);
         var text = string.Join("\n", request.Messages.Where(message => message.Role == AiMessageRole.User).Select(message => message.Content));
-        var turn = Script.FirstOrDefault(entry => text.Contains(entry.Key, StringComparison.Ordinal)).Value;
+        // Telegram normalizes text (digits, ZWNJ, spacing) before the orchestrator, so match on a normalized form.
+        var normalizedText = Normalize(text);
+        var turn = Script.FirstOrDefault(entry => normalizedText.Contains(Normalize(entry.Key), StringComparison.Ordinal)).Value;
         if (request.Tools is { Count: > 0 })
         {
             // Agent route: call the scripted tool once, then answer with fixed text (assertions never use it).
@@ -802,6 +821,17 @@ public sealed class Feature148ScriptedAiModelClient : IAiModelClient
             _ => "{}"
         };
         return Task.FromResult(new AiModelResult(null, json, [], usage));
+    }
+
+    private static string Normalize(string value)
+    {
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var ch in value.Replace('\u200c', ' ').Replace('ي', 'ی').Replace('ك', 'ک'))
+        {
+            builder.Append(ch is >= '۰' and <= '۹' ? (char)('0' + (ch - '۰')) : ch is >= '٠' and <= '٩' ? (char)('0' + (ch - '٠')) : ch);
+        }
+
+        return string.Join(' ', builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
     public IAsyncEnumerable<AiStreamingChunk> StreamAsync(AiModelRequest request, CancellationToken cancellationToken) =>
@@ -1072,6 +1102,12 @@ public sealed class Feature148NoavaranAminChatApiFactory : Feature148CyclicalWav
     protected override string ChatProvider => "NoavaranAmin";
 }
 
+/// <summary>The V1 orchestrator (still selectable through <c>AiOrchestration:Mode</c>) with the CyclicalWaves provider.</summary>
+public sealed class Feature148CyclicalWavesV1ChatApiFactory : Feature148CyclicalWavesChatApiFactory
+{
+    protected override bool ForceV1Orchestration => true;
+}
+
 /// <summary>The routing mode docker-compose deploys (<c>SemanticRouting__DefaultMode=Shadow</c>): the V2 agent route runs.</summary>
 public sealed class Feature148CyclicalWavesShadowChatApiFactory : Feature148CyclicalWavesChatApiFactory
 {
@@ -1094,6 +1130,7 @@ public class Feature148TelegramApiFactory : OwnedIdentityApiFactory
     private readonly string _dbName = $"feature148-telegram-{Guid.NewGuid():N}";
     private readonly string _conversationDatabaseName = $"feature148-telegram-conversations-{Guid.NewGuid():N}";
     private readonly string _memoryDatabaseName = $"feature148-telegram-memory-{Guid.NewGuid():N}";
+    private readonly string _authDatabaseName = $"feature148-telegram-auth-{Guid.NewGuid():N}";
     private readonly object _seedLock = new();
     private bool _seeded;
 
@@ -1125,6 +1162,12 @@ public class Feature148TelegramApiFactory : OwnedIdentityApiFactory
         Feature148ChatHost.Configure(builder, ChatProvider, SemanticDefaultMode, _dbName, Fake, Reads, Http, ExecutorProbe);
         builder.ConfigureTestServices(services =>
         {
+            // As in the Feature 130 Telegram tests: the SQLite auth store cannot generate the link-token row version.
+            services.RemoveAll<FinancialCopilot.Infrastructure.Authentication.Persistence.AuthDbContext>();
+            services.RemoveAll<DbContextOptions<FinancialCopilot.Infrastructure.Authentication.Persistence.AuthDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<FinancialCopilot.Infrastructure.Authentication.Persistence.AuthDbContext>>();
+            services.AddDbContext<FinancialCopilot.Infrastructure.Authentication.Persistence.AuthDbContext>(options =>
+                options.UseInMemoryDatabase(_authDatabaseName));
             services.RemoveAll<FinancialCopilot.Infrastructure.Conversations.Persistence.ConversationDbContext>();
             services.RemoveAll<DbContextOptions<FinancialCopilot.Infrastructure.Conversations.Persistence.ConversationDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<FinancialCopilot.Infrastructure.Conversations.Persistence.ConversationDbContext>>();

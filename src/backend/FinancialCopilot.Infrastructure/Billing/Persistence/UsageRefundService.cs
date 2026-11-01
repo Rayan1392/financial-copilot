@@ -57,7 +57,7 @@ public sealed class UsageRefundService(
         }
 
         var now = timeProvider.GetUtcNow();
-        var subscriptionCreditRestorations = await creditLifecycle.ApplyRefundAsync(
+        var restoration = await creditLifecycle.ApplyRefundAsync(
             originalCharge,
             command.Credits,
             now,
@@ -78,7 +78,11 @@ public sealed class UsageRefundService(
             RelatedEntryId: originalCharge.Id,
             AllocationSource: originalCharge.AllocationSource,
             AllowanceDateKey: originalCharge.AllowanceDateKey);
-        var updatedWallet = MapWallet(walletRow).AddCredits(command.Credits, now);
+        var expiredSourceRefund = restoration.Expired.Sum(item => item.CreditsApplied);
+        var spendableRefund = command.Credits - expiredSourceRefund;
+        var updatedWallet = spendableRefund > 0
+            ? MapWallet(walletRow).AddCredits(spendableRefund, now)
+            : MapWallet(walletRow);
 
         dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
         {
@@ -96,17 +100,31 @@ public sealed class UsageRefundService(
             RelatedEntryId = entry.RelatedEntryId,
             AllocationSource = entry.AllocationSource,
             AllowanceDateKey = entry.AllowanceDateKey,
-            SubscriptionCreditsApplied = subscriptionCreditRestorations.Sum(item => item.CreditsApplied)
+            SubscriptionCreditsApplied = restoration.Restored.Sum(item => item.CreditsApplied) + expiredSourceRefund
         });
-        foreach (var restoration in subscriptionCreditRestorations)
+        foreach (var allocation in restoration.Restored.Concat(restoration.Expired))
         {
             dbContext.UsageCreditAllocations.Add(new UsageCreditAllocationRow
             {
                 Id = Guid.NewGuid(),
                 UsageLedgerEntryId = entry.Id,
-                SubscriptionCreditPeriodId = restoration.PeriodId,
-                GrantLedgerEntryId = restoration.GrantLedgerEntryId,
-                CreditsApplied = restoration.CreditsApplied
+                SubscriptionCreditPeriodId = allocation.PeriodId,
+                GrantLedgerEntryId = allocation.GrantLedgerEntryId,
+                CreditsApplied = allocation.CreditsApplied
+            });
+        }
+        foreach (var expired in restoration.Expired)
+        {
+            dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+            {
+                Id = Guid.NewGuid(), CustomerAccountId = command.CustomerAccountId, ActorId = Guid.Empty,
+                TenantId = command.TenantId, EntryType = nameof(UsageLedgerEntryType.Adjustment),
+                OperationCode = "Billing.SubscriptionCreditExpiredRefundOffset",
+                CreditsCharged = -expired.CreditsApplied, PricingPolicyVersion = "subscription-credit-full-window-v1",
+                IdempotencyKey = $"{idempotencyKey}:expired-source-offset:{expired.PeriodId:N}", OccurredAt = now,
+                AuditDescription = "Usage refund attributed to expired subscription credits; excluded from spendable balance.",
+                RelatedEntryId = expired.GrantLedgerEntryId, AllocationSource = SubscriptionCreditLifecycleService.SubscriptionAllocationSource,
+                AllowanceDateKey = expired.PeriodId.ToString("N")
             });
         }
         walletRow.Balance = updatedWallet.Balance;
@@ -124,7 +142,8 @@ public sealed class UsageRefundService(
                 entry.CustomerAccountId,
                 entry.RelatedEntryId,
                 Credits = entry.CreditsCharged,
-                SubscriptionCreditsRestored = subscriptionCreditRestorations.Sum(item => item.CreditsApplied),
+                SubscriptionCreditsRestored = restoration.Restored.Sum(item => item.CreditsApplied),
+                ExpiredSubscriptionCreditsOffset = expiredSourceRefund,
                 entry.AuditDescription
             },
             now);

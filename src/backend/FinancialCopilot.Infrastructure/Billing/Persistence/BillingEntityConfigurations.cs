@@ -88,6 +88,7 @@ public sealed class SubscriptionCreditPeriodRowConfiguration : IEntityTypeConfig
         builder.Property(row => row.SubscriptionIdentity).HasMaxLength(180).IsRequired();
         builder.Property(row => row.IdempotencyKey).HasMaxLength(160).IsRequired();
         builder.Property(row => row.GrantedCredits).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.AllowanceCredits).HasPrecision(18, 4).IsRequired();
         builder.Property(row => row.RemainingCredits).HasPrecision(18, 4).IsRequired();
         builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
         builder.Property(row => row.Revision).IsConcurrencyToken().IsRequired();
@@ -108,6 +109,32 @@ public sealed class UsageCreditAllocationRowConfiguration : IEntityTypeConfigura
         builder.HasIndex(row => row.GrantLedgerEntryId);
         builder.Property(row => row.CreditsApplied).HasPrecision(18, 4).IsRequired();
         builder.HasOne<UsageLedgerEntryRow>().WithMany().HasForeignKey(row => row.UsageLedgerEntryId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<SubscriptionCreditPeriodRow>().WithMany().HasForeignKey(row => row.SubscriptionCreditPeriodId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class FreeCreditGrantEvidenceRowConfiguration : IEntityTypeConfiguration<FreeCreditGrantEvidenceRow>
+{
+    public void Configure(EntityTypeBuilder<FreeCreditGrantEvidenceRow> builder)
+    {
+        builder.ToTable("billing_free_credit_grant_evidence");
+        builder.HasKey(row => row.UserId);
+        builder.HasIndex(row => row.CustomerAccountId).IsUnique();
+        builder.HasIndex(row => row.GrantLedgerEntryId).IsUnique();
+        builder.Property(row => row.EvidenceSource).HasMaxLength(32).IsRequired();
+        builder.HasOne<CustomerAccountRow>().WithMany().HasForeignKey(row => row.CustomerAccountId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class UsageCreditHoldRowConfiguration : IEntityTypeConfiguration<UsageCreditHoldRow>
+{
+    public void Configure(EntityTypeBuilder<UsageCreditHoldRow> builder)
+    {
+        builder.ToTable("billing_usage_credit_holds");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.UsageReservationId, row.SubscriptionCreditPeriodId }).IsUnique();
+        builder.Property(row => row.CreditsHeld).HasPrecision(18, 4).IsRequired();
+        builder.HasOne<UsageReservationRow>().WithMany().HasForeignKey(row => row.UsageReservationId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<SubscriptionCreditPeriodRow>().WithMany().HasForeignKey(row => row.SubscriptionCreditPeriodId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -191,7 +218,7 @@ public sealed class SubscriptionPlanRowConfiguration : IEntityTypeConfiguration<
             .HasForeignKey(row => row.SubscriptionPlanCode)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasData(
-            new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25m, PricingPolicyVersion = "v1" },
+            new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 250m, PricingPolicyVersion = "v1" },
             new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 2600m, PricingPolicyVersion = "v1" },
             new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 260m, PricingPolicyVersion = "v1" });
     }

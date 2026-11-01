@@ -28,6 +28,9 @@ public static class InterpretationConfidencePolicy
 
 public static class CapabilityRoutingPrecedence
 {
+    private static bool ContainsAny(string text, params string[] phrases) =>
+        phrases.Any(phrase => text.Contains(phrase, StringComparison.OrdinalIgnoreCase));
+
     public static IReadOnlyList<CapabilityCandidate> Order(
         QueryInterpretation interpretation,
         IReadOnlyList<CapabilityCandidate> candidates)
@@ -37,6 +40,9 @@ public static class CapabilityRoutingPrecedence
                            text.Contains("above", StringComparison.OrdinalIgnoreCase) ||
                            text.Contains("زیر", StringComparison.Ordinal) ||
                            text.Contains("بالای", StringComparison.Ordinal);
+        hasThreshold = hasThreshold || ContainsAny(text,
+            "under", "over", "less than", "greater than",
+            "\u06a9\u0645\u062a\u0631 \u0627\u0632", "\u0628\u06cc\u0634\u062a\u0631 \u0627\u0632");
         var hasEntity = interpretation.EntityMentions.Count > 0;
         var hasMetric = interpretation.Metrics.Count > 0;
         var hasExactValueSearch = candidates.Any(candidate => candidate.CapabilityCode == "financial_statement_value_search");
@@ -266,7 +272,8 @@ public sealed class LlmQueryInterpretationProposalProvider(
                 root.TryGetProperty("comparison", out var comparisonProperty) && comparisonProperty.ValueKind == JsonValueKind.String
                     ? comparisonProperty.GetString()
                     : null,
-                root.TryGetProperty("periodCount", out var countProperty) && countProperty.TryGetInt32(out var count) ? count : null,
+                root.TryGetProperty("periodCount", out var countProperty) &&
+                countProperty.ValueKind == JsonValueKind.Number && countProperty.TryGetInt32(out var count) ? count : null,
                 ReadStrings(root, "operations").Take(10).ToArray(),
                 ReadStrings(root, "unsupportedParts").Take(10).ToArray());
         }

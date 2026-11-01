@@ -638,6 +638,40 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.ToTable("billing_financial_transactions", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.FreeCreditGrantEvidenceRow", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AssignedExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EvidenceSource")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("GrantLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("GrantedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("CustomerAccountId")
+                        .IsUnique();
+
+                    b.HasIndex("GrantLedgerEntryId")
+                        .IsUnique();
+
+                    b.ToTable("billing_free_credit_grant_evidence", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.InvoiceAccountRow", b =>
                 {
                     b.Property<Guid>("CustomerAccountId")
@@ -996,6 +1030,10 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.Property<long>("ActivationRevision")
                         .HasColumnType("bigint");
 
+                    b.Property<decimal>("AllowanceCredits")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<DateTimeOffset>("AnchorAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1093,7 +1131,7 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         new
                         {
                             Code = "Free",
-                            IncludedCredits = 25m,
+                            IncludedCredits = 250m,
                             Name = "Free",
                             PricingPolicyVersion = "v1"
                         },
@@ -1142,6 +1180,32 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("billing_usage_credit_allocations", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageCreditHoldRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CreditsHeld")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("SubscriptionCreditPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UsageReservationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubscriptionCreditPeriodId");
+
+                    b.HasIndex("UsageReservationId", "SubscriptionCreditPeriodId")
+                        .IsUnique();
+
+                    b.ToTable("billing_usage_credit_holds", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageLedgerEntryRow", b =>
@@ -1395,6 +1459,15 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.FreeCreditGrantEvidenceRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.PaidExpiryCooldownRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
@@ -1433,6 +1506,21 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.UsageLedgerEntryRow", null)
                         .WithMany()
                         .HasForeignKey("UsageLedgerEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageCreditHoldRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionCreditPeriodRow", null)
+                        .WithMany()
+                        .HasForeignKey("SubscriptionCreditPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.UsageReservationRow", null)
+                        .WithMany()
+                        .HasForeignKey("UsageReservationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

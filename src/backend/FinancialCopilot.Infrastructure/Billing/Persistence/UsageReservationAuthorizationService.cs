@@ -91,13 +91,22 @@ public sealed class UsageReservationAuthorizationService(
                     .Where(plan => plan.Code == "Free")
                     .Select(plan => (decimal?)plan.IncludedCredits)
                     .SingleOrDefaultAsync(cancellationToken);
+                if (freePlanCredits is null or <= 0)
+                {
+                    throw new InvalidOperationException(
+                        "Subscription plan 'Free' is not configured with a positive credit allowance.");
+                }
                 throw new InsufficientCreditException(
                     InsufficientCreditException.SubscriptionCooldownActiveCode,
                     cooldownEnd,
                     freePlanCredits);
             }
 
-            if (!creditLinePolicy.CanReserve(account, currentWallet, maximumCredits))
+            var expiredUnheld = await creditLifecycle.GetExpiredUnheldCreditsAsync(account.Id, now, cancellationToken);
+            var spendableWallet = new WalletSnapshot(currentWallet.CustomerAccountId,
+                Math.Max(0m, currentWallet.Balance - expiredUnheld), currentWallet.ReservedAmount,
+                currentWallet.UpdatedAt, currentWallet.Revision);
+            if (!creditLinePolicy.CanReserve(account, spendableWallet, maximumCredits))
             {
                 throw new InsufficientCreditException();
             }
@@ -124,6 +133,7 @@ public sealed class UsageReservationAuthorizationService(
                 ExpiresAt = reservation.ExpiresAt,
                 Status = reservation.Status.ToString()
             });
+            await creditLifecycle.HoldCreditsAsync(account.Id, reservation.Id, maximumCredits, now, cancellationToken);
             ApplyWallet(walletRow, reservedWallet);
             BillingOutboxWriter.Add(
                 dbContext,
@@ -216,14 +226,16 @@ public sealed class UsageReservationAuthorizationService(
                 throw new KeyNotFoundException("Wallet projection is not configured.");
             var wallet = MapWallet(walletRow);
             var increase = requiredCredits - reservation.ReservedCredits;
-            var availableBalance = Math.Max(0m, wallet.Balance - wallet.ReservedAmount);
+            var now = timeProvider.GetUtcNow();
+            var expiredUnheld = await creditLifecycle.GetExpiredUnheldCreditsAsync(account.Id, now, cancellationToken);
+            var availableBalance = Math.Max(0m, wallet.Balance - wallet.ReservedAmount - expiredUnheld);
             if (availableBalance < increase)
                 throw new InsufficientCreditException();
 
             var previousCredits = reservation.ReservedCredits;
-            var now = timeProvider.GetUtcNow();
             var updatedWallet = wallet.Reserve(increase, now);
             reservationRow.ReservedCredits = requiredCredits;
+            await creditLifecycle.HoldCreditsAsync(account.Id, reservationRow.Id, increase, now, cancellationToken);
             ApplyWallet(walletRow, updatedWallet);
 
             var outboxKey = $"{normalizedKey}:capacity:{requiredCredits.ToString("0.####", CultureInfo.InvariantCulture)}";
@@ -302,6 +314,7 @@ public sealed class UsageReservationAuthorizationService(
                 row => row.CustomerAccountId == reservation.CustomerAccountId,
                 cancellationToken);
             var releasedWallet = MapWallet(walletRow).Release(reservation.ReservedCredits, now);
+            await creditLifecycle.ReleaseHoldsAsync(reservationRow.Id, cancellationToken);
 
             reservation.Expire("Reservation expired before finalization.");
             reservationRow.Status = reservation.Status.ToString();

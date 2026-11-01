@@ -55,7 +55,7 @@ public sealed class CustomerAccountRepository(BillingDbContext dbContext) : ICus
     }
 }
 
-public sealed class WalletProjectionRepository(BillingDbContext dbContext) : IWalletProjectionRepository
+public sealed class WalletProjectionRepository(BillingDbContext dbContext, TimeProvider? timeProvider = null) : IWalletProjectionRepository, IExpiryAwareWalletReadService
 {
     public async Task<WalletSnapshot> GetSnapshotAsync(
         Guid customerAccountId,
@@ -75,6 +75,29 @@ public sealed class WalletProjectionRepository(BillingDbContext dbContext) : IWa
                 row.ReservedAmount,
                 row.UpdatedAt,
                 row.Revision);
+    }
+
+    public async Task<WalletSnapshot> GetSpendableSnapshotAsync(Guid customerAccountId, CancellationToken cancellationToken)
+    {
+        var row = await dbContext.WalletProjections.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.CustomerAccountId == customerAccountId, cancellationToken) ??
+            throw new KeyNotFoundException("Wallet projection is not configured.");
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        var expired = await dbContext.SubscriptionCreditPeriods.AsNoTracking()
+            .Where(period => period.CustomerAccountId == customerAccountId &&
+                            period.Status == SubscriptionCreditLifecycleService.ActiveStatus && period.ExpiresAtUtc <= now)
+            .ToListAsync(cancellationToken);
+        var expiredUnheld = 0m;
+        if (expired.Count > 0)
+        {
+            var ids = expired.Select(period => period.Id).ToArray();
+            var holds = await dbContext.UsageCreditHolds.AsNoTracking()
+                .Where(hold => ids.Contains(hold.SubscriptionCreditPeriodId)).ToListAsync(cancellationToken);
+            expiredUnheld = expired.Sum(period => Math.Max(0m, period.RemainingCredits -
+                holds.Where(hold => hold.SubscriptionCreditPeriodId == period.Id).Sum(hold => hold.CreditsHeld)));
+        }
+        return new WalletSnapshot(row.CustomerAccountId, Math.Max(0m, row.Balance - expiredUnheld),
+            row.ReservedAmount, row.UpdatedAt, row.Revision);
     }
 
     public async Task SaveAsync(WalletSnapshot snapshot, CancellationToken cancellationToken)

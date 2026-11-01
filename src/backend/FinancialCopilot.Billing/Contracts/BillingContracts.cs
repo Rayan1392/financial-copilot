@@ -26,6 +26,11 @@ public interface IWalletService
         CancellationToken cancellationToken);
 }
 
+public interface IExpiryAwareWalletReadService
+{
+    Task<WalletSnapshot> GetSpendableSnapshotAsync(Guid customerAccountId, CancellationToken cancellationToken);
+}
+
 public interface ICustomerAccountRepository
 {
     Task<CustomerAccount?> FindAsync(Guid customerAccountId, CancellationToken cancellationToken);

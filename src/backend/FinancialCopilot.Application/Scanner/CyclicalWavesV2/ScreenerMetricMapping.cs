@@ -136,8 +136,11 @@ public static class ScreenerMetricMapping
                 _ => null
             };
         }
-        else if (selector is null && SingleFields.TryGetValue(code, out var single))
+        else if (selector is null or SymbolLookupPeriodSelector.LatestQuarter or SymbolLookupPeriodSelector.LatestMonth &&
+                 SingleFields.TryGetValue(code, out var single))
         {
+            // P/E, P/S and the 4-quarter average have one latest value; a "latest" selector (for example one carried over
+            // from the previous turn) asks for exactly that value. Any other period is unavailable.
             field = single;
         }
         else if (GrowthFields.ContainsKey(code))

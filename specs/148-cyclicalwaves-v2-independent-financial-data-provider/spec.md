@@ -115,11 +115,13 @@ Ingestion is independent of `ChatProvider`.
     - the comprehensive-analysis-published insight detector
   - Legacy records are not deleted, truncated, rewritten, migrated or backfilled.
   - Superseded specifications get a header note only.
-- **FR-17 C1 discriminator.**
-  - A row is legacy CyclicalWaves-derived when any item in its `SourceEvidenceJson` (or its dependency evidence) has `SourceProvider = "CyclicalWaves"`.
-  - Values, dates and substring heuristics are not used.
-  - A read-only census verifies the discriminator before enabling the filter. If the census finds ambiguous rows, that task pauses for Product Owner review.
-  - The flag `FinancialData:ExcludeLegacyCyclicalWavesDerivedMetrics` defaults to `true` and exists only for rollback.
+- **FR-17 C1 discriminator (with C1-M, permanent).**
+  - A row is legacy CyclicalWaves-derived when any item in its `SourceEvidenceJson` (or its dependency evidence) has `SourceProvider = "CyclicalWaves"`. This includes **mixed** rows, where one operand is CyclicalWaves and another is NoavaranAmin (decision C1-M, 2026-10-31).
+  - A row that records no provider is legacy when its registered `CalculationPolicyVersion` reads only a vendor line item that the legacy CyclicalWaves normalizers alone produce (`cw-avg-12m-monthly-sales-passthrough-v1`, `cw-avg-4q-revenue-passthrough-v1`, `vendor-pe-ratio-passthrough-v1`, `vendor-ps-ratio-passthrough-v1`).
+  - A row whose evidence cannot be parsed is excluded, because its provenance cannot be established.
+  - Values, dates, tickers and substring heuristics are not used.
+  - The exclusion is unconditional: there is no configuration switch, and no setting can include legacy or mixed rows again. Excluded rows are never modified or deleted.
+  - It applies to every NoavaranAmin `DerivedMetrics` read that selects financial evidence: symbol lookup, both scanner queries, the professional scanner's availability and freshness check, and financial-metric alerts (N1).
 
 ## 3. Out of scope
 

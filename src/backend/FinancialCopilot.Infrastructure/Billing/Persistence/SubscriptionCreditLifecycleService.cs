@@ -9,8 +9,6 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence;
 /// </summary>
 public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContext)
 {
-    public static readonly TimeSpan PeriodDuration = TimeSpan.FromDays(30);
-
     public const string ActiveStatus = "Active";
     public const string ExpiredStatus = "Expired";
     public const string ForfeitedStatus = "Forfeited";
@@ -22,7 +20,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
     private const string ForfeitureOperationCode = "Billing.SubscriptionCreditForfeiture";
     private const string TransferOutOperationCode = "Billing.SubscriptionCreditTransferOut";
     private const string TransferInOperationCode = "Billing.SubscriptionCreditTransferIn";
-    private const string PolicyVersion = "subscription-credit-30d-v1";
+    private const string PolicyVersion = "subscription-credit-full-window-v1";
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> AllocationLocks = new();
 
     public Task InitializeNewWalletAsync(
@@ -57,15 +55,67 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         }
         var plan = await FindPlanAsync(planCode, cancellationToken);
         var anchor = account.SubscriptionEffectiveFrom ?? now;
+        if (planCode == "Free")
+        {
+            await EnsureInitialFreeGrantAsync(account, wallet, plan, anchor, now, cancellationToken);
+            return;
+        }
         await AddPeriodAsync(
             account,
             wallet,
             plan,
             anchor,
             account.SubscriptionRevision,
-            GetCycleIndex(anchor, now),
+            0,
             now,
-            cancellationToken);
+            cancellationToken,
+            expiresAtUtc: account.SubscriptionEffectiveTo);
+    }
+
+    private async Task EnsureInitialFreeGrantAsync(
+        CustomerAccountRow account,
+        WalletProjectionRow wallet,
+        SubscriptionPlanRow freePlan,
+        DateTimeOffset assignedAnchor,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        if (account.UserId is not { } userId || account.SubscriptionPlanCode != "Free") return;
+
+        var evidence = await dbContext.FreeCreditGrantEvidence
+            .SingleOrDefaultAsync(row => row.UserId == userId, cancellationToken);
+        if (evidence is not null) return;
+
+        var historicalFree = await dbContext.SubscriptionCreditPeriods
+            .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free")
+            .OrderBy(row => row.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (historicalFree is not null)
+        {
+            dbContext.FreeCreditGrantEvidence.Add(new FreeCreditGrantEvidenceRow
+            {
+                UserId = userId,
+                CustomerAccountId = account.Id,
+                GrantLedgerEntryId = historicalFree.GrantLedgerEntryId,
+                GrantedAtUtc = historicalFree.CreatedAtUtc,
+                AssignedExpiresAtUtc = null,
+                EvidenceSource = "historical-period"
+            });
+            return;
+        }
+
+        // A null paid-subscription snapshot does not itself authorize a new Free grant.
+        // Paid history or an unclassified historical grant means this account needs review.
+        var hasPaidHistory = await dbContext.ExternalPlanSubscriptions.AnyAsync(
+            row => row.CustomerAccountId == account.Id, cancellationToken) ||
+            await dbContext.PaidExpiryCooldowns.AnyAsync(row => row.CustomerAccountId == account.Id, cancellationToken);
+        var hasUnclassifiedGrant = await dbContext.UsageLedgerEntries.AnyAsync(row =>
+            row.CustomerAccountId == account.Id && row.OperationCode == GrantOperationCode, cancellationToken);
+        if (hasPaidHistory || hasUnclassifiedGrant) return;
+
+        var expiresAt = assignedAnchor.AddDays(30);
+        await AddPeriodAsync(account, wallet, freePlan, assignedAnchor, 0, 0, now, cancellationToken,
+            subscriptionIdentity: $"free-once:user:{userId:N}", expiresAtUtc: expiresAt);
     }
 
     /// <summary>
@@ -78,10 +128,12 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         string newPlanCode,
         DateTimeOffset now,
         CancellationToken cancellationToken,
-        DateTimeOffset? effectiveFrom = null) =>
+        DateTimeOffset? effectiveFrom = null,
+        bool authoritativeWindow = false) =>
         // Cross-process correctness comes from the account revision concurrency token and the
         // unique period/ledger idempotency keys, not an in-process semaphore.
-        ApplyPlanChangeCoreAsync(account, wallet, previousPlanCode, newPlanCode, now, cancellationToken, effectiveFrom);
+            ApplyPlanChangeCoreAsync(account, wallet, previousPlanCode, newPlanCode, now, cancellationToken,
+                effectiveFrom, authoritativeWindow);
 
     private async Task<string?> ApplyPlanChangeCoreAsync(
         CustomerAccountRow account,
@@ -90,8 +142,17 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         string newPlanCode,
         DateTimeOffset now,
         CancellationToken cancellationToken,
-        DateTimeOffset? effectiveFrom)
+        DateTimeOffset? effectiveFrom,
+        bool authoritativeWindow)
     {
+        if (newPlanCode is "Plus" or "Pro" && !authoritativeWindow)
+        {
+            var current = await FindLatestPeriodAsync(account.Id, cancellationToken);
+            if (previousPlanCode == "Free" && current is { PlanCode: "Free", Status: ActiveStatus })
+                ClosePeriod(account, wallet, current, now, ForfeitedStatus, ForfeitureOperationCode);
+            return "Paid credit allocation is held until a complete authoritative TahlilApp plan window is available.";
+        }
+
         if (previousPlanCode == "Pro" && newPlanCode == "Plus")
         {
             throw new InvalidOperationException("A Pro-to-Plus subscription downgrade is not allowed.");
@@ -129,7 +190,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                 proPlan,
                 effectiveFrom.Value.ToUniversalTime(),
                 account.SubscriptionRevision + 1,
-                GetCycleIndex(effectiveFrom.Value, now),
+                0,
                 now,
                 cancellationToken,
                 transferable,
@@ -167,7 +228,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                     var renewedPlan = await FindPlanAsync(newPlanCode, cancellationToken);
                     await AddPeriodAsync(
                         account, wallet, renewedPlan, effectiveFrom.Value.ToUniversalTime(), account.SubscriptionRevision + 1,
-                        GetCycleIndex(effectiveFrom.Value, now), now, cancellationToken);
+                        0, now, cancellationToken);
                     return null;
                 }
 
@@ -182,7 +243,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             var plan = await FindPlanAsync(newPlanCode, cancellationToken);
             await AddPeriodAsync(
                 account, wallet, plan, effectiveFrom.Value.ToUniversalTime(), account.SubscriptionRevision + 1,
-                GetCycleIndex(effectiveFrom.Value, now), now, cancellationToken);
+                0, now, cancellationToken);
             return null;
         }
 
@@ -208,14 +269,14 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                 paidPlan,
                 effectiveFrom.Value.ToUniversalTime(),
                 account.SubscriptionRevision + 1,
-                GetCycleIndex(effectiveFrom.Value, now),
+                0,
                 now,
                 cancellationToken);
             return null;
         }
 
         // External expiry or an explicit transition to Free revokes paid capabilities immediately.
-        // Credits already granted remain valid only until their own 30-day period boundary.
+        // Existing credits remain valid only until their authoritative source expiration.
         if (newPlanCode == "Free")
         {
             return null;
@@ -408,16 +469,12 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
 
             foreach (var subscription in activePaid)
             {
-                var cycle = GetCycleIndex(subscription.StartsAtUtc, now);
-                var cycleStarts = subscription.StartsAtUtc.AddTicks(PeriodDuration.Ticks * cycle);
-                if (cycleStarts >= subscription.ExpiresAtUtc) continue;
-
                 var periodExists = await dbContext.SubscriptionCreditPeriods.AnyAsync(row =>
                     row.CustomerAccountId == account.Id && row.SubscriptionIdentity == subscription.IdentityKey &&
-                    row.PeriodNumber == cycle, cancellationToken);
+                    row.PeriodNumber == 0, cancellationToken);
                 periodExists |= dbContext.SubscriptionCreditPeriods.Local.Any(row =>
                     row.CustomerAccountId == account.Id && row.SubscriptionIdentity == subscription.IdentityKey &&
-                    row.PeriodNumber == cycle);
+                    row.PeriodNumber == 0);
                 if (periodExists)
                 {
                     continue;
@@ -442,8 +499,9 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                 {
                     continue;
                 }
-                await AddPeriodAsync(account, wallet, plan, subscription.StartsAtUtc, 0, cycle, now,
-                    cancellationToken, transferred, transferred > 0 ? source : null, subscription.IdentityKey);
+                await AddPeriodAsync(account, wallet, plan, subscription.StartsAtUtc, 0, 0, now,
+                    cancellationToken, transferred, transferred > 0 ? source : null,
+                    subscription.IdentityKey, subscription.ExpiresAtUtc);
                 if (subscription.PlanCode == "Pro" && !subscription.PlusTransferApplied)
                 {
                     subscription.PlusTransferApplied = true;
@@ -504,32 +562,11 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                 return changed;
             }
 
-            var freePlan = await FindPlanAsync("Free", cancellationToken);
-            var freeCycle = GetCycleIndex(cooldown.CooldownUntilUtc, now);
-            await AddPeriodAsync(account, wallet, freePlan, cooldown.CooldownUntilUtc, 0, freeCycle, now,
-                cancellationToken, subscriptionIdentity: $"free-after-paid:{cooldown.CooldownUntilUtc.UtcDateTime.Ticks}");
-            return true;
+            return changed;
         }
 
-        // Accounts that have never held a TahlilApp paid plan retain the ordinary Free cycle.
-        var latestFree = await dbContext.SubscriptionCreditPeriods
-            .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free")
-            .OrderByDescending(row => row.StartsAtUtc).FirstOrDefaultAsync(cancellationToken);
-        if (latestFree is null)
-        {
-            var plan = await FindPlanAsync("Free", cancellationToken);
-            await AddPeriodAsync(account, wallet, plan, now, 0, 0, now, cancellationToken,
-                subscriptionIdentity: $"initial-free:{now.UtcDateTime.Ticks}");
-            return true;
-        }
-        if (latestFree.Status == ActiveStatus && latestFree.ExpiresAtUtc <= now && wallet.ReservedAmount <= 0)
-        {
-            var plan = await FindPlanAsync("Free", cancellationToken);
-            var next = Math.Max(latestFree.PeriodNumber + 1, GetCycleIndex(latestFree.AnchorAtUtc, now));
-            await AddPeriodAsync(account, wallet, plan, latestFree.AnchorAtUtc, 0, next, now,
-                cancellationToken, subscriptionIdentity: latestFree.SubscriptionIdentity);
-            return true;
-        }
+        // Free grant assignment belongs to first local wallet provisioning. An empty paid
+        // snapshot or a cooldown boundary is never a reason to create another Free source.
         return changed;
     }
 
@@ -569,50 +606,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             account.SubscriptionEffectiveTo,
             now) ?? "Free";
 
-        if (effectivePlan == latest.PlanCode)
-        {
-            if (effectivePlan is "Plus" or "Pro" && !account.SubscriptionActivationIsAuthoritative)
-            {
-                return changed;
-            }
-
-            var nextIndex = Math.Max(latest.PeriodNumber + 1, GetCycleIndex(latest.AnchorAtUtc, now));
-            if (nextIndex > latest.PeriodNumber)
-            {
-                var plan = await FindPlanAsync(effectivePlan, cancellationToken);
-                await AddPeriodAsync(
-                    account,
-                    wallet,
-                    plan,
-                    latest.AnchorAtUtc,
-                    latest.ActivationRevision,
-                    nextIndex,
-                    now,
-                    cancellationToken);
-                return true;
-            }
-
-            return changed;
-        }
-
-        if (effectivePlan == "Free" && latest.PlanCode is "Plus" or "Pro")
-        {
-            // Do not terminate a paid grant early when upstream eligibility expires. The first
-            // Free period begins at the prior 30-day boundary, and only the current cycle is issued.
-            var freeAnchor = latest.ExpiresAtUtc;
-            var freeIndex = GetCycleIndex(freeAnchor, now);
-            var freePlan = await FindPlanAsync("Free", cancellationToken);
-            await AddPeriodAsync(
-                account,
-                wallet,
-                freePlan,
-                freeAnchor,
-                account.SubscriptionRevision,
-                freeIndex,
-                now,
-                cancellationToken);
-            return true;
-        }
+        // Neither a 30-day rollover nor a paid-to-Free transition creates credit.
 
         // A paid-to-paid change is intentionally not allocated here. In particular, this prevents
         // an unapproved Plus-to-Pro transition from receiving a later automatic Pro grant.
@@ -625,7 +619,8 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         decimal chargedCredits,
         string? allocationSource,
         string? allowanceDateKey,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? reservationId = null)
     {
         if (chargedCredits <= 0)
         {
@@ -663,6 +658,37 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             return Array.Empty<SubscriptionCreditApplication>();
         }
 
+        if (reservationId is { } heldReservationId)
+        {
+            var holds = await dbContext.UsageCreditHolds
+                .Where(row => row.UsageReservationId == heldReservationId)
+                .ToListAsync(cancellationToken);
+            if (holds.Count > 0)
+            {
+                var heldPeriodIds = holds.Select(row => row.SubscriptionCreditPeriodId).ToArray();
+                var heldPeriods = await dbContext.SubscriptionCreditPeriods
+                    .Where(row => heldPeriodIds.Contains(row.Id)).ToDictionaryAsync(row => row.Id, cancellationToken);
+                var heldApplications = new List<SubscriptionCreditApplication>();
+                var amountLeft = chargeAfterOtherAllowance;
+                foreach (var hold in holds.OrderBy(row => heldPeriods[row.SubscriptionCreditPeriodId].ExpiresAtUtc)
+                             .ThenBy(row => heldPeriods[row.SubscriptionCreditPeriodId].StartsAtUtc)
+                             .ThenBy(row => row.SubscriptionCreditPeriodId))
+                {
+                    var period = heldPeriods[hold.SubscriptionCreditPeriodId];
+                    var applied = Math.Min(hold.CreditsHeld, amountLeft);
+                    if (applied > 0)
+                    {
+                        period.RemainingCredits -= applied;
+                        period.Revision++;
+                        heldApplications.Add(new SubscriptionCreditApplication(period.Id, period.GrantLedgerEntryId, applied));
+                        amountLeft -= applied;
+                    }
+                    dbContext.UsageCreditHolds.Remove(hold);
+                }
+                return heldApplications;
+            }
+        }
+
         var periods = await dbContext.SubscriptionCreditPeriods
             .Where(row => row.CustomerAccountId == customerAccountId && row.Status == ActiveStatus)
             .ToListAsync(cancellationToken);
@@ -686,7 +712,57 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         return applications;
     }
 
-    public async Task<IReadOnlyList<SubscriptionCreditApplication>> ApplyRefundAsync(
+    public async Task<decimal> GetExpiredUnheldCreditsAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var expired = await dbContext.SubscriptionCreditPeriods
+            .Where(row => row.CustomerAccountId == accountId && row.Status == ActiveStatus && row.ExpiresAtUtc <= now)
+            .ToListAsync(cancellationToken);
+        if (expired.Count == 0) return 0m;
+        var ids = expired.Select(row => row.Id).ToArray();
+        var holds = await dbContext.UsageCreditHolds.Where(row => ids.Contains(row.SubscriptionCreditPeriodId))
+            .ToListAsync(cancellationToken);
+        return expired.Sum(row => Math.Max(0m, row.RemainingCredits -
+            holds.Where(hold => hold.SubscriptionCreditPeriodId == row.Id).Sum(hold => hold.CreditsHeld)));
+    }
+
+    public async Task HoldCreditsAsync(Guid accountId, Guid reservationId, decimal amount,
+        DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var periods = await dbContext.SubscriptionCreditPeriods
+            .Where(row => row.CustomerAccountId == accountId && row.Status == ActiveStatus &&
+                          row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+            .OrderBy(row => row.ExpiresAtUtc).ThenBy(row => row.StartsAtUtc).ThenBy(row => row.Id)
+            .ToListAsync(cancellationToken);
+        var ids = periods.Select(row => row.Id).ToArray();
+        var existing = await dbContext.UsageCreditHolds.Where(row => ids.Contains(row.SubscriptionCreditPeriodId))
+            .ToListAsync(cancellationToken);
+        var left = amount;
+        foreach (var period in periods)
+        {
+            if (left <= 0) break;
+            var alreadyHeld = existing.Where(row => row.SubscriptionCreditPeriodId == period.Id).Sum(row => row.CreditsHeld)
+                + dbContext.UsageCreditHolds.Local.Where(row => row.SubscriptionCreditPeriodId == period.Id &&
+                    dbContext.Entry(row).State == EntityState.Added).Sum(row => row.CreditsHeld);
+            var held = Math.Min(left, Math.Max(0m, period.RemainingCredits - alreadyHeld));
+            if (held <= 0) continue;
+            var prior = existing.FirstOrDefault(row => row.UsageReservationId == reservationId && row.SubscriptionCreditPeriodId == period.Id)
+                ?? dbContext.UsageCreditHolds.Local.FirstOrDefault(row => row.UsageReservationId == reservationId && row.SubscriptionCreditPeriodId == period.Id);
+            if (prior is null)
+                dbContext.UsageCreditHolds.Add(new UsageCreditHoldRow { Id = Guid.NewGuid(), UsageReservationId = reservationId,
+                    SubscriptionCreditPeriodId = period.Id, CreditsHeld = held });
+            else prior.CreditsHeld += held;
+            left -= held;
+        }
+    }
+
+    public async Task ReleaseHoldsAsync(Guid reservationId, CancellationToken cancellationToken)
+    {
+        var holds = await dbContext.UsageCreditHolds.Where(row => row.UsageReservationId == reservationId)
+            .ToListAsync(cancellationToken);
+        dbContext.UsageCreditHolds.RemoveRange(holds);
+    }
+
+    public async Task<SubscriptionCreditRefundResult> ApplyRefundAsync(
         UsageLedgerEntryRow originalCharge,
         decimal refundCredits,
         DateTimeOffset now,
@@ -695,7 +771,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         var availableToRestore = originalCharge.SubscriptionCreditsApplied ?? 0m;
         if (availableToRestore <= 0 || originalCharge.RelatedEntryId is not { } grantLedgerEntryId)
         {
-            return Array.Empty<SubscriptionCreditApplication>();
+            return new SubscriptionCreditRefundResult(Array.Empty<SubscriptionCreditApplication>(), Array.Empty<SubscriptionCreditApplication>());
         }
 
         var originalAllocations = await dbContext.UsageCreditAllocations
@@ -726,6 +802,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             : 0m;
         var remainingRefund = refundCredits;
         var restored = new List<SubscriptionCreditApplication>();
+        var expired = new List<SubscriptionCreditApplication>();
         foreach (var allocation in originalAllocations)
         {
             if (remainingRefund <= 0) break;
@@ -737,15 +814,20 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             var period = allocation.SubscriptionCreditPeriodId == Guid.Empty
                 ? await dbContext.SubscriptionCreditPeriods.SingleOrDefaultAsync(row => row.GrantLedgerEntryId == grantLedgerEntryId, cancellationToken)
                 : await dbContext.SubscriptionCreditPeriods.SingleOrDefaultAsync(row => row.Id == allocation.SubscriptionCreditPeriodId, cancellationToken);
-            if (period is null || period.Status != ActiveStatus || now >= period.ExpiresAtUtc) continue;
+            if (period is null) continue;
             var amount = Math.Min(Math.Min(available, remainingRefund), period.GrantedCredits - period.RemainingCredits);
             if (amount <= 0) continue;
-            period.RemainingCredits += amount;
-            period.Revision++;
             remainingRefund -= amount;
-            restored.Add(new SubscriptionCreditApplication(period.Id, period.GrantLedgerEntryId, amount));
+            var application = new SubscriptionCreditApplication(period.Id, period.GrantLedgerEntryId, amount);
+            if (period.Status == ActiveStatus && now < period.ExpiresAtUtc)
+            {
+                period.RemainingCredits += amount;
+                period.Revision++;
+                restored.Add(application);
+            }
+            else expired.Add(application);
         }
-        return restored;
+        return new SubscriptionCreditRefundResult(restored, expired);
     }
 
     public async Task<int> ProcessDuePeriodsAsync(
@@ -804,23 +886,31 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         CancellationToken cancellationToken,
         decimal transferredCredits = 0m,
         SubscriptionCreditPeriodRow? transferSource = null,
-        string? subscriptionIdentity = null)
+        string? subscriptionIdentity = null,
+        DateTimeOffset? expiresAtUtc = null)
     {
-        if (plan.IncludedCredits <= 0)
-        {
-            throw new InvalidOperationException($"Subscription plan '{plan.Code}' has no positive credit allowance.");
-        }
-
-        var startsAt = anchorAt.AddTicks(PeriodDuration.Ticks * periodNumber);
-        var expiresAt = startsAt.Add(PeriodDuration);
+        if (periodNumber != 0)
+            throw new InvalidOperationException("New subscription grants cannot use recurring period numbers.");
+        var startsAt = anchorAt;
+        var expiresAt = expiresAtUtc ?? (plan.Code is "Plus" or "Pro" && account.SubscriptionActivationIsAuthoritative
+            ? account.SubscriptionEffectiveTo
+            : null) ?? throw new InvalidOperationException(
+            "An authoritative credit-source expiration is required for a new grant.");
+        if (expiresAt <= startsAt || expiresAt <= now)
+            throw new InvalidOperationException("The credit-source expiration is invalid or has passed.");
         subscriptionIdentity ??= $"legacy:{plan.Code}:{activationRevision}:{anchorAt.UtcDateTime.Ticks}";
         var idempotencyKey = BuildPeriodKey(account.Id, plan.Code, subscriptionIdentity, anchorAt, periodNumber);
         var existing = await dbContext.SubscriptionCreditPeriods
             .SingleOrDefaultAsync(row => row.IdempotencyKey == idempotencyKey, cancellationToken);
         if (existing is not null)
         {
-            ValidateExistingPeriod(existing, plan, activationRevision, anchorAt, periodNumber, startsAt, expiresAt, transferredCredits);
+            ValidateExistingPeriod(existing, plan.Code, anchorAt, periodNumber, startsAt, expiresAt);
             return;
+        }
+
+        if (plan.IncludedCredits <= 0)
+        {
+            throw new InvalidOperationException($"Subscription plan '{plan.Code}' has no positive credit allowance.");
         }
 
         var periodId = Guid.NewGuid();
@@ -839,6 +929,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             StartsAtUtc = startsAt,
             ExpiresAtUtc = expiresAt,
             GrantedCredits = plan.IncludedCredits + transferredCredits,
+            AllowanceCredits = plan.IncludedCredits,
             RemainingCredits = plan.IncludedCredits + transferredCredits,
             GrantLedgerEntryId = grantLedgerId,
             Status = ActiveStatus,
@@ -862,6 +953,18 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             AllocationSource = SubscriptionAllocationSource,
             AllowanceDateKey = periodId.ToString("N")
         });
+        if (plan.Code == "Free" && account.UserId is { } userId)
+        {
+            dbContext.FreeCreditGrantEvidence.Add(new FreeCreditGrantEvidenceRow
+            {
+                UserId = userId,
+                CustomerAccountId = account.Id,
+                GrantLedgerEntryId = grantLedgerId,
+                GrantedAtUtc = now,
+                AssignedExpiresAtUtc = expiresAt,
+                EvidenceSource = "new-grant"
+            });
+        }
         if (transferSource is not null && transferredCredits > 0)
         {
             var transferKey = $"{idempotencyKey}:plus-transfer:{transferSource.Id:N}";
@@ -934,7 +1037,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                 PricingPolicyVersion = PolicyVersion,
                 IdempotencyKey = key,
                 OccurredAt = now,
-                AuditDescription = $"Unused {period.PlanCode} subscription credits {closedStatus.ToLowerInvariant()} at the 30-day period boundary.",
+                AuditDescription = $"Unused {period.PlanCode} subscription credits {closedStatus.ToLowerInvariant()} at the source expiration.",
                 RelatedEntryId = period.GrantLedgerEntryId,
                 AllocationSource = SubscriptionAllocationSource,
                 AllowanceDateKey = period.Id.ToString("N")
@@ -1018,9 +1121,6 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         }
     }
 
-    private static long GetCycleIndex(DateTimeOffset anchorAt, DateTimeOffset now) =>
-        now <= anchorAt ? 0 : Math.Max(0, (now - anchorAt).Ticks / PeriodDuration.Ticks);
-
     private static string BuildPeriodKey(
         Guid accountId,
         string planCode,
@@ -1031,21 +1131,17 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
 
     private static void ValidateExistingPeriod(
         SubscriptionCreditPeriodRow existing,
-        SubscriptionPlanRow plan,
-        long activationRevision,
+        string planCode,
         DateTimeOffset anchorAt,
         long periodNumber,
         DateTimeOffset startsAt,
-        DateTimeOffset expiresAt,
-        decimal transferredCredits)
+        DateTimeOffset expiresAt)
     {
-        if (existing.PlanCode != plan.Code ||
-            existing.ActivationRevision != activationRevision ||
+        if (existing.PlanCode != planCode ||
             existing.AnchorAtUtc != anchorAt ||
             existing.PeriodNumber != periodNumber ||
             existing.StartsAtUtc != startsAt ||
-            existing.ExpiresAtUtc != expiresAt ||
-            existing.GrantedCredits != plan.IncludedCredits + transferredCredits)
+            existing.ExpiresAtUtc != expiresAt)
         {
             throw new InvalidOperationException("A subscription credit period idempotency key was reused for different terms.");
         }
@@ -1056,3 +1152,7 @@ public sealed record SubscriptionCreditApplication(
     Guid PeriodId,
     Guid GrantLedgerEntryId,
     decimal CreditsApplied);
+
+public sealed record SubscriptionCreditRefundResult(
+    IReadOnlyList<SubscriptionCreditApplication> Restored,
+    IReadOnlyList<SubscriptionCreditApplication> Expired);

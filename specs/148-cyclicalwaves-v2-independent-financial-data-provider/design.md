@@ -180,8 +180,7 @@ On the frontend:
 
 ```jsonc
 "FinancialData": {
-  "ChatProvider": "NoavaranAmin",                          // NoavaranAmin | CyclicalWaves
-  "ExcludeLegacyCyclicalWavesDerivedMetrics": true         // C1; rollback switch only
+  "ChatProvider": "NoavaranAmin"                           // NoavaranAmin | CyclicalWaves; C1/C1-M exclusion has no setting
 },
 "CyclicalWavesV2": {
   "AuthBaseAddress": "https://auth.cycfx.com/api/", "DataBaseAddress": "https://api.tahlilapp.com/api/",
@@ -325,10 +324,12 @@ All arithmetic is deterministic C#; the LLM never computes numbers.
 ### 10.6 C1 filter (NoavaranAmin reads)
 
 - `LegacyCyclicalWavesDerivedMetricFilter` is provider-neutral Infrastructure code. It parses `SourceEvidenceJson` and `DependencyEvidenceJson`.
-- A row counts as legacy when any evidence item has `SourceProvider == ProviderSources.CyclicalWavesName`.
+- A row counts as legacy when any evidence item has `SourceProvider == ProviderSources.CyclicalWavesName`, including mixed CyclicalWaves + NoavaranAmin rows (C1-M, permanent).
+- A row with no recorded provider counts as legacy when its `CalculationPolicyVersion` is one of the four registered policies fed only by legacy CyclicalWaves line items; unparseable evidence is excluded (provenance undetermined).
+- The filter is a static rule with no configuration; the professional scanner's availability and freshness check also uses it.
 - The filter applies to rows loaded by `EfCoreSymbolMetricLookupService`, `EfCoreScannerExecutionService` and `ProfessionalScannerUseCases`. It runs **before** the latest-per-company/metric selection, so an older valid NoavaranAmin row can still be chosen and is labeled with its own period.
 - When no valid row remains, the existing Missing or unavailable result is returned.
-- The flag `ExcludeLegacyCyclicalWavesDerivedMetrics` defaults to true.
+- There is no flag: the former `ExcludeLegacyCyclicalWavesDerivedMetrics` and `LegacyCyclicalWavesMixedProvenance` settings were removed by C1-M, and binding them has no effect.
 - No `DerivedMetrics` row, formula or ingestion path changes. The existing substring-based CyclicalWaves layout code becomes unreachable and is left in place.
 - **Gate (T148-06.6).** A read-only census compares the structured classification with the current substring marker, and counts mixed-provider rows and rows marked only through `CalculationPolicyVersion`. Any disagreement or mixed row pauses the task for Product Owner review.
 

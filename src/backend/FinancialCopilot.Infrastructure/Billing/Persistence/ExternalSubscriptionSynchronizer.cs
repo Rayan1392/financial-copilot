@@ -7,8 +7,8 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence;
 
 /// <summary>
 /// Writes the TahlilApp-sourced plan and expiry into the Billing customer account (Design §11, §14).
-/// Idempotent: an identical plan and window is a no-op (no revision bump, no audit row). Grants no credits:
-/// included credits are seeded once at wallet creation and top-ups go through CreditAdjustmentService.
+/// Idempotent: identical paid-window snapshots are a no-op. Paid credit sources are created only
+/// from complete authoritative plan windows; Free is assigned once during local wallet provisioning.
 /// </summary>
 public sealed class ExternalSubscriptionSynchronizer(
     BillingDbContext dbContext,
@@ -111,7 +111,8 @@ public sealed class ExternalSubscriptionSynchronizer(
                     decision.PlanCode,
                     now,
                     cancellationToken,
-                    effectiveFrom);
+                    effectiveFrom,
+                    authoritativeWindow: false);
             }
 
             account.SubscriptionPlanCode = decision.PlanCode;

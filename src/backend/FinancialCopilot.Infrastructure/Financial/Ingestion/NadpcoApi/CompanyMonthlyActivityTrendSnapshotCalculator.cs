@@ -32,6 +32,7 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
         var candidateReports = await dbContext.MonthlyReports
             .Where(r => r.ProviderName == ProviderName
                      && r.ExternalCompanyId == externalCompanyId
+                     && r.IsAccepted
                      && ((r.ReportType == "ProductSales" && (r.OutputType == 0 || r.OutputType == null)) ||
                          (r.ReportType == "ServiceSales" && r.OutputType == null))
                      && r.PeriodStart == periodStart)
@@ -102,6 +103,7 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
         var ytdReports = await dbContext.MonthlyReports
             .Where(r => r.ProviderName == ProviderName
                      && r.ExternalCompanyId == externalCompanyId
+                     && r.IsAccepted
                      && r.ReportType == "ProductSales"
                      && r.OutputType == 1
                      && r.PeriodStart == periodStart)
@@ -133,6 +135,7 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
         var ytdPrevMonthReports = await dbContext.MonthlyReports
             .Where(r => r.ProviderName == ProviderName
                      && r.ExternalCompanyId == externalCompanyId
+                     && r.IsAccepted
                      && r.ReportType == "ProductSales"
                      && r.OutputType == 4
                      && r.PeriodStart == periodStart)

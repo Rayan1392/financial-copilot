@@ -257,6 +257,12 @@ Billing persistence applies reservation creation and wallet-capacity hold atomic
 
 For SaaS organization accounts, API usage is charged to the organization and may be attributed to an optional partner-scoped `externalUserId`. Organization accounts may be prepaid, postpaid, or hybrid with an explicitly approved credit line. For direct consumer accounts, the product manages subscriptions/top-ups and rejects billable execution without allowance or balance by default.
 
+### TahlilApp partner credit balance and top-up
+
+`GET /api/v1/billing/partners/tahlilapp/credit-balance?userId=<URL-encoded-id>` is an anonymous, read-only informational endpoint. It resolves the stable TahlilApp `userId` using the existing external identity mapping, is rate limited by caller IP, and sends `Cache-Control: no-store`. It returns `plan`, `subscriptionStartsAtUtc`, `subscriptionExpiresAtUtc`, `quotaMode`, `availableCredits`, and `asOfUtc`. Finite quota includes only unexpired spendable credits after reservations. Max is `quotaMode: "unlimited"` and `availableCredits: null`. The endpoint never evaluates checkout eligibility or mutates entitlements. Because `userId` is not authentication, TahlilApp must provide cryptographically random non-enumerable IDs with at least 128 bits of entropy; see [Feature 151's integration contract](../specs/151-tahlilapp-paid-credit-top-ups/integration-contract.md) for the risk assessment.
+
+`POST /api/v1/billing/partners/tahlilapp/top-ups` requires the TahlilApp partner Bearer JWT and accepts exactly `invoiceId`, `userId`, `creditsPurchased`, and `paidAtUtc`. SapioAI resolves plan/source windows from its server-side TahlilApp data. The immutable invoice fingerprint covers those four fields. Multiple Plus/Pro windows containing the payment timestamp are persisted as `ambiguous-unfulfilled`, with zero credits, for reconciliation. See [Feature 151's integration contract](../specs/151-tahlilapp-paid-credit-top-ups/integration-contract.md) for request, auth, response, and retry details.
+
 Internal Scanner Tool plans and deterministic table results may be served from the configured distributed cache. Cache keys include tenant plus actor/API-client scope and a financial-data version token. Data synchronization and derived-metric persistence rotate that token. A cached table preserves cell source timestamps and returns `scannerTable.executionFacts.fromCache: true`; Billing still reserves and finalizes each facade request and applies its configured cached-response multiplier.
 
 ```http
@@ -264,6 +270,8 @@ GET  /api/v1/usage/me
 GET  /api/v1/usage/api-client/{clientId}
 GET  /api/v1/billing/wallet
 GET  /api/v1/billing/transactions
+GET  /api/v1/billing/partners/tahlilapp/credit-balance?userId={encoded-id}
+POST /api/v1/billing/partners/tahlilapp/top-ups
 POST /api/v1/credits/top-up
 GET  /api/v1/subscriptions/plans
 POST /api/v1/subscriptions/subscribe

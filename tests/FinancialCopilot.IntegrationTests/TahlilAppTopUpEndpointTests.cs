@@ -28,7 +28,7 @@ public sealed class TahlilAppTopUpEndpointTests : IClassFixture<TahlilAppTopUpAp
     public TahlilAppTopUpEndpointTests(TahlilAppTopUpApiFactory factory) => this.factory = factory;
 
     [Fact]
-    public async Task TopUpEligibilityBlocksActiveMaxAndUsesLatestExpiringNonMaxPlanAfterMaxExpiry()
+    public async Task CreditBalanceIsAnonymousReadOnlyAndUsesEffectivePlanPolicy()
     {
         await factory.ResetAsync();
         using var scope = factory.Services.CreateScope();
@@ -48,21 +48,62 @@ public sealed class TahlilAppTopUpEndpointTests : IClassFixture<TahlilAppTopUpAp
             IdentityKey = $"sapio_pro:{now.AddDays(-2).ToUnixTimeMilliseconds()}:{now.AddDays(30).ToUnixTimeMilliseconds()}",
             PlanCode = "Pro", StartsAtUtc = now.AddDays(-2), ExpiresAtUtc = now.AddDays(30)
         });
+        var expiredStart = now.AddDays(-40);
+        var expiredEnd = now.AddDays(-1);
+        billing.SubscriptionCreditPeriods.Add(new SubscriptionCreditPeriodRow
+        {
+            Id = Guid.NewGuid(), CustomerAccountId = TahlilAppTopUpApiFactory.AccountId,
+            PlanCode = "Plus", SubscriptionIdentity = "expired-test-period", IdempotencyKey = "expired-test-period-key",
+            AnchorAtUtc = expiredStart, ActivationRevision = 1, PeriodNumber = 0,
+            StartsAtUtc = expiredStart, ExpiresAtUtc = expiredEnd, GrantedCredits = 5,
+            AllowanceCredits = 5, RemainingCredits = 5, GrantLedgerEntryId = Guid.NewGuid(),
+            Status = "Active", CreatedAtUtc = expiredStart, Revision = 1
+        });
         await billing.SaveChangesAsync();
-        var service = scope.ServiceProvider.GetRequiredService<TahlilAppTopUpService>();
-
-        var whileMaxIsActive = await service.GetEligibilityAsync("external-topup-user", CancellationToken.None);
-        Assert.NotNull(whileMaxIsActive);
-        Assert.False(whileMaxIsActive!.Eligible);
-        Assert.Null(whileMaxIsActive.Plan);
+        using var client = factory.CreateClient();
+        var initialBalance = await factory.ReadBalanceAsync();
+        var whileMaxIsActive = await client.GetAsync("/api/v1/billing/partners/tahlilapp/credit-balance?userId=external%2Dtopup%2Duser");
+        Assert.Equal(HttpStatusCode.OK, whileMaxIsActive.StatusCode);
+        Assert.Equal("no-store", whileMaxIsActive.Headers.CacheControl?.ToString());
+        using var maxResult = JsonDocument.Parse(await whileMaxIsActive.Content.ReadAsStringAsync());
+        Assert.Equal("Max", maxResult.RootElement.GetProperty("plan").GetString());
+        Assert.Equal("unlimited", maxResult.RootElement.GetProperty("quotaMode").GetString());
+        Assert.Equal(JsonValueKind.Null, maxResult.RootElement.GetProperty("availableCredits").ValueKind);
+        Assert.Equal(now.AddDays(-1).Date, maxResult.RootElement.GetProperty("subscriptionStartsAtUtc").GetDateTime().Date);
+        Assert.Equal(now.AddDays(10).Date, maxResult.RootElement.GetProperty("subscriptionExpiresAtUtc").GetDateTime().Date);
+        Assert.Equal(initialBalance, await factory.ReadBalanceAsync());
 
         max.ExpiresAtUtc = now.AddSeconds(-1);
         await billing.SaveChangesAsync();
-        var afterMaxExpires = await service.GetEligibilityAsync("external-topup-user", CancellationToken.None);
-        Assert.NotNull(afterMaxExpires);
-        Assert.True(afterMaxExpires!.Eligible);
-        Assert.Equal("Pro", afterMaxExpires.Plan);
-        Assert.Equal(now.AddDays(30).Date, afterMaxExpires.Subscriptions.Max(window => window.ExpiresAtUtc).Date);
+        var afterMaxExpires = await client.GetAsync("/api/v1/billing/partners/tahlilapp/credit-balance?userId=external-topup-user");
+        Assert.Equal(HttpStatusCode.OK, afterMaxExpires.StatusCode);
+        using var finiteResult = JsonDocument.Parse(await afterMaxExpires.Content.ReadAsStringAsync());
+        Assert.Equal("Pro", finiteResult.RootElement.GetProperty("plan").GetString());
+        Assert.Equal("finite", finiteResult.RootElement.GetProperty("quotaMode").GetString());
+        Assert.Equal(12m, finiteResult.RootElement.GetProperty("availableCredits").GetDecimal());
+        Assert.Equal(now.AddDays(30).Date, finiteResult.RootElement.GetProperty("subscriptionExpiresAtUtc").GetDateTime().Date);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/v1/billing/partners/tahlilapp/credit-balance?userId=missing")).StatusCode);
+    }
+
+    [Fact]
+    public async Task OpenApiDocumentsAnonymousBalanceAndAuthenticatedFourFieldDelivery()
+    {
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/openapi/v1.json");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var paths = document.RootElement.GetProperty("paths");
+        var balance = paths.GetProperty("/api/v1/billing/partners/tahlilapp/credit-balance").GetProperty("get");
+        Assert.False(balance.TryGetProperty("security", out _));
+        var delivery = paths.GetProperty("/api/v1/billing/partners/tahlilapp/top-ups").GetProperty("post");
+        Assert.True(delivery.GetProperty("security").GetArrayLength() > 0);
+        var schemaRef = delivery.GetProperty("requestBody").GetProperty("content").GetProperty("application/json")
+            .GetProperty("schema").GetProperty("$ref").GetString()!;
+        var schemaName = schemaRef.Split('/').Last();
+        var properties = document.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty(schemaName).GetProperty("properties");
+        Assert.Equal(new[] { "creditsPurchased", "invoiceId", "paidAtUtc", "userId" },
+            properties.EnumerateObject().Select(property => property.Name).Order().ToArray());
     }
 
     [Fact]
@@ -70,16 +111,12 @@ public sealed class TahlilAppTopUpEndpointTests : IClassFixture<TahlilAppTopUpAp
     {
         await factory.ResetAsync();
         using var client = factory.CreateClient();
-        var windowStart = factory.WindowStart;
-        var windowEnd = factory.WindowEnd;
         foreach (var credits in new[] { 100, 500, 1000 })
         {
-            var package = $"TA-TOPUP-{credits}";
             var body = new
             {
-                eventId = "evt-" + credits, purchaseId = "purchase-" + credits, paymentId = "payment-" + credits,
-                userId = "external-topup-user", creditsPurchased = credits, packageId = package, packageVersion = "v1",
-                subscription = new { slug = "sapio_plus", startsAtUtc = windowStart, expiresAtUtc = windowEnd },
+                invoiceId = "ta-invoice-" + credits,
+                userId = "external-topup-user", creditsPurchased = credits,
                 paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
             };
             var unauthorized = await PostAsync(client, body, null);
@@ -90,20 +127,132 @@ public sealed class TahlilAppTopUpEndpointTests : IClassFixture<TahlilAppTopUpAp
             Assert.Equal(HttpStatusCode.OK, granted.StatusCode);
             using var document = JsonDocument.Parse(await granted.Content.ReadAsStringAsync());
             Assert.Equal("granted", document.RootElement.GetProperty("status").GetString());
+            Assert.Equal("ta-invoice-" + credits, document.RootElement.GetProperty("invoiceId").GetString());
             Assert.Equal(credits, document.RootElement.GetProperty("creditsGranted").GetInt32());
             var duplicate = await PostAsync(client, body, factory.CreatePartnerToken("topup.deliver"));
             Assert.Equal(HttpStatusCode.OK, duplicate.StatusCode);
+
+            var replayedToken = factory.CreatePartnerToken("topup.deliver");
+            var firstUse = await PostAsync(client, body, replayedToken);
+            Assert.Equal(HttpStatusCode.OK, firstUse.StatusCode);
+            var replay = await PostAsync(client, body, replayedToken);
+            Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
         }
 
         var invalidQuantity = await PostAsync(client, new
         {
-            eventId = "evt-invalid", purchaseId = "purchase-invalid", paymentId = "payment-invalid",
-            userId = "external-topup-user", creditsPurchased = 200, packageId = "TA-TOPUP-100", packageVersion = "v1",
-            subscription = new { slug = "sapio_plus", startsAtUtc = windowStart, expiresAtUtc = windowEnd },
+            invoiceId = "ta-invoice-invalid",
+            userId = "external-topup-user", creditsPurchased = 200,
             paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
         }, factory.CreatePartnerToken("topup.deliver"));
         Assert.Equal((HttpStatusCode)422, invalidQuantity.StatusCode);
         Assert.Equal(1617m, await factory.ReadBalanceAsync());
+    }
+
+    [Fact]
+    public async Task Legacy_request_fields_and_missing_business_fields_are_rejected()
+    {
+        await factory.ResetAsync();
+        using var client = factory.CreateClient();
+        var valid = new
+        {
+            invoiceId = "ta-invoice-exact-fields", userId = "external-topup-user", creditsPurchased = 100,
+            paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
+        };
+        var withLegacyField = await PostAsync(client, new { valid.invoiceId, valid.userId, valid.creditsPurchased, valid.paidAtUtc, paymentId = "must-not-be-sent" }, factory.CreatePartnerToken("topup.deliver"));
+        Assert.Equal(HttpStatusCode.BadRequest, withLegacyField.StatusCode);
+        var missingInvoice = await PostAsync(client, new { userId = valid.userId, valid.creditsPurchased, valid.paidAtUtc }, factory.CreatePartnerToken("topup.deliver"));
+        Assert.Equal(HttpStatusCode.BadRequest, missingInvoice.StatusCode);
+        var futurePaidAt = await PostAsync(client, new
+        {
+            invoiceId = "ta-invoice-future-paid-at", userId = valid.userId, valid.creditsPurchased,
+            paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(5)
+        }, factory.CreatePartnerToken("topup.deliver"));
+        Assert.Equal(HttpStatusCode.BadRequest, futurePaidAt.StatusCode);
+        var missingJti = await PostAsync(client, valid, factory.CreatePartnerToken("topup.deliver", includeJti: false));
+        Assert.Equal(HttpStatusCode.Unauthorized, missingJti.StatusCode);
+        Assert.Equal(17m, await factory.ReadBalanceAsync());
+    }
+
+    [Fact]
+    public async Task Overlapping_paid_windows_are_persisted_as_ambiguous_without_granting()
+    {
+        await factory.ResetAsync();
+        using var scope = factory.Services.CreateScope();
+        var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var start = factory.WindowStart.AddHours(-1);
+        var expiry = factory.WindowEnd.AddDays(1);
+        billing.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
+        {
+            Id = Guid.NewGuid(), CustomerAccountId = TahlilAppTopUpApiFactory.AccountId,
+            IdentityKey = $"sapio_pro:{start.ToUnixTimeMilliseconds()}:{expiry.ToUnixTimeMilliseconds()}",
+            PlanCode = "Pro", StartsAtUtc = start, ExpiresAtUtc = expiry
+        });
+        await billing.SaveChangesAsync();
+
+        using var client = factory.CreateClient();
+        var body = new
+        {
+            invoiceId = "ta-invoice-ambiguous", userId = "external-topup-user", creditsPurchased = 500,
+            paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
+        };
+        var response = await PostAsync(client, body, factory.CreatePartnerToken("topup.deliver"));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("ambiguous-unfulfilled", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal(0, document.RootElement.GetProperty("creditsGranted").GetInt32());
+        Assert.Equal(17m, await factory.ReadBalanceAsync());
+
+        var replay = await PostAsync(client, body, factory.CreatePartnerToken("topup.deliver"));
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        using var replayDocument = JsonDocument.Parse(await replay.Content.ReadAsStringAsync());
+        Assert.Equal("ambiguous-unfulfilled", replayDocument.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Delivery_paid_during_active_max_is_rejected_as_ineligible()
+    {
+        await factory.ResetAsync();
+        using var scope = factory.Services.CreateScope();
+        var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var start = DateTimeOffset.UtcNow.AddDays(-1);
+        var expiry = DateTimeOffset.UtcNow.AddDays(10);
+        billing.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
+        {
+            Id = Guid.NewGuid(), CustomerAccountId = TahlilAppTopUpApiFactory.AccountId,
+            IdentityKey = $"sapio_max:{start.ToUnixTimeMilliseconds()}:{expiry.ToUnixTimeMilliseconds()}",
+            PlanCode = "Max", StartsAtUtc = start, ExpiresAtUtc = expiry
+        });
+        await billing.SaveChangesAsync();
+
+        using var client = factory.CreateClient();
+        var response = await PostAsync(client, new
+        {
+            invoiceId = "ta-invoice-paid-during-max", userId = "external-topup-user", creditsPurchased = 100,
+            paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
+        }, factory.CreatePartnerToken("topup.deliver"));
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(17m, await factory.ReadBalanceAsync());
+    }
+
+    [Fact]
+    public async Task Delivery_for_free_account_is_rejected_even_when_old_paid_window_exists()
+    {
+        await factory.ResetAsync();
+        using var scope = factory.Services.CreateScope();
+        var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var account = await billing.CustomerAccounts.SingleAsync(row => row.Id == TahlilAppTopUpApiFactory.AccountId);
+        account.SubscriptionPlanCode = "Free";
+        await billing.SaveChangesAsync();
+
+        using var client = factory.CreateClient();
+        var response = await PostAsync(client, new
+        {
+            invoiceId = "ta-invoice-free-account", userId = "external-topup-user", creditsPurchased = 100,
+            paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
+        }, factory.CreatePartnerToken("topup.deliver"));
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(17m, await factory.ReadBalanceAsync());
     }
 
     [Fact]
@@ -116,18 +265,16 @@ public sealed class TahlilAppTopUpEndpointTests : IClassFixture<TahlilAppTopUpAp
 
         var body = new
         {
-            eventId = "reconcile-event-1", purchaseId = "reconcile-purchase-1", paymentId = "reconcile-payment-1",
-            userId = "external-topup-user", creditsPurchased = 100, packageId = "TA-TOPUP-100", packageVersion = "v1",
-            subscription = new { slug = "sapio_plus", startsAtUtc = factory.WindowStart, expiresAtUtc = factory.WindowEnd },
+            invoiceId = "ta-invoice-reconcile-1",
+            userId = "external-topup-user", creditsPurchased = 100,
             paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
         };
         var granted = await PostAsync(client, body, factory.CreatePartnerToken("topup.deliver"));
         Assert.Equal(HttpStatusCode.OK, granted.StatusCode);
         var conflicting = await PostAsync(client, new
         {
-            eventId = "reconcile-event-conflict", purchaseId = "reconcile-purchase-other", paymentId = "reconcile-payment-1",
-            userId = "external-topup-user", creditsPurchased = 100, packageId = "TA-TOPUP-100", packageVersion = "v1",
-            subscription = new { slug = "sapio_plus", startsAtUtc = factory.WindowStart, expiresAtUtc = factory.WindowEnd },
+            invoiceId = "ta-invoice-reconcile-1",
+            userId = "external-topup-user", creditsPurchased = 500,
             paidAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
         }, factory.CreatePartnerToken("topup.deliver"));
         Assert.Equal(HttpStatusCode.Conflict, conflicting.StatusCode);
@@ -148,7 +295,6 @@ public sealed class TahlilAppTopUpEndpointTests : IClassFixture<TahlilAppTopUpAp
         {
             Content = JsonContent.Create(body)
         };
-        request.Headers.Add("X-Contract-Version", "1");
         if (token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return await client.SendAsync(request);
     }
@@ -196,10 +342,12 @@ public sealed class TahlilAppTopUpApiFactory : WebApplicationFactory<Program>
         });
     }
 
-    public string CreatePartnerToken(string scope)
+    public string CreatePartnerToken(string scope, bool includeJti = true)
     {
+        var claims = new List<Claim> { new("sub", "tahlilapp-test"), new("scope", scope) };
+        if (includeJti) claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")));
         var token = new JwtSecurityToken(PartnerIssuer, "sapio-tahlilapp-topup",
-            [new Claim("sub", "tahlilapp-test"), new Claim("scope", scope)],
+            claims,
             expires: DateTime.UtcNow.AddMinutes(5),
             signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(PartnerSigningKey)), SecurityAlgorithms.HmacSha256));
         token.Header["kid"] = PartnerKeyId;

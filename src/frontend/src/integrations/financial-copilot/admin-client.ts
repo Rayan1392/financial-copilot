@@ -290,18 +290,15 @@ export type AdminAudit = {
 };
 export type TahlilAppTopUpReconciliation = {
   purchases: {
-    purchaseId: string;
-    paymentId: string;
-    eventId: string;
+    invoiceId: string;
+    legacyPaymentId: string | null;
     externalUserId: string;
     customerAccountId: string;
     creditsPurchased: number;
-    packageId: string;
-    packageVersion: string;
     status: string;
-    planSlug: string;
-    planStartsAtUtc: string;
-    planExpiresAtUtc: string;
+    planSlug: string | null;
+    planStartsAtUtc: string | null;
+    planExpiresAtUtc: string | null;
     paidAtUtc: string;
     receivedAtUtc: string;
     grantId: string | null;
@@ -309,8 +306,8 @@ export type TahlilAppTopUpReconciliation = {
   }[];
   identityConflicts: {
     occurredAtUtc: string;
-    purchaseReceiptId: string;
-    eventId: string;
+    receiptId: string;
+    invoiceId: string;
     conflictCode: string;
     existingIdentity: string;
     incomingIdentity: string;

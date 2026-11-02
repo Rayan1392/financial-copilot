@@ -1,32 +1,28 @@
 # Feature 151 — Implementation tasks
 
-All in-repository implementation and focused verification are complete, including overlap accounting with Feature 152. TahlilApp-side integration and joint staging/operations gates remain pending. Feature 139 shared lifecycle implementation/local verification is complete; its joint staging/operations review remains pending. Feature 151 does not implement Max accounting; it applies the shared entitlement/quota result and preserves original source expiries.
+## SapioAI
 
-## SapioAI backend
+- [x] Add anonymous, read-only `GET /api/v1/billing/partners/tahlilapp/credit-balance` using existing identity mapping and expiry-aware wallet reads.
+- [x] Return finite/Unlimited quota mode, effective plan, dates, spendable credits (null for Unlimited), and as-of time; keep Max/latest-expiry/tie policy aligned with Feature 152.
+- [x] Apply public IP rate limiting and no-store headers; document the unverified userId entropy and enumeration risk.
+- [x] Remove the old top-up eligibility endpoint; do not call eligibility from TahlilApp checkout.
+- [x] Accept exactly four webhook fields and preserve partner JWT Authorization validation and one-time `jti` protection.
+- [x] Resolve current identity, eligible plan, and original credit source from server-side subscription records; persist ambiguous overlapping-source invoices as `ambiguous-unfulfilled` without credit.
+- [x] Fingerprint only invoice, user, credit quantity, and paid timestamp; preserve invoice replay/conflict semantics and atomic grant/reconciliation.
+- [x] Keep historical provider-ID columns and legacy uniqueness for old receipts; allow optional source evidence on ambiguous new receipts.
+- [ ] Run focused tests/builds and verify migration model consistency; migration remains unapplied.
+- [ ] Update API/OpenAPI and integration documentation and provide the Persian HTML integration guide.
 
-- [x] Add database-controlled versioned active-offer quantity allowlist (100/500/1000); validate positive integer `creditsPurchased` and optional package ID/version agreement.
-- [x] Add dedicated inbound partner JWT authentication, feature flag, validation and rate/body limits; user/session credentials cannot grant.
-- [x] Add partner eligibility read using linked TahlilApp identity, current authoritative refresh, active original Plus/Pro windows, and Free/Max exclusion.
-- [x] Add Billing purchase receipts, top-up sources, unique event/purchase/payment and ledger keys, atomic grant or persisted `expired-unfulfilled` / `ineligible-unfulfilled`, conflict comparison, audit/outbox, and replay lookup before new-grant eligibility.
-- [x] Add BillingAdmin-authorized, tenant-scoped purchase outcome and identity conflict reconciliation through the existing billing admin panel/report route.
-- [x] Extend finite source holds, capacity upgrade, finalization, release, expiry, revocation and usage refunds with top-up source attribution; expired credits are excluded and never restored.
-- [x] Add self-scoped status read by opaque purchase ID; not-yet-received and other-user purchases return 404; only committed `granted` reports credits.
+## External TahlilApp
 
-## TahlilApp backend (external repository; not inspected)
+- [ ] Send exactly the four webhook fields and retain provider payment IDs internally.
+- [ ] Guarantee one immutable invoice per verified payment. Issue a new short-lived JWT with unique random `jti` per attempt and retry the same invoice/body.
+- [ ] Guarantee external user IDs are cryptographically random and non-enumerable with at least 128 bits of entropy before using the anonymous balance endpoint. Production ID generation is outside this repository.
+- [ ] Call the balance endpoint for informational status only; do not add a second checkout eligibility gate.
+- [ ] Route `ambiguous-unfulfilled` to reconciliation/manual resolution; do not mutate the invoice to pick a different source.
+- [ ] Define a separate authenticated invoice-keyed reversal event if automated chargebacks/refunds are needed.
 
-- [ ] Own three offers/prices; verify SapioAI linkage and paid eligibility, and persist the chosen original subscription tuple at checkout.
-- [ ] Verify gateway payment server-side and retain its monetary audit; durably store verified purchase and positive integer quantity before webhook delivery.
-- [ ] Issue partner service tokens, send stable IDs with durable retries, classify terminal/retryable errors, reconcile paid-but-ungranted purchases, handle refund/chargeback cases.
+## Rollout
 
-## Frontend
-
-- [ ] TahlilApp: show offers, eligibility errors, purchase confirmation and pending/reconciliation state.
-- [x] SapioAI: read own purchase status, show processing until grant, then refresh `GET /api/v1/usage/me`; use bounded polling and never mutate credits from redirect.
-
-## Verification and rollout
-
-- [x] Add unit, API and PostgreSQL tests for configured quantities, package mismatch, partner auth/scope, duplicate replay, delayed delivery, expiry outcomes, identity uniqueness, atomic rollback, independent-connection duplicate grant, and overlapping plan/top-up source accounting.
-- [x] Add PostgreSQL races for top-up grant versus reservation, usage finalization, usage refund and source expiry; settlement retry after optimistic concurrency; replay after expiry/window changes.
-- [x] Investigate the two failing frontend assertions against clean `HEAD`; record exact baseline failures without skipping or weakening tests.
-- [ ] Joint staging contract/auth/key-rotation tests with TahlilApp and its stored original-window tuple; confirm Feature 139 identity, status and migration readiness.
-- [ ] Deploy schema and secrets with endpoint disabled; enable delivery after tests; monitor paid-ungranted age and reconciliation before exposing offers. Keep delivery available while draining paid purchases during rollback.
+- [ ] Coordinate joint staging for balance privacy/limits, four-field validation, auth claims/key rotation, idempotent retry, source overlap, expiry, reconciliation, and reversals.
+- [ ] Keep `Billing:TahlilAppTopUps:Enabled=false`; do not deploy, apply a production migration, or change production data/settings as part of this work.

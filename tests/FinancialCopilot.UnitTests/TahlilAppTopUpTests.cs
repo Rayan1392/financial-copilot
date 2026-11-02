@@ -28,14 +28,14 @@ public sealed class TahlilAppTopUpTests
         var account = await billing.CustomerAccounts.SingleAsync(x => x.Id == accountId);
         account.SubscriptionPlanCode = "Max";
         await billing.SaveChangesAsync();
-        var replay = await service.DeliverAsync(request with { EventId = "evt-retry" }, CancellationToken.None);
+        var replay = await service.DeliverAsync(request, CancellationToken.None); // fresh JWT, same invoice and business body
         Assert.Equal(first, replay);
         Assert.Equal(credits + 17, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
         Assert.Equal(1, await billing.TopUpCreditSources.CountAsync());
         Assert.Equal(1, await billing.UsageLedgerEntries.CountAsync(x => x.OperationCode == "Billing.TahlilAppCreditTopUpGrant"));
 
-        Assert.NotNull(await service.GetStatusAsync(userId, tenantId, request.PurchaseId, CancellationToken.None));
-        Assert.Null(await service.GetStatusAsync(Guid.NewGuid(), tenantId, request.PurchaseId, CancellationToken.None));
+        Assert.NotNull(await service.GetStatusAsync(userId, tenantId, request.InvoiceId, CancellationToken.None));
+        Assert.Null(await service.GetStatusAsync(Guid.NewGuid(), tenantId, request.InvoiceId, CancellationToken.None));
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class TahlilAppTopUpTests
     }
 
     [Fact]
-    public async Task Conflicting_reuse_of_purchase_identity_does_not_change_wallet()
+    public async Task Conflicting_reuse_of_invoice_identity_does_not_change_wallet()
     {
         var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(500, "TA-TOPUP-500");
         await using var billing = new BillingDbContext(billingOptions);
@@ -61,9 +61,46 @@ public sealed class TahlilAppTopUpTests
         var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
         await service.DeliverAsync(request, CancellationToken.None);
         var exception = await Assert.ThrowsAsync<TopUpContractException>(() =>
-            service.DeliverAsync(request with { CreditsPurchased = 100, PackageId = "TA-TOPUP-100" }, CancellationToken.None));
+            service.DeliverAsync(request with { CreditsPurchased = 100 }, CancellationToken.None));
         Assert.Equal("topup-identity-conflict", exception.Code);
         Assert.Equal(517, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+    }
+
+    [Fact]
+    public async Task Partner_request_serializes_exactly_the_five_contract_fields()
+    {
+        var (_, _, request, _, _, _) = await SeedAsync(500, "TA-TOPUP-500");
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(request, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Assert.Equal(new[] { "creditsPurchased", "invoiceId", "paidAtUtc", "subscription", "userId" }, json.EnumerateObject().Select(x => x.Name).OrderBy(x => x).ToArray());
+        Assert.Equal(new[] { "expiresAtUtc", "slug", "startsAtUtc" }, json.GetProperty("subscription").EnumerateObject().Select(x => x.Name).OrderBy(x => x).ToArray());
+    }
+
+    [Fact]
+    public async Task Invalid_invoice_or_unoffered_quantity_never_grants()
+    {
+        var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(500, "TA-TOPUP-500");
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+        var invalid = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request with { InvoiceId = " " }, CancellationToken.None));
+        Assert.Equal("invalid-topup-event", invalid.Code);
+        var outsideWindow = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request with { InvoiceId = "ta-invoice-outside-window", PaidAtUtc = WindowEnd }, CancellationToken.None));
+        Assert.Equal("invalid-topup-event", outsideWindow.Code);
+        var quantity = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request with { InvoiceId = "ta-invoice-unsupported", CreditsPurchased = 200 }, CancellationToken.None));
+        Assert.Equal("topup-quantity-invalid", quantity.Code);
+        Assert.Equal(17, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+    }
+
+    [Fact]
+    public async Task Partner_jti_is_consumed_once_and_duplicate_token_is_rejected()
+    {
+        var (billingOptions, authOptions, _, _, _, _) = await SeedAsync(100, "TA-TOPUP-100");
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+        var expiry = Now.AddMinutes(2);
+        Assert.True(await service.TryConsumeTokenJtiAsync("configured-issuer", "unique-random-jti-0001", expiry, CancellationToken.None));
+        Assert.False(await service.TryConsumeTokenJtiAsync("configured-issuer", "unique-random-jti-0001", expiry, CancellationToken.None));
     }
 
     private static readonly DateTimeOffset Now = new(2026, 11, 1, 8, 30, 0, TimeSpan.Zero);
@@ -93,7 +130,7 @@ public sealed class TahlilAppTopUpTests
             await auth.SaveChangesAsync();
         }
         return (billingOptions, authOptions,
-            new TopUpDeliveryRequest("evt-1", "purchase-1", "payment-1", "tahlil-test-001", credits, package, "v1", window, Now),
+            new TopUpDeliveryRequest("ta-invoice-001", "tahlil-test-001", credits, Now),
             userId, tenantId, accountId);
     }
 

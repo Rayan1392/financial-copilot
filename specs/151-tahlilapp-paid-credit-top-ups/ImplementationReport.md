@@ -1,65 +1,47 @@
 # Feature 151 implementation report
 
-**Local implementation readiness:** Complete. All in-repository Feature 151 implementation and focused verification are complete.
+**Status:** The repository implementation and contracts now match the four-field webhook and anonymous informational balance requirements. TahlilApp coordination, external user-ID entropy confirmation, and joint staging remain pending. Delivery is still disabled by default. No production migration, deployment, data change, or commit was performed.
 
-**Production enablement:** Not ready and intentionally disabled. Joint TahlilApp staging and operations gates remain open. No production migration or data change was applied.
+## Changed contracts and files
 
-## Changes and acceptance evidence
+- `GET /api/v1/billing/partners/tahlilapp/credit-balance?userId=<URL-encoded-id>` is anonymous, read-only, rate limited by client IP, and `no-store`. It resolves the existing TahlilApp identity mapping, returns effective plan and dates, expiry-aware finite spendable credits or `null` for Unlimited, and `asOfUtc`. It does not refresh entitlements or evaluate checkout eligibility.
+- `POST /api/v1/billing/partners/tahlilapp/top-ups` accepts exactly `invoiceId`, `userId`, `creditsPurchased`, and `paidAtUtc`. Partner JWT remains in the Authorization header. Current offer and plan checks use server-side subscription state. Invoice fingerprint includes exactly those four immutable fields.
+- The old JWT-protected top-up eligibility endpoint was removed. No second eligibility check was added to checkout.
+- If more than one persisted Plus/Pro source window contains `paidAtUtc`, SapioAI stores `ambiguous-unfulfilled` with no grant and no source assignment. Reconciliation can identify the invoice; retries return its original outcome. EF migration `20261102131403_Feature151SourceResolutionAndOptionalAuditWindow` makes source-window evidence nullable for this terminal ambiguous result and has not been applied.
+- Feature 151 spec, integration contract, user stories, tasks, implementation report, shared API design docs, endpoint OpenAPI summaries/descriptions, and `docs/integrations/tahlilapp-feature151-fa.html` were updated. Feature 152's overlap resolver is reused; its plan policy is not changed.
+- Frontend top-up status now stops polling for `ambiguous-unfulfilled` and tells the customer to contact support; admin reconciliation marks its unresolvable source window instead of rendering invalid dates.
+- External user IDs are persisted by Feature 139 but generated outside this repository. The codebase cannot prove their entropy. A guessable ID would expose spendable balance, effective plan, and subscription dates to an unauthenticated caller. TahlilApp must guarantee cryptographically random, non-enumerable IDs with at least 128 bits of entropy; public IP rate limiting remains enabled in SapioAI and should also be enforced at the edge. JWT was not added to this endpoint.
+- Existing uncommitted `.env.example`, `docker-compose.yml`, and Kesaveh-related work were preserved.
 
-- Added database-controlled top-up quantities and versioned package validation, partner JWT authentication, bounded request handling, eligibility and source-window validation, purchase/event/payment receipts, replay and conflict handling, and atomic grant or persisted unfulfilled outcomes. Evidence: `TahlilAppTopUpService`, `TahlilAppTopUpsController`, Billing persistence/migration, and `TahlilAppTopUpEndpointTests` / `TahlilAppTopUpPostgreSqlTests`.
-- Grants are tied to the persisted original authoritative Plus/Pro subscription tuple and expire at that window's expiry. Existing purchase outcomes replay before eligibility checks, including after expiry or plan changes. Duplicate delivery cannot grant twice; expired refunds do not restore spendable credits. Evidence: PostgreSQL tests for replay after expiry, original-window expiry, payment identity uniqueness, source refund and delivery races.
-- Added tenant-scoped operator reconciliation at `GET /api/v1/admin/billing/top-ups/reconciliation`, following existing Billing audit read permission and admin panel patterns. It reports bounded purchase outcomes and identity conflicts; conflicting reuse is audited without a second grant. Evidence: reconciliation endpoint API coverage and frontend panel under the existing billing audit access gate.
-- Added targeted concurrency retries in usage finalization, refunds and top-up expiry so production transaction paths can recover from source revision races. PostgreSQL race coverage executes the actual fulfillment, reservation, finalization, refund and lifecycle services against PostgreSQL with independent contexts/connections.
-- Added SapioAI self-scoped purchase status UI. It waits for a committed grant and then refreshes the existing usage endpoint; browser return does not create credits.
-- Updated shared overlap behavior: active Max controls Unlimited mode; after its expiry the latest-expiring active non-Max window determines the effective plan. Finite grants and eligible top-ups remain additive, each with its own source expiry. No cross-window transfer or extension occurs. New top-up eligibility remains excluded during active Max, and delivery remains bound to the original Plus/Pro source window.
-- Feature 151 does not implement Max accounting; its eligibility, source accounting and projections consume the shared effective-plan/quota result. Existing Kesaveh investigation changes were preserved.
+## Examples
 
-## Verification
+Balance request:
+
+```http
+GET /api/v1/billing/partners/tahlilapp/credit-balance?userId=d647420371eb1270418f59c20d6c7d02
+```
+
+```json
+{"plan":"Max","subscriptionStartsAtUtc":"2026-10-20T00:00:00Z","subscriptionExpiresAtUtc":"2027-01-18T00:00:00Z","quotaMode":"unlimited","availableCredits":null,"asOfUtc":"2026-11-02T12:00:00Z"}
+```
+
+Webhook body:
+
+```json
+{"invoiceId":"ta-invoice-001","userId":"d647420371eb1270418f59c20d6c7d02","creditsPurchased":500,"paidAtUtc":"2026-11-01T08:30:00Z"}
+```
+
+## Verification performed in this revision
 
 | Check | Result |
-|---|---:|
-| `TahlilAppTopUpPostgreSqlTests` + `TahlilAppTopUpEndpointTests` (Release, disposable local PostgreSQL) | 10 passed, 0 failed, 0 skipped |
-| Billing/auth/lifecycle unit filter (`TahlilApp`, `OwnedIdentity`, `Billing`, `SubscriptionCreditLifecycle`) | 243 passed, 0 failed, 0 skipped |
-| Expanded billing/auth/lifecycle integration regression filter | 90 passed, 0 failed, 0 skipped |
-| Backend solution Release build | Passed, 0 warnings, 0 errors |
-| Frontend `npm run build` | Passed (existing route-like test-file and chunk-size warnings) |
-| Focused frontend tests: `markdown-message.test.tsx` and `monthly-product-trend-chart.test.tsx` | 27 passed, 2 failed; both failures reproduce on clean baseline `HEAD 5f50f847` with the same rendered text |
-| `git diff --check` | Passed; Git reported line-ending normalization warnings only |
+|---|---|
+| Release API build (`dotnet build ...FinancialCopilot.API.csproj -c Release --no-restore`) | Passed, 0 warnings, 0 errors. |
+| `TahlilAppTopUpEndpointTests` Release | Passed: 8 tests, 0 failed, 0 skipped. Covers anonymous URL-decoded balance lookup, `no-store`, Unlimited/finite overlap policy, expired allowance exclusion, unchanged balance, unknown user, OpenAPI auth/body shape, four-field contract/unknown fields, JWT, invoice retry/conflicts, active Max/Free restrictions, and ambiguous source resolution. |
+| `TahlilAppTopUpPostgreSqlTests` Release | 9 skipped, 0 passed, 0 failed because the PostgreSQL integration fixture was unavailable. PostgreSQL concurrency, rollback, expiry, and refund races were not re-executed in this turn. |
+| Focused `TahlilAppTopUpTests` unit test | Blocked during compilation by existing unrelated error `CompanyDisclosureFeed112Tests.cs(218)`: constructor call omits required `cache` argument. That test file was not changed. |
+| Frontend `npm run build` | Passed. Existing route-file and large bundle warnings were reported by Vite. |
+| `dotnet ef migrations has-pending-model-changes` for `BillingDbContext` | Passed: no model changes since the last migration. Migration remains unapplied. |
 
-The approved overlap behavior was verified in the PostgreSQL Feature 152 overlap test through the production lifecycle, plan projection, reservation, settlement, expiry, and refund paths. The focused Feature 151/152 PostgreSQL and endpoint test run reported **17 passed, 0 failed, 0 skipped** across `TahlilAppMaxUsagePostgreSqlTests`, `TahlilAppTopUpPostgreSqlTests`, and `TahlilAppTopUpEndpointTests` on the disposable local database.
+## External work and remaining constraints
 
-The expanded billing/Feature 146/Feature 151/152 integration regression run reported **58 passed, 1 failed, 0 skipped**. The remaining test, `Feature146PostgreSqlIntegrationTests.Auth_migration_backfills_unknown_without_inferred_source_and_adds_query_indexes` (line 43, `Sequence contains no elements`), also failed at the same line in a detached clean baseline checkout `5f50f847` against the same disposable PostgreSQL server. The affected Customer360 regression passed after the additional reporting query was consolidated; its dedicated rerun was **1 passed, 0 failed**.
-
-The two frontend failures are pre-existing test/render expectation mismatches, not Feature 151 regressions. Exact failing tests:
-
-- `MarkdownMessage > renders a quarterly financial table with 16 rows inside an RTL message` expects ASCII digits and punctuation in `سال مالی 1405، فصل 2`; the UI renders Persian digits and omits that punctuation in text content.
-- `MonthlyProductTrendChart > renders a failed product trend message once in chat` expects a trailing period in `بیش از یک محصول با این مشخصات یافت شد.`; the rendered message has no trailing period.
-
-Both assertions and their components are outside the Feature 151 change set. The same two failures and 27 passing tests were independently reproduced in a clean detached worktree at `5f50f847`. Tests were not skipped or weakened. No unrelated frontend behavior was changed.
-
-## Configuration and migration
-
-- Migration: `20261101131932_Feature151TahlilAppPaidCreditTopUps` adds the receipt, top-up source and allocation persistence required by the contract. It was exercised by disposable local PostgreSQL tests; it has not been applied to production.
-- `Billing:TahlilAppTopUps:Enabled` remains `false` in `appsettings.json`. Before staging/enablement, configure the dedicated partner token issuer, audience and signing keys through deployment secrets/configuration. The current audience default is `sapio-tahlilapp-topup`; issuer and signing keys are empty in checked-in defaults.
-- Keep the database-backed active offer/package configuration aligned with TahlilApp's offer IDs and versions. Do not enable delivery until staging authentication, delivery, reconciliation and key-rotation checks pass.
-
-## Remaining work
-
-### Local repository
-
-No Feature 151 local implementation or test tasks remain. The two baseline frontend assertion failures above remain visible and documented; they were not modified because clean-baseline evidence confirms they predate this feature.
-
-### External TahlilApp work
-
-- Implement the offer and checkout UI, eligibility check, and persist the original `(slug, starts_at, expires_at)` subscription tuple with each purchase.
-- Verify payment server-side, retain the monetary audit, durably persist the verified purchase and positive integer `creditsPurchased`, then deliver with the dedicated partner token and stable event, purchase, and payment IDs.
-- Retry delivery durably, classify retryable versus terminal responses, reconcile paid-but-ungranted purchases, and coordinate payment refunds/chargebacks without treating a payment refund as permission to restore expired credits.
-- Do not permit new purchases for Free or active Max. Use the current delayed-delivery contract for a previously paid Plus/Pro purchase while its original window remains active.
-
-### Staging and operations gates
-
-- Jointly verify contract fields/statuses, partner authentication and key rotation, original-window snapshots, duplicate/retry behavior, expired and ineligible outcomes, and operator reconciliation against TahlilApp staging.
-- Confirm Feature 139 identity, status and migration readiness in joint staging; its local PostgreSQL verification is complete but its staging/operations review remains pending.
-- Review monitoring for paid-but-ungranted age, expired-unfulfilled outcomes and identity conflicts. Deploy the migration and secrets with delivery disabled; enable only after the joint gates pass. Keep delivery available while draining paid purchases if rollback is needed.
-
-No external checkout/delivery integration or staging/operations review is claimed complete.
+TahlilApp must send only the four webhook properties, preserve one immutable invoice per verified payment, keep provider IDs on its side, and issue a fresh short-lived JWT with a unique random `jti` per attempt. It must guarantee high-entropy non-enumerable user IDs before using the no-JWT balance endpoint. It should route `ambiguous-unfulfilled` to manual reconciliation; SapioAI deliberately does not guess the original source. A separate authenticated invoice-keyed reversal event remains necessary for automated provider refund/chargeback handling. Joint staging must verify the balance endpoint, ID entropy, rate limits, JWT claims/key rotation, retry/idempotency, conflicts, source expiry/overlap, and reconciliation before enabling delivery.

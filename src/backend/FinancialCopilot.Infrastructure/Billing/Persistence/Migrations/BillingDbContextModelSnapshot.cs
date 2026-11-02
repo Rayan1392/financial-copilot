@@ -430,6 +430,29 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.ConsumedPartnerTokenRow", b =>
+                {
+                    b.Property<string>("Issuer")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Jti")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Issuer", "Jti");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.ToTable("billing_consumed_partner_tokens", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1311,7 +1334,6 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("EventId")
-                        .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
@@ -1332,6 +1354,11 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.Property<DateTimeOffset?>("GrantedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("InvoiceId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
                     b.Property<string>("PackageId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -1349,28 +1376,30 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.Property<string>("PaymentId")
-                        .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
-                    b.Property<DateTimeOffset>("PlanExpiresAtUtc")
+                    b.Property<DateTimeOffset?>("PlanExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PlanSlug")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTimeOffset>("PlanStartsAtUtc")
+                    b.Property<DateTimeOffset?>("PlanStartsAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PurchaseId")
-                        .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
                     b.Property<DateTimeOffset>("ReceivedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1383,13 +1412,10 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
 
                     b.HasIndex("CustomerAccountId", "ReceivedAtUtc");
 
-                    b.HasIndex("Partner", "EventId")
+                    b.HasIndex("Partner", "InvoiceId")
                         .IsUnique();
 
                     b.HasIndex("Partner", "PaymentId")
-                        .IsUnique();
-
-                    b.HasIndex("Partner", "PurchaseId")
                         .IsUnique();
 
                     b.ToTable("billing_tahlilapp_topup_purchases", (string)null);

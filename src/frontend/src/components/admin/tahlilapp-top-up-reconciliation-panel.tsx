@@ -29,7 +29,7 @@ export function TahlilAppTopUpReconciliationPanel() {
         <div>
           <h2 className="text-base font-bold text-slate-900">TahlilApp credit top-up reconciliation</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Purchase receipts, committed grants, unfulfilled payments and identity conflicts.
+            Invoice receipts, committed grants, unfulfilled payments and invoice identity conflicts.
             {report && ` Generated ${new Date(report.generatedAtUtc).toLocaleString("en-GB", { timeZone: "UTC" })} UTC.`}
           </p>
         </div>
@@ -45,17 +45,17 @@ export function TahlilAppTopUpReconciliationPanel() {
       <div className="overflow-x-auto rounded-xl border border-slate-100">
         <Table className="admin-table">
           <TableHeader><TableRow>
-            <TableHead>Purchase / payment</TableHead><TableHead>Account</TableHead><TableHead>Credits</TableHead>
+            <TableHead>Invoice / legacy payment</TableHead><TableHead>Account</TableHead><TableHead>Credits</TableHead>
             <TableHead>Status</TableHead><TableHead>Original window</TableHead><TableHead>Received / granted</TableHead>
           </TableRow></TableHeader>
           <TableBody>
             {(report?.purchases ?? []).map((item) => (
-              <TableRow key={item.purchaseId}>
-                <TableCell><code dir="ltr" className="block text-left text-xs">{item.purchaseId}</code><code dir="ltr" className="block text-left text-[10px] text-slate-500">{item.paymentId}</code></TableCell>
+              <TableRow key={item.invoiceId}>
+                <TableCell><code dir="ltr" className="block text-left text-xs">{item.invoiceId}</code>{item.legacyPaymentId && <code dir="ltr" className="block text-left text-[10px] text-slate-500">Legacy payment: {item.legacyPaymentId}</code>}</TableCell>
                 <TableCell><code dir="ltr" className="text-xs">{item.customerAccountId}</code></TableCell>
                 <TableCell>{item.creditsPurchased.toLocaleString("en-US")}</TableCell>
                 <TableCell className={item.status === "granted" ? "font-medium text-emerald-700" : "font-semibold text-amber-700"}>{item.status}</TableCell>
-                <TableCell><code dir="ltr" className="block text-left text-xs">{item.planSlug}</code><span className="text-[10px] text-slate-500">{new Date(item.planStartsAtUtc).toLocaleDateString("en-GB")} – {new Date(item.planExpiresAtUtc).toLocaleDateString("en-GB")}</span></TableCell>
+                <TableCell>{item.planSlug && item.planStartsAtUtc && item.planExpiresAtUtc ? <><code dir="ltr" className="block text-left text-xs">{item.planSlug}</code><span className="text-[10px] text-slate-500">{new Date(item.planStartsAtUtc).toLocaleDateString("en-GB")} – {new Date(item.planExpiresAtUtc).toLocaleDateString("en-GB")}</span></> : <span className="text-xs text-amber-700">Source unresolved</span>}</TableCell>
                 <TableCell><span className="block text-xs">{new Date(item.receivedAtUtc).toLocaleString("en-GB", { timeZone: "UTC" })}</span><span className="text-[10px] text-slate-500">{item.grantedAtUtc ? new Date(item.grantedAtUtc).toLocaleString("en-GB", { timeZone: "UTC" }) : "Not granted"}</span></TableCell>
               </TableRow>
             ))}
@@ -67,13 +67,13 @@ export function TahlilAppTopUpReconciliationPanel() {
       <h3 className="mb-2 mt-5 text-sm font-semibold text-slate-800">Identity conflicts</h3>
       <div className="overflow-x-auto rounded-xl border border-slate-100">
         <Table className="admin-table">
-          <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Stored receipt</TableHead><TableHead>Incoming event</TableHead><TableHead>Stored IDs</TableHead><TableHead>Incoming IDs</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Stored receipt</TableHead><TableHead>Incoming invoice</TableHead><TableHead>Stored identity</TableHead><TableHead>Incoming identity</TableHead></TableRow></TableHeader>
           <TableBody>
             {(report?.identityConflicts ?? []).map((item, index) => (
-              <TableRow key={`${item.purchaseReceiptId}-${item.occurredAtUtc}-${index}`}>
+              <TableRow key={`${item.receiptId}-${item.occurredAtUtc}-${index}`}>
                 <TableCell>{new Date(item.occurredAtUtc).toLocaleString("en-GB", { timeZone: "UTC" })}</TableCell>
-                <TableCell><code dir="ltr" className="text-xs">{item.purchaseReceiptId}</code></TableCell>
-                <TableCell><code dir="ltr" className="text-xs">{item.eventId}</code></TableCell>
+                <TableCell><code dir="ltr" className="text-xs">{item.receiptId}</code></TableCell>
+                <TableCell><code dir="ltr" className="text-xs">{item.invoiceId}</code></TableCell>
                 <TableCell><code dir="ltr" className="text-[10px]">{item.existingIdentity}</code></TableCell>
                 <TableCell><code dir="ltr" className="text-[10px]">{item.incomingIdentity}</code></TableCell>
               </TableRow>

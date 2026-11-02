@@ -2,7 +2,7 @@
 
 ## Configuration files
 
-- src/backend/FinancialCopilot.API/appsettings.json contains shared email defaults and non-secret Gmail SMTP values (host, port, TLS mode, username, and sender identity). Email remains disabled by default, and no SMTP password is present. The Development-local overlay enables local delivery and supplies the secret.
+- src/backend/FinancialCopilot.API/appsettings.json contains shared email defaults and non-secret Zoho Mail SMTP values (`smtppro.zoho.com`, 587, StartTls, user name and sender `no-reply@sapioai.ir`, display name `Sapio AI`). Email remains disabled by default, and no SMTP password is present. The Development-local overlay enables local delivery and supplies the secret. Superseded on 2026-11-02: the earlier Gmail sender was replaced; see ZohoSmtpMigrationReport.md.
 - src/backend/FinancialCopilot.API/appsettings.Development.json is already tracked and contains existing Development settings. Keep it intact; do not put SMTP secrets in it.
 - src/backend/FinancialCopilot.API/appsettings.Development.Local.json is the local-only overlay. It is ignored by Git, excluded from API output and publish content, and loaded only when ASPNETCORE_ENVIRONMENT=Development. It contains the operator-approved Gmail host, port, username, app password, StartTls mode, sender identity, and detected Vite frontend URL (`http://localhost:5173`). Development email delivery is enabled. The SMTP password and token hash secret are not reproduced in this document.
 - .env.example has production placeholders for manual copying to the VPS .env. The populated .env is ignored and must stay out of Git. This change does not edit the populated .env or contact the production server.

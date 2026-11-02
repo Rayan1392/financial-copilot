@@ -29,8 +29,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         await using var secondAuth = database.CreateAuthContext();
         await firstBilling.Database.OpenConnectionAsync();
         await secondBilling.Database.OpenConnectionAsync();
-        var request = new TopUpDeliveryRequest("evt-shared", "purchase-shared", "payment-shared", externalId, 500,
-            "TA-TOPUP-500", "v1", window, now.AddMinutes(-1));
+        var request = new TopUpDeliveryRequest("ta-invoice-shared", externalId, 500, now.AddMinutes(-1));
         var refresher = new NoOpRefresher();
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var first = DeliverAsync(firstBilling, firstAuth, request, refresher, gate.Task);
@@ -41,7 +40,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
 
         await using var verify = database.CreateBillingContext();
         Assert.Equal(509m, await verify.WalletProjections.Where(row => row.CustomerAccountId == accountId).Select(row => row.Balance).SingleAsync());
-        Assert.Equal(1, await verify.TahlilAppTopUpPurchases.CountAsync(row => row.PurchaseId == "purchase-shared"));
+        Assert.Equal(1, await verify.TahlilAppTopUpPurchases.CountAsync(row => row.InvoiceId == "ta-invoice-shared"));
         Assert.Equal(1, await verify.TopUpCreditSources.CountAsync(row => row.CustomerAccountId == accountId));
         Assert.Equal(1, await verify.UsageLedgerEntries.CountAsync(row => row.OperationCode == "Billing.TahlilAppCreditTopUpGrant"));
     }
@@ -77,7 +76,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
             await command.ExecuteNonQueryAsync();
         }
 
-        var request = Request(seed, "rollback-event", "rollback-purchase", "rollback-payment", 500);
+        var request = Request(seed, "rollback-event", 500);
         await using (var failedBilling = database.CreateBillingContext())
         await using (var auth = database.CreateAuthContext())
         {
@@ -110,7 +109,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
     }
 
     [SkippableFact]
-    public async Task Concurrent_payment_identity_collision_returns_conflict_and_commits_exactly_one_grant()
+    public async Task Concurrent_invoice_identity_conflict_returns_conflict_and_commits_exactly_one_grant()
     {
         await using var database = await fixture.CreateBillingDatabaseAsync("feature151_paymentrace");
         await using (var auth = database.CreateAuthContext()) await auth.Database.MigrateAsync();
@@ -121,8 +120,8 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         await using var secondAuth = database.CreateAuthContext();
         await firstBilling.Database.OpenConnectionAsync();
         await secondBilling.Database.OpenConnectionAsync();
-        var firstRequest = Request(seed, "payment-race-event-a", "payment-race-purchase-a", "payment-race-shared", 500);
-        var secondRequest = Request(seed, "payment-race-event-b", "payment-race-purchase-b", "payment-race-shared", 500);
+        var firstRequest = Request(seed, "payment-race-invoice-shared", 500);
+        var secondRequest = Request(seed, "payment-race-invoice-shared", 100);
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         async Task<(TopUpDeliveryResponse? Result, TopUpContractException? Error)> Deliver(
             BillingDbContext billing, AuthDbContext auth, TopUpDeliveryRequest request)
@@ -161,7 +160,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         await using var database = await fixture.CreateBillingDatabaseAsync("feature151_usagerace");
         await using (var auth = database.CreateAuthContext()) await auth.Database.MigrateAsync();
         var seed = await SeedAccountAsync(database, windowDuration: TimeSpan.FromHours(2));
-        var firstRequest = Request(seed, "usage-race-event-first", "usage-race-purchase-first", "usage-race-payment-first", 500);
+        var firstRequest = Request(seed, "usage-race-event-first", 500);
         await using (var billing = database.CreateBillingContext())
         await using (var auth = database.CreateAuthContext())
             await new TahlilAppTopUpService(billing, auth, new FixedClock(seed.Now), new NoOpRefresher()).DeliverAsync(firstRequest, CancellationToken.None);
@@ -237,7 +236,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         await using (var billing = database.CreateBillingContext())
         await using (var auth = database.CreateAuthContext())
             await new TahlilAppTopUpService(billing, auth, new FixedClock(seed.Now), new NoOpRefresher())
-                .DeliverAsync(Request(seed, "release-expiry-event", "release-expiry-purchase", "release-expiry-payment", 500), CancellationToken.None);
+                .DeliverAsync(Request(seed, "release-expiry-event", 500), CancellationToken.None);
 
         var account = new CustomerAccount(seed.AccountId, seed.TenantId, CustomerAccountType.Individual, BillingMode.Prepaid);
         const string reservationKey = "feature151-expired-release:reservation";
@@ -271,8 +270,8 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         await using var database = await fixture.CreateBillingDatabaseAsync("feature151_grantusage");
         await using (var auth = database.CreateAuthContext()) await auth.Database.MigrateAsync();
         var seed = await SeedAccountAsync(database);
-        var firstRequest = Request(seed, "grant-usage-event-first", "grant-usage-purchase-first", "grant-usage-payment-first", 500);
-        var secondRequest = Request(seed, "grant-usage-event-second", "grant-usage-purchase-second", "grant-usage-payment-second", 100);
+        var firstRequest = Request(seed, "grant-usage-event-first", 500);
+        var secondRequest = Request(seed, "grant-usage-event-second", 100);
         await using (var billing = database.CreateBillingContext())
         await using (var auth = database.CreateAuthContext())
             await new TahlilAppTopUpService(billing, auth, new FixedClock(seed.Now), new NoOpRefresher()).DeliverAsync(firstRequest, CancellationToken.None);
@@ -354,7 +353,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         await using var database = await fixture.CreateBillingDatabaseAsync("feature151_reserverace");
         await using (var auth = database.CreateAuthContext()) await auth.Database.MigrateAsync();
         var seed = await SeedAccountAsync(database);
-        var request = Request(seed, "reserve-race-event", "reserve-race-purchase", "reserve-race-payment", 500);
+        var request = Request(seed, "reserve-race-event", 500);
         var account = new CustomerAccount(seed.AccountId, seed.TenantId, CustomerAccountType.Individual, BillingMode.Prepaid);
         const string reservationKey = "feature151-reserve-race:reservation";
         WalletSnapshot initialWallet;
@@ -421,8 +420,8 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         await using var database = await fixture.CreateBillingDatabaseAsync("feature151_refundrace");
         await using (var auth = database.CreateAuthContext()) await auth.Database.MigrateAsync();
         var seed = await SeedAccountAsync(database);
-        var firstRequest = Request(seed, "refund-race-event-first", "refund-race-purchase-first", "refund-race-payment-first", 500);
-        var secondRequest = Request(seed, "refund-race-event-second", "refund-race-purchase-second", "refund-race-payment-second", 100);
+        var firstRequest = Request(seed, "refund-race-event-first", 500);
+        var secondRequest = Request(seed, "refund-race-event-second", 100);
         await using (var billing = database.CreateBillingContext())
         await using (var auth = database.CreateAuthContext())
             await new TahlilAppTopUpService(billing, auth, new FixedClock(seed.Now), new NoOpRefresher()).DeliverAsync(firstRequest, CancellationToken.None);
@@ -498,12 +497,12 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
     }
 
     [SkippableFact]
-    public async Task Matching_purchase_replays_after_expiry_and_event_change_without_regrant()
+    public async Task Matching_invoice_replays_after_expiry_without_regrant()
     {
         await using var database = await fixture.CreateBillingDatabaseAsync("feature151_replay");
         await using (var auth = database.CreateAuthContext()) await auth.Database.MigrateAsync();
         var seed = await SeedAccountAsync(database);
-        var request = Request(seed, "replay-event-first", "replay-purchase", "replay-payment", 500);
+        var request = Request(seed, "replay-event-first", 500);
         TopUpDeliveryResponse granted;
         await using (var billing = database.CreateBillingContext())
         await using (var auth = database.CreateAuthContext())
@@ -514,7 +513,7 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         {
             var replay = await new TahlilAppTopUpService(replayBilling, replayAuth,
                 new FixedClock(seed.Window.ExpiresAtUtc.AddDays(1)), new NoOpRefresher()).DeliverAsync(
-                    request with { EventId = "replay-event-redelivery" }, CancellationToken.None);
+                    request, CancellationToken.None);
             Assert.Equal("granted", replay.Status);
             Assert.Equal(granted.GrantId, replay.GrantId);
             Assert.Equal(500, replay.CreditsGranted);
@@ -540,7 +539,9 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
     }
 
     private sealed record SeededAccount(Guid UserId, Guid TenantId, Guid AccountId, string ExternalId,
-        DateTimeOffset Now, TopUpWindowResponse Window);
+        DateTimeOffset Now, SeededWindow Window);
+
+    private sealed record SeededWindow(string Slug, DateTimeOffset StartsAtUtc, DateTimeOffset ExpiresAtUtc);
 
     private static async Task<SeededAccount> SeedAccountAsync(PostgreSqlTestDatabase database,
         decimal balance = 9m, TimeSpan? windowDuration = null)
@@ -558,11 +559,11 @@ public sealed class TahlilAppTopUpPostgreSqlTests(PostgreSqlIntegrationFixture f
         billing.WalletProjections.Add(new WalletProjectionRow { CustomerAccountId = accountId, Balance = balance, ReservedAmount = 0, UpdatedAt = now, Revision = 1 });
         billing.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow { Id = Guid.NewGuid(), CustomerAccountId = accountId, IdentityKey = $"sapio_plus:{start.ToUnixTimeMilliseconds()}:{expiry.ToUnixTimeMilliseconds()}", PlanCode = "Plus", StartsAtUtc = start, ExpiresAtUtc = expiry });
         await billing.SaveChangesAsync();
-        return new(userId, tenantId, accountId, externalId, now, new TopUpWindowResponse("sapio_plus", start, expiry));
+        return new(userId, tenantId, accountId, externalId, now, new SeededWindow("sapio_plus", start, expiry));
     }
 
-    private static TopUpDeliveryRequest Request(SeededAccount seed, string eventId, string purchaseId, string paymentId, int credits) =>
-        new(eventId, purchaseId, paymentId, seed.ExternalId, credits, $"TA-TOPUP-{credits}", "v1", seed.Window, seed.Now.AddMinutes(-1));
+    private static TopUpDeliveryRequest Request(SeededAccount seed, string invoiceId, int credits) =>
+        new(invoiceId, seed.ExternalId, credits, seed.Now.AddMinutes(-1));
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {

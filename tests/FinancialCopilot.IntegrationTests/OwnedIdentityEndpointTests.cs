@@ -479,6 +479,8 @@ public class OwnedIdentityApiFactory : AuthenticationApiFactory
                 ["Authentication:Email:TokenHashSecret"] = "integration-test-email-hash-secret-more-than-32-characters",
                 ["Authentication:Smtp:Host"] = "smtp.example.test",
                 ["Authentication:Smtp:SenderAddress"] = "noreply@example.test",
+                // The shipped Zoho user name requires a password; this fixture uses an unauthenticated fake.
+                ["Authentication:Smtp:UserName"] = "",
                 ["RateLimiting:PublicAuthentication:PermitLimit"] = "1000",
                 ["Feature141:Enabled"] = "false"
             });

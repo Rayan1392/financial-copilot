@@ -17,11 +17,11 @@ export interface UsageSummary {
 }
 
 export interface TopUpStatus {
-  status: "granted" | "expired-unfulfilled" | "ineligible-unfulfilled";
-  purchaseId: string;
+  status: "granted" | "expired-unfulfilled" | "ineligible-unfulfilled" | "ambiguous-unfulfilled";
+  invoiceId: string;
   grantId?: string | null;
   creditsGranted: number;
-  expiresAtUtc: string;
+  expiresAtUtc: string | null;
   grantedAtUtc?: string | null;
 }
 
@@ -75,11 +75,11 @@ export const getUsage = createServerFn({ method: "GET" })
 
 export const getTopUpStatus = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
-  .inputValidator((data: { purchaseId: string }) => data)
+  .inputValidator((data: { invoiceId: string }) => data)
   .handler(async ({ context, data }) =>
     financialCopilotServerApi<TopUpStatus | null>(
       context,
-      "/api/v1/billing/top-ups/" + encodeURIComponent(data.purchaseId),
+      "/api/v1/billing/top-ups/" + encodeURIComponent(data.invoiceId),
       {},
       true,
     ),

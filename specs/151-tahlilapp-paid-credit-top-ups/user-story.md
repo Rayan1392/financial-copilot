@@ -1,26 +1,27 @@
 # Feature 151 — User stories and acceptance criteria
 
-**Status:** implementation complete within this repository; see [ImplementationReport.md](ImplementationReport.md). External TahlilApp work and joint staging verification remain pending.
+**Status:** Local contracts are updated; focused implementation verification and external TahlilApp coordination remain in progress.
 
-**US-151-01:** As an active Plus or Pro user, I can buy credits without renewing my subscription, before or after my balance reaches zero.
+**US-151-01:** As a TahlilApp customer, I can check my current SapioAI credit balance and subscription state.
 
-- **AC-01:** Both active Plus and Pro users can buy 100, 500 or 1000 credits. The authenticated positive integer `creditsPurchased` equals the grant; an optional package ID/version must agree with it. Invalid, noninteger, nonpositive or inconsistent quantities cannot grant.
-- **AC-02:** Free, active Max, expired, revoked and suspended users cannot start a new top-up. Unavailable status prevents checkout. A paid Plus/Pro purchase delivered after transition to Max retains its original source: grant only if that source remains active/unrevoked; otherwise record `expired-unfulfilled` or `ineligible-unfulfilled` without a grant.
-- **AC-03:** Plus receives 260 and Pro 2600 **once per entire authoritative subscription window**, not per month. Two distinct verified top-up payments each grant once. Each top-up adds to existing finite balance without changing plan, subscription expiry, unrelated source balances, pending reservations or usage history. Day 30 and day 60 generate no subscription grant.
-- **AC-03a:** Each purchase records its original `(slug, starts_at, expires_at)` window and source; verified payment time falls within that window. Expiry removes only its unused credits, without carryover on renewal or reassociation on upgrade/downgrade. Delivery after that window expires records `expired-unfulfilled` and adds zero spendable credits.
-- **AC-03b:** Charges and holds attribute credits to exact sources in deterministic expiry order. Grant, reservation, finalization, cancellation, abandoned-hold cleanup, expiry and revocation races never overdraw, double-expire or delete unrelated credits. A pre-expiry reservation may settle against its recorded hold after natural expiry; a released expired hold does not reappear.
+- **AC-01:** `GET /api/v1/billing/partners/tahlilapp/credit-balance?userId=...` URL-decodes the stable user ID and resolves the existing TahlilApp external identity mapping.
+- **AC-02:** The endpoint is read-only, anonymous by agreement, IP rate limited, and returns `Cache-Control: no-store`; it performs no checkout eligibility check or entitlement refresh.
+- **AC-03:** It returns effective plan, authoritative subscription start/expiry, `quotaMode`, `availableCredits`, and `asOfUtc`. Max returns Unlimited and `availableCredits: null`; finite balance excludes expired sources and reservations.
+- **AC-04:** Active Max takes precedence through its expiry. Otherwise latest-expiring active non-Max wins with established Pro-over-Plus exact-tie behavior. Unknown user IDs do not reveal personal or payment details.
+- **AC-05:** Since this ID is not authenticated, TahlilApp must guarantee non-enumerable IDs with at least 128 bits of cryptographic entropy. The repository cannot verify how production IDs are generated; guessing risk and compatible mitigation are documented.
 
-**US-151-02:** As a payer, I see an honest pending state when I return before the credits arrive.
+**US-151-02:** As a verified payer, I receive the purchased credits without changing my subscription.
 
-- **AC-04:** Redirect and client status never grant credits. Early return shows processing from a self-scoped purchase status read; committed delivery refreshes the balance through `GET /api/v1/usage/me`. Delivery succeeds even if the browser never returns.
-- **AC-05:** An unresolved external user remains paid-but-ungranted and is retried/reconciled without matching on mutable personal data.
+- **AC-06:** The webhook accepts exactly `invoiceId`, `userId`, `creditsPurchased`, and `paidAtUtc`. It rejects unknown properties. JWT remains only in the Authorization header.
+- **AC-07:** SapioAI resolves active TahlilApp identity, persisted authoritative Plus/Pro source windows, current plan, and offer quantity server-side. It accepts only active database-controlled quantities 100, 500, or 1000; Free is ineligible. Payment during Max is rejected; a prior Plus/Pro payment can complete after Max starts only while its original finite source remains active and unrevoked.
+- **AC-08:** A uniquely matched Plus/Pro source gets an atomic grant expiring at that source's authoritative expiry. Expired, revoked, or otherwise ineligible cases grant zero and remain visible for reconciliation.
+- **AC-09:** If multiple Plus/Pro source windows include `paidAtUtc`, SapioAI persists `ambiguous-unfulfilled` without a grant or guessed source. This outcome is terminal for that invoice and needs operational reconciliation.
+- **AC-10:** A grant preserves wallet, source allocation, ledger, audit, outbox, reservation, expiry, revocation, refund, and rollback invariants.
 
-**US-151-03:** As an operator, I can reconcile every verified payment to at most one credit grant.
+**US-151-03:** As a payer/operator, I can retry and reconcile one immutable invoice safely.
 
-- **AC-06:** Sequential and concurrent duplicate deliveries return one persisted result; retry after commit/response timeout or after subsequent expiry/plan change returns that same result. A duplicate payment under another event ID never regrants. Existing fulfillment is checked before new-grant eligibility.
-- **AC-07:** Reusing an event, purchase or payment ID with a different user, original subscription window, credit quantity, package or payment identity returns conflict and does not mutate balance.
-- **AC-08:** Invalid authentication, unknown quantity, inactive package and package/quantity mismatch cannot grant. A failed grant transaction rolls back purchase, source, ledger and wallet together, allowing a safe retry.
-- **AC-09:** Delayed/out-of-order delivery, unresolved user, ineligible user, refund and chargeback are distinguishable in reconciliation; receipt alone is never reported as grant.
-- **AC-10:** Existing reservations, concurrent usage finalization, subscription grants/expiry and usage refunds preserve their invariants while a top-up arrives. A usage refund restores only still-valid original source credits and never resurrects an expired top-up or credits in a renewal window.
+- **AC-11:** `invoiceId` is immutable, bounded, unique, and fingerprints exactly invoice, user, credits, and paid time. Same-data retry returns the stored outcome; changed user, quantity, or paid timestamp returns 409 without changing the original grant.
+- **AC-12:** TahlilApp guarantees at most one immutable invoice per verified payment and keeps provider IDs internally. The separate provider reversal protocol remains external work.
+- **AC-13:** JWT retains required partner scope/signature/lifetime and unique one-time `jti`; every retry uses a fresh JWT while body and invoice remain unchanged. Balance GET does not use this JWT.
 
-**Tests required, no test code in this task:** unit tests for quantity/package agreement, eligibility (including Free/Max), source ordering, expiry and refund caps; API tests for auth, all quantities and invalid/inconsistent quantities; PostgreSQL independent-connection tests for duplicate races, transaction rollback and grant-versus-reservation/finalization/expiry/refund races; timeout/replay after expiry, renewal, Max transition and delayed delivery tests with a TahlilApp stub; joint staging verification of signed delivery and original-window identity. Shared full-window and Free-once tests are owned by Feature 139 T-40–T-43, not duplicated here.
+**Focused verification:** balance finite/Unlimited/expiry/overlap, decoded/unknown IDs, no mutation and no JWT; exact four-field webhook and rejection of subscription/legacy fields; offer/plan/source validation; invoice conflict, replay, duplicate/concurrency, rollback and expiry; partner JWT requirements. No second checkout eligibility check is added.

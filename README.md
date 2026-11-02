@@ -135,14 +135,16 @@ Feature 145 adds email verification and password recovery to owned web-app accou
 $env:Authentication__Email__Enabled = "true"
 $env:Authentication__Email__FrontendBaseUrl = "https://app.example.com"
 $env:Authentication__Email__TokenHashSecret = "<at-least-32-character-random-secret>"
-$env:Authentication__Smtp__Host = "smtp.example.com"
+$env:Authentication__Smtp__Host = "smtppro.zoho.com"
 $env:Authentication__Smtp__Port = "587"
 $env:Authentication__Smtp__Security = "StartTls"
-$env:Authentication__Smtp__UserName = "<smtp-user>"
-$env:Authentication__Smtp__Password = "<smtp-password>"
-$env:Authentication__Smtp__SenderAddress = "no-reply@example.com"
-$env:Authentication__Smtp__SenderName = "Financial Copilot"
+$env:Authentication__Smtp__UserName = "no-reply@sapioai.ir"
+$env:Authentication__Smtp__Password = "<zoho-application-specific-password>"
+$env:Authentication__Smtp__SenderAddress = "no-reply@sapioai.ir"
+$env:Authentication__Smtp__SenderName = "Sapio AI"
 ```
+
+Authentication email is sent through Zoho Mail SMTP as `no-reply@sapioai.ir`; `appsettings.json` ships every non-secret value above, so only the password must be supplied. With email enabled, a user name without a password fails startup validation. Use port 465 with `SslOnConnect` if 587/STARTTLS is blocked, and `smtp.zoho.com` or the regional host shown in Zoho Mail settings if the organization plan or data centre differs. See `specs/145-email-verification-and-password-recovery/ZohoSmtpMigrationReport.md`.
 
 The frontend origin must be an HTTPS origin with no path/query/fragment outside local development. Verification and recovery links use fixed frontend paths and fragments, so the token is removed from browser history before submission. Do not enable email delivery until valid SMTP and frontend-origin settings are present. The API uses a 10 requests/minute in-process public-auth IP limiter and shared-database per-email cooldowns (60 seconds, at most 5/hour); multi-instance deployments must also enforce IP limits at a shared gateway. Password reset revokes all refresh tokens and new owned-user JWTs through Identity security-stamp validation. Pre-feature JWTs without a stamp claim remain valid until their expiry; the checked-in `Authentication:OwnedIdentity:AccessTokenMinutes` value is 15 minutes. Logout revokes refresh sessions but cannot invalidate an already-issued stateless JWT before its expiry.
 

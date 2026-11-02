@@ -144,21 +144,35 @@ public sealed class TahlilAppTopUpPurchaseRowConfiguration : IEntityTypeConfigur
     {
         builder.ToTable("billing_tahlilapp_topup_purchases");
         builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.Partner, row.EventId }).IsUnique();
-        builder.HasIndex(row => new { row.Partner, row.PurchaseId }).IsUnique();
+        builder.HasIndex(row => new { row.Partner, row.InvoiceId }).IsUnique();
+        // PostgreSQL allows multiple NULLs, preserving historical payment-ID uniqueness while new contract receipts omit it.
         builder.HasIndex(row => new { row.Partner, row.PaymentId }).IsUnique();
         builder.HasIndex(row => new { row.CustomerAccountId, row.ReceivedAtUtc });
         builder.Property(row => row.Partner).HasMaxLength(32).IsRequired();
-        builder.Property(row => row.EventId).HasMaxLength(160).IsRequired();
-        builder.Property(row => row.PurchaseId).HasMaxLength(160).IsRequired();
-        builder.Property(row => row.PaymentId).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.InvoiceId).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.RequestFingerprint).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.EventId).HasMaxLength(160);
+        builder.Property(row => row.PurchaseId).HasMaxLength(160);
+        builder.Property(row => row.PaymentId).HasMaxLength(160);
         builder.Property(row => row.ExternalUserId).HasMaxLength(160).IsRequired();
-        builder.Property(row => row.PlanSlug).HasMaxLength(100).IsRequired();
+        builder.Property(row => row.PlanSlug).HasMaxLength(100);
         builder.Property(row => row.PackageId).HasMaxLength(100);
         builder.Property(row => row.PackageVersion).HasMaxLength(40);
         builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
         builder.HasOne<CustomerAccountRow>().WithMany().HasForeignKey(row => row.CustomerAccountId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<ExternalPlanSubscriptionRow>().WithMany().HasForeignKey(row => row.ExternalPlanSubscriptionId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class ConsumedPartnerTokenRowConfiguration : IEntityTypeConfiguration<ConsumedPartnerTokenRow>
+{
+    public void Configure(EntityTypeBuilder<ConsumedPartnerTokenRow> builder)
+    {
+        builder.ToTable("billing_consumed_partner_tokens");
+        builder.HasKey(row => new { row.Issuer, row.Jti });
+        builder.Property(row => row.Issuer).HasMaxLength(200).IsRequired();
+        builder.Property(row => row.Jti).HasMaxLength(200).IsRequired();
+        builder.HasIndex(row => row.ExpiresAtUtc);
     }
 }
 

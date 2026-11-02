@@ -167,15 +167,18 @@ public sealed class TahlilAppTopUpPurchaseRow
 {
     public Guid Id { get; set; }
     public string Partner { get; set; } = "TahlilApp";
-    public string EventId { get; set; } = string.Empty;
-    public string PurchaseId { get; set; } = string.Empty;
-    public string PaymentId { get; set; } = string.Empty;
+    public string InvoiceId { get; set; } = string.Empty;
+    public string RequestFingerprint { get; set; } = string.Empty;
+    // Retained only for legacy reconciliation of receipts created before invoiceId became canonical.
+    public string? EventId { get; set; }
+    public string? PurchaseId { get; set; }
+    public string? PaymentId { get; set; }
     public Guid CustomerAccountId { get; set; }
     public string ExternalUserId { get; set; } = string.Empty;
     public Guid? ExternalPlanSubscriptionId { get; set; }
-    public string PlanSlug { get; set; } = string.Empty;
-    public DateTimeOffset PlanStartsAtUtc { get; set; }
-    public DateTimeOffset PlanExpiresAtUtc { get; set; }
+    public string? PlanSlug { get; set; }
+    public DateTimeOffset? PlanStartsAtUtc { get; set; }
+    public DateTimeOffset? PlanExpiresAtUtc { get; set; }
     public int CreditsPurchased { get; set; }
     public string? PackageId { get; set; }
     public string? PackageVersion { get; set; }
@@ -185,6 +188,15 @@ public sealed class TahlilAppTopUpPurchaseRow
     public Guid? GrantLedgerEntryId { get; set; }
     public DateTimeOffset ReceivedAtUtc { get; set; }
     public DateTimeOffset? GrantedAtUtc { get; set; }
+}
+
+/// <summary>One-time consumption record for a TahlilApp partner JWT jti.</summary>
+public sealed class ConsumedPartnerTokenRow
+{
+    public string Issuer { get; set; } = string.Empty;
+    public string Jti { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public DateTimeOffset ConsumedAtUtc { get; set; }
 }
 
 public sealed class TopUpUsageCreditAllocationRow

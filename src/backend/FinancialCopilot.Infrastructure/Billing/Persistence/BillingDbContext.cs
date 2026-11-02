@@ -17,6 +17,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     public DbSet<UsageCreditHoldRow> UsageCreditHolds => Set<UsageCreditHoldRow>();
     public DbSet<TopUpCreditSourceRow> TopUpCreditSources => Set<TopUpCreditSourceRow>();
     public DbSet<TahlilAppTopUpPurchaseRow> TahlilAppTopUpPurchases => Set<TahlilAppTopUpPurchaseRow>();
+    public DbSet<ConsumedPartnerTokenRow> ConsumedPartnerTokens => Set<ConsumedPartnerTokenRow>();
     public DbSet<TopUpUsageCreditAllocationRow> TopUpUsageCreditAllocations => Set<TopUpUsageCreditAllocationRow>();
     public DbSet<TopUpUsageCreditHoldRow> TopUpUsageCreditHolds => Set<TopUpUsageCreditHoldRow>();
     public DbSet<TopUpOfferRow> TopUpOffers => Set<TopUpOfferRow>();

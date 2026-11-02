@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
+using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 
@@ -213,6 +214,23 @@ public static class ServiceCollectionExtensions
         };
         options.Events = new JwtBearerEvents
         {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                var jti = principal?.FindFirst("jti")?.Value;
+                var tokenIssuer = principal?.FindFirst("iss")?.Value ?? issuer;
+                var expText = principal?.FindFirst("exp")?.Value;
+                if (string.IsNullOrWhiteSpace(jti) || jti.Length < 16 || !long.TryParse(expText, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var exp))
+                {
+                    context.Fail("Partner delivery JWT must contain a unique jti and exp claim.");
+                    return;
+                }
+                if (!HttpMethods.IsPost(context.Request.Method) ||
+                    !context.Request.Path.Equals("/api/v1/billing/partners/tahlilapp/top-ups", StringComparison.OrdinalIgnoreCase)) return;
+                var consumed = await context.HttpContext.RequestServices.GetRequiredService<TahlilAppTopUpService>()
+                    .TryConsumeTokenJtiAsync(tokenIssuer ?? string.Empty, jti, DateTimeOffset.FromUnixTimeSeconds(exp), context.HttpContext.RequestAborted);
+                if (!consumed) context.Fail("Partner delivery JWT was already consumed or is invalid.");
+            },
             OnChallenge = context =>
             {
                 context.HandleResponse();

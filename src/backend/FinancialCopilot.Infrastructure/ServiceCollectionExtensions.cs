@@ -280,14 +280,7 @@ public static class ServiceCollectionExtensions
             .AddOptions<SmtpEmailOptions>()
             .Bind(configuration.GetSection(SmtpEmailOptions.SectionName))
             .Validate(options =>
-                !configuration.GetValue<bool>($"{AuthEmailOptions.SectionName}:Enabled") ||
-                !string.IsNullOrWhiteSpace(options.Host) &&
-                options.Port is > 0 and <= 65535 &&
-                options.TimeoutSeconds is >= 1 and <= 60 &&
-                options.Security is "StartTls" or "SslOnConnect" &&
-                System.Net.Mail.MailAddress.TryCreate(options.SenderAddress, out _) &&
-                (string.IsNullOrWhiteSpace(options.UserName) == string.IsNullOrEmpty(options.Password)) &&
-                (string.IsNullOrWhiteSpace(options.UserName) || options.Security is "StartTls" or "SslOnConnect"),
+                options.IsValid(configuration.GetValue<bool>($"{AuthEmailOptions.SectionName}:Enabled")),
                 "Authentication SMTP settings are invalid.")
             .ValidateOnStart();
         services.AddTransient<IEmailSender, SmtpEmailSender>();

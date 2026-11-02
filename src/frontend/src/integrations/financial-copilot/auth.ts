@@ -127,7 +127,7 @@ async function authJsonRequest<T>(path: string, body?: unknown): Promise<T> {
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
     throw new FinancialCopilotAuthError(
-      problem?.detail ?? problem?.title ?? "Authentication request failed.",
+      authProblemMessage(problem, "Authentication request failed."),
       response.status,
       problem?.type,
       problem?.correlationId,
@@ -152,6 +152,24 @@ function clearSession() {
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
   }
+}
+
+function authProblemMessage(problem: unknown, fallback: string) {
+  if (!problem || typeof problem !== "object") return fallback;
+
+  const details = problem as {
+    type?: unknown;
+    detail?: unknown;
+    title?: unknown;
+  };
+
+  if (details.type === "https://financialcopilot/errors/invalid-credentials") {
+    return "ایمیل یا رمز عبور واردشده نادرست است.";
+  }
+
+  if (typeof details.detail === "string" && details.detail.trim()) return details.detail;
+  if (typeof details.title === "string" && details.title.trim()) return details.title;
+  return fallback;
 }
 
 function readStoredToken() {
@@ -285,7 +303,7 @@ async function authorizedRequest<T>(method: "GET" | "POST", path: string, body?:
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
     throw new FinancialCopilotAuthError(
-      problem?.detail ?? problem?.title ?? "Account request failed.",
+      authProblemMessage(problem, "Account request failed."),
       response.status,
       problem?.type,
       problem?.correlationId,

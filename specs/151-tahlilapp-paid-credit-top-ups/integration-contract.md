@@ -4,7 +4,17 @@ This contract covers the informational balance read and server-to-server paid to
 
 ## Informational balance/status
 
-`GET /api/v1/billing/partners/tahlilapp/credit-balance?userId=<URL-encoded-stable-user-id>` is unauthenticated by agreement. SapioAI URL-decodes the query value and resolves it through the existing `(Provider = TahlilApp, ExternalUserId)` identity mapping. The endpoint is read-only: it does not refresh/synchronize entitlements, grant credits, or run checkout eligibility. It is rate limited by client IP using the existing public-authentication policy (10 requests/minute by default), and sends `Cache-Control: no-store`.
+`GET /api/v1/billing/partners/tahlilapp/credit-balance?userId=<URL-encoded-stable-user-id>` is unauthenticated by agreement. SapioAI URL-decodes the query value and resolves it through the existing `(Provider = TahlilApp, ExternalUserId)` identity mapping. The endpoint is read-only: it does not refresh/synchronize entitlements, grant credits, write audit/outbox rows, or run checkout eligibility. Any `Authorization` header is ignored; the partner top-up JWT is neither required nor consumed. Responses send `Cache-Control: no-store`.
+
+The endpoint has its own per-client-IP fixed-window limit, `RateLimiting:TahlilAppCreditBalance` (default 60 requests per 60 seconds; compose variables `RateLimiting__TahlilAppCreditBalance__PermitLimit` and `__WindowSeconds`). This budget is separate from login/registration (`RateLimiting:PublicAuthentication`, 10/minute), so partner reads and credential brute-force protection cannot exhaust each other. Exceeding it returns 429. The client IP comes from the connection or trusted `ForwardedHeaders` proxies. If TahlilApp calls from its servers, all customers share TahlilApp's egress IP budget, so TahlilApp must state its expected peak read rate before rollout and the limit must be sized for it.
+
+| Result | Status and `code` |
+|---|---|
+| Resolved active mapping | 200 with the body below |
+| Missing, blank, or more than 128 characters `userId` | 400 `invalid-topup-event` (the existing partner problem code) |
+| Unknown or inactive mapping, disabled user, or no Individual billing account | 404 `topup-user-unresolved`, with no personal or payment data |
+| Rate limit exceeded | 429 |
+| Expiry-aware wallet read unavailable | 503 `topup-temporary-failure` |
 
 Finite response example:
 
@@ -19,9 +29,22 @@ Finite response example:
 }
 ```
 
-For Max, the response uses `"quotaMode":"unlimited"` and `"availableCredits":null`; it never encodes Unlimited as a numeric sentinel. Max's own authoritative expiry is reported. Active Max takes precedence over other active windows; after Max expires, the latest-expiring active non-Max window is selected, preserving Pro on an exact expiry tie. For finite plans, `availableCredits` is the expiry-aware spendable wallet balance less reserved credits. Expired source credits are excluded, including top-up sources. Free uses the account's persisted Free subscription start/end fields. A missing or inactive mapping returns 404. Unknown or malformed IDs return 400/404 without personal or payment details.
+For Max, the response uses `"quotaMode":"unlimited"` and `"availableCredits":null`; it never encodes Unlimited as a numeric sentinel. Max's own authoritative expiry is reported. Active Max takes precedence over other active windows; after Max expires, the latest-expiring active non-Max window is selected, preserving Pro on an exact expiry tie. For finite plans, `availableCredits` is the expiry-aware spendable wallet balance less reserved credits, never below zero. Unheld credits in expired subscription periods and expired top-up sources are excluded; unexpired top-up sources remain spendable until their own source expiry. Free uses the account's persisted Free subscription start/end fields. Dates are the selected plan's authoritative window; `asOfUtc` is SapioAI's evaluation time. Payment amounts, invoices, names, contact details, and internal IDs are never returned.
 
-The repository stores the stable external ID but does not generate it or establish its entropy. The sample 32-character hexadecimal value is not proof that production IDs are random. Without authentication, a guessable/enumerable ID exposes that customer's remaining credits, plan, and subscription dates. The compatible mitigation is to have TahlilApp guarantee cryptographically random, non-enumerable IDs with at least 128 bits of entropy and retain the IP rate limit at the edge and in SapioAI. Confirm this guarantee externally before exposing the endpoint; JWT is not added by this contract.
+### Security assessment: `userId` without JWT
+
+Possession of a `userId` is the only thing this endpoint checks. Anyone who has or guesses one can read that customer's effective plan, subscription start/expiry, and remaining credits. It cannot change billing state, list users, or read payment data.
+
+What the repository shows (verified 2026-11-02):
+
+- SapioAI does not generate these IDs. Feature 139 stores the `user_id` sent by TahlilApp's exchange as `ExternalUserId`.
+- The Feature 139 domain accepts any `^[A-Za-z0-9._:-]{1,128}$` value (`TahlilAppValueObjects`). That format allows sequential or meaningful IDs, and the Feature 139 contract's own examples include `ta-user-1001` and `ta-plus-002`.
+- The official exchange sample `d647420371eb1270418f59c20d6c7d02` is 32 hex characters. That length fits a random 128-bit value, but it equally fits an unsalted MD5 of a sequential or known value, which would be enumerable. The repository cannot tell which.
+- The per-IP limit only slows an attacker who uses few IPs. It does not stop enumeration from many addresses, and a low-entropy ID space would fall to it.
+
+Risk: high if production IDs are sequential, derived from known data, or reused from public identifiers. Negligible if they are at least 128 bits from a cryptographically secure generator.
+
+Smallest compatible mitigation, keeping the agreed no-JWT contract: TahlilApp confirms in writing that production `user_id` values are generated by a CSPRNG with at least 128 bits of entropy, are not derived from sequential or personal data, and are never shown in URLs, logs, or client-visible pages. Until that is confirmed, the endpoint should stay unexposed. If TahlilApp calls only from its servers, a compatible extra control is an edge allowlist of TahlilApp's egress IPs for this path; it needs no contract change. JWT is not added by this contract.
 
 ## Top-up delivery
 
@@ -36,11 +59,24 @@ Send HTTPS `POST /api/v1/billing/partners/tahlilapp/top-ups` with `Content-Type:
 }
 ```
 
-Do not send subscription data, payment amount/currency, package ID/version, event ID, payment ID, a JWT in the body, or extra request fields. Unknown body properties are rejected. Query/identity values are capped at the repository's external identity size (128 characters); invoice IDs are non-empty and bounded. `paidAtUtc` must be valid and not in the future.
+Do not send subscription data, payment amount/currency, package ID/version, event ID, payment ID, a JWT in the body, or extra request fields. Unknown body properties, including `subscription`, `amount`, `currency`, `packageId`, `packageVersion`, `eventId`, `paymentId`, and `jwt`, are rejected with 400 before any grant. Query/identity values are capped at the repository's external identity size (128 characters); invoice IDs are non-empty and bounded. `paidAtUtc` must be valid and not in the future.
 
-SapioAI resolves the active TahlilApp identity and authoritative subscription windows from its synced Feature 139 data. Credit quantity must match an active database-controlled offer (100, 500, or 1000). Free accounts cannot receive a new top-up grant. A payment timestamp that falls during an active Max window is ineligible. If a Plus/Pro invoice was paid before Max began, it may still be delivered during the Plus/Pro-to-Max transition only while its original Plus/Pro source remains active and unrevoked. Grants expire at that source's authoritative end. Expired or revoked sources persist `expired-unfulfilled`; ineligible current plans persist `ineligible-unfulfilled`.
+SapioAI resolves the active TahlilApp identity and authoritative subscription windows from its synced Feature 139 data. Credit quantity must match an active database-controlled offer (100, 500, or 1000).
 
-Because the body intentionally omits the source subscription, SapioAI matches `paidAtUtc` against stored Plus/Pro windows. If more than one Plus/Pro window contains that timestamp, the invoice is persisted as `ambiguous-unfulfilled` with zero credits and no source assignment. The original source cannot be proven from the four fields, so SapioAI does not choose by effective plan or expiry ordering. TahlilApp should route this outcome to reconciliation/manual resolution; retrying the same invoice returns the same stored outcome. This is the exact overlap case where the simplified contract cannot identify the original purchase source.
+### Eligibility at `paidAtUtc`
+
+Eligibility uses SapioAI's stored subscription windows active at the webhook's `paidAtUtc`; the body carries no subscription data.
+
+| Subscriptions active at `paidAtUtc` | Outcome |
+|---|---|
+| None, or Free only | Ineligible: 409 `topup-ineligible`, persisted `ineligible-unfulfilled`, no credits. |
+| Plus only, or Pro only | Eligible. The grant follows that window. |
+| Plus and Pro overlapping, no Max | Eligible. The window is chosen by the shared Feature 152 overlap rule: latest expiry wins, and Pro wins an exact expiry tie. If two windows of the chosen plan have identical expiry, the earliest-starting one is recorded; the grant expiry is the same either way. |
+| Max, with or without Plus/Pro | Ineligible: 409 `topup-ineligible`. |
+
+Overlap is not ambiguous and is not sent to manual reconciliation. The current account must also still be an authoritative non-Free paid account. A Free account is ineligible even if an old paid window contains `paidAtUtc`. If a Plus/Pro invoice was paid before Max began, it may still be delivered during the Plus/Pro-to-Max transition only while the selected Plus/Pro window remains active and unrevoked.
+
+Grants expire at the selected window's authoritative end and are spendable only from that source. If delivery arrives after the selected window has expired, or after it was revoked, SapioAI persists `expired-unfulfilled` with zero credits. That is a 200 response carrying the stored outcome; the credits never become spendable.
 
 ## Invoice identity and outcomes
 
@@ -62,6 +98,6 @@ The Authorization JWT continues to use the configured issuer (`Billing:TahlilApp
 
 ## Errors, reconciliation, and rollout
 
-Malformed requests return 400 `invalid-topup-event`; unknown quantities return 422 `topup-quantity-invalid`; missing/replayed partner auth returns 401 `partner-auth-failed`; unresolved users return 404 `topup-user-unresolved`; ineligible persisted outcomes return 409 `topup-ineligible`; invoice conflicts return 409 `topup-identity-conflict`; temporary authoritative-data or storage failures return 503/5xx for retry with a fresh JWT and unchanged body. Ambiguity is returned as the persisted `ambiguous-unfulfilled` outcome for reconciliation.
+Malformed requests return 400 `invalid-topup-event`; unknown quantities return 422 `topup-quantity-invalid`; missing/replayed partner auth returns 401 `partner-auth-failed`; unresolved users return 404 `topup-user-unresolved`; ineligible persisted outcomes return 409 `topup-ineligible`; invoice conflicts return 409 `topup-identity-conflict`; temporary authoritative-data or storage failures return 503/5xx for retry with a fresh JWT and unchanged body. Expired delivery is returned as the persisted `expired-unfulfilled` outcome (200, zero credits).
 
 Reconciliation identifies new receipts by invoice, outcome, owner, optional resolved source window, payment/received time, and grant. Historical payment IDs remain on legacy receipts only, with their existing uniqueness constraint. No production migration or production data change is part of this work. Coordinate the four-field request and balance read with TahlilApp, verify high-entropy IDs and all JWT claims in staging, and keep `Billing:TahlilAppTopUps:Enabled=false` until joint verification.

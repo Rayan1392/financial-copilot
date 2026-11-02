@@ -428,6 +428,8 @@ services:
         Radar__RetryCount: "${Radar__RetryCount:-3}"
         RateLimiting__AuthenticatedActor__PermitLimit: "${RateLimiting__AuthenticatedActor__PermitLimit:-60}"
         RateLimiting__AuthenticatedActor__WindowSeconds: "${RateLimiting__AuthenticatedActor__WindowSeconds:-60}"
+        RateLimiting__TahlilAppCreditBalance__PermitLimit: "${RateLimiting__TahlilAppCreditBalance__PermitLimit:-60}"
+        RateLimiting__TahlilAppCreditBalance__WindowSeconds: "${RateLimiting__TahlilAppCreditBalance__WindowSeconds:-60}"
         SalesGrowthScanner__AllowDefaultComparison: "${SalesGrowthScanner__AllowDefaultComparison:-True}"
         SalesGrowthScanner__AllowMixedLatestPeriods: "${SalesGrowthScanner__AllowMixedLatestPeriods:-False}"
         SalesGrowthScanner__DefaultComparisonBaseline: "${SalesGrowthScanner__DefaultComparisonBaseline:-SameMonthPreviousYear}"

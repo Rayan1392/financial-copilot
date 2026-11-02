@@ -173,6 +173,12 @@ builder.Services
         "Public authentication rate limits must be positive and bounded.")
     .ValidateOnStart();
 builder.Services
+    .AddOptions<TahlilAppCreditBalanceRateLimitOptions>()
+    .BindConfiguration(TahlilAppCreditBalanceRateLimitOptions.SectionName)
+    .Validate(options => options.PermitLimit is > 0 and <= 1000 && options.WindowSeconds is > 0 and <= 3600,
+        "TahlilApp credit-balance rate limits must be positive and bounded.")
+    .ValidateOnStart();
+builder.Services
     .AddOptions<AuthenticatedActorRateLimitOptions>()
     .BindConfiguration(AuthenticatedActorRateLimitOptions.SectionName)
     .Validate(
@@ -197,6 +203,13 @@ builder.Services.AddRateLimiter(options =>
         context => RateLimitPolicies.PublicIp(
             context,
             new PublicAuthenticationRateLimitOptions { PermitLimit = 60, WindowSeconds = 60 }));
+    options.AddPolicy(
+        RateLimitPolicies.TahlilAppCreditBalance,
+        context =>
+        {
+            var limits = context.RequestServices.GetRequiredService<IOptionsSnapshot<TahlilAppCreditBalanceRateLimitOptions>>().Value;
+            return RateLimitPolicies.PublicIp(context, limits.PermitLimit, limits.WindowSeconds);
+        });
 });
 
 var app = builder.Build();

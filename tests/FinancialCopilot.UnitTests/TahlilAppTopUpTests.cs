@@ -67,12 +67,14 @@ public sealed class TahlilAppTopUpTests
     }
 
     [Fact]
-    public async Task Partner_request_serializes_exactly_the_five_contract_fields()
+    public async Task Partner_request_serializes_exactly_the_four_contract_fields()
     {
         var (_, _, request, _, _, _) = await SeedAsync(500, "TA-TOPUP-500");
-        var json = System.Text.Json.JsonSerializer.SerializeToElement(request, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
-        Assert.Equal(new[] { "creditsPurchased", "invoiceId", "paidAtUtc", "subscription", "userId" }, json.EnumerateObject().Select(x => x.Name).OrderBy(x => x).ToArray());
-        Assert.Equal(new[] { "expiresAtUtc", "slug", "startsAtUtc" }, json.GetProperty("subscription").EnumerateObject().Select(x => x.Name).OrderBy(x => x).ToArray());
+        var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(request, options);
+        Assert.Equal(new[] { "creditsPurchased", "invoiceId", "paidAtUtc", "userId" }, json.EnumerateObject().Select(x => x.Name).OrderBy(x => x).ToArray());
+        Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<TopUpDeliveryRequest>(
+            """{"invoiceId":"ta-invoice-001","userId":"tahlil-test-001","creditsPurchased":500,"paidAtUtc":"2026-11-01T08:30:00Z","subscription":{"slug":"sapio_pro"}}""", options));
     }
 
     [Fact]
@@ -84,10 +86,145 @@ public sealed class TahlilAppTopUpTests
         var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
         var invalid = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request with { InvoiceId = " " }, CancellationToken.None));
         Assert.Equal("invalid-topup-event", invalid.Code);
-        var outsideWindow = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request with { InvoiceId = "ta-invoice-outside-window", PaidAtUtc = WindowEnd }, CancellationToken.None));
-        Assert.Equal("invalid-topup-event", outsideWindow.Code);
+        var futurePaidAt = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request with { InvoiceId = "ta-invoice-future-paid-at", PaidAtUtc = Now.AddSeconds(1) }, CancellationToken.None));
+        Assert.Equal("invalid-topup-event", futurePaidAt.Code);
         var quantity = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request with { InvoiceId = "ta-invoice-unsupported", CreditsPurchased = 200 }, CancellationToken.None));
         Assert.Equal("topup-quantity-invalid", quantity.Code);
+        Assert.Equal(17, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+    }
+
+    [Fact]
+    public async Task Payment_outside_every_stored_paid_window_is_persisted_as_ineligible_without_credit()
+    {
+        var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(100, "TA-TOPUP-100");
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+        var beforeWindow = request with { InvoiceId = "ta-invoice-before-window", PaidAtUtc = WindowStart.AddSeconds(-1) };
+
+        var rejected = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(beforeWindow, CancellationToken.None));
+        Assert.Equal("topup-ineligible", rejected.Code);
+        var receipt = await billing.TahlilAppTopUpPurchases.SingleAsync(x => x.InvoiceId == "ta-invoice-before-window");
+        Assert.Equal("ineligible-unfulfilled", receipt.Status);
+        Assert.Null(receipt.GrantId);
+        Assert.Equal(17, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+        Assert.Empty(await billing.TopUpCreditSources.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Pro_only_account_is_eligible_and_grant_expires_with_the_pro_window()
+    {
+        var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(100, "TA-TOPUP-100");
+        var proEnd = WindowEnd.AddDays(5);
+        await using (var setup = new BillingDbContext(billingOptions))
+        {
+            setup.ExternalPlanSubscriptions.RemoveRange(await setup.ExternalPlanSubscriptions.ToListAsync());
+            (await setup.CustomerAccounts.SingleAsync(x => x.Id == accountId)).SubscriptionPlanCode = "Pro";
+            await setup.SaveChangesAsync();
+        }
+        var proId = await AddWindowAsync(billingOptions, accountId, "Pro", WindowStart, proEnd);
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+
+        var outcome = await service.DeliverAsync(request, CancellationToken.None);
+
+        Assert.Equal("granted", outcome.Status);
+        Assert.Equal(proEnd, outcome.ExpiresAtUtc);
+        Assert.Equal(proId, (await billing.TopUpCreditSources.SingleAsync()).ExternalPlanSubscriptionId);
+        Assert.Equal(117, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+    }
+
+    [Theory]
+    [InlineData(10, "Pro")]   // Pro expires later: latest expiry wins.
+    [InlineData(-10, "Plus")] // Plus expires later: latest expiry wins even over Pro.
+    [InlineData(0, "Pro")]    // Exact expiry tie: established Pro-over-Plus choice.
+    public async Task Overlapping_plus_and_pro_are_eligible_and_grant_from_the_window_chosen_by_overlap_precedence(int proEndOffsetDays, string expectedPlan)
+    {
+        var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(500, "TA-TOPUP-500");
+        var proEnd = WindowEnd.AddDays(proEndOffsetDays);
+        var proId = await AddWindowAsync(billingOptions, accountId, "Pro", WindowStart.AddDays(3), proEnd);
+        Guid plusId;
+        await using (var lookup = new BillingDbContext(billingOptions))
+            plusId = (await lookup.ExternalPlanSubscriptions.SingleAsync(x => x.PlanCode == "Plus")).Id;
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+
+        var outcome = await service.DeliverAsync(request, CancellationToken.None);
+
+        var expectedWindowId = expectedPlan == "Pro" ? proId : plusId;
+        var expectedExpiry = expectedPlan == "Pro" ? proEnd : WindowEnd;
+        Assert.Equal("granted", outcome.Status);
+        Assert.Equal(500, outcome.CreditsGranted);
+        Assert.Equal(expectedExpiry, outcome.ExpiresAtUtc);
+        var receipt = await billing.TahlilAppTopUpPurchases.SingleAsync();
+        Assert.Equal(expectedWindowId, receipt.ExternalPlanSubscriptionId);
+        Assert.Equal(expectedPlan == "Pro" ? "sapio_pro" : "sapio_plus", receipt.PlanSlug);
+        var source = await billing.TopUpCreditSources.SingleAsync();
+        Assert.Equal(expectedWindowId, source.ExternalPlanSubscriptionId);
+        Assert.Equal(expectedExpiry, source.ExpiresAtUtc);
+        Assert.Equal(517, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+
+        var replay = await service.DeliverAsync(request, CancellationToken.None);
+        Assert.Equal(outcome, replay);
+        Assert.Equal(1, await billing.TopUpCreditSources.CountAsync());
+    }
+
+    [Fact]
+    public async Task Active_max_at_payment_time_is_ineligible_even_when_plus_and_pro_overlap()
+    {
+        var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(100, "TA-TOPUP-100");
+        await AddWindowAsync(billingOptions, accountId, "Pro", WindowStart, WindowEnd.AddDays(10));
+        await AddWindowAsync(billingOptions, accountId, "Max", Now.AddDays(-1), Now.AddDays(20));
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+
+        var rejected = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request, CancellationToken.None));
+
+        Assert.Equal("topup-ineligible", rejected.Code);
+        Assert.Equal("ineligible-unfulfilled", (await billing.TahlilAppTopUpPurchases.SingleAsync()).Status);
+        Assert.Empty(await billing.TopUpCreditSources.ToListAsync());
+        Assert.Equal(17, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+    }
+
+    [Fact]
+    public async Task Free_account_without_paid_window_is_ineligible()
+    {
+        var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(100, "TA-TOPUP-100");
+        await using (var setup = new BillingDbContext(billingOptions))
+        {
+            setup.ExternalPlanSubscriptions.RemoveRange(await setup.ExternalPlanSubscriptions.ToListAsync());
+            (await setup.CustomerAccounts.SingleAsync(x => x.Id == accountId)).SubscriptionPlanCode = "Free";
+            await setup.SaveChangesAsync();
+        }
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+
+        var rejected = await Assert.ThrowsAsync<TopUpContractException>(() => service.DeliverAsync(request, CancellationToken.None));
+
+        Assert.Equal("topup-ineligible", rejected.Code);
+        Assert.Empty(await billing.TopUpCreditSources.ToListAsync());
+        Assert.Equal(17, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
+    }
+
+    [Fact]
+    public async Task Overlap_delivered_after_the_selected_window_expired_is_persisted_without_credit()
+    {
+        var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(100, "TA-TOPUP-100");
+        var proEnd = WindowEnd.AddDays(10);
+        await AddWindowAsync(billingOptions, accountId, "Pro", WindowStart, proEnd);
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(proEnd.AddSeconds(1)), new NoOpRefresher());
+
+        var outcome = await service.DeliverAsync(request, CancellationToken.None);
+
+        Assert.Equal("expired-unfulfilled", outcome.Status);
+        Assert.Equal(0, outcome.CreditsGranted);
+        Assert.Empty(await billing.TopUpCreditSources.ToListAsync());
         Assert.Equal(17, (await billing.WalletProjections.SingleAsync(x => x.CustomerAccountId == accountId)).Balance);
     }
 
@@ -113,7 +250,6 @@ public sealed class TahlilAppTopUpTests
         var billingOptions = new DbContextOptionsBuilder<BillingDbContext>().UseInMemoryDatabase("topup-b-" + suffix).Options;
         var authOptions = new DbContextOptionsBuilder<AuthDbContext>().UseInMemoryDatabase("topup-a-" + suffix).Options;
         var userId = Guid.NewGuid(); var tenantId = Guid.NewGuid(); var accountId = Guid.NewGuid();
-        var window = new TopUpWindowResponse("sapio_plus", WindowStart, WindowEnd);
         await using (var billing = new BillingDbContext(billingOptions))
         {
             billing.CustomerAccounts.Add(new CustomerAccountRow { Id = accountId, TenantId = tenantId, UserId = userId, AccountType = "Individual", BillingMode = "Prepaid", SubscriptionPlanCode = "Plus", SubscriptionActivationIsAuthoritative = true, SubscriptionEffectiveFrom = WindowStart, SubscriptionEffectiveTo = WindowEnd });
@@ -132,6 +268,20 @@ public sealed class TahlilAppTopUpTests
         return (billingOptions, authOptions,
             new TopUpDeliveryRequest("ta-invoice-001", "tahlil-test-001", credits, Now),
             userId, tenantId, accountId);
+    }
+
+    private static async Task<Guid> AddWindowAsync(DbContextOptions<BillingDbContext> billingOptions, Guid accountId,
+        string planCode, DateTimeOffset startsAt, DateTimeOffset expiresAt)
+    {
+        var id = Guid.NewGuid();
+        await using var billing = new BillingDbContext(billingOptions);
+        billing.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
+        {
+            Id = id, CustomerAccountId = accountId, PlanCode = planCode, StartsAtUtc = startsAt, ExpiresAtUtc = expiresAt,
+            IdentityKey = $"sapio_{planCode.ToLowerInvariant()}:{startsAt.ToUnixTimeMilliseconds()}:{expiresAt.ToUnixTimeMilliseconds()}"
+        });
+        await billing.SaveChangesAsync();
+        return id;
     }
 
     private sealed class NoOpRefresher : ITahlilAppEntitlementRefresher

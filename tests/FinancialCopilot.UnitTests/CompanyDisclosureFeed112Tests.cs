@@ -2,6 +2,7 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -215,7 +216,8 @@ public sealed class CompanyDisclosureFeed112Tests
         Assert.Single(result.Items);
     }
 
-    private static CompanyDisclosureFeedRepository Repository(FinancialIngestionDbContext db) => new(db);
+    private static CompanyDisclosureFeedRepository Repository(FinancialIngestionDbContext db) =>
+        new(db, new CompanyDisclosureFeedCache(new MemoryCache(new MemoryCacheOptions())));
 
     private static FinancialIngestionDbContext CreateDb() => new(
         new DbContextOptionsBuilder<FinancialIngestionDbContext>()

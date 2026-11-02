@@ -4,6 +4,7 @@ using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace FinancialCopilot.API.Controllers;
@@ -16,7 +17,8 @@ public sealed class TahlilAppTopUpsController(TahlilAppTopUpService topUps, ICur
     [EndpointSummary("Get a TahlilApp customer's current credit balance and plan status")]
     [EndpointDescription("Anonymous, read-only status lookup by stable TahlilApp userId. Returns expiry-aware finite balance or explicit Unlimited quota mode; does not evaluate checkout eligibility or mutate billing state.")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
+    [InvalidPartnerRequest]
+    [EnableRateLimiting(RateLimitPolicies.TahlilAppCreditBalance)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> CreditBalance([FromQuery] string userId, CancellationToken ct)
     {
@@ -35,6 +37,7 @@ public sealed class TahlilAppTopUpsController(TahlilAppTopUpService topUps, ICur
     [EndpointDescription("Requires the TahlilApp partner Bearer JWT. Accepts exactly invoiceId, userId, creditsPurchased, and paidAtUtc. Subscription source is resolved from SapioAI's authoritative synced records.")]
     [Authorize(AuthenticationSchemes = AuthenticationSchemes.TahlilAppTopUpPartner, Policy = "TahlilAppTopUpPartner")]
     [EnableRateLimiting(RateLimitPolicies.TahlilAppTopUpPartner)]
+    [InvalidPartnerRequest]
     [RequestSizeLimit(16384)]
     public async Task<IActionResult> Deliver([FromBody] TopUpDeliveryRequest request, CancellationToken ct)
     {
@@ -60,5 +63,25 @@ public sealed class TahlilAppTopUpsController(TahlilAppTopUpService topUps, ICur
         problem.Extensions["code"] = code;
         problem.Extensions["correlationId"] = HttpContext.TraceIdentifier;
         return StatusCode(status, problem);
+    }
+
+    /// <summary>
+    /// Maps model-binding failures (unknown or missing fields, malformed JSON or query) to the
+    /// documented partner problem code instead of the framework's generic validation response.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    private sealed class InvalidPartnerRequestAttribute : Attribute, IActionFilter, IOrderedFilter
+    {
+        // Runs before [ApiController]'s ModelStateInvalidFilter (order -2000).
+        public int Order => -3000;
+
+        public void OnActionExecuting(ActionExecutingContext context)
+        {
+            if (context.ModelState.IsValid || context.Controller is not TahlilAppTopUpsController controller) return;
+            context.HttpContext.Response.Headers.CacheControl = "no-store";
+            context.Result = controller.TopUpProblem(400, "invalid-topup-event");
+        }
+
+        public void OnActionExecuted(ActionExecutedContext context) { }
     }
 }

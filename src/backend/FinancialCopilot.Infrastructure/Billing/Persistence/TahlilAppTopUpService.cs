@@ -105,13 +105,15 @@ public sealed class TahlilAppTopUpService(BillingDbContext billing, AuthDbContex
         var planAtPayment = TahlilAppSubscriptionPolicy.ResolveActivePlanSet(activeWindowsAtPayment
             .Select(row => new TahlilAppPlanSubscription(row.IdentityKey, row.PlanCode,
                 row.StartsAtUtc, row.ExpiresAtUtc, row.IdentityKey)).ToArray(), request.PaidAtUtc);
+        // Free/no window and active Max at payment time are ineligible, even when Plus or Pro overlaps.
         if (planAtPayment.PlanCode is not ("Plus" or "Pro"))
             return await PersistUnfulfilledAsync(request, link, account, null, "ineligible-unfulfilled", now, ct);
-        var sourcesAtPayment = activeWindowsAtPayment.Where(row => row.PlanCode is "Plus" or "Pro")
-            .OrderBy(row => row.ExpiresAtUtc).ThenBy(row => row.StartsAtUtc).ToArray();
-        if (sourcesAtPayment.Length > 1)
-            return await PersistUnfulfilledAsync(request, link, account, null, "ambiguous-unfulfilled", now, ct);
-        var resolvedSource = sourcesAtPayment.SingleOrDefault();
+        // Overlapping Plus/Pro is eligible. The grant follows the window the shared overlap policy selected:
+        // latest expiry, Pro on an exact tie. Same-plan windows with identical expiry give the same grant expiry,
+        // so the earliest start is taken only to keep the choice deterministic.
+        var resolvedSource = activeWindowsAtPayment
+            .Where(row => row.PlanCode == planAtPayment.PlanCode && row.ExpiresAtUtc == planAtPayment.EffectiveTo)
+            .OrderBy(row => row.StartsAtUtc).ThenBy(row => row.Id).FirstOrDefault();
         var window = resolvedSource is null ? null : await billing.ExternalPlanSubscriptions.SingleOrDefaultAsync(row => row.Id == resolvedSource.Id, ct);
         if (window is null)
             return await PersistUnfulfilledAsync(request, link, account, null, "ineligible-unfulfilled", now, ct);
@@ -253,8 +255,6 @@ public sealed class TahlilAppTopUpService(BillingDbContext billing, AuthDbContex
             throw new TopUpContractException(409, "topup-identity-conflict");
         return Map(x);
     }
-    private static bool SameContractInstant(DateTimeOffset left, DateTimeOffset right) =>
-        left.ToUnixTimeMilliseconds() == right.ToUnixTimeMilliseconds();
     private static TopUpDeliveryResponse Map(TahlilAppTopUpPurchaseRow x) => new(x.Status, x.InvoiceId, x.GrantId, x.Status == "granted" ? x.CreditsPurchased : 0, x.PlanExpiresAtUtc, x.GrantedAtUtc);
     private static string Fingerprint(TopUpDeliveryRequest r)
     {

@@ -11,19 +11,23 @@ public static class FinancialStatementTableIntentRules
     {
         if (string.IsNullOrWhiteSpace(query)) return false;
         var normalized = NormalizeText(query);
-        var hasQuarter = ContainsAny(normalized, "فصلی", "فصل", "quarterly", "quarter", "دوره اخیر", "دوره های اخیر", "دوره‌های اخیر");
+        var hasQuarter = ContainsAny(normalized, "فصلی", "فصل", "quarterly", "quarter", "دوره اخیر", "دوره های اخیر", "دوره‌های اخیر") ||
+                         ContainsAny(normalized, QuarterlyReportAliases);
         if (!hasQuarter)
             return false;
 
         var hasIncomeStatement = ResolveStatementType(normalized) == FinancialStatementType.IncomeStatement ||
+                                 ContainsAny(normalized, QuarterlyReportAliases) ||
                                  ContainsAny(normalized, "\u0633\u0648\u062f \u062e\u0627\u0644\u0635", "\u0632\u06cc\u0627\u0646 \u062e\u0627\u0644\u0635") ||
                                  ContainsAny(normalized, "income statement", "income statements", "profit and loss", "profit & loss", "financial report", "financial reports");
-        var hasTableIntent = ContainsAny(normalized, "trend", "\u0631\u0648\u0646\u062f") || ContainsAny(normalized,
-            "جدول", "گزارش", "صورت سود", "صورت درآمد", "جدول درآمد", "چقدر", "بوده", "چطور بوده", "آخرین",
+        var hasTableIntent = ContainsAny(normalized, QuarterlyReportAliases) ||
+                             ContainsAny(normalized, "trend", "\u0631\u0648\u0646\u062f") || ContainsAny(normalized,
+            "\u062c\u062f\u0648\u0644", "\u06af\u0632\u0627\u0631\u0634", "\u0635\u0648\u0631\u062a \u0633\u0648\u062f", "\u0635\u0648\u0631\u062a \u062f\u0631\u0622\u0645\u062f", "\u062c\u062f\u0648\u0644 \u062f\u0631\u0622\u0645\u062f", "\u0686\u0642\u062f\u0631", "\u0628\u0648\u062f\u0647", "\u0686\u0637\u0648\u0631 \u0628\u0648\u062f\u0647", "\u0622\u062e\u0631\u06cc\u0646",
             "table", "report", "show", "display", "give me", "latest", "last");
         var hasAnalysisIntent = ContainsAny(normalized, "تحلیل", "بررسی", "ارزیابی", "analyze", "analyse", "analysis", "review");
         if (hasIncomeStatement)
-            return hasTableIntent && (!hasAnalysisIntent || ContainsAny(normalized, "جدول", "table", "report", "show", "display"));
+            return hasTableIntent && (!hasAnalysisIntent || ContainsAny(normalized,
+                "\u06af\u0632\u0627\u0631\u0634", "\u062c\u062f\u0648\u0644", "table", "report", "show", "display"));
 
         // Preserve established Persian shorthand such as "گزارش فصلی" and "عملکرد ۵ فصل اخیر".
         return ContainsAny(normalized, "گزارش", "جدول", "عملکرد") && !hasAnalysisIntent;
@@ -60,6 +64,7 @@ public static class FinancialStatementTableIntentRules
 
     private static readonly string[] IncomeAliases =
     [
+        "\u06af\u0632\u0627\u0631\u0634 \u0639\u0645\u0644\u06a9\u0631\u062f",
         "صورت سود و زیان",
         "سود و زیان",
         "صورت درآمد",
@@ -68,6 +73,13 @@ public static class FinancialStatementTableIntentRules
         "درآمدها و هزینه‌ها"
     ];
 
+    private static readonly string[] QuarterlyReportAliases =
+    [
+        "\u06af\u0632\u0627\u0631\u0634 \u0641\u0635\u0644\u06cc",
+        "\u0635\u0648\u0631\u062a \u0633\u0648\u062f \u0648 \u0632\u06cc\u0627\u0646",
+        "\u0633\u0648\u062f \u0648 \u0632\u06cc\u0627\u0646",
+        "\u06af\u0632\u0627\u0631\u0634 \u0639\u0645\u0644\u06a9\u0631\u062f"
+    ];
     private static readonly string[] BalanceAliases =
     [
         "ترازنامه",
@@ -88,10 +100,15 @@ public static class FinancialStatementTableIntentRules
 
     private static readonly string[] TableActionAliases =
     [
+        "\u0646\u0634\u0648\u0646\u0645 \u0628\u062f\u0647",
+        "\u0646\u0645\u0627\u06cc\u0634 \u0628\u062f\u0647",
+        "\u0646\u0634\u0627\u0646 \u0628\u062f\u0647",
+        "\u0628\u062f\u0647",
         "آخرین",
         "نشان بده",
         "نمایش بده",
         "بده",
+        "\u06af\u0632\u0627\u0631\u0634 \u0628\u062f\u0647",
         "چیست",
         "جدول",
         "گزارش"
@@ -326,6 +343,7 @@ public static class FinancialStatementTableIntentRules
     {
         var normalized = NormalizeText(userMessage);
         var phraseCues = IncomeAliases
+            .Concat(QuarterlyReportAliases)
             .Concat(BalanceAliases)
             .Concat(CashFlowAliases)
             .Concat(TableActionAliases)

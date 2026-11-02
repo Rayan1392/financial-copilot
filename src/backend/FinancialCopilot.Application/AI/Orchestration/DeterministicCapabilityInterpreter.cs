@@ -103,6 +103,21 @@ public sealed class DeterministicCapabilityInterpreter(
         AddScore("disclosure_listing", DisclosureWords, 0.9m, normalized, scores, evidence, "disclosure-keyword");
         AddScore("monthly_sales_quality_ranking", RankingWords, 0.9m, normalized, scores, evidence, "ranking-keyword");
         var entities = ExtractEntities(original, normalized).ToList();
+        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(original) &&
+            FinancialStatementTableIntentRules.BuildQuarterlyQuery(original).CompanyQuery is { } quarterlyCompany &&
+            !string.IsNullOrWhiteSpace(quarterlyCompany))
+        {
+            var companyStart = original.IndexOf(quarterlyCompany, StringComparison.OrdinalIgnoreCase);
+            entities =
+            [
+                new EntityMention(
+                    quarterlyCompany,
+                    Math.Max(companyStart, 0),
+                    quarterlyCompany.Length,
+                    QueryValueProvenance.UserExplicit,
+                    "company")
+            ];
+        }
         var isProductRevenueComposition =
             ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(original) ||
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(original) ||

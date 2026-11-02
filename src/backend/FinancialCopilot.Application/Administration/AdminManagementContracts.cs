@@ -16,7 +16,12 @@ public sealed record AdminRoleView(
 
 public sealed record AdminTenantView(Guid TenantId, string Name);
 
-public sealed record AdminTenantMemberView(Guid UserId, string Email, bool IsDefault);
+public sealed record AdminTenantMemberView(
+    Guid UserId,
+    string? Email,
+    bool IsDefault,
+    string? DisplayName,
+    bool IsTahlilAppConnected);
 
 public sealed record AdminPlanView(
     string Code,

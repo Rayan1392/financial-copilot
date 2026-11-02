@@ -80,7 +80,7 @@ public sealed class SemanticQueryFrameEnricher : ISemanticQueryFrameEnricher
         AddTopic(topics, normalized, "تحلیل_تکنیکال", "تحلیل تکنیکال", "technical analysis");
         AddTopic(topics, normalized, "قیمت_تعادلی", "قیمت تعادلی", "equilibrium price");
         AddTopic(topics, normalized, "رصد_معاملات_عمده", "رصد معاملات عمده", "معاملات عمده", "suspicious volume", "block trades");
-        AddTopic(topics, normalized, "گزارش_فصلی", "گزارش فصلی", "quarterly report");
+        AddTopic(topics, normalized, "گزارش_فصلی", "گزارش فصلی", "گزارش عملکرد", "quarterly report");
         AddTopic(topics, normalized, "گزارش_ماهانه", "گزارش ماهانه", "monthly report");
         AddTopic(topics, normalized, "نمودار_P_S", "نمودار p s", "p s chart");
         AddTopic(topics, normalized, "نمودار_P_E", "نمودار p e", "p e chart");

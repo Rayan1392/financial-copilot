@@ -3,6 +3,7 @@ using System.Data;
 using FinancialCopilot.Application.Administration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -234,9 +235,24 @@ public sealed class EfCoreAdminManagementService(
         return await (
             from membership in auth.UserTenants.AsNoTracking()
             join user in auth.Users.AsNoTracking() on membership.UserId equals user.Id
+            join profile in auth.UserProfiles.AsNoTracking() on user.Id equals profile.UserId into profiles
+            from profile in profiles.DefaultIfEmpty()
             where membership.TenantId == tenantId
             orderby user.Email
-            select new AdminTenantMemberView(user.Id, user.Email!, membership.IsDefault))
+            select new AdminTenantMemberView(
+                user.Id,
+                user.Email,
+                membership.IsDefault,
+                profile == null
+                    ? null
+                    : profile.DisplayName != null && profile.DisplayName.Trim() != ""
+                        ? profile.DisplayName
+                        : ((profile.FirstName ?? "") + " " + (profile.LastName ?? "")).Trim(),
+                auth.TahlilAppExternalIdentities.Any(link =>
+                    link.TenantId == tenantId &&
+                    link.LocalUserId == user.Id &&
+                    link.Provider == ExternalUserId.Provider &&
+                    link.Status == "Active")))
             .Take(limit)
             .ToArrayAsync(cancellationToken);
     }

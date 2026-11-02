@@ -222,7 +222,13 @@ export type AdminChatHistoryTurn = {
 };
 export type AdminRole = { roleId: string; name: string; isEnabled: boolean; permissions: string[] };
 export type AdminTenant = { tenantId: string; name: string };
-export type AdminTenantMember = { userId: string; email: string; isDefault: boolean };
+export type AdminTenantMember = {
+  userId: string;
+  email: string | null;
+  isDefault: boolean;
+  displayName: string | null;
+  isTahlilAppConnected: boolean;
+};
 export type AdminPlan = {
   code: string;
   name: string;

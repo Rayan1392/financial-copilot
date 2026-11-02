@@ -547,6 +547,7 @@ function useAdminPagination<T>(items: T[], pageSize = 10) {
     pageIndex,
     setPageIndex,
     pageCount,
+    pageSize,
     total: items.length,
     pageItems: items.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
     firstItem: items.length === 0 ? 0 : pageIndex * pageSize + 1,
@@ -560,6 +561,7 @@ function AdminPagination({
   firstItem,
   lastItem,
   total,
+  pageSize = 10,
   onPageChange,
 }: {
   pageIndex: number;
@@ -567,12 +569,13 @@ function AdminPagination({
   firstItem: number;
   lastItem: number;
   total: number;
+  pageSize?: number;
   onPageChange: (page: number) => void;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500">
       <span>
-        نمایش {firstItem} تا {lastItem} از {total} مورد · ۱۰ مورد در هر صفحه
+        نمایش {firstItem} تا {lastItem} از {total} مورد · {pageSize} مورد در هر صفحه
       </span>
       <div className="flex items-center gap-2">
         <Button
@@ -1763,7 +1766,7 @@ function TenantsPanel({ user }: { user: AuthUser }) {
   const [members, setMembers] = useState<AdminTenantMember[]>([]);
   const [error, setError] = useState<string | null>(null);
   const tenantPagination = useAdminPagination(tenants);
-  const memberPagination = useAdminPagination(members);
+  const memberPagination = useAdminPagination(members, 20);
   const manage = hasPermission(user, adminPermissions.tenantsManage);
   async function loadTenants() {
     try {
@@ -1809,9 +1812,10 @@ function TenantsPanel({ user }: { user: AuthUser }) {
   }
   async function remove(member: AdminTenantMember) {
     if (!tenant) return;
+    const memberLabel = member.displayName?.trim() || member.email || member.userId;
     const form = await ask({
       title: "حذف عضویت",
-      description: `دسترسی ${member.email} به «${tenant.name}» حذف می‌شود.`,
+      description: `دسترسی ${memberLabel} به «${tenant.name}» حذف می‌شود.`,
       confirmLabel: "حذف عضویت",
       danger: true,
       fields: [{ name: "reason", label: "دلیل حذف", type: "textarea", required: true }],
@@ -1827,9 +1831,10 @@ function TenantsPanel({ user }: { user: AuthUser }) {
   }
   async function makeDefault(member: AdminTenantMember) {
     if (!tenant) return;
+    const memberLabel = member.displayName?.trim() || member.email || member.userId;
     const form = await ask({
       title: "تغییر مستأجر پیش‌فرض",
-      description: `«${tenant.name}» برای ${member.email} به‌عنوان مستأجر پیش‌فرض ثبت می‌شود.`,
+      description: `«${tenant.name}» برای ${memberLabel} به‌عنوان مستأجر پیش‌فرض ثبت می‌شود.`,
       confirmLabel: "ثبت به‌عنوان پیش‌فرض",
       fields: [{ name: "reason", label: "دلیل تغییر", type: "textarea", required: true }],
     });
@@ -1873,7 +1878,8 @@ function TenantsPanel({ user }: { user: AuthUser }) {
           <Table className="admin-table">
             <TableHeader>
               <TableRow>
-                <TableHead>ایمیل</TableHead>
+                <TableHead>کاربر</TableHead>
+                <TableHead>TahlilApp</TableHead>
                 <TableHead>پیش‌فرض</TableHead>
                 <TableHead />
               </TableRow>
@@ -1881,7 +1887,28 @@ function TenantsPanel({ user }: { user: AuthUser }) {
             <TableBody>
               {memberPagination.pageItems.map((member) => (
                 <TableRow key={member.userId}>
-                  <TableCell>{member.email}</TableCell>
+                  <TableCell>
+                    <div className="font-medium text-slate-800">
+                      {member.displayName?.trim() || member.email || member.userId}
+                    </div>
+                    {member.displayName?.trim() && member.email && (
+                      <div className="text-xs text-slate-500">{member.email}</div>
+                    )}
+                    {!member.email && member.displayName?.trim() && (
+                      <div className="font-mono text-xs text-slate-500" dir="ltr">
+                        {member.userId}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {member.isTahlilAppConnected ? (
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        متصل
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>{member.isDefault ? "بله" : "خیر"}</TableCell>
                   <TableCell>
                     {manage && (

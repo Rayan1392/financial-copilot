@@ -1,6 +1,7 @@
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Usage;
+using FinancialCopilot.Domain.Identity.TahlilApp;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.Infrastructure.Billing.Persistence;
@@ -95,6 +96,18 @@ public sealed class WalletProjectionRepository(BillingDbContext dbContext, TimeP
                 .Where(hold => ids.Contains(hold.SubscriptionCreditPeriodId)).ToListAsync(cancellationToken);
             expiredUnheld = expired.Sum(period => Math.Max(0m, period.RemainingCredits -
                 holds.Where(hold => hold.SubscriptionCreditPeriodId == period.Id).Sum(hold => hold.CreditsHeld)));
+        }
+        var expiredTopUps = await dbContext.TopUpCreditSources.AsNoTracking()
+            .Where(source => source.CustomerAccountId == customerAccountId &&
+                source.Status == SubscriptionCreditLifecycleService.ActiveStatus && source.ExpiresAtUtc <= now)
+            .ToListAsync(cancellationToken);
+        if (expiredTopUps.Count > 0)
+        {
+            var ids = expiredTopUps.Select(source => source.Id).ToArray();
+            var holds = await dbContext.TopUpUsageCreditHolds.AsNoTracking()
+                .Where(hold => ids.Contains(hold.TopUpCreditSourceId)).ToListAsync(cancellationToken);
+            expiredUnheld += expiredTopUps.Sum(source => Math.Max(0m, source.RemainingCredits -
+                holds.Where(hold => hold.TopUpCreditSourceId == source.Id).Sum(hold => hold.CreditsHeld)));
         }
         return new WalletSnapshot(row.CustomerAccountId, Math.Max(0m, row.Balance - expiredUnheld),
             row.ReservedAmount, row.UpdatedAt, row.Revision);
@@ -194,6 +207,9 @@ public sealed class UsageReservationRepository(BillingDbContext dbContext) : IUs
                 IdempotencyKey = reservation.IdempotencyKey,
                 OperationCode = reservation.OperationCode,
                 ReservedCredits = reservation.ReservedCredits,
+                QuotaMode = reservation.QuotaMode.ToString(),
+                SourceSubscriptionId = reservation.SourceSubscriptionId,
+                SourceSubscriptionExpiresAtUtc = reservation.SourceSubscriptionExpiresAtUtc,
                 CreatedAt = reservation.CreatedAt,
                 ExpiresAt = reservation.ExpiresAt
             };
@@ -203,6 +219,9 @@ public sealed class UsageReservationRepository(BillingDbContext dbContext) : IUs
         row.Status = reservation.Status.ToString();
         row.CommittedCredits = reservation.CommittedCredits;
         row.FinalizationReason = reservation.FinalizationReason;
+        row.QuotaMode = reservation.QuotaMode.ToString();
+        row.SourceSubscriptionId = reservation.SourceSubscriptionId;
+        row.SourceSubscriptionExpiresAtUtc = reservation.SourceSubscriptionExpiresAtUtc;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -217,7 +236,10 @@ public sealed class UsageReservationRepository(BillingDbContext dbContext) : IUs
             row.CreatedAt,
             row.ExpiresAt,
             Enum.Parse<UsageReservationStatus>(row.Status),
-            row.FinalizationReason);
+            row.FinalizationReason,
+            Enum.Parse<FinancialCopilot.Billing.Accounts.CreditQuotaMode>(row.QuotaMode),
+            row.SourceSubscriptionId,
+            row.SourceSubscriptionExpiresAtUtc);
 }
 
 public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
@@ -368,7 +390,10 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
             row.TotalTokens,
             row.EstimatedCost,
             row.AllocationSource,
-            row.AllowanceDateKey);
+            row.AllowanceDateKey,
+            Enum.Parse<FinancialCopilot.Billing.Accounts.CreditQuotaMode>(row.QuotaMode),
+            row.SourceSubscriptionId,
+            row.SourceSubscriptionExpiresAtUtc);
 
     private static FinancialTransaction Map(FinancialTransactionRow row) =>
         new(
@@ -403,7 +428,7 @@ public sealed class InvoiceAccountRepository(BillingDbContext dbContext) : IInvo
     }
 }
 
-public sealed class SubscriptionPlanRepository(BillingDbContext dbContext) : ISubscriptionPlanRepository
+public sealed class SubscriptionPlanRepository(BillingDbContext dbContext, TimeProvider? timeProvider = null) : ISubscriptionPlanRepository
 {
     public async Task<SubscriptionPlan?> FindForCustomerAsync(
         Guid customerAccountId,
@@ -414,16 +439,21 @@ public sealed class SubscriptionPlanRepository(BillingDbContext dbContext) : ISu
             .Select(account => account.ExternalSubscriptionManaged)
             .SingleOrDefaultAsync(cancellationToken);
         string? planCodeFromSubscriptions = null;
+        DateTimeOffset? effectiveExpiresAtUtc = null;
         if (isExternal)
         {
-            var now = DateTimeOffset.UtcNow;
-            var activePlans = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+            var activeWindows = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
                 .Where(row => row.CustomerAccountId == customerAccountId && !row.IsRevoked &&
                               row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
-                .Select(row => row.PlanCode)
+                .Select(row => new { row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc })
                 .ToListAsync(cancellationToken);
-            planCodeFromSubscriptions = activePlans.Contains("Pro", StringComparer.Ordinal) ? "Pro" :
-                activePlans.Contains("Plus", StringComparer.Ordinal) ? "Plus" : "Free";
+            var decision = TahlilAppSubscriptionPolicy.ResolveActivePlanSet(
+                activeWindows.Select(row => new TahlilAppPlanSubscription(
+                    row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc, row.IdentityKey)).ToArray(),
+                now);
+            planCodeFromSubscriptions = decision.PlanCode;
+            effectiveExpiresAtUtc = decision.EffectiveTo;
         }
 
         var subscription = await dbContext.CustomerAccounts
@@ -457,6 +487,8 @@ public sealed class SubscriptionPlanRepository(BillingDbContext dbContext) : ISu
                 row.Code,
                 row.Name,
                 row.IncludedCredits,
-                row.PricingPolicyVersion).Validate();
+                row.PricingPolicyVersion,
+                Enum.Parse<FinancialCopilot.Billing.Accounts.CreditQuotaMode>(row.QuotaMode),
+                effectiveExpiresAtUtc).Validate();
     }
 }

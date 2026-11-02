@@ -112,6 +112,29 @@ public sealed class BillingDomainTests
     }
 
     [Fact]
+    public void UnlimitedReservationRequiresExplicitModeAndSourceAndNeverCommitsCredits()
+    {
+        var now = DateTimeOffset.Parse("2026-11-01T00:00:00Z");
+        var sourceId = Guid.NewGuid();
+        var reservation = new UsageReservation(
+            Guid.NewGuid(), Guid.NewGuid(), "max-request", "AiQuery.Scanner", 0m,
+            now, now.AddMinutes(5), CreditQuotaMode.Unlimited, sourceId, now.AddDays(10));
+
+        reservation.Commit(0m);
+
+        Assert.Equal(CreditQuotaMode.Unlimited, reservation.QuotaMode);
+        Assert.Equal(sourceId, reservation.SourceSubscriptionId);
+        Assert.Equal(now.AddDays(10), reservation.SourceSubscriptionExpiresAtUtc);
+        Assert.Equal(0m, reservation.CommittedCredits);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new UsageReservation(
+            Guid.NewGuid(), Guid.NewGuid(), "bad-max", "AiQuery.Scanner", 1m,
+            now, now.AddMinutes(5), CreditQuotaMode.Unlimited, sourceId, now.AddDays(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new UsageReservation(
+            Guid.NewGuid(), Guid.NewGuid(), "missing-source", "AiQuery.Scanner", 0m,
+            now, now.AddMinutes(5), CreditQuotaMode.Unlimited));
+    }
+
+    [Fact]
     public void PartnerAttribution_DoesNotCreateAUserWalletIdentity()
     {
         var attribution = new PartnerUsageAttribution(" partner-user-123 ");
@@ -125,6 +148,15 @@ public sealed class BillingDomainTests
         var plan = new SubscriptionPlan("DIRECT_STARTER", "Starter", -1, "v1");
 
         Assert.Throws<ArgumentOutOfRangeException>(() => plan.Validate());
+    }
+
+    [Fact]
+    public void SubscriptionPlanAllowsUnlimitedOnlyWithZeroFiniteAllowance()
+    {
+        Assert.Equal(CreditQuotaMode.Unlimited,
+            new SubscriptionPlan("Max", "Max", 0, "v1", CreditQuotaMode.Unlimited).Validate().QuotaMode);
+        Assert.Throws<ArgumentException>(() =>
+            new SubscriptionPlan("Max", "Max", 1, "v1", CreditQuotaMode.Unlimited).Validate());
     }
 
     [Fact]

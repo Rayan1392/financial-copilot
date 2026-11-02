@@ -33,6 +33,7 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("گزارش تولید و فروش با نمودار کهمدا")]
     [InlineData("روند فروش ماهانه فملی را نمایش بده")]
     [InlineData("روند فروش ماهانه فملی را نشان بده")]
+    [InlineData("روند فروش ماهانه کگهر را نشان بده")]
     [InlineData("روند فروش ماهانه فملی را نشون بده")]
     [InlineData("روند فروش ماهانه فملی را نشونم بده")]
     [InlineData("روند فروش ماهانه فملی را بهم نشون بده")]
@@ -48,6 +49,18 @@ public sealed class MonthlyActivityTrend077Tests
 
         Assert.Equal(DetectedIntent.MonthlyActivityTrend, result.Intent);
         Assert.True(result.Confidence >= 0.95);
+    }
+
+    [Fact]
+    public void TrendRequestWithShowVerb_ExtractsTickerAndMatchesQuestionForm()
+    {
+        const string imperative = "روند فروش ماهانه کگهر را نشان بده";
+        const string question = "روند فروش ماهانه کگهر؟";
+
+        Assert.True(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(imperative));
+        Assert.True(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(question));
+        Assert.Equal("کگهر", MonthlyActivityTrendIntentRules.ExtractCompanySymbol(imperative));
+        Assert.Equal("کگهر", MonthlyActivityTrendIntentRules.ExtractCompanySymbol(question));
     }
 
     [Theory]

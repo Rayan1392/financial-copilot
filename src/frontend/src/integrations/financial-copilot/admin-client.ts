@@ -58,6 +58,7 @@ export type AdminUserSubscriptionSummary = {
   effectiveToUtc: string | null;
   revision: number;
   isActive: boolean;
+  creditQuotaMode: "Finite" | "Unlimited";
   capabilityCodes: string[];
   sourceSystem: string;
   asOfUtc: string;
@@ -109,6 +110,7 @@ export type AdminCustomerSubscription = {
   effectiveToUtc: string | null;
   revision: number;
   isActive: boolean;
+  creditQuotaMode: "Finite" | "Unlimited";
   capabilities: { code: string; isEnabled: boolean; limit: number | null; policyVersion: string }[];
   externalSyncStatus: string | null;
   externalLastSyncedAtUtc: string | null;
@@ -226,6 +228,7 @@ export type AdminPlan = {
   name: string;
   includedCredits: number;
   pricingPolicyVersion: string;
+  quotaMode: "Finite" | "Unlimited";
 };
 export type AdminCapability = {
   capabilityCode: string;
@@ -242,6 +245,8 @@ export type AdminSubscription = {
   effectiveFrom: string | null;
   effectiveTo: string | null;
   revision: number;
+  creditQuotaMode: "Finite" | "Unlimited";
+  subscriptionExpiresAtUtc: string | null;
 };
 export type AdminUsageLedger = {
   id: string;
@@ -251,6 +256,9 @@ export type AdminUsageLedger = {
   occurredAt: string;
   completionStatus: string | null;
   auditDescription: string | null;
+  creditQuotaMode: "Finite" | "Unlimited";
+  sourceSubscriptionId: string | null;
+  subscriptionExpiresAtUtc: string | null;
   correlationId?: string;
 };
 export type AdminCreditAdjustment = {
@@ -273,6 +281,35 @@ export type AdminAudit = {
   correlationId: string;
   before: string | null;
   after: string | null;
+};
+export type TahlilAppTopUpReconciliation = {
+  purchases: {
+    purchaseId: string;
+    paymentId: string;
+    eventId: string;
+    externalUserId: string;
+    customerAccountId: string;
+    creditsPurchased: number;
+    packageId: string;
+    packageVersion: string;
+    status: string;
+    planSlug: string;
+    planStartsAtUtc: string;
+    planExpiresAtUtc: string;
+    paidAtUtc: string;
+    receivedAtUtc: string;
+    grantId: string | null;
+    grantedAtUtc: string | null;
+  }[];
+  identityConflicts: {
+    occurredAtUtc: string;
+    purchaseReceiptId: string;
+    eventId: string;
+    conflictCode: string;
+    existingIdentity: string;
+    incomingIdentity: string;
+  }[];
+  generatedAtUtc: string;
 };
 export type FundPortfolioRun = {
   id: string;
@@ -449,6 +486,10 @@ export const adminApi = {
     ),
   securityAudits: () => financialCopilotApi<AdminAudit[]>("/api/v1/admin/audits/security?limit=50"),
   billingAudits: () => financialCopilotApi<AdminAudit[]>("/api/v1/admin/audits/billing?limit=50"),
+  tahlilAppTopUpReconciliation: (limit = 50) =>
+    financialCopilotApi<TahlilAppTopUpReconciliation>(
+      `/api/v1/admin/billing/top-ups/reconciliation?limit=${limit}`,
+    ),
   fundPortfolioRuns: () =>
     financialCopilotApi<{ items: FundPortfolioRun[]; totalCount: number }>(
       "/api/v1/admin/fund-portfolio-reports/runs?page=1&pageSize=20",

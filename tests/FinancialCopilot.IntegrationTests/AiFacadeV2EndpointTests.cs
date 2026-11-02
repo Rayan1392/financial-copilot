@@ -1627,9 +1627,10 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
     }
 
     [Theory]
-    [InlineData("روند فروش ماهانه کهمدا را نشان بده")]
+    [InlineData("روند فروش ماهانه کهمدا؟")]
     [InlineData("چارت فروش ماهانه کهمدا")]
     [InlineData("روند فروش کهمدا")]
+    [InlineData("روند فروش ماهانه کهمدا را نشان بده")]
     [InlineData("روند تولید و فروش کهمدا")]
     [InlineData("نمودار تولید و فروش ماهانه کهمدا")]
     [InlineData("نمودار فروش کهمدا")]

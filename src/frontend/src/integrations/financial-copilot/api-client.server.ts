@@ -29,6 +29,7 @@ export async function financialCopilotServerApi<T>(
   context: FinancialCopilotServerContext,
   path: string,
   init: RequestInit = {},
+  allowNotFound = false,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Authorization", context.authorization);
@@ -36,6 +37,7 @@ export async function financialCopilotServerApi<T>(
   if (init.body) headers.set("Content-Type", "application/json");
 
   const response = await fetch(apiUrl(path), { ...init, headers });
+  if (response.status === 404 && allowNotFound) return null as T;
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
     const code = typeof problem?.code === "string" ? problem.code : problem?.title;

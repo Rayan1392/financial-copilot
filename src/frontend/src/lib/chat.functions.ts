@@ -38,6 +38,7 @@ export interface AssistantChatBlock {
   monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
+  financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
   financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
   citations: Array<{
     symbolCode: string;
@@ -302,6 +303,7 @@ interface AssistantContentResponse {
   monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
+  financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
   financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
   confidenceScore?: { score: number };
   explainableAnswer?: {
@@ -349,6 +351,43 @@ export interface QuarterlyFinancialReportTableResult {
     state: string;
   }>;
   selectedReports?: Array<{ periodEnd: string; periodType?: string | null }>;
+}
+
+export interface FinancialStatementAnalysisResult {
+  companySymbol: string;
+  companyName?: string;
+  selectedPeriodMonths: number;
+  selectedPeriodType: string;
+  jalaliPeriodEnd?: string;
+  jalaliFiscalYearEnd?: string;
+  selectedVariant: string;
+  selectedAuditedStatus?: boolean | null;
+  summaryBullets: string[];
+  sections: Array<{
+    titleFa: string;
+    summaryBullets: string[];
+    metrics: Array<{
+      metricCode: string;
+      labelFa: string;
+      currentFormattedValue?: string | null;
+      previousFormattedValue?: string | null;
+      changePercent?: number | null;
+      changeDirectionFa?: string | null;
+      indicator?: string | null;
+      isUnavailable: boolean;
+      warning?: string | null;
+    }>;
+  }>;
+  sourceReferences: Array<{
+    statementType: string;
+    providerName: string;
+    periodMonths: number;
+    jalaliPeriodEnd?: string | null;
+    jalaliAnnouncementDate?: string | null;
+    isAudited: boolean;
+    isComposing: boolean;
+  }>;
+  warnings: string[];
 }
 
 export const listThreads = createServerFn({ method: "GET" })
@@ -478,13 +517,15 @@ function mapAssistantBlock(
   fallbackMessage: string,
 ): AssistantChatBlock {
   const explanation = content?.explainableAnswer;
+  const financialStatementAnalysisResult = content?.financialStatementAnalysisResult;
   // Prefer symbolLookupTable over scannerTable; both render via ScannerResultTable.
   const table = normalizeRenderableTable(content?.symbolLookupTable ?? content?.scannerTable);
-  const rawMessage =
-    explanation?.explanationText ??
-    content?.clarificationMessage ??
-    content?.textAnswer ??
-    fallbackMessage;
+  const rawMessage = financialStatementAnalysisResult
+    ? ""
+    : explanation?.explanationText ??
+      content?.clarificationMessage ??
+      content?.textAnswer ??
+      fallbackMessage;
   const tableMetadataLabel = isMonthlySalesTechnicalUnitNote(rawMessage, table)
     ? "واحد: میلیون ریال"
     : undefined;
@@ -511,6 +552,7 @@ function mapAssistantBlock(
     monthlyProductTrendResult: content?.monthlyProductTrendResult,
     disclosureListingResult: content?.disclosureListingResult,
     psVisualizationResult: content?.psVisualizationResult,
+    financialStatementAnalysisResult,
     financialStatementTableResult: content?.financialStatementTableResult,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)

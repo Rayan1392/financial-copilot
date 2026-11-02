@@ -112,14 +112,72 @@ public sealed class TahlilAppExchangeParserTests
         $$$"""{"user_id":"d647420371eb1270418f59c20d6c7d02",{{{nameProperty}}}"subscription":{"active":true,"expires_at":"2026-11-27T08:22:04.000Z","plans":[{"slug":"sapio_pro","starts_at":"2026-10-28T08:22:04.000Z","expires_at":"2026-11-27T08:22:04.000Z"}]}}""";
 
     [Fact]
-    public void ConcurrentPlusAndPro_AreBothPreservedAndProWins()
+    public void ConcurrentPlusAndPro_SelectsLatestExpiryAndPreservesBothWindows()
     {
         var result = Parse("""{"user_id":"u-2","subscription":{"plans":[{"slug":"sapio_plus","starts_at":"2026-11-01T00:00:00Z","expires_at":"2026-12-20T00:00:00Z"},{"slug":"sapio_pro","starts_at":"2026-11-15T00:00:00Z","expires_at":"2026-12-01T00:00:00Z"}]}}""");
         Assert.NotNull(result);
         Assert.Equal(2, result!.PlanSubscriptions!.Count);
         var decision = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
             result.PlanSubscriptions.Select(item => (item.Slug, item.StartsAt, item.ExpiresAt)).ToArray(), Now, Plans);
+        Assert.Equal("Plus", decision.PlanCode);
+        Assert.Equal(DateTimeOffset.Parse("2026-12-20T00:00:00Z"), decision.EffectiveTo);
+    }
+
+    [Fact]
+    public void ConcurrentPlusAndProWithExactExpiryTie_PreservesExistingProTieBreak()
+    {
+        var now = DateTimeOffset.Parse("2026-11-20T00:00:00Z");
+        var expiresAt = now.AddDays(10);
+        var decision = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            new[]
+            {
+                ("sapio_plus", now.AddDays(-1), expiresAt),
+                ("sapio_pro", now.AddDays(-2), expiresAt)
+            }, now, Plans);
+
         Assert.Equal("Pro", decision.PlanCode);
+        Assert.Equal(expiresAt, decision.EffectiveTo);
+    }
+
+    [Fact]
+    public void ConfiguredMaxSlugParsesAuthoritativeWindowAndMaxIsUnlimitedUntilItsExpiry()
+    {
+        var now = DateTimeOffset.Parse("2026-11-20T00:00:00Z");
+        var json = Encoding.UTF8.GetBytes("""{"user_id":"u-max","subscription":{"plans":[{"slug":"sapio_max","starts_at":"2026-11-01T00:00:00Z","expires_at":"2027-01-01T00:00:00Z"}]}}""");
+        var defaultSnapshot = TahlilAppExchangeParser.TryParse(json, now);
+        Assert.NotNull(defaultSnapshot);
+        Assert.Equal("Max", Assert.Single(defaultSnapshot!.PlanSubscriptions!).PlanCode);
+        Assert.Equal(DateTimeOffset.Parse("2027-01-01T00:00:00Z"), defaultSnapshot.SubscriptionExpiresAt);
+
+        var map = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["sapio_plus"] = "Plus", ["sapio_pro"] = "Pro", ["sapio_max"] = "Max"
+        };
+        var snapshot = TahlilAppExchangeParser.TryParse(json, now, map);
+        Assert.NotNull(snapshot);
+        var parsedPlans = snapshot!.PlanSubscriptions;
+        Assert.NotNull(parsedPlans);
+        Assert.Equal("Max", parsedPlans.Single().PlanCode);
+        Assert.Equal(DateTimeOffset.Parse("2027-01-01T00:00:00Z"), parsedPlans.Single().ExpiresAt);
+
+        var overlap = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            new[]
+            {
+                ("sapio_max", now.AddDays(-1), now.AddDays(20)),
+                ("sapio_pro", now.AddDays(-1), now.AddDays(30))
+            }, now, map);
+        Assert.Equal("Max", overlap.PlanCode);
+        Assert.Equal(now.AddDays(20), overlap.EffectiveTo);
+
+        var afterMaxExpiry = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            new[]
+            {
+                ("sapio_max", now.AddDays(-1), now.AddDays(20)),
+                ("sapio_pro", now.AddDays(-1), now.AddDays(30)),
+                ("sapio_plus", now.AddDays(-1), now.AddDays(40))
+            }, now.AddDays(21), map);
+        Assert.Equal("Plus", afterMaxExpiry.PlanCode);
+        Assert.Equal(now.AddDays(40), afterMaxExpiry.EffectiveTo);
     }
 
     [Fact]
@@ -144,6 +202,20 @@ public sealed class TahlilAppStatusParserTests
         Assert.Null(rejected);
         Assert.Equal("Pro", result!.PlanSubscriptions![0].PlanCode);
         Assert.Null(TahlilAppStatusParser.TryParse(json, "other", DateTimeOffset.UtcNow, out _));
+    }
+
+    [Fact]
+    public void StatusResponseMapsConfirmedMaxSlugAndAuthoritativeExpiryByDefault()
+    {
+        var expiresAt = DateTimeOffset.Parse("2027-01-01T00:00:00Z");
+        var json = Encoding.UTF8.GetBytes("""{"user_id":"u-status-max","subscription":{"plans":[{"slug":"sapio_max","starts_at":"2026-11-01T00:00:00Z","expires_at":"2027-01-01T00:00:00Z"}]}}""");
+        var result = TahlilAppStatusParser.TryParse(json, "u-status-max", DateTimeOffset.Parse("2026-11-20T00:00:00Z"), out var rejected);
+
+        Assert.NotNull(result);
+        Assert.Null(rejected);
+        var plan = Assert.Single(result!.PlanSubscriptions!);
+        Assert.Equal("Max", plan.PlanCode);
+        Assert.Equal(expiresAt, plan.ExpiresAt);
     }
 }
 

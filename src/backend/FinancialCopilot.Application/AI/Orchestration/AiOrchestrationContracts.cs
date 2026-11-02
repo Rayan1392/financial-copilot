@@ -199,7 +199,10 @@ public sealed record BillingReservationHandle(
     // The credits held for this turn: the most its finalization may charge.
     decimal ReservedCredits = 0,
     string? UsageCorrelationId = null,
-    Guid? BillingOperationId = null);
+    Guid? BillingOperationId = null,
+    string QuotaMode = "Finite",
+    Guid? SourceSubscriptionId = null,
+    DateTimeOffset? SourceSubscriptionExpiresAtUtc = null);
 
 public sealed record BillingFinalizationRequest(
     string CompletionStatus,

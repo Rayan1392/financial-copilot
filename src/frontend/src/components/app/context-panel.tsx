@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Plus } from "lucide-react";
 import { getMarketSummary, getWatchlist } from "@/lib/market-view.functions";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
 
@@ -63,9 +65,19 @@ export function ContextPanel() {
           )}
         </section>
         <section className="flex min-h-0 flex-1 flex-col">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-            دیده‌بان
-          </h3>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+              دیده‌بان
+            </h3>
+            <Link
+              to="/followed-symbols"
+              hash="symbol-search"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-emerald transition hover:bg-emerald-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              افزودن نماد
+            </Link>
+          </div>
           {watchlistLoading && (
             <p className="text-xs text-muted-foreground">در حال بارگذاری دیده‌بان...</p>
           )}
@@ -73,7 +85,11 @@ export function ContextPanel() {
             <p className="text-xs text-rose">داده دیده‌بان در دسترس نیست.</p>
           )}
           {!watchlistLoading && !watchlistError && watchlist?.symbols.length === 0 && (
-            <p className="text-xs text-muted-foreground">دیده‌بان خالی است.</p>
+            <div className="mb-2 rounded-lg border border-dashed border-hairline bg-background/40 px-3 py-3">
+              <p className="text-xs leading-6 text-muted-foreground">
+                قیمت و تغییرات نمادهایی که دنبال می‌کنید، اینجا نمایش داده می‌شود. برای شروع، «افزودن نماد» را انتخاب کنید.
+              </p>
+            </div>
           )}
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
             {watchlist?.symbols.map((quote) => (

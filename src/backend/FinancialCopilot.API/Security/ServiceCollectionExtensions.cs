@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using FinancialCopilot.Application.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +18,16 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         services.AddHttpContextAccessor();
+        services.AddOptions<TahlilAppTopUpOptions>()
+            .BindConfiguration(TahlilAppTopUpOptions.SectionName)
+            .Validate(options => !options.Enabled ||
+                !string.IsNullOrWhiteSpace(options.Authentication.Issuer) &&
+                options.Authentication.Audience == "sapio-tahlilapp-topup" &&
+                options.Authentication.SigningKeys.Count > 0 &&
+                options.Authentication.SigningKeys.All(item => !string.IsNullOrWhiteSpace(item.Key) &&
+                    !string.IsNullOrWhiteSpace(item.Value) && Encoding.UTF8.GetByteCount(item.Value) >= 32),
+                "Enabled TahlilApp top-ups require an issuer, the contract audience, and 32-byte signing keys keyed by key ID.")
+            .ValidateOnStart();
         services.AddScoped<ICurrentActorContext, HttpCurrentActorContext>();
         services
             .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -42,12 +53,18 @@ public static class ServiceCollectionExtensions
                         : JwtBearerDefaults.AuthenticationScheme;
             })
             .AddJwtBearer(options => ConfigureJwtBearer(options, configuration))
+            .AddJwtBearer(AuthenticationSchemes.TahlilAppTopUpPartner, options => ConfigureTopUpPartnerJwt(options, configuration))
             .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
                 AuthenticationSchemes.ApiKey,
                 _ => { });
 
         services.AddAuthorization(options =>
         {
+            options.AddPolicy("TahlilAppTopUpPartner", policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireClaim("scope", "topup.deliver");
+            });
             options.AddPolicy(AuthorizationPolicies.AiFacade, policy =>
             {
                 policy.RequireAuthenticatedUser();
@@ -168,6 +185,60 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static void ConfigureTopUpPartnerJwt(JwtBearerOptions options, IConfiguration configuration)
+    {
+        var section = configuration.GetSection("Billing:TahlilAppTopUps:Authentication");
+        var issuer = section["Issuer"];
+        var audience = section["Audience"] ?? "sapio-tahlilapp-topup";
+        options.MapInboundClaims = false;
+        options.RequireHttpsMetadata = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = issuer,
+            ValidateAudience = true,
+            ValidAudience = audience,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = "sub",
+            IssuerSigningKeyResolver = (_, _, keyId, _) =>
+            {
+                var encodedKey = section.GetSection("SigningKeys")[keyId ?? string.Empty];
+                if (string.IsNullOrWhiteSpace(encodedKey)) return Array.Empty<SecurityKey>();
+                return new SecurityKey[] { new SymmetricSecurityKey(Encoding.UTF8.GetBytes(encodedKey)) { KeyId = keyId } };
+            }
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                return WritePartnerAuthProblemAsync(context.HttpContext, StatusCodes.Status401Unauthorized);
+            },
+            OnForbidden = context =>
+            {
+                return WritePartnerAuthProblemAsync(context.HttpContext, StatusCodes.Status403Forbidden);
+            }
+        };
+    }
+
+    private static async Task WritePartnerAuthProblemAsync(HttpContext context, int status)
+    {
+        context.Response.StatusCode = status;
+        context.Response.ContentType = "application/problem+json";
+        var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault() ?? context.TraceIdentifier;
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            type = "urn:financial-copilot:problem:partner-auth-failed",
+            title = "partner-auth-failed",
+            status,
+            code = "partner-auth-failed",
+            correlationId
+        });
+        await context.Response.Body.WriteAsync(payload);
     }
 
     private static void ConfigureJwtBearer(JwtBearerOptions options, IConfiguration configuration)
@@ -323,4 +394,18 @@ public static class ServiceCollectionExtensions
             principal.FindFirstValue(FinancialCopilotClaimTypes.AuthenticationMode),
             mode.ToString(),
             StringComparison.OrdinalIgnoreCase);
+}
+
+public sealed class TahlilAppTopUpOptions
+{
+    public const string SectionName = "Billing:TahlilAppTopUps";
+    public bool Enabled { get; set; }
+    public TahlilAppTopUpAuthenticationOptions Authentication { get; set; } = new();
+}
+
+public sealed class TahlilAppTopUpAuthenticationOptions
+{
+    public string Issuer { get; set; } = string.Empty;
+    public string Audience { get; set; } = "sapio-tahlilapp-topup";
+    public Dictionary<string, string> SigningKeys { get; set; } = new(StringComparer.Ordinal);
 }

@@ -1,3 +1,5 @@
+using FinancialCopilot.Billing.Accounts;
+
 namespace FinancialCopilot.Billing.Usage;
 
 public sealed class UsageReservation
@@ -9,7 +11,10 @@ public sealed class UsageReservation
         string operationCode,
         decimal reservedCredits,
         DateTimeOffset createdAt,
-        DateTimeOffset expiresAt)
+        DateTimeOffset expiresAt,
+        CreditQuotaMode quotaMode = CreditQuotaMode.Finite,
+        Guid? sourceSubscriptionId = null,
+        DateTimeOffset? sourceSubscriptionExpiresAtUtc = null)
     {
         if (id == Guid.Empty || customerAccountId == Guid.Empty)
         {
@@ -21,10 +26,14 @@ public sealed class UsageReservation
             throw new ArgumentException("Idempotency key and operation code are required.");
         }
 
-        if (reservedCredits <= 0)
+        if (quotaMode == CreditQuotaMode.Finite && reservedCredits <= 0 ||
+            quotaMode == CreditQuotaMode.Unlimited &&
+            (reservedCredits != 0 || sourceSubscriptionId is null || sourceSubscriptionId == Guid.Empty || sourceSubscriptionExpiresAtUtc is null))
         {
             throw new ArgumentOutOfRangeException(nameof(reservedCredits));
         }
+
+        if (!Enum.IsDefined(quotaMode)) throw new ArgumentOutOfRangeException(nameof(quotaMode));
 
         if (expiresAt <= createdAt)
         {
@@ -36,6 +45,9 @@ public sealed class UsageReservation
         IdempotencyKey = idempotencyKey.Trim();
         OperationCode = operationCode.Trim();
         ReservedCredits = reservedCredits;
+        QuotaMode = quotaMode;
+        SourceSubscriptionId = sourceSubscriptionId;
+        SourceSubscriptionExpiresAtUtc = sourceSubscriptionExpiresAtUtc;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
         Status = UsageReservationStatus.Reserved;
@@ -50,6 +62,12 @@ public sealed class UsageReservation
     public string OperationCode { get; }
 
     public decimal ReservedCredits { get; }
+
+    public CreditQuotaMode QuotaMode { get; }
+
+    public Guid? SourceSubscriptionId { get; }
+
+    public DateTimeOffset? SourceSubscriptionExpiresAtUtc { get; }
 
     public decimal? CommittedCredits { get; private set; }
 
@@ -71,7 +89,10 @@ public sealed class UsageReservation
         DateTimeOffset createdAt,
         DateTimeOffset expiresAt,
         UsageReservationStatus status,
-        string? finalizationReason = null)
+        string? finalizationReason = null,
+        CreditQuotaMode quotaMode = CreditQuotaMode.Finite,
+        Guid? sourceSubscriptionId = null,
+        DateTimeOffset? sourceSubscriptionExpiresAtUtc = null)
     {
         var reservation = new UsageReservation(
             id,
@@ -80,7 +101,10 @@ public sealed class UsageReservation
             operationCode,
             reservedCredits,
             createdAt,
-            expiresAt);
+            expiresAt,
+            quotaMode,
+            sourceSubscriptionId,
+            sourceSubscriptionExpiresAtUtc);
 
         switch (status)
         {

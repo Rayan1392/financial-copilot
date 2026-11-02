@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { AdminCustomerChatHistory } from "@/components/admin/admin-customer-chat-history";
+import { TahlilAppTopUpReconciliationPanel } from "@/components/admin/tahlilapp-top-up-reconciliation-panel";
 import {
   Table,
   TableBody,
@@ -49,6 +50,7 @@ import {
   type AdminSubscription,
   type AdminTenant,
   type AdminTenantMember,
+  type TahlilAppTopUpReconciliation,
   type AdminUsageLedger,
   type AdminUser,
   type AdminUserDirectoryItem,
@@ -115,6 +117,11 @@ const permissionLabels: Record<string, { label: string; description: string }> =
     label: "مدیریت فهرست نمادهای پیگیری",
     description: "مشاهده و مدیریت نمادهای ذخیره‌شده در فهرست پیگیری.",
   },
+};
+
+permissionLabels["Page.Disclosures"] = {
+  label: "\u0635\u0641\u062d\u0647 \u0641\u0647\u0631\u0633\u062a \u0627\u0637\u0644\u0627\u0639\u06cc\u0647\u200c\u0647\u0627\u06cc \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647",
+  description: "\u062a\u0639\u06cc\u06cc\u0646 \u0645\u06cc\u200c\u06a9\u0646\u062f \u06a9\u062f\u0627\u0645 \u0637\u0631\u062d\u200c\u0647\u0627 \u0627\u0645\u06a9\u0627\u0646 \u0645\u0634\u0627\u0647\u062f\u0647 \u0641\u0647\u0631\u0633\u062a \u0627\u0637\u0644\u0627\u0639\u06cc\u0647\u200c\u0647\u0627 \u0631\u0627 \u062f\u0627\u0631\u0646\u062f.",
 };
 
 function permissionCopy(code: string) {
@@ -1324,6 +1331,9 @@ function UsersPanel({ user }: { user: AuthUser }) {
                             {data.isActive ? "بله" : "خیر"}
                           </p>
                           <p>
+                            سهمیه: {data.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"}
+                          </p>
+                          <p>
                             بازه: {dateLabel(data.effectiveFromUtc)} تا{" "}
                             {dateLabel(data.effectiveToUtc)} · بازبینی: {data.revision}
                           </p>
@@ -1922,6 +1932,9 @@ function BillingPanel({ user }: { user: AuthUser }) {
   const [creditSaving, setCreditSaving] = useState(false);
   const [subscription, setSubscription] = useState<AdminSubscription | null>(null);
   const [ledger, setLedger] = useState<AdminUsageLedger[]>([]);
+  const [topUpReconciliation, setTopUpReconciliation] = useState<TahlilAppTopUpReconciliation | null>(null);
+  const [topUpReconciliationLoading, setTopUpReconciliationLoading] = useState(false);
+  const [topUpReconciliationError, setTopUpReconciliationError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [creditKey, setCreditKey] = useState(() => `admin-ui-credit-${crypto.randomUUID()}`);
@@ -1950,8 +1963,21 @@ function BillingPanel({ user }: { user: AuthUser }) {
         setError(showError(e));
       }
   }
+  async function loadTopUpReconciliation() {
+    if (!hasPermission(user, adminPermissions.billingAuditRead)) return;
+    setTopUpReconciliationLoading(true);
+    setTopUpReconciliationError(null);
+    try {
+      setTopUpReconciliation(await adminApi.tahlilAppTopUpReconciliation());
+    } catch (e) {
+      setTopUpReconciliationError(showError(e));
+    } finally {
+      setTopUpReconciliationLoading(false);
+    }
+  }
   useEffect(() => {
     void loadPlans();
+    void loadTopUpReconciliation();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- load the initial admin snapshot once
   async function loadCustomerSearchPage(cursor: string | null, searchTerm = customerSearch) {
     const term = searchTerm.trim();
@@ -2269,6 +2295,7 @@ function BillingPanel({ user }: { user: AuthUser }) {
   return (
     <>
       <div className="space-y-4">
+        {hasPermission(user, adminPermissions.billingAuditRead) && <TahlilAppTopUpReconciliationPanel />}
         <Panel title="طرح‌ها">
           <Message error={error} success={success} />
           <div className="overflow-x-auto rounded-xl border border-slate-100">
@@ -2293,7 +2320,7 @@ function BillingPanel({ user }: { user: AuthUser }) {
                       </code>
                     </TableCell>
                     <TableCell className="font-medium">{plan.name}</TableCell>
-                    <TableCell>{plan.includedCredits.toLocaleString("fa-IR")}</TableCell>
+                    <TableCell>{plan.quotaMode === "Unlimited" ? "نامحدود" : plan.includedCredits.toLocaleString("fa-IR")}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -2306,14 +2333,14 @@ function BillingPanel({ user }: { user: AuthUser }) {
                         </Button>
                         {hasPermission(user, adminPermissions.plansManage) && (
                           <>
-                            <Button
+                            {plan.quotaMode === "Finite" && <Button
                               className="rounded-lg"
                               size="sm"
                               variant="outline"
                               onClick={() => void editIncludedCredits(plan)}
                             >
                               ویرایش اعتبار
-                            </Button>
+                            </Button>}
                             <Button
                               className="rounded-lg"
                               size="sm"
@@ -2430,7 +2457,9 @@ function BillingPanel({ user }: { user: AuthUser }) {
                                 <TableCell>
                                   <div className="space-y-1 text-xs text-slate-600">
                                     {item.subscription.data?.planCode && (
-                                      <div>طرح: {item.subscription.data.planCode}</div>
+                                      <div>
+                                        طرح: {item.subscription.data.planCode} · سهمیه: {item.subscription.data.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"}
+                                      </div>
                                     )}
                                     {item.credits.data?.spendableCredits != null && (
                                       <div>
@@ -2541,6 +2570,14 @@ function BillingPanel({ user }: { user: AuthUser }) {
                   <span className="mt-1 block font-semibold text-slate-800">
                     {subscription.planCode ?? "بدون طرح"}
                   </span>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    سهمیه: {subscription.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"}
+                  </span>
+                  {subscription.subscriptionExpiresAtUtc && (
+                    <span className="mt-1 block text-xs text-slate-500">
+                      تا {dateLabel(subscription.subscriptionExpiresAtUtc)}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="block text-xs text-slate-500">نوع حساب</span>
@@ -2601,6 +2638,11 @@ function BillingPanel({ user }: { user: AuthUser }) {
                         <div className="font-medium">
                           {isManualCreditGrant ? "افزودن دستی اعتبار" : row.operationCode}
                         </div>
+                        {row.creditQuotaMode === "Unlimited" && (
+                          <div className="mt-1 text-xs text-slate-500">
+                            نامحدود · تا {dateLabel(row.subscriptionExpiresAtUtc)}
+                          </div>
+                        )}
                         {isManualCreditGrant && row.auditDescription && (
                           <div className="mt-1 max-w-md whitespace-normal text-xs leading-5 text-slate-500">
                             دلیل: {row.auditDescription}

@@ -33,6 +33,8 @@ public sealed class SubscriptionCreditAllocationWorker(
                 {
                     logger.LogInformation("Processed {PeriodCount} due SapioAI subscription credit periods.", count);
                 }
+                var topUps = await lifecycle.ProcessDueTopUpsAsync(BatchSize, timeProvider.GetUtcNow(), stoppingToken);
+                if (topUps > 0) logger.LogInformation("Expired {TopUpCount} TahlilApp top-up sources.", topUps);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

@@ -211,7 +211,7 @@ describe("ChatHeader account placement", () => {
     const startGroup = header.firstElementChild as HTMLElement;
     expect(startGroup).toContainElement(account);
     expect(startGroup.firstElementChild).toContainElement(account);
-    expect(within(startGroup).getByText("تحلیل لحظه‌ای بازار")).toBeInTheDocument();
+    expect(within(startGroup).getByText("تحلیل بازار، ساده‌تر از همیشه")).toBeInTheDocument();
 
     expect(screen.getByRole("link", { name: "صفحه اصلی" })).toHaveAttribute("href", "/chat");
     expect(screen.getByRole("link", { name: "دیده‌بان" })).toHaveAttribute(
@@ -232,7 +232,7 @@ describe("ChatHeader account placement", () => {
 
     await settled(client);
     expect(screen.queryByRole("link", { name: /پروفایل حساب/ })).not.toBeInTheDocument();
-    expect(screen.getByText("تحلیل لحظه‌ای بازار")).toBeInTheDocument();
+    expect(screen.getByText("تحلیل بازار، ساده‌تر از همیشه")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "صفحه اصلی" })).toBeInTheDocument();
   });
 });

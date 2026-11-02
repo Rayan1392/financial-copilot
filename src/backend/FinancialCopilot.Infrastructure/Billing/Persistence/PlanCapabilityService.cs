@@ -1,10 +1,11 @@
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Domain.Identity.TahlilApp;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.Infrastructure.Billing.Persistence;
 
-public sealed class PlanCapabilityService(BillingDbContext dbContext) : IPlanCapabilityService
+public sealed class PlanCapabilityService(BillingDbContext dbContext, TimeProvider? timeProvider = null) : IPlanCapabilityService
 {
     public async Task ValidateCanExecuteAsync(
         CustomerAccount account,
@@ -62,13 +63,15 @@ public sealed class PlanCapabilityService(BillingDbContext dbContext) : IPlanCap
             .SingleOrDefaultAsync(cancellationToken);
         if (external)
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
             var active = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
-                .Where(row => row.CustomerAccountId == customerAccountId && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
-                .Select(row => row.PlanCode)
+                .Where(row => row.CustomerAccountId == customerAccountId && !row.IsRevoked && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+                .Select(row => new { row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc })
                 .ToListAsync(cancellationToken);
-            return active.Contains("Pro", StringComparer.Ordinal) ? "Pro" :
-                active.Contains("Plus", StringComparer.Ordinal) ? "Plus" : "Free";
+            return TahlilAppSubscriptionPolicy.ResolveActivePlanSet(
+                active.Select(row => new TahlilAppPlanSubscription(
+                    row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc, row.IdentityKey)).ToArray(),
+                now).PlanCode;
         }
 
         var subscription = await dbContext.CustomerAccounts
@@ -80,7 +83,7 @@ public sealed class PlanCapabilityService(BillingDbContext dbContext) : IPlanCap
             : SubscriptionEffectiveness.ResolveEffectivePlanCode(
                 subscription.SubscriptionPlanCode,
                 subscription.SubscriptionEffectiveTo,
-                DateTimeOffset.UtcNow);
+            (timeProvider ?? TimeProvider.System).GetUtcNow());
     }
 
     public async Task<decimal?> GetLimitAsync(

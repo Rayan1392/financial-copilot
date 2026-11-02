@@ -1,6 +1,6 @@
 # Feature 151 — User stories and acceptance criteria
 
-**Status:** specification only. See [spec.md](spec.md) and [integration contract](integration-contract.md).
+**Status:** implementation complete within this repository; see [ImplementationReport.md](ImplementationReport.md). External TahlilApp work and joint staging verification remain pending.
 
 **US-151-01:** As an active Plus or Pro user, I can buy credits without renewing my subscription, before or after my balance reaches zero.
 

@@ -14,6 +14,19 @@ public static class TahlilAppStatusParser
         string expectedExternalUserId,
         DateTimeOffset now,
         out string? rejectedField)
+        => TryParse(utf8Json, expectedExternalUserId, now, new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["sapio_plus"] = "Plus",
+            ["sapio_pro"] = "Pro",
+            ["sapio_max"] = "Max"
+        }, out rejectedField);
+
+    public static TahlilAppStatusSnapshot? TryParse(
+        ReadOnlySpan<byte> utf8Json,
+        string expectedExternalUserId,
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, string> planMap,
+        out string? rejectedField)
     {
         rejectedField = null;
         try
@@ -40,7 +53,7 @@ public static class TahlilAppStatusParser
                 return null;
             }
 
-            if (!TahlilAppExchangeParser.TryReadPlans(subscription, now, out var plans))
+            if (!TahlilAppExchangeParser.TryReadPlans(subscription, now, planMap, out var plans))
             {
                 rejectedField = "subscription.plans";
                 return null;

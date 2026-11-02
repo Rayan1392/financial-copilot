@@ -526,14 +526,31 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         }
 
         var accountIds = accounts.Values.Select(account => account.Id).ToArray();
+        var effectiveExternalPlans = new Dictionary<Guid, TahlilAppSubscriptionDecision>();
         var capabilityMap = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.Ordinal);
         var subscriptionReadFailed = false;
         if (canReadSubscription)
         {
             try
             {
-                var planCodes = accounts.Values.Where(account => account.SubscriptionPlanCode != null)
-                    .Select(account => account.SubscriptionPlanCode!).Distinct().ToArray();
+                var externalAccountIds = accounts.Values.Where(account => account.ExternalSubscriptionManaged)
+                    .Select(account => account.Id).ToArray();
+                var externalWindows = externalAccountIds.Length == 0
+                    ? Array.Empty<ExternalPlanWindow>()
+                    : await billing.ExternalPlanSubscriptions.AsNoTracking()
+                    .Where(row => externalAccountIds.Contains(row.CustomerAccountId) && !row.IsRevoked &&
+                                  row.StartsAtUtc <= asOfUtc && row.ExpiresAtUtc > asOfUtc)
+                    .Select(row => new ExternalPlanWindow(row.CustomerAccountId, row.IdentityKey, row.PlanCode,
+                        row.StartsAtUtc, row.ExpiresAtUtc))
+                    .ToArrayAsync(cancellationToken);
+                foreach (var group in externalWindows.GroupBy(row => row.CustomerAccountId))
+                    effectiveExternalPlans[group.Key] = ResolveEffectivePlan(group, asOfUtc);
+
+                var planCodes = accounts.Values.Select(account =>
+                        account.ExternalSubscriptionManaged
+                            ? effectiveExternalPlans.GetValueOrDefault(account.Id)?.PlanCode ?? "Free"
+                            : account.SubscriptionPlanCode)
+                    .Where(code => code is not null).Select(code => code!).Distinct().ToArray();
                 var capabilities = planCodes.Length == 0
                     ? Array.Empty<PlanCapabilityRow>()
                     : await billing.PlanCapabilities.AsNoTracking().Where(row => planCodes.Contains(row.PlanCode) && row.IsEnabled)
@@ -580,17 +597,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
                     ? Unavailable<AdminUserSubscriptionSummary>("billing_read_failed")
                 : account is null
                     ? Unavailable<AdminUserSubscriptionSummary>("billing_account_unavailable")
-                    : Available(new AdminUserSubscriptionSummary(
-                        account.Id,
-                        account.AccountType,
-                        account.SubscriptionPlanCode,
-                        account.SubscriptionEffectiveFrom,
-                        account.SubscriptionEffectiveTo,
-                        account.SubscriptionRevision,
-                        IsSubscriptionActive(account, asOfUtc),
-                        account.SubscriptionPlanCode is { } planCode && capabilityMap.TryGetValue(planCode, out var values) ? values : Array.Empty<string>(),
-                        "Billing",
-                        asOfUtc));
+                    : Available(BuildDirectorySubscriptionSummary(account, effectiveExternalPlans, capabilityMap, asOfUtc));
 
             AdminOptionalSection<AdminUserCreditSummary> credits;
             if (!canReadCredits)
@@ -614,7 +621,9 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
                     activeCredits = stats.Credits;
                     nextExpiry = stats.NextExpiry;
                 }
-                var spendable = wallet.Balance + (account.CreditLineApprovedLimit ?? 0m) - wallet.ReservedAmount;
+                var expiredUnheld = await new SubscriptionCreditLifecycleService(billing)
+                    .GetExpiredUnheldCreditsAsync(account.Id, asOfUtc, cancellationToken);
+                var spendable = wallet.Balance + (account.CreditLineApprovedLimit ?? 0m) - wallet.ReservedAmount - expiredUnheld;
                 credits = Available(new AdminUserCreditSummary(spendable, wallet.ReservedAmount, account.CreditLineApprovedLimit, activeCredits, nextExpiry, "Billing wallet projection and subscription credit periods", asOfUtc));
             }
 
@@ -635,16 +644,36 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
 
         try
         {
-            var plan = account.SubscriptionPlanCode is null
-                ? null
-                : await billing.SubscriptionPlans.AsNoTracking().SingleOrDefaultAsync(row => row.Code == account.SubscriptionPlanCode, cancellationToken);
-            var capabilities = account.SubscriptionPlanCode is null
-                ? Array.Empty<AdminCustomerPlanCapabilityView>()
-                : await billing.PlanCapabilities.AsNoTracking()
-                    .Where(row => row.PlanCode == account.SubscriptionPlanCode && row.IsEnabled)
-                    .OrderBy(row => row.CapabilityCode)
-                    .Select(row => new AdminCustomerPlanCapabilityView(row.CapabilityCode, row.IsEnabled, row.Limit, row.PolicyVersion))
+            var effective = account.ExternalSubscriptionManaged
+                ? ResolveEffectivePlan(await billing.ExternalPlanSubscriptions.AsNoTracking()
+                    .Where(row => row.CustomerAccountId == account.Id && !row.IsRevoked &&
+                                  row.StartsAtUtc <= asOfUtc && row.ExpiresAtUtc > asOfUtc)
+                    .Select(row => new ExternalPlanWindow(row.CustomerAccountId, row.IdentityKey, row.PlanCode,
+                        row.StartsAtUtc, row.ExpiresAtUtc))
+                    .ToArrayAsync(cancellationToken), asOfUtc)
+                : new TahlilAppSubscriptionDecision(
+                    account.SubscriptionPlanCode ?? "Free", account.SubscriptionEffectiveTo,
+                    "stored-subscription", account.SubscriptionEffectiveFrom);
+            var effectivePlanCode = effective.PlanCode;
+            var planDetails = effectivePlanCode is null
+                ? Array.Empty<PlanCapabilityDetailRow>()
+                : await (from planRow in billing.SubscriptionPlans.AsNoTracking()
+                         where planRow.Code == effectivePlanCode
+                         join capabilityRow in billing.PlanCapabilities.AsNoTracking().Where(row => row.IsEnabled)
+                             on planRow.Code equals capabilityRow.PlanCode into planCapabilities
+                         from capabilityRow in planCapabilities.DefaultIfEmpty()
+                         orderby capabilityRow == null ? null : capabilityRow.CapabilityCode
+                         select new PlanCapabilityDetailRow(
+                             planRow.Name,
+                             capabilityRow == null ? null : capabilityRow.CapabilityCode,
+                             capabilityRow != null && capabilityRow.IsEnabled,
+                             capabilityRow == null ? null : capabilityRow.Limit,
+                             capabilityRow == null ? null : capabilityRow.PolicyVersion))
                     .ToArrayAsync(cancellationToken);
+            var capabilities = planDetails.Where(row => row.CapabilityCode is not null)
+                .Select(row => new AdminCustomerPlanCapabilityView(
+                    row.CapabilityCode!, row.IsEnabled, row.Limit, row.PolicyVersion!))
+                .ToArray();
             var external = await auth.TahlilAppExternalIdentities.AsNoTracking()
                 .Where(link => link.TenantId == tenantId && link.LocalUserId == account.UserId && link.Provider == ExternalUserId.Provider)
                 .Select(link => new { link.Status, link.LastEntitlementSyncAtUtc, link.NextEntitlementSyncDueAtUtc, link.LastSyncFailureCategory })
@@ -659,17 +688,20 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             return Available(new AdminCustomerSubscriptionView(
                 account.Id,
                 account.AccountType,
-                account.SubscriptionPlanCode,
-                plan?.Name,
-                account.SubscriptionEffectiveFrom,
-                account.SubscriptionEffectiveTo,
+                effectivePlanCode,
+                planDetails.FirstOrDefault()?.PlanName,
+                effective.EffectiveFrom,
+                effective.EffectiveTo,
                 account.SubscriptionRevision,
-                IsSubscriptionActive(account, asOfUtc),
+                account.ExternalSubscriptionManaged
+                    ? effectivePlanCode is not null
+                    : IsSubscriptionActive(account, asOfUtc),
                 capabilities,
                 syncStatus,
                 external?.LastEntitlementSyncAtUtc,
                 "Billing account and plan; TahlilApp sync state from Identity",
-                asOfUtc));
+                asOfUtc,
+                effectivePlanCode == "Max" ? "Unlimited" : "Finite"));
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -706,7 +738,9 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
                     period.Id, period.PlanCode, period.GrantedCredits, period.RemainingCredits,
                     period.StartsAtUtc, period.ExpiresAtUtc, period.Status))
                 .ToArrayAsync(cancellationToken);
-            var available = wallet.Balance + (account.CreditLineApprovedLimit ?? 0m) - wallet.ReservedAmount;
+            var expiredUnheld = await new SubscriptionCreditLifecycleService(billing)
+                .GetExpiredUnheldCreditsAsync(account.Id, asOfUtc, cancellationToken);
+            var available = wallet.Balance + (account.CreditLineApprovedLimit ?? 0m) - wallet.ReservedAmount - expiredUnheld;
             return Available(new AdminCustomerCreditView(
                 available,
                 wallet.ReservedAmount,
@@ -969,6 +1003,39 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         (account.SubscriptionEffectiveFrom is null || account.SubscriptionEffectiveFrom <= asOfUtc) &&
         (account.SubscriptionEffectiveTo is null || account.SubscriptionEffectiveTo > asOfUtc);
 
+    private static AdminUserSubscriptionSummary BuildDirectorySubscriptionSummary(
+        CustomerAccountRow account,
+        IReadOnlyDictionary<Guid, TahlilAppSubscriptionDecision> effectiveExternalPlans,
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> capabilityMap,
+        DateTimeOffset asOfUtc)
+    {
+        var effective = account.ExternalSubscriptionManaged
+            ? effectiveExternalPlans.GetValueOrDefault(account.Id) ??
+              new TahlilAppSubscriptionDecision("Free", null, "no-active-paid-window")
+            : new TahlilAppSubscriptionDecision(account.SubscriptionPlanCode ?? "Free",
+                account.SubscriptionEffectiveTo, "stored-subscription", account.SubscriptionEffectiveFrom);
+        return new AdminUserSubscriptionSummary(
+            account.Id,
+            account.AccountType,
+            effective.PlanCode,
+            effective.EffectiveFrom,
+            effective.EffectiveTo,
+            account.SubscriptionRevision,
+            account.ExternalSubscriptionManaged || IsSubscriptionActive(account, asOfUtc),
+            capabilityMap.TryGetValue(effective.PlanCode, out var values) ? values : Array.Empty<string>(),
+            "Billing",
+            asOfUtc,
+            effective.PlanCode == "Max" ? "Unlimited" : "Finite");
+    }
+
+    private static TahlilAppSubscriptionDecision ResolveEffectivePlan(
+        IEnumerable<ExternalPlanWindow> windows,
+        DateTimeOffset asOfUtc) =>
+        TahlilAppSubscriptionPolicy.ResolveActivePlanSet(
+            windows.Select(row => new TahlilAppPlanSubscription(
+                row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc, row.IdentityKey)).ToArray(),
+            asOfUtc);
+
     private static string GetStatus(bool isEnabled, DateTimeOffset? lockoutEnd, DateTimeOffset asOfUtc) =>
         !isEnabled ? "disabled" : IsLocked(lockoutEnd, asOfUtc) ? "locked" : "enabled";
 
@@ -1028,6 +1095,20 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         DateTimeOffset? RegisteredAtUtc,
         DateTimeOffset? LastSuccessfulLoginAtUtc,
         string? LastLoginProviderCode);
+
+    private sealed record ExternalPlanWindow(
+        Guid CustomerAccountId,
+        string IdentityKey,
+        string PlanCode,
+        DateTimeOffset StartsAtUtc,
+        DateTimeOffset ExpiresAtUtc);
+
+    private sealed record PlanCapabilityDetailRow(
+        string PlanName,
+        string? CapabilityCode,
+        bool IsEnabled,
+        decimal? Limit,
+        string? PolicyVersion);
 
     private sealed record PeriodSummary(Guid AccountId, decimal Credits, DateTimeOffset NextExpiry);
 

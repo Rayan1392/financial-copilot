@@ -165,6 +165,27 @@ public sealed class CompanyDisclosureFeed112Tests
     }
 
     [Fact]
+    public async Task QueryAsync_ReturnsTwentyRowsPerDefaultPageAndKeepsTheNextPageComplete()
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "1");
+        for (var index = 1; index <= 25; index++)
+            AddMonthly(db, $"report-{index:D2}", company: company, reportType: $"Type-{index:D2}", receivedAt: At(index));
+        await db.SaveChangesAsync();
+
+        var repository = Repository(db);
+        var firstPage = await repository.QueryAsync(new CompanyDisclosureFeedQuery());
+        var secondPage = await repository.QueryAsync(new CompanyDisclosureFeedQuery(Page: 2));
+
+        Assert.Equal(20, firstPage.Items.Count);
+        Assert.Equal(5, secondPage.Items.Count);
+        Assert.Equal(25, firstPage.TotalCount);
+        Assert.Equal(25, secondPage.TotalCount);
+        Assert.Empty(firstPage.Items.Select(item => item.DisclosureId)
+            .Intersect(secondPage.Items.Select(item => item.DisclosureId)));
+    }
+
+    [Fact]
     public async Task QueryAsync_ReportsPersistedFreshnessForNonEmptyAndCompleteCoverageForEmptyPage()
     {
         await using var db = CreateDb();

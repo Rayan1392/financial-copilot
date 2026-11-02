@@ -20,7 +20,7 @@ public sealed class EfCoreAdminManagementService(
     ICreditAdjustmentService adjustments,
     TimeProvider timeProvider) : IAdminManagementService
 {
-    private static readonly string[] CanonicalPlanCodes = ["Free", "Plus", "Pro"];
+    private static readonly string[] CanonicalPlanCodes = ["Free", "Plus", "Pro", "Max"];
     private const string SuperAdminRole = "SuperAdmin";
 
     public async Task<IReadOnlyCollection<AdminUserView>> SearchUsersAsync(
@@ -282,7 +282,7 @@ public sealed class EfCoreAdminManagementService(
         await billing.SubscriptionPlans.AsNoTracking()
             .Where(row => CanonicalPlanCodes.Contains(row.Code))
             .OrderBy(row => row.Code)
-            .Select(row => new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion))
+            .Select(row => new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion, row.QuotaMode))
             .ToArrayAsync(cancellationToken);
 
     public async Task<AdminPlanView> UpsertPlanAsync(AdminPlanUpsert change, AdminMutationContext context, CancellationToken cancellationToken)
@@ -301,7 +301,7 @@ public sealed class EfCoreAdminManagementService(
         AddBillingAudit(context with { Reason = change.Reason }, "billing.plan.published", "SubscriptionPlan", code, null, row);
         await billing.SaveChangesAsync(cancellationToken);
         await AuditAsync(context with { Reason = change.Reason }, "billing.plan.published", "SubscriptionPlan", code, null, row, cancellationToken);
-        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion);
+        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion, row.QuotaMode);
     }
 
     public async Task<AdminPlanView> UpdatePlanIncludedCreditsAsync(
@@ -321,6 +321,8 @@ public sealed class EfCoreAdminManagementService(
 
         var row = await billing.SubscriptionPlans.SingleOrDefaultAsync(item => item.Code == code, cancellationToken)
             ?? throw Missing("Plan");
+        if (row.QuotaMode == "Unlimited")
+            throw Invalid("Unlimited plans do not have a numeric included-credit allowance.");
         var before = new { row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion };
         row.IncludedCredits = change.IncludedCredits;
         row.PricingPolicyVersion = change.PricingPolicyVersion.Trim();
@@ -329,7 +331,7 @@ public sealed class EfCoreAdminManagementService(
         AddBillingAudit(context with { Reason = change.Reason }, "billing.plan.included-credits.updated", "SubscriptionPlan", code, before, after);
         await billing.SaveChangesAsync(cancellationToken);
         await AuditAsync(context with { Reason = change.Reason }, "billing.plan.included-credits.updated", "SubscriptionPlan", code, before, after, cancellationToken);
-        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion);
+        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion, row.QuotaMode);
     }
 
     public async Task<IReadOnlyCollection<AdminPlanCapabilityView>> GetPlanCapabilitiesAsync(string planCode, CancellationToken cancellationToken) =>
@@ -400,7 +402,7 @@ public sealed class EfCoreAdminManagementService(
         await RequireAccountAsync(tenantId, customerAccountId, cancellationToken);
         return await billing.UsageLedgerEntries.AsNoTracking().Where(row => row.TenantId == tenantId && row.CustomerAccountId == customerAccountId)
             .OrderByDescending(row => row.OccurredAt).ThenBy(row => row.Id).Take(limit)
-            .Select(row => new AdminUsageLedgerView(row.Id, row.CustomerAccountId, row.ActorId, row.TenantId, row.ApiClientId, row.EntryType, row.OperationCode, row.CreditsCharged, row.PricingPolicyVersion, row.IdempotencyKey, row.OccurredAt, row.CompletionStatus, row.AuditDescription))
+            .Select(row => new AdminUsageLedgerView(row.Id, row.CustomerAccountId, row.ActorId, row.TenantId, row.ApiClientId, row.EntryType, row.OperationCode, row.CreditsCharged, row.PricingPolicyVersion, row.IdempotencyKey, row.OccurredAt, row.CompletionStatus, row.AuditDescription, row.QuotaMode, row.SourceSubscriptionId, row.SourceSubscriptionExpiresAtUtc))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -503,7 +505,11 @@ public sealed class EfCoreAdminManagementService(
     }
 
     private static string? Serialize(object? value) => value is null ? null : JsonSerializer.Serialize(value);
-    private static AdminSubscriptionView MapSubscription(CustomerAccountRow row) => new(row.Id, row.TenantId, row.AccountType, row.BillingMode, row.SubscriptionPlanCode, row.SubscriptionEffectiveFrom, row.SubscriptionEffectiveTo, row.SubscriptionRevision);
+    private static AdminSubscriptionView MapSubscription(CustomerAccountRow row) => new(
+        row.Id, row.TenantId, row.AccountType, row.BillingMode, row.SubscriptionPlanCode,
+        row.SubscriptionEffectiveFrom, row.SubscriptionEffectiveTo, row.SubscriptionRevision,
+        row.SubscriptionPlanCode == "Max" && row.SubscriptionEffectiveTo > DateTimeOffset.UtcNow ? "Unlimited" : "Finite",
+        row.SubscriptionPlanCode == "Max" && row.SubscriptionEffectiveTo > DateTimeOffset.UtcNow ? row.SubscriptionEffectiveTo : null);
     private static void ValidateLimit(int limit) { if (limit is < 1 or > 100) throw Invalid("Limit must be between 1 and 100."); }
     private static void RequireReason(string? reason) { if (string.IsNullOrWhiteSpace(reason)) throw Invalid("An audit reason is required."); }
     private static void RequireSameTenant(Guid requested, Guid effective) { if (requested != effective) throw TenantViolation(); }

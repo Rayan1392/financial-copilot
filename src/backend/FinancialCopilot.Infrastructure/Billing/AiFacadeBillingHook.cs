@@ -26,7 +26,8 @@ public sealed class AiFacadeBillingHook(
     IUsageLedgerRepository usageLedger,
     IOptions<UsageBasedCreditBillingOptions> usageBasedCreditOptions,
     UsageBasedCreditCalculator usageBasedCreditCalculator,
-    ILogger<AiFacadeBillingHook> logger) : IBillingFacadeHook
+    ILogger<AiFacadeBillingHook> logger,
+    ISubscriptionPlanRepository? subscriptionPlans = null) : IBillingFacadeHook
 {
     private const string PricingPolicyVersion = "v1";
     private static readonly Meter Meter = new("FinancialCopilot.TelegramMembership");
@@ -57,12 +58,18 @@ public sealed class AiFacadeBillingHook(
             request.ExternalUserId);
         var reservationKey = GetReservationIdempotencyKey(request);
         var operationKey = request.BillingOperationId?.ToString("N") ?? reservationKey;
-        var allowance = await dailyFreeAllowanceService.EnsureAsync(
+        var existingReservation = await reservations.FindByIdempotencyKeyAsync(reservationKey, cancellationToken);
+        var activePlan = subscriptionPlans is null
+            ? null
+            : await subscriptionPlans.FindForCustomerAsync(account.Id, cancellationToken);
+        var isUnlimited = existingReservation?.QuotaMode == CreditQuotaMode.Unlimited ||
+            activePlan?.QuotaMode == CreditQuotaMode.Unlimited;
+        var allowance = isUnlimited || existingReservation is not null ? null : await dailyFreeAllowanceService.EnsureAsync(
             actorContext,
             account,
             operationKey,
             cancellationToken);
-        if (allowance.Granted)
+        if (allowance?.Granted == true)
         {
             wallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
         }
@@ -78,6 +85,7 @@ public sealed class AiFacadeBillingHook(
                 maximumCharge.CreditsCharged,
                 reservationKey,
                 request.RequestFingerprint,
+                isUnlimited,
                 cancellationToken);
         }
         catch (FinancialCopilot.Billing.InsufficientCreditException)
@@ -85,16 +93,16 @@ public sealed class AiFacadeBillingHook(
             DeniedReservationCounter.Add(
                 1,
                 new KeyValuePair<string, object?>("operationCode", request.OperationCode),
-                new KeyValuePair<string, object?>("hadTelegramAllowance", allowance.RemainingCredits > 0));
+                new KeyValuePair<string, object?>("hadTelegramAllowance", (allowance?.RemainingCredits ?? 0) > 0));
             throw;
         }
 
-        if (allowance.RemainingCredits > 0)
+        if ((allowance?.RemainingCredits ?? 0) > 0)
         {
             BucketConsumptionCounter.Add(
                 1,
                 new KeyValuePair<string, object?>("operationCode", request.OperationCode),
-                new KeyValuePair<string, object?>("allowanceDateKey", allowance.AllowanceDateKey));
+                new KeyValuePair<string, object?>("allowanceDateKey", allowance!.AllowanceDateKey));
         }
 
         return new BillingReservationHandle(
@@ -106,11 +114,14 @@ public sealed class AiFacadeBillingHook(
             request.ApiClientId,
             request.ExternalUserId,
             request.OperationCode,
-            allowance.RemainingCredits > 0 ? "TelegramDailyFreeAllowance" : null,
-            string.IsNullOrWhiteSpace(allowance.AllowanceDateKey) ? null : allowance.AllowanceDateKey,
+            (allowance?.RemainingCredits ?? 0) > 0 ? "TelegramDailyFreeAllowance" : null,
+            string.IsNullOrWhiteSpace(allowance?.AllowanceDateKey) ? null : allowance?.AllowanceDateKey,
             reservation.ReservedCredits,
             request.UsageCorrelationId,
-            request.BillingOperationId);
+            request.BillingOperationId,
+            reservation.QuotaMode.ToString(),
+            reservation.SourceSubscriptionId,
+            reservation.SourceSubscriptionExpiresAtUtc);
     }
 
     private async Task<FinancialCopilot.Billing.Usage.UsageReservation> ReserveWithFreshWalletRetryAsync(
@@ -120,12 +131,13 @@ public sealed class AiFacadeBillingHook(
         decimal operationCredits,
         string reservationKey,
         string? requestFingerprint,
+        bool isUnlimited,
         CancellationToken cancellationToken)
     {
         try
         {
             var credits = await GetReservationCreditsAsync(
-                account, wallet, operationCode, operationCredits, reservationKey, cancellationToken);
+                account, wallet, operationCode, operationCredits, reservationKey, isUnlimited, cancellationToken);
             return await reservationService.ReserveAsync(
                 account, wallet, operationCode, credits, reservationKey, cancellationToken, requestFingerprint);
         }
@@ -137,7 +149,7 @@ public sealed class AiFacadeBillingHook(
             // so normal concurrent requests do not surface an internal billing race.
             var refreshedWallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
             var credits = await GetReservationCreditsAsync(
-                account, refreshedWallet, operationCode, operationCredits, reservationKey, cancellationToken);
+                account, refreshedWallet, operationCode, operationCredits, reservationKey, isUnlimited, cancellationToken);
             return await reservationService.ReserveAsync(
                 account, refreshedWallet, operationCode, credits, reservationKey, cancellationToken, requestFingerprint);
         }
@@ -151,6 +163,7 @@ public sealed class AiFacadeBillingHook(
         string operationCode,
         decimal operationCredits,
         string reservationKey,
+        bool isUnlimited,
         CancellationToken cancellationToken)
     {
         if (!EnforcesUsageBasedCredits(operationCode))
@@ -167,7 +180,7 @@ public sealed class AiFacadeBillingHook(
 
         var minimum = Math.Max(decimal.Ceiling(operationCredits), creditOptions.MinimumCredits);
         var availableBalance = Math.Max(0m, wallet.Balance - wallet.ReservedAmount);
-        if (availableBalance < minimum)
+        if (!isUnlimited && availableBalance < minimum)
             throw new FinancialCopilot.Billing.InsufficientCreditException();
         return minimum;
     }
@@ -176,6 +189,7 @@ public sealed class AiFacadeBillingHook(
         BillingReservationHandle handle,
         CancellationToken cancellationToken)
     {
+        if (string.Equals(handle.QuotaMode, "Unlimited", StringComparison.Ordinal)) return handle;
         if (!EnforcesUsageBasedCredits(handle.OperationCode))
             return handle;
 
@@ -211,6 +225,7 @@ public sealed class AiFacadeBillingHook(
         decimal requiredCredits,
         CancellationToken cancellationToken)
     {
+        if (string.Equals(handle.QuotaMode, "Unlimited", StringComparison.Ordinal)) return handle;
         var account = await accounts.FindAsync(handle.CustomerAccountId, cancellationToken) ??
             throw new KeyNotFoundException("Billing account is not configured.");
         try
@@ -220,7 +235,7 @@ public sealed class AiFacadeBillingHook(
                 handle.ReservationId,
                 requiredCredits,
                 cancellationToken);
-            return handle with { ReservedCredits = reservation.ReservedCredits };
+            return handle with { ReservedCredits = reservation.ReservedCredits, QuotaMode = reservation.QuotaMode.ToString(), SourceSubscriptionId = reservation.SourceSubscriptionId, SourceSubscriptionExpiresAtUtc = reservation.SourceSubscriptionExpiresAtUtc };
         }
         catch (FinancialCopilot.Billing.InsufficientCreditException)
         {
@@ -349,7 +364,7 @@ public sealed class AiFacadeBillingHook(
         return new UsageAccountingResult(
             handle.OperationCode,
             request.CompletionStatus,
-            charge.CreditsCharged,
+            finalized.LedgerEntry?.CreditsCharged ?? charge.CreditsCharged,
             account.GetAvailableSpendingCapacity(finalized.Wallet),
             charge.PricingPolicyVersion,
             charge.Cached,

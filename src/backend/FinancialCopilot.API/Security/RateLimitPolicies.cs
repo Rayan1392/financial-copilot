@@ -8,6 +8,7 @@ public static class RateLimitPolicies
 {
     public const string AuthenticatedActor = "AuthenticatedActor";
     public const string PublicAuthentication = "PublicAuthentication";
+    public const string TahlilAppTopUpPartner = "TahlilAppTopUpPartner";
 
     public static RateLimitPartition<string> PublicIp(HttpContext context, PublicAuthenticationRateLimitOptions options) =>
         RateLimitPartition.GetFixedWindowLimiter(

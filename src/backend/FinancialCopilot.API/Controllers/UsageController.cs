@@ -132,9 +132,14 @@ public sealed class UsageController(
                     entry.TotalTokens,
                     EstimatedCost: null,
                     entry.AllocationSource,
-                    entry.AllowanceDateKey))
+                    entry.AllowanceDateKey,
+                    entry.QuotaMode.ToString(),
+                    entry.SourceSubscriptionId,
+                    entry.SourceSubscriptionExpiresAtUtc))
                 .ToArray(),
             plan?.Code,
             plan?.Name,
-            plan?.IncludedCredits);
+            plan?.IncludedCredits,
+            plan?.QuotaMode.ToString() ?? "Finite",
+            plan?.SubscriptionExpiresAtUtc);
 }

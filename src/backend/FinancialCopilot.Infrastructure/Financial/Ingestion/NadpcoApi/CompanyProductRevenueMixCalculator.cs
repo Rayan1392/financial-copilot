@@ -26,6 +26,7 @@ internal sealed class CompanyProductRevenueMixCalculator(
         var reports = await dbContext.MonthlyReports
             .Where(r => r.ProviderName == ProviderName
                      && r.ExternalCompanyId == externalCompanyId
+                     && r.IsAccepted
                      && r.ReportType == "ProductSales"
                      && r.OutputType == 0)
             .ToListAsync(ct);

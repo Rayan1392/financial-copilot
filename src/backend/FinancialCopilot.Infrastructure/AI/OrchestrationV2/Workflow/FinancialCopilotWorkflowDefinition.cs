@@ -61,6 +61,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IMonthlySalesProductFollowUpSuggestionService monthlySalesProductFollowUpSuggestionService,
     IMonthlyProductTrendFollowUpSuggestionService monthlyProductTrendFollowUpSuggestionService,
+    IMonthlySalesQualityRankingFollowUpSuggestionService monthlySalesQualityRankingFollowUpSuggestionService,
+    IQuarterlyFinancialReportFollowUpSuggestionService quarterlyFinancialReportFollowUpSuggestionService,
+    IFinancialStatementAnalysisFollowUpSuggestionService financialStatementAnalysisFollowUpSuggestionService,
     IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IMonthlyProductTrendQueryUseCase monthlyProductTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
@@ -344,7 +347,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var isMonthlyProductTrend = request.SemanticFrame is null &&
             MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message);
 
-        if (request.SemanticFrame is { } semanticFrame)
+        // Monthly activity trends are a deterministic, governed route. Keep ordinary
+        // request verbs such as "show me" from letting the semantic classifier
+        // reinterpret the same explicit chart request as a metric lookup and ask
+        // for information that the trend parser can resolve directly.
+        if (request.SemanticFrame is { } semanticFrame &&
+            !MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message))
         {
             var interpretation = semanticFrame.Interpretation;
             var entities = string.Join(',', interpretation.EntityMentions
@@ -1310,6 +1318,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.MonthlyProductTrendResult is { IsResolved: true } productTrend &&
             productTrend.Points.Any(point => !point.IsGap && point.SalesValueMillionRial.HasValue) &&
             outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
+        var monthlyRankingFollowUpsApplied = detectedIntent == DetectedIntent.MonthlySalesQualityRanking &&
+            msg.MonthlySalesQualityRankingResult is { Items.Count: > 0 } &&
+            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
+        var quarterlyReportFollowUpsApplied = msg.FinancialStatementTableResult?.QuarterlyResult is
+                { Outcome: QuarterlyFinancialReportOutcome.SuccessfulTable or QuarterlyFinancialReportOutcome.PartialTable } &&
+            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
+        var financialStatementAnalysisFollowUpsApplied = msg.FinancialStatementAnalysisResult is
+                { SourceReferences.Count: > 0 } &&
+            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
         IReadOnlyCollection<SuggestedAction>? deterministicActions = null;
         if (feature075Applied)
             deterministicActions = productRevenueMixFollowUpSuggestionService.Build(msg.ProductRevenueMixResult!);
@@ -1318,7 +1335,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 msg.MonthlyActivityTrendResult!, ct);
         else if (feature138Applied)
             deterministicActions = monthlyProductTrendFollowUpSuggestionService.Build(msg.MonthlyProductTrendResult!);
-        var deterministicApplied = feature075Applied || feature137Applied || feature138Applied;
+        else if (monthlyRankingFollowUpsApplied)
+            deterministicActions = monthlySalesQualityRankingFollowUpSuggestionService.Build(msg.MonthlySalesQualityRankingResult!);
+        else if (quarterlyReportFollowUpsApplied)
+            deterministicActions = quarterlyFinancialReportFollowUpSuggestionService.Build(
+                msg.FinancialStatementTableResult!.QuarterlyResult!);
+        else if (financialStatementAnalysisFollowUpsApplied)
+            deterministicActions = financialStatementAnalysisFollowUpSuggestionService.Build(
+                msg.FinancialStatementAnalysisResult!);
+        var deterministicApplied = feature075Applied || feature137Applied || feature138Applied ||
+            monthlyRankingFollowUpsApplied || quarterlyReportFollowUpsApplied ||
+            financialStatementAnalysisFollowUpsApplied;
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);

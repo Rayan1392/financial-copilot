@@ -12,6 +12,17 @@ public static class TahlilAppExchangeParser
     private static readonly TimeSpan MaximumWindow = TimeSpan.FromDays(366 * 5);
 
     public static TahlilAppExchangeSnapshot? TryParse(ReadOnlySpan<byte> utf8Json, DateTimeOffset now)
+        => TryParse(utf8Json, now, new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["sapio_plus"] = "Plus",
+            ["sapio_pro"] = "Pro",
+            ["sapio_max"] = "Max"
+        });
+
+    public static TahlilAppExchangeSnapshot? TryParse(
+        ReadOnlySpan<byte> utf8Json,
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, string> planMap)
     {
         try
         {
@@ -22,7 +33,7 @@ public static class TahlilAppExchangeParser
                 !ExternalUserId.TryCreate(userId, out var externalId) ||
                 !root.TryGetProperty("subscription", out var subscription) ||
                 subscription.ValueKind != JsonValueKind.Object ||
-                !TryReadPlans(subscription, now, out var plans))
+                !TryReadPlans(subscription, now, planMap, out var plans))
             {
                 return null;
             }
@@ -32,11 +43,7 @@ public static class TahlilAppExchangeParser
             var decision = TahlilAppSubscriptionPolicy.Decide(
                 plans.Select(plan => (plan.Slug, plan.StartsAt, plan.ExpiresAt)).ToArray(),
                 now,
-                new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    ["sapio_plus"] = "Plus",
-                    ["sapio_pro"] = "Pro"
-                });
+                planMap);
 
             return new TahlilAppExchangeSnapshot(
                 ExternalUserId: externalId!.Value,
@@ -64,6 +71,18 @@ public static class TahlilAppExchangeParser
         JsonElement subscription,
         DateTimeOffset now,
         out IReadOnlyList<TahlilAppPlanSubscription> plans)
+        => TryReadPlans(subscription, now, new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["sapio_plus"] = "Plus",
+            ["sapio_pro"] = "Pro",
+            ["sapio_max"] = "Max"
+        }, out plans);
+
+    internal static bool TryReadPlans(
+        JsonElement subscription,
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, string> planMap,
+        out IReadOnlyList<TahlilAppPlanSubscription> plans)
     {
         plans = Array.Empty<TahlilAppPlanSubscription>();
         if (!subscription.TryGetProperty("plans", out var entries) || entries.ValueKind != JsonValueKind.Array)
@@ -87,13 +106,7 @@ public static class TahlilAppExchangeParser
                 return false;
             }
 
-            var planCode = slug switch
-            {
-                "sapio_plus" => "Plus",
-                "sapio_pro" => "Pro",
-                _ => null
-            };
-            if (planCode is null) continue;
+            if (!planMap.TryGetValue(slug, out var planCode)) continue;
 
             var startUtc = startsAt.ToUniversalTime();
             var expiryUtc = expiresAt.ToUniversalTime();

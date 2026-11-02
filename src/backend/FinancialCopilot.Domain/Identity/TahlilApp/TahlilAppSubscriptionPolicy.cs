@@ -46,14 +46,41 @@ public static class TahlilAppSubscriptionPolicy
                 $"{item.Slug}:{item.StartsAt.ToUnixTimeMilliseconds()}:{item.ExpiresAt.ToUnixTimeMilliseconds()}"))
             .ToArray();
 
+        return ResolveActivePlanSet(valid, now);
+    }
+
+    /// <summary>
+    /// Resolves active TahlilApp windows for admission and read models. Active Max is Unlimited
+    /// while its own window is active. Otherwise the latest-expiring non-Max window determines
+    /// the plan; the established Pro-over-Plus choice is retained only for an exact expiry tie.
+    /// </summary>
+    public static TahlilAppSubscriptionDecision ResolveActivePlanSet(
+        IReadOnlyList<TahlilAppPlanSubscription> subscriptions,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(subscriptions);
+        var valid = subscriptions.Where(item => item.ExpiresAt > item.StartsAt).ToArray();
         var active = valid.Where(item => item.StartsAt <= now && item.ExpiresAt > now).ToArray();
-        var plan = active.Any(item => item.PlanCode == "Pro") ? "Pro" :
-            active.Any(item => item.PlanCode == "Plus") ? "Plus" : FreePlanCode;
+        if (active.Length == 0)
+            return new TahlilAppSubscriptionDecision(FreePlanCode, null, "free-or-no-active-paid-plan", null, valid);
+
+        var maxWindows = active.Where(item => item.PlanCode == "Max").ToArray();
+        var candidates = maxWindows.Length > 0
+            ? maxWindows
+            : active.Where(item => item.ExpiresAt == active.Max(window => window.ExpiresAt)).ToArray();
+        var planCode = maxWindows.Length > 0
+            ? "Max"
+            : candidates.Any(item => item.PlanCode == "Pro")
+                ? "Pro"
+                : candidates.Any(item => item.PlanCode == "Plus")
+                    ? "Plus"
+                    : candidates[0].PlanCode;
+        var selectedWindows = candidates.Where(item => item.PlanCode == planCode).ToArray();
         return new TahlilAppSubscriptionDecision(
-            plan,
-            active.Length == 0 ? null : active.Max(item => item.ExpiresAt),
-            active.Length == 0 ? "free-or-no-active-paid-plan" : "active-paid-plan-set",
-            active.Length == 1 ? active[0].StartsAt : null,
+            planCode,
+            candidates.Max(item => item.ExpiresAt),
+            "active-paid-plan-set",
+            selectedWindows.Length == 1 ? selectedWindows[0].StartsAt : null,
             valid);
     }
 

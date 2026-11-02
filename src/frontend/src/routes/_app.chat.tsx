@@ -6,7 +6,7 @@ import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
 import { useState } from "react";
 import { isSubscriptionCooldownMessage } from "@/lib/subscription-cooldown";
-import { Activity, ArrowLeft, BarChart3, FileText, Package, PieChart, TrendingUp } from "lucide-react";
+import { ArrowLeft, BarChart3, FileText, PieChart, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/_app/chat")({
   component: NewChatPage,
@@ -30,11 +30,9 @@ function NewChatPage() {
     { text: "ترکیب فروش محصولات کگهر را بررسی کن", icon: PieChart },
     { text: "روند فروش ماهانه کگهر را نشان بده", icon: TrendingUp },
     { text: "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟", icon: BarChart3 },
-    { text: "آخرین فروش فخاس چقدر بوده است؟", icon: Package },
-    { text: "رتبه بندی گزارش ماهانه؟", icon: FileText },
-    { text: "آخرین قیمت اخابر چقدر بوده؟", icon: Activity },
-    { text: "سود خالص وبملت در آخرین دوره چقدر بوده؟", icon: BarChart3 },
-    { text: "گزارش‌های فصلی فولاد؟", icon: FileText },
+    { text: "رتبه‌بندی گزارش‌های ماهانه را نشان بده", icon: FileText },
+    { text: "گزارش فصلی فملی", icon: FileText },
+    { text: "گزارش سود و زیان فصلی فولاد را بررسی کن", icon: FileText },
   ];
 
   const startChat = useMutation({
@@ -66,7 +64,7 @@ function NewChatPage() {
 
   return (
     <>
-      <div className={`flex-1 overflow-y-auto scrollbar-thin ${pendingMessage ? "" : "flex items-center justify-center p-8"}`}>
+      <div className={`flex-1 ${pendingMessage ? "" : "flex items-center justify-center p-8"}`}>
         {pendingMessage ? (
           <MessageList
             messages={[
@@ -90,13 +88,13 @@ function NewChatPage() {
             دستیار هوشمند بازار سرمایه
           </h1>
           <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium text-emerald mb-5">
-            فاز ۱ · تحلیل تولید و فروش
+            فاز ۱ · تولید، فروش و گزارش‌های مالی
           </div>
           <p className="text-base md:text-lg font-medium text-foreground mb-2 max-w-2xl mx-auto text-pretty">
-            گزارش‌های تولید و فروش شرکت‌ها را با زبان طبیعی تحلیل کنید.
+            گزارش‌های تولید و فروش و صورت‌های مالی شرکت‌ها را با زبان طبیعی بررسی کنید.
           </p>
           <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
-            روند فروش ماهانه، ترکیب فروش محصولات و عملکرد یک محصول مشخص را بررسی کنید یا سؤال خود را درباره گزارش‌های تولید و فروش بپرسید.
+            روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه و سود و زیان فصلی نمادها را بررسی کنید. گزارش ترازنامه به‌زودی اضافه می‌شود.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-right">
             {starterPrompts.map((prompt) => (

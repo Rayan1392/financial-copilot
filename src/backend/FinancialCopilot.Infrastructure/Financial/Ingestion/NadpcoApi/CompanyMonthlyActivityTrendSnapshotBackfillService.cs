@@ -51,6 +51,7 @@ public sealed class CompanyMonthlyActivityTrendSnapshotBackfillService(
         var reportsQuery = dbContext.MonthlyReports
             .AsNoTracking()
             .Where(r => r.ProviderName == ProviderName
+                     && r.IsAccepted
                      && ((r.ReportType == "ProductSales" && (r.OutputType == null || r.OutputType == 0)) ||
                          (r.ReportType == "ServiceSales" && r.OutputType == null))
                      && r.PeriodStart >= fromDate

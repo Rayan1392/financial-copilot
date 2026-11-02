@@ -35,7 +35,7 @@ export function ChatHeader() {
       <div className="flex min-w-0 items-center gap-4">
         <HeaderAccount />
         <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
-          تحلیل لحظه‌ای بازار
+          تحلیل بازار، ساده‌تر از همیشه
         </span>
         <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface ring-1 ring-hairline">
           <div className="size-1.5 rounded-full bg-emerald animate-pulse" />

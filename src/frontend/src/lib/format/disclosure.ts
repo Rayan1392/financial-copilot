@@ -1,3 +1,5 @@
+import { toPersianDigits } from "./persian";
+
 const tehran = "Asia/Tehran";
 
 const jalaliDate = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
@@ -26,7 +28,44 @@ export function formatDisclosurePublicationDate(value?: string) {
 
 /** System receipt is an instant and is displayed in Tehran time. */
 export function formatDisclosureReceiptDate(value: string) {
-  return `${jalaliDateTime.format(new Date(value))} (تهران)`;
+  return jalaliDateTime.format(new Date(value));
+}
+
+export function formatDisclosurePagination(page: number, totalPages: number) {
+  return `صفحه ${toPersianDigits(page)} از ${toPersianDigits(totalPages || 1)}`;
+}
+
+const jalaliDateInput = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+export function parseDisclosureDateOnly(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return undefined;
+
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const date = new Date(year, month - 1, day, 12);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : undefined;
+}
+
+export function formatDisclosureDateOnly(value: string) {
+  const date = parseDisclosureDateOnly(value);
+  return date ? jalaliDateInput.format(date) : "";
+}
+
+/** Serializes the selected calendar day for the API's DateOnly query parameters. */
+export function serializeDisclosureDateOnly(date: Date) {
+  const year = date.getFullYear().toString().padStart(4, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 const jalaliMonth = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {

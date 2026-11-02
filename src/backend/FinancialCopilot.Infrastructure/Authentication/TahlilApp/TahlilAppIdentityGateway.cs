@@ -79,7 +79,7 @@ public sealed class TahlilAppIdentityGateway(
                 return Unavailable();
             }
 
-            var snapshot = TahlilAppExchangeParser.TryParse(body, timeProvider.GetUtcNow());
+            var snapshot = TahlilAppExchangeParser.TryParse(body, timeProvider.GetUtcNow(), settings.PlanMap);
             if (snapshot is null)
             {
                 logger.LogWarning("TahlilApp exchange response failed validation. CorrelationId: {CorrelationId}", correlationId);
@@ -156,7 +156,7 @@ public sealed class TahlilAppIdentityGateway(
                 return StatusUnavailable();
             }
 
-            var snapshot = TahlilAppStatusParser.TryParse(body, externalUserId, timeProvider.GetUtcNow(), out var rejectedField);
+            var snapshot = TahlilAppStatusParser.TryParse(body, externalUserId, timeProvider.GetUtcNow(), settings.PlanMap, out var rejectedField);
             if (snapshot is null)
             {
                 // Field name only: a rejected response may contain PII, so its value is never logged.

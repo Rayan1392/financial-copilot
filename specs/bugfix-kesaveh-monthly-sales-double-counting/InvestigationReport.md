@@ -1,103 +1,72 @@
-﻿# Investigation: کساوه monthly sales double-counting
+# Investigation: Kesaveh monthly sales double counting
 
 **Verdict: CONFIRMED_ROOT_CAUSE**
 
-## Summary
+The historical snapshot calculator included both accepted and rejected revisions. The chart reads persisted snapshots, so the existing inflated values remained until those snapshots were rebuilt. Production data is now verified and the affected snapshots have been recalculated.
 
-The chart values are explained by duplicate revision inclusion in snapshot aggregation. The user supplied a read-only query result showing two output-type-0 reports for each affected period, one `IsAccepted=false` and one `IsAccepted=true`, plus monthly line-item totals of 6,338,185 million rial for Shahrivar and 6,088,388 million rial for Mehr. Snapshot selection does not filter acceptance, so it includes both revisions. Applying both reported period totals yields 1,267.637bn and 1,217.6776bn toman, matching the chart values (approximately 1,268bn and 1,218bn). The cause is confirmed from the supplied database evidence and repository code. The connected database available to this workspace is stale, so I could not independently retrieve the target row GUIDs or compare each revision checksum.
+## Reproduction and reconciliation
 
-The mechanism is verified: the trend snapshot calculator selects monthly type-0 reports without filtering `IsAccepted`, then sums every matching report's line items. The normalizer intentionally retains superseded and pending revisions. A bounded read-only scan found 30 company-period groups with two type-0 report rows and one nonaccepted row in the connected dataset. For the target periods, the user-supplied headers and totals align exactly with the duplicate-revision result; target row GUIDs remain unavailable in this workspace database.
+The production database confirmed two `ProductSales`, `OutputType=0` rows for each Kesaveh period: one `Accepted`, one `Pending` with `IsAccepted=false`. Both revisions have the same line-item sales sum. Retained original provider payloads independently reproduce those sums from their `productSaleValue` fields.
 
-## Reproduction and access evidence
+Amounts before conversion are million rial; chart/API values are billion toman using `raw * 0.0001`.
 
-- Reproduction supplied in the request: کساوه (company 212), Shahrivar 1405 ≈ 1,268bn toman and Mehr 1405 ≈ 1,218bn toman, both reported as doubled. The screenshot itself was not surfaced as an inspectable attachment in this session.
-- The supplied report ID returned no row in the configured database. The user subsequently reported two output-type-0 rows for each target period end (2026-09-22 and 2026-10-22), with `IsAccepted=f` and `IsAccepted=t` in each pair. The listed one-report line totals reproduce the chart when the calculator includes both reports.
-- That database's newest retained monthly-activity payload for company 212 was received **2026-07-30 09:44:22 UTC**. Its latest normalized product-sales month is **1405/04** (Tir). No matching Shahrivar/Mehr report, line items, snapshot, or source payload were available. The database is therefore behind the periods in the reproduction.
-- The user later provided the main database host name `postgres`. It does not resolve from this execution host (it is a service name scoped to its container network). The only reachable PostgreSQL listener is `localhost:5432`, which identifies as PostgreSQL 17.2 on Windows. A transaction explicitly set to `READ ONLY` confirmed that this is the stale dataset above: 16 company-212 output-type-0 reports, latest period end 2026-07-22, zero target-period rows, and zero rows for the supplied report ID. The Docker engine was unavailable, so I could not enter the network where `postgres` resolves. No database writes were made.
-- The provider's existing `FetchMonthlyReportsAsync` path stores its response through `StorePayloadAsync`. I did not call it because that would write a raw-payload record and conflict with the task's read-only database requirement. No synchronization or repair was run.
-
-## Reconciliation
-
-Persisted monetary values below are million rial. The chart/API conversion is `raw × 0.0001 = billion toman`.
-
-| Period | Provider payload | Stored reports / selected rows | Pre-conversion aggregation | Snapshot/API result | Chart value |
+| Period | Rejected report / line items / sum | Accepted report / line items / sum | Snapshot before rebuild | Snapshot after rebuild | API amount after rebuild |
 |---|---|---|---:|---:|---:|
-| Shahrivar 1405 (1405/06; 2026-08-23–2026-09-22) | User-provided line-item total: **6,338,185** million rial | User reports two type-0 reports for this period, one accepted and one nonaccepted; both are selected by the calculator because it omits the acceptance filter. Per-report totals/checksums are not independently available here. | 6,338,185 × 2 = **12,676,370** million rial | ×0.0001 = **1,267.637bn toman** | Matches reported ≈1,268bn |
-| Mehr 1405 (1405/07; 2026-09-23–2026-10-22) | User-provided line-item total: **6,088,388** million rial | User reports two type-0 reports for this period, one accepted and one nonaccepted; both are selected by the calculator because it omits the acceptance filter. Per-report totals/checksums are not independently available here. | 6,088,388 × 2 = **12,176,776** million rial | ×0.0001 = **1,217.6776bn toman** | Matches reported ≈1,218bn |
-| Tir 1405 (1405/04; 2026-06-22–2026-07-22), available control | Retained payload checksum `FE9767934FAC4B4BB8E3A96B43C51EF039D9C367E09D3D99BBCFF96ACC26A4D7`, received 2026-07-30. Provider type-0 label is «دوره یک ماهه»; 15 source rows for 1405/04 sum to 4,073,454. | One accepted ProductSales report, output type 0, report ID `b1b80ba1-6bcc-4641-af36-f8be7101bf49`, external ID `ProductSales:212:1405-04:output-0`; 15 persisted line items, all `SourceMultiplicity=1`. | **4,073,454**; persisted line-item sum equals the single report sum. | Snapshot stores **4,073,454**. API conversion: 4,073,454 × 0.0001 = **407.3454bn toman**. | 407.3454bn before display rounding |
+| Shahrivar 1405, end 2026-09-22 | `14482821-5d97-4bc5-b7a7-cc70c66012f5`, 11 lines, 6,338,185 | `c80439b5-9c3c-4f8d-9ee4-3ec07d9ea579`, 15 lines, 6,338,185 | 12,676,370 | 6,338,185 | 633.8185 |
+| Mehr 1405, end 2026-10-22 | `74b86d22-24a0-4c9f-97e9-d5f5f2315d45`, 15 lines, 6,088,388 | `d884e5a8-cbd3-4d88-a578-5a0a797607c7`, 11 lines, 6,088,388 | 12,176,776 | 6,088,388 | 608.8388 |
+| Mordad 1405, end 2026-08-22, control | One accepted report `90a24f3e-13dd-4345-9f50-78fb78e964c0`, 15 lines, 4,978,010 | N/A | 4,978,010 | 4,978,010 | 497.8010 |
 
-The available control month reconciles from provider payload through persisted line items, snapshot, and conversion. It does not establish what happened in 1405/06 or 1405/07.
+Raw provider payloads are retained for both revisions in each affected month. Their type-0 source row counts match persisted line-item counts, and summing provider `productSaleValue` reproduces the persisted `SalesAmount` for each revision. Their checksums match the report revision fingerprints:
 
-## OutputType meaning and selection
+- Shahrivar rejected/accepted: `5BDCFF0D81B39895424BB4B75E14D53551D01CE11E2372BCC91C93E157F4D5B5` / `18C7B7501F51D4625D14388D270C42F941C5BFFF6E88E764E7E1196D6B62BD7B`.
+- Mehr rejected/accepted: `5880B55FD66D3BCA6A2C0ADAEDEA580EDCCB88D6CA326030836E414CED9B112E` / `358C1A2A48AE49B1969812200136CE7E0E12CC939D03CBB5F9D1FAA0FA53D1D5`.
 
-The values were checked against retained provider response labels and repository provider/metric contracts; `0` is not inferred from its numeric value alone:
+Each revision independently totals the same month amount. The defect was summing the two report revisions together; repeated ingestion of the same checksum is skipped by the normalizer, while these revisions have different checksums. A subtotal row is not needed to explain the measured factor-of-two; whether provider product rows have any additional business-semantic subtotal issue is separate. Join multiplication, OutputType mixing, and unit conversion are excluded by the verified aggregation path and exact reconciliation.
 
-| OutputType | Verified provider meaning | Monthly chart treatment |
-|---:|---|---|
-| 0 | «دوره یک ماهه» (single-month period) | Selected as the monthly bar source |
-| 1 | «از ابتدای سال مالی تا کنون» (fiscal-year-to-date) | Excluded from monthly bar; stored separately as YTD |
-| 2 | «اصلاحات» (corrections) | Excluded from monthly bar |
-| 3 | «از ابتدای سال مالی تا ماه گذشته اصلاح شده» (corrected fiscal-year-to-previous-month) | Excluded from monthly bar |
-| 4 | «از ابتدای سال مالی تا ماه گذشته» (fiscal-year-to-previous-month) | Excluded from monthly bar; stored separately |
+## First incorrect transformation and chart path
 
-The available response exposed the exact labels for all five slots. Spec 057 also defines type 1 as fiscal-year-to-date and type 4 as fiscal-year-to-previous-month. The current monthly snapshot selection accepts ProductSales output type 0 (and null for legacy rows); it does not combine types 1–4 into the current-month amount.
+1. `NadpcoApiMonthlyActivityNormalizer` retains rejected/pending revisions for history. It also recalculates trend snapshots when it processes monthly reports (`NadpcoApiMonthlyActivityNormalizer.cs:97-128, 187-196`).
+2. Before commit `13430cf`, `CompanyMonthlyActivityTrendSnapshotCalculator` selected reports by provider/company/type/period without `IsAccepted`, then summed their line items. This was the first incorrect transformation. The current calculator requires accepted rows for monthly, YTD, and prior-month YTD inputs (`CompanyMonthlyActivityTrendSnapshotCalculator.cs:32-38, 103-110, 135-142`).
+3. The chart query reads persisted `CompanyMonthlyActivityTrendSnapshots` and converts million rial to billion toman. It does not fetch or aggregate `MonthlyReports` at response time (`MonthlyActivityTrendQueryUseCase.cs:43-47, 102-114, 141-142, 189-192, 262-266`; `EfCoreCompanyMonthlyActivityTrendSnapshotRepository.cs:34-90`). Thus deploying the filter alone did not repair previously calculated rows.
+4. The existing trend backfill skips existing snapshots unless `ForceRebuild` is enabled (`CompanyMonthlyActivityTrendSnapshotBackfillService.cs:109-137`).
 
-## First code-visible incorrect transformation
+Provider output contracts map type 0 to a one-month report, type 1 to fiscal YTD, and type 4 to fiscal YTD through the previous month. The monthly chart uses type 0; YTD types are stored separately. The target-period source payloads and persisted reports both confirmed type 0 for these rows.
 
-The first stage that turned retained revisions into an inflated monthly amount was **snapshot report selection**, before chart/API conversion. The working-tree fix now filters this input and the related YTD report selections to accepted rows:
+## Production snapshot rebuild performed
 
-1. `NadpcoApiMonthlyActivityNormalizer.NormalizeAsync` creates report revisions and tracks acceptance. On a newer revision it marks the previous row `IsAccepted=false` / `RevisionStatus="Superseded"`; equal or missing revision evidence creates a `Pending` row. Rows are retained for provenance and review.
-2. `CompanyMonthlyActivityTrendSnapshotCalculator.RecalculateAsync` queries type-0 ProductSales reports for the company and period but does not require `IsAccepted=true`. It then builds the monthly line-item collection from every selected report and sums every non-null `SalesAmount`.
-3. `MonthlyActivityTrendQueryUseCase` reads the snapshot and converts million rial to billion toman with the documented factor `0.0001`. The conversion is correct. The chart maps the API point values; it does not add another copy of an individual month's value.
+Using the user-provided production connection, a read-only preflight found 976 `IsAccepted=false` Noavaran report rows across 202 companies and 215 unique company-month keys. Every key had exactly one existing trend snapshot and an accepted monthly source with line items. No target lacked accepted input, and no duplicate snapshot key was found.
 
-For each affected period, the user reports an accepted and a nonaccepted type-0 report; the supplied monthly total doubled and converted with the API factor reproduces the chart amount. This confirms the period-specific mechanism. No acceptance predicate is present in the calculator candidate-report query, so both report rows are eligible.
+I recalculated the 215 unique snapshots, in period order, by invoking the repository's existing `CompanyMonthlyActivityTrendSnapshotCalculator` and EF snapshot repository against accepted persisted report data. This did not call the provider or modify report headers/line items. Results:
 
-Other hypotheses checked against code/evidence:
+- 215 snapshots processed; 215 succeeded; 0 failed.
+- All 215 resulting `MonthlySalesAmount` values matched the independently computed accepted-only report-line sums; 0 mismatches.
+- A read-only verification after the rebuild still found all 976 rejected report rows, confirming their history was retained.
+- Kesaveh snapshots now contain 6,338,185 (1405/06) and 6,088,388 (1405/07) million rial, calculated at 2026-11-01 12:45 UTC.
 
-- **YTD/current-period mixing or wrong OutputType:** not in the chart path; type 0 is selected for the monthly amount, and types 1/4 are handled separately. Types 2/3 are also excluded.
-- **Different provider reports combined:** snapshot candidates are scoped to `NoavaranCurrentApi`; providers are not summed together here.
-- **Repeated line items from replay:** normalizer skips an already-seen report revision/checksum, and it collapses duplicate source identities/fingerprints. The control month's 15 stored rows each have multiplicity 1. This does not rule out a provider payload containing an aggregate row for the unavailable target months.
-- **Subtotal/grand-total product rows:** the calculator sums all sales line items without classifying subtotal rows. No target payload was available to determine whether either period contains such rows.
-- **Date boundaries:** the report periods are resolved from the Jalali year/month in `JalaliDateResolver`; the available Tir control's persisted dates match 1405/04. Target-period headers were absent, so their stored date mapping cannot be checked.
-- **NoavaranEligibleCompanies join multiplication:** the snapshot calculator does not join this view. The configured database has one eligible-company row for external ID 212; it is not the chart aggregation path.
-- **Unit conversion:** `0.0001` matches million rial to billion toman and is validated by the control month.
+The company-level inventory is in [AffectedCompanies.csv](AffectedCompanies.csv). It lists 202 companies with rejected report rows and their affected month counts; presence in this inventory does not mean every rejected row independently inflated a monthly bar (for example, YTD revisions are not part of the monthly amount).
 
-## Exact records and bounded impact check
+## Bounded impact and verification
 
-- **Target reports:** the user-provided query identifies two type-0 rows ending 2026-09-22 and two ending 2026-10-22, each pair with `IsAccepted=f` and `IsAccepted=t`. The request also supplied report ID `d884e5a8-cbd3-4d88-a578-5a0a797607c7`, but that ID is absent from the configured workspace database; exact target row GUIDs, checksums, and per-revision line sums could not be independently retrieved.
-- **Available control report:** `b1b80ba1-6bcc-4641-af36-f8be7101bf49`, accepted, output type 0, 15 line items, raw line-item sum and snapshot both 4,073,454 million rial. Source checksum links to retained provider payload listed above.
-- **Same-company bounded scan:** company 212 has 16 monthly ProductSales output-type-0/legacy-null reports in the available dataset; all 16 are accepted, with no nonaccepted revisions. Its snapshots stop before 1405/06.
-- **Cross-company bounded scan:** among 6,991 Noavaran ProductSales company-period groups with output type 0/null, 30 groups have an accepted and nonaccepted report with line items; all have two report rows. In the reachable local database, the affected companies are **کچاد (ExternalCompanyId 3)** and **کگل (ExternalCompanyId 4)**, with 15 affected periods each, period ends from 2025-04-20 through 2026-07-22. The accepted and nonaccepted line sums match in 29 groups; one کچاد period differs, but both rows are still included by the old selector. This is a list from the reachable, stale local database only; it is not a complete scan of the main `postgres` database and excludes کساوه's later periods, which are absent here.
+The database query `MonthlyReports WHERE IsAccepted=false` returned only `NoavaranCurrentApi` rows, with rejected rows for ProductSales output types 0-4 and ServiceSales with null output type. Their 215 unique company-months were the bounded rebuild scope. All had existing snapshots and accepted source line items. Other providers were not found in the rejected-row result.
 
-## Recommendation
+**Timeline:** the snapshot calculator was introduced without an acceptance predicate in commit `c04612c6` on 2026-06-24; the predicate was added in commit `13430cfb` on 2026-11-01. Production deployment timing was not available. In production, the earliest synchronized rejected ProductSales type-0 row with an accepted counterpart is company 14, period ending 2026-09-22 (1405/06), synchronized 2026-10-05 05:50:45 UTC. Both rows have 10 line items and total 1,034,141 million rial. The earliest historical period with an accepted/rejected type-0 pair is 1404/11, ending 2026-02-19; its rejected row was synchronized on 2026-10-12. Since the rebuild replaced the old snapshots, the exact first timestamp when a wrong snapshot was written cannot now be recovered.
 
-**Code fix applied:** added `IsAccepted` filtering to the monthly snapshot candidate reports and its output-type-1/output-type-4 YTD selections. Also applied the acceptance filter in `MonthlyReportAggregateInputSource.SelectAuthoritativeNoavaranMonthlyReports`, which feeds other monthly financial aggregates. Revision rows and line-item history remain intact.
+The unaffected Mordad control has one accepted ProductSales type-0 report; its 15 line items and stored snapshot both equal 4,978,010 million rial. Noavaran eligible-company joins are not used by the trend calculator. The monthly chart calculation uses the expected unit factor and does not add the value a second time.
 
-**Data repair:** do not alter or delete report history. Once the authoritative source reports for 1405/06 and 1405/07 are available and inspected, compare their source payloads, accepted/revision states, and line sums. If superseded/pending reports were included, recalculate only those two snapshots after the code fix, from accepted reports. If the provider payload itself contains duplicated totals, repair should follow the confirmed source semantics instead; no repair is justified yet.
+## Code changes and regression coverage
 
-**Focused regression tests recommended (not run):**
+The accepted-only trend calculator filter is present in commit `13430cf`. This work also applies `IsAccepted=true` to product revenue mix calculation, monthly disclosure feed selection, and the related snapshot/revenue-mix/monthly-backfill candidate discovery paths:
 
-1. Seed same-company/month/output-type-0 accepted and superseded reports with identical line totals; assert the snapshot equals the accepted report only.
-2. Repeat with a `Pending` report and assert it is not included; ensure revision history remains stored.
-3. Verify types 1–4 cannot contribute to `MonthlySalesAmount` (retain the existing type-1/type-4 test and extend it for types 2/3 and revisions).
-4. Verify ingestion of a newer accepted revision recalculates the snapshot to the new accepted total without summing the superseded total.
-5. Keep an integration-level contract asserting monthly amount → snapshot → API conversion for an accepted type-0 report, including a negative adjustment row.
+- `CompanyProductRevenueMixCalculator.cs:26-33`
+- `CompanyDisclosureFeedRepository.cs:161-172`
+- `CompanyMonthlyActivityTrendSnapshotBackfillService.cs:51-60`
+- `ProductRevenueMixBackfillService.cs:31-40`
+- `MonthlyActivityBackfillCoordinator.cs:554-580`
 
-## Relevant code and contract references
+The infrastructure project built successfully with zero warnings and zero errors. Tests were not run. No deployment was performed.
 
-- `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/CompanyMonthlyActivityTrendSnapshotCalculator.cs:32` — candidate reports now require `IsAccepted`; `:57` onward chooses current report IDs; `:71` sums every selected accepted sales line.
-- `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NormalizedMetricInputSources.cs:220-245` — Noavaran monthly aggregate selection now also requires accepted ProductSales/ServiceSales report rows.
-- `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/NadpcoApiMonthlyActivityNormalizer.cs:60-70` — replay identity uses provider/report/revision fingerprint; `:99-122` retains revisions while marking old/new rows accepted, superseded, rejected, or pending; `:159-196` recalculates monthly snapshots.
-- `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/NadpcoApiMonthlyActivityNormalizer.cs:230-265` — duplicate source rows are collapsed according to provider row identity/fingerprint.
-- `src/backend/FinancialCopilot.Infrastructure/Financial/Providers/NadpcoApi/NadpcoApiDataProviderClient.cs:149-230` — bounded company-specific monthly provider request and payload storage call; `:570` persists the raw payload.
-- `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/MonthlyActivityTrendQueryUseCase.cs:12` and `:262-266` — unit conversion factor and implementation; `:141`/`:191` converts chart snapshot values.
-- `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/EfCoreCompanyMonthlyActivityTrendSnapshotRepository.cs:13-26` — one snapshot row per company/month upsert.
-- `src/frontend/src/components/app/monthly-activity-trend-chart-view-model.ts:127-144` — API values map directly into chart point values.
-- `specs/057-nadpco-monthly-activity-freshness-and-sales-lookup/tasks.md:84-86` — type 0 monthly, type 1 YTD, type 4 through previous month contract.
-- `tests/FinancialCopilot.UnitTests/CompanyMonthlyActivityTrendSnapshot076Tests.cs:63-89` — existing type-1/type-4 monthly-bar exclusion test.
+Focused regression tests should cover: accepted plus pending/superseded type-0 revisions; rejected rows with different line sums excluded from snapshots and product revenue mix; separation of OutputTypes 0/1/4; ingestion and forced-backfill recalculation; and one-time snapshot-to-chart unit conversion.
 
-## Remaining uncertainty
+## Remaining limitations
 
-The cause is confirmed by the supplied target-period headers/totals and the verified selection/aggregation code. Remaining evidence unavailable to this workspace is the exact target report GUIDs, both revision checksums and line-item sets, and original provider payloads. Those would establish whether both revisions contain identical rows and allow a same-database end-to-end replay. The configured database itself remains behind the reported periods.
-
-
+Production report headers, line items, snapshots, and retained raw payloads were verified. The application code was not deployed from this workspace, so a live API response after the database update was not exercised here. Refresh the chart/API request to read the rebuilt snapshots. If the old values still appear, check for an API instance or cache serving stale data.

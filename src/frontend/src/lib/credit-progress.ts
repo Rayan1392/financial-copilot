@@ -13,6 +13,10 @@ export interface CreditProgress {
 export const WARNING_THRESHOLD_PERCENT = 50;
 export const DANGER_THRESHOLD_PERCENT = 20;
 
+export function creditQuotaLabel(mode: string | null | undefined, finiteLabel: string): string {
+  return mode === "Unlimited" ? "نامحدود" : finiteLabel;
+}
+
 export function toneForPercentage(percentage: number): CreditTone {
   if (percentage > WARNING_THRESHOLD_PERCENT) return "healthy";
   if (percentage >= DANGER_THRESHOLD_PERCENT) return "warning";

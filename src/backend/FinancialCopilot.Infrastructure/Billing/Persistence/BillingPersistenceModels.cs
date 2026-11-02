@@ -53,6 +53,12 @@ public sealed class UsageReservationRow
 
     public decimal ReservedCredits { get; set; }
 
+    public string QuotaMode { get; set; } = "Finite";
+
+    public Guid? SourceSubscriptionId { get; set; }
+
+    public DateTimeOffset? SourceSubscriptionExpiresAtUtc { get; set; }
+
     public decimal? CommittedCredits { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
@@ -113,6 +119,12 @@ public sealed class UsageLedgerEntryRow
     public string? AllowanceDateKey { get; set; }
 
     public decimal? SubscriptionCreditsApplied { get; set; }
+
+    public string QuotaMode { get; set; } = "Finite";
+
+    public Guid? SourceSubscriptionId { get; set; }
+
+    public DateTimeOffset? SourceSubscriptionExpiresAtUtc { get; set; }
 }
 
 /// <summary>Immutable source attribution for charges funded by one or more subscription periods.</summary>
@@ -132,6 +144,73 @@ public sealed class UsageCreditHoldRow
     public Guid UsageReservationId { get; set; }
     public Guid SubscriptionCreditPeriodId { get; set; }
     public decimal CreditsHeld { get; set; }
+}
+
+/// <summary>Credits purchased from TahlilApp and expiring with their original paid window.</summary>
+public sealed class TopUpCreditSourceRow
+{
+    public Guid Id { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public Guid ExternalPlanSubscriptionId { get; set; }
+    public Guid PurchaseId { get; set; }
+    public Guid GrantLedgerEntryId { get; set; }
+    public decimal GrantedCredits { get; set; }
+    public decimal RemainingCredits { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public string Status { get; set; } = "Active";
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public long Revision { get; set; }
+}
+
+/// <summary>Durable verified TahlilApp purchase receipt and immutable delivery outcome.</summary>
+public sealed class TahlilAppTopUpPurchaseRow
+{
+    public Guid Id { get; set; }
+    public string Partner { get; set; } = "TahlilApp";
+    public string EventId { get; set; } = string.Empty;
+    public string PurchaseId { get; set; } = string.Empty;
+    public string PaymentId { get; set; } = string.Empty;
+    public Guid CustomerAccountId { get; set; }
+    public string ExternalUserId { get; set; } = string.Empty;
+    public Guid? ExternalPlanSubscriptionId { get; set; }
+    public string PlanSlug { get; set; } = string.Empty;
+    public DateTimeOffset PlanStartsAtUtc { get; set; }
+    public DateTimeOffset PlanExpiresAtUtc { get; set; }
+    public int CreditsPurchased { get; set; }
+    public string? PackageId { get; set; }
+    public string? PackageVersion { get; set; }
+    public DateTimeOffset PaidAtUtc { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public Guid? GrantId { get; set; }
+    public Guid? GrantLedgerEntryId { get; set; }
+    public DateTimeOffset ReceivedAtUtc { get; set; }
+    public DateTimeOffset? GrantedAtUtc { get; set; }
+}
+
+public sealed class TopUpUsageCreditAllocationRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageLedgerEntryId { get; set; }
+    public Guid TopUpCreditSourceId { get; set; }
+    public Guid GrantLedgerEntryId { get; set; }
+    public decimal CreditsApplied { get; set; }
+}
+
+public sealed class TopUpUsageCreditHoldRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageReservationId { get; set; }
+    public Guid TopUpCreditSourceId { get; set; }
+    public decimal CreditsHeld { get; set; }
+}
+
+/// <summary>Database controlled active quantity/package agreement for partner top-ups.</summary>
+public sealed class TopUpOfferRow
+{
+    public string OfferId { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
+    public int Credits { get; set; }
+    public bool IsActive { get; set; }
 }
 
 /// <summary>One authoritative TahlilApp paid-plan window, identified only by the confirmed fields.</summary>
@@ -250,6 +329,8 @@ public sealed class SubscriptionPlanRow
     public string Name { get; set; } = string.Empty;
 
     public decimal IncludedCredits { get; set; }
+
+    public string QuotaMode { get; set; } = "Finite";
 
     public string PricingPolicyVersion { get; set; } = string.Empty;
 }

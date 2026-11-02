@@ -12,6 +12,17 @@ export interface UsageSummary {
   planCode?: string | null;
   planName?: string | null;
   planIncludedCredits?: number | null;
+  creditQuotaMode?: "Finite" | "Unlimited";
+  subscriptionExpiresAtUtc?: string | null;
+}
+
+export interface TopUpStatus {
+  status: "granted" | "expired-unfulfilled" | "ineligible-unfulfilled";
+  purchaseId: string;
+  grantId?: string | null;
+  creditsGranted: number;
+  expiresAtUtc: string;
+  grantedAtUtc?: string | null;
 }
 
 export interface WatchlistQuote {
@@ -60,6 +71,18 @@ export const getUsage = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
   .handler(async ({ context }) =>
     financialCopilotServerApi<UsageSummary>(context, "/api/v1/usage/me"),
+  );
+
+export const getTopUpStatus = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .inputValidator((data: { purchaseId: string }) => data)
+  .handler(async ({ context, data }) =>
+    financialCopilotServerApi<TopUpStatus | null>(
+      context,
+      "/api/v1/billing/top-ups/" + encodeURIComponent(data.purchaseId),
+      {},
+      true,
+    ),
   );
 
 export const getWatchlist = createServerFn({ method: "GET" })

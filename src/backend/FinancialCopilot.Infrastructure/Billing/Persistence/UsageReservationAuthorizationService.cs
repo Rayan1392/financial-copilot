@@ -80,6 +80,16 @@ public sealed class UsageReservationAuthorizationService(
             await creditLifecycle.EnsureCurrentPeriodTrackedAsync(accountRow, walletRow, now, cancellationToken);
             currentWallet = MapWallet(walletRow);
 
+            var activeMax = accountRow.ExternalSubscriptionManaged
+                ? await dbContext.ExternalPlanSubscriptions
+                    .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Max" && !row.IsRevoked &&
+                                  row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+                    .OrderByDescending(row => row.ExpiresAtUtc)
+                    .ThenByDescending(row => row.StartsAtUtc)
+                    .ThenBy(row => row.IdentityKey)
+                    .FirstOrDefaultAsync(cancellationToken)
+                : null;
+
             var cooldownUntilUtc = accountRow.ExternalSubscriptionManaged
                 ? await creditLifecycle.GetActivePaidExpiryCooldownEndAsync(account.Id, now, cancellationToken)
                 : null;
@@ -106,7 +116,12 @@ public sealed class UsageReservationAuthorizationService(
             var spendableWallet = new WalletSnapshot(currentWallet.CustomerAccountId,
                 Math.Max(0m, currentWallet.Balance - expiredUnheld), currentWallet.ReservedAmount,
                 currentWallet.UpdatedAt, currentWallet.Revision);
-            if (!creditLinePolicy.CanReserve(account, spendableWallet, maximumCredits))
+            var quotaMode = activeMax is null
+                ? FinancialCopilot.Billing.Accounts.CreditQuotaMode.Finite
+                : FinancialCopilot.Billing.Accounts.CreditQuotaMode.Unlimited;
+            var reservedCredits = quotaMode == FinancialCopilot.Billing.Accounts.CreditQuotaMode.Unlimited ? 0m : maximumCredits;
+            if (quotaMode == FinancialCopilot.Billing.Accounts.CreditQuotaMode.Finite &&
+                !creditLinePolicy.CanReserve(account, spendableWallet, maximumCredits))
             {
                 throw new InsufficientCreditException();
             }
@@ -116,10 +131,13 @@ public sealed class UsageReservationAuthorizationService(
                 account.Id,
                 normalizedKey,
                 operationCode,
-                maximumCredits,
+                reservedCredits,
                 now,
-                now.Add(DefaultReservationDuration));
-            var reservedWallet = currentWallet.Reserve(maximumCredits, now);
+                now.Add(DefaultReservationDuration),
+                quotaMode,
+                activeMax?.Id,
+                activeMax?.ExpiresAtUtc);
+            var reservedWallet = reservedCredits > 0 ? currentWallet.Reserve(reservedCredits, now) : currentWallet;
 
             dbContext.UsageReservations.Add(new UsageReservationRow
             {
@@ -129,11 +147,15 @@ public sealed class UsageReservationAuthorizationService(
                 RequestFingerprint = requestFingerprint,
                 OperationCode = reservation.OperationCode,
                 ReservedCredits = reservation.ReservedCredits,
+                QuotaMode = reservation.QuotaMode.ToString(),
+                SourceSubscriptionId = reservation.SourceSubscriptionId,
+                SourceSubscriptionExpiresAtUtc = reservation.SourceSubscriptionExpiresAtUtc,
                 CreatedAt = reservation.CreatedAt,
                 ExpiresAt = reservation.ExpiresAt,
                 Status = reservation.Status.ToString()
             });
-            await creditLifecycle.HoldCreditsAsync(account.Id, reservation.Id, maximumCredits, now, cancellationToken);
+            if (reservedCredits > 0)
+                await creditLifecycle.HoldCreditsAsync(account.Id, reservation.Id, maximumCredits, now, cancellationToken);
             ApplyWallet(walletRow, reservedWallet);
             BillingOutboxWriter.Add(
                 dbContext,
@@ -217,6 +239,8 @@ public sealed class UsageReservationAuthorizationService(
                 throw new InvalidOperationException("Reservation belongs to a different billing account.");
             if (reservation.Status != UsageReservationStatus.Reserved)
                 throw new InvalidOperationException("Only a reserved usage reservation can be upgraded.");
+            if (reservation.QuotaMode == FinancialCopilot.Billing.Accounts.CreditQuotaMode.Unlimited)
+                return reservation;
             if (requiredCredits <= reservation.ReservedCredits)
                 return reservation;
 
@@ -313,8 +337,12 @@ public sealed class UsageReservationAuthorizationService(
             var walletRow = await dbContext.WalletProjections.SingleAsync(
                 row => row.CustomerAccountId == reservation.CustomerAccountId,
                 cancellationToken);
-            var releasedWallet = MapWallet(walletRow).Release(reservation.ReservedCredits, now);
-            await creditLifecycle.ReleaseHoldsAsync(reservationRow.Id, cancellationToken);
+            var releasedWallet = reservation.QuotaMode == FinancialCopilot.Billing.Accounts.CreditQuotaMode.Unlimited
+                ? MapWallet(walletRow)
+                : MapWallet(walletRow).Release(reservation.ReservedCredits, now);
+            var expiredTopUpCredits = await creditLifecycle.ReleaseHoldsAsync(reservationRow.Id, now, cancellationToken);
+            if (expiredTopUpCredits > 0)
+                releasedWallet = releasedWallet with { Balance = Math.Max(0m, releasedWallet.Balance - expiredTopUpCredits), UpdatedAt = now, Revision = releasedWallet.Revision + 1 };
 
             reservation.Expire("Reservation expired before finalization.");
             reservationRow.Status = reservation.Status.ToString();
@@ -348,7 +376,7 @@ public sealed class UsageReservationAuthorizationService(
     {
         if (existing.CustomerAccountId != account.Id ||
             !string.Equals(existing.OperationCode, operationCode, StringComparison.Ordinal) ||
-            existing.ReservedCredits != maximumCredits ||
+            (existing.QuotaMode != nameof(FinancialCopilot.Billing.Accounts.CreditQuotaMode.Unlimited) && existing.ReservedCredits != maximumCredits) ||
             (requestFingerprint is not null && existing.RequestFingerprint is not null &&
              !string.Equals(existing.RequestFingerprint, requestFingerprint, StringComparison.Ordinal)))
         {
@@ -379,5 +407,8 @@ public sealed class UsageReservationAuthorizationService(
             row.CreatedAt,
             row.ExpiresAt,
             Enum.Parse<UsageReservationStatus>(row.Status),
-            row.FinalizationReason);
+            row.FinalizationReason,
+            Enum.Parse<FinancialCopilot.Billing.Accounts.CreditQuotaMode>(row.QuotaMode),
+            row.SourceSubscriptionId,
+            row.SourceSubscriptionExpiresAtUtc);
 }

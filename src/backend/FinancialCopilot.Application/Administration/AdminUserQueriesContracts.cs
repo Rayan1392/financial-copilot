@@ -49,7 +49,8 @@ public sealed record AdminUserSubscriptionSummary(
     bool IsActive,
     IReadOnlyCollection<string> CapabilityCodes,
     string SourceSystem,
-    DateTimeOffset AsOfUtc);
+    DateTimeOffset AsOfUtc,
+    string CreditQuotaMode = "Finite");
 
 public sealed record AdminUserCreditSummary(
     decimal? SpendableCredits,
@@ -107,7 +108,8 @@ public sealed record AdminCustomerSubscriptionView(
     string? ExternalSyncStatus,
     DateTimeOffset? ExternalLastSyncedAtUtc,
     string SourceSystem,
-    DateTimeOffset AsOfUtc);
+    DateTimeOffset AsOfUtc,
+    string CreditQuotaMode = "Finite");
 
 public sealed record AdminCustomerPlanCapabilityView(string Code, bool IsEnabled, decimal? Limit, string PolicyVersion);
 

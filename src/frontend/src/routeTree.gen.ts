@@ -20,6 +20,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminGetCompanyIdRouteImport } from './routes/admin_.getCompanyId'
+import { Route as AppTopUpRouteImport } from './routes/_app.top-up'
 import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppGetCompanyIdRouteImport } from './routes/_app.getCompanyId'
@@ -90,6 +91,11 @@ const AdminGetCompanyIdRoute = AdminGetCompanyIdRouteImport.update({
   id: '/admin_/getCompanyId',
   path: '/admin/getCompanyId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppTopUpRoute = AppTopUpRouteImport.update({
+  id: '/top-up',
+  path: '/top-up',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppTelegramLinkRoute = AppTelegramLinkRouteImport.update({
   id: '/telegram-link',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/getCompanyId': typeof AppGetCompanyIdRoute
   '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
+  '/top-up': typeof AppTopUpRoute
   '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/getCompanyId': typeof AppGetCompanyIdRoute
   '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
+  '/top-up': typeof AppTopUpRoute
   '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/_app/getCompanyId': typeof AppGetCompanyIdRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
+  '/_app/top-up': typeof AppTopUpRoute
   '/admin_/getCompanyId': typeof AdminGetCompanyIdRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
   '/admin_/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
@@ -278,6 +287,7 @@ export interface FileRouteTypes {
     | '/getCompanyId'
     | '/profile'
     | '/telegram-link'
+    | '/top-up'
     | '/admin/getCompanyId'
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/getCompanyId'
     | '/profile'
     | '/telegram-link'
+    | '/top-up'
     | '/admin/getCompanyId'
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/_app/getCompanyId'
     | '/_app/profile'
     | '/_app/telegram-link'
+    | '/_app/top-up'
     | '/admin_/getCompanyId'
     | '/_app/c/$threadId'
     | '/admin_/data-management/fund-reports'
@@ -449,6 +461,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/getCompanyId'
       preLoaderRoute: typeof AdminGetCompanyIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/top-up': {
+      id: '/_app/top-up'
+      path: '/top-up'
+      fullPath: '/top-up'
+      preLoaderRoute: typeof AppTopUpRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/telegram-link': {
       id: '/_app/telegram-link'
@@ -572,6 +591,7 @@ interface AppRouteChildren {
   AppGetCompanyIdRoute: typeof AppGetCompanyIdRoute
   AppProfileRoute: typeof AppProfileRoute
   AppTelegramLinkRoute: typeof AppTelegramLinkRoute
+  AppTopUpRoute: typeof AppTopUpRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
 }
 
@@ -582,6 +602,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppGetCompanyIdRoute: AppGetCompanyIdRoute,
   AppProfileRoute: AppProfileRoute,
   AppTelegramLinkRoute: AppTelegramLinkRoute,
+  AppTopUpRoute: AppTopUpRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,
 }
 

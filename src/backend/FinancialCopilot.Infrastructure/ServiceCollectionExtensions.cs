@@ -462,6 +462,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApiUsageReportService, ApiUsageReportService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IBillingPurchaseUseCases, BillingPurchaseUseCases>();
+        services.AddScoped<TahlilAppTopUpService>();
         services.AddHostedService<SubscriptionCreditAllocationWorker>();
 
         services.AddSingleton(TimeProvider.System);
@@ -1444,8 +1445,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonthlySalesProductFollowUpSuggestionService, MonthlySalesProductFollowUpSuggestionService>();
         services.AddSingleton<IMonthlyProductTrendFollowUpSuggestionService, MonthlyProductTrendFollowUpSuggestionService>();
         services.AddSingleton<IProductRevenueMixFollowUpSuggestionService, ProductRevenueMixFollowUpSuggestionService>();
+        services.AddSingleton<IMonthlySalesQualityRankingFollowUpSuggestionService, MonthlySalesQualityRankingFollowUpSuggestionService>();
+        services.AddSingleton<IQuarterlyFinancialReportFollowUpSuggestionService, QuarterlyFinancialReportFollowUpSuggestionService>();
+        services.AddSingleton<IFinancialStatementAnalysisFollowUpSuggestionService, FinancialStatementAnalysisFollowUpSuggestionService>();
         // Spec 112 — provider-neutral feed over persisted monthly reports and financial statements.
         services.AddScoped<ICompanyDisclosureFeedRepository, CompanyDisclosureFeedRepository>();
+        services.AddSingleton<CompanyDisclosureFeedCache>();
         services.AddScoped<IDisclosureListingUseCase, DisclosureListingUseCase>();
         // Spec 080 — deterministic monthly production/sales quality ranking snapshots.
         services.AddSingleton<IMonthlySalesQualityScoreCalculator, MonthlySalesQualityScoreCalculator>();

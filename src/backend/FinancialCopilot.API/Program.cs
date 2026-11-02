@@ -192,6 +192,11 @@ builder.Services.AddRateLimiter(options =>
         context => RateLimitPolicies.PublicIp(
             context,
             context.RequestServices.GetRequiredService<IOptionsSnapshot<PublicAuthenticationRateLimitOptions>>().Value));
+    options.AddPolicy(
+        RateLimitPolicies.TahlilAppTopUpPartner,
+        context => RateLimitPolicies.PublicIp(
+            context,
+            new PublicAuthenticationRateLimitOptions { PermitLimit = 60, WindowSeconds = 60 }));
 });
 
 var app = builder.Build();

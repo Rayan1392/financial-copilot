@@ -23,7 +23,8 @@ public sealed class FinancialDataSyncProcessor(
     IFinancialDataProviderRouter? providerRouter = null,
     IFinancialRatioProvider? ratioProvider = null,
     INoavaranCurrentApiBoundaryOverride? boundaryOverride = null,
-    IFundamentalIndexCoverageProvider? coverageProvider = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
+    IFundamentalIndexCoverageProvider? coverageProvider = null,
+    CompanyDisclosureFeedCache? disclosureFeedCache = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
     private readonly IReadOnlyDictionary<(string ProviderName, ProviderDataset Dataset), IFinancialPayloadNormalizer> _normalizers =
         normalizers.ToDictionary(normalizer => (normalizer.ProviderName, normalizer.Dataset));
@@ -152,6 +153,10 @@ public sealed class FinancialDataSyncProcessor(
             var normalizationPayload = payload with { Dataset = request.Dataset };
             var outcome = await _normalizers[(normalizationPayload.ProviderName, normalizationPayload.Dataset)]
                 .NormalizeAsync(normalizationPayload, cancellationToken);
+
+            // Normalizers persist source disclosures. Expire every cached filter/page as soon
+            // as persisted data may have changed, including company catalog/name mappings.
+            disclosureFeedCache?.Invalidate();
 
             run.SourcePayloadChecksum = payload.Checksum;
             run.ProcessedRecords = outcome.ProcessedRecords;

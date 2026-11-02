@@ -15,6 +15,27 @@ public sealed class UsageRefundService(
         UsageRefundCommand command,
         CancellationToken cancellationToken)
     {
+        const int maximumConcurrencyAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await RefundOnceAsync(command, cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < maximumConcurrencyAttempts)
+            {
+                // A top-up grant, source refund and expiry can race on the wallet/source
+                // revisions. The failed SaveChanges transaction is rolled back; reload all
+                // persisted allocations and refund receipts before applying the same key again.
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<UsageRefundResult> RefundOnceAsync(
+        UsageRefundCommand command,
+        CancellationToken cancellationToken)
+    {
         Validate(command);
 
         var idempotencyKey = command.IdempotencyKey.Trim();
@@ -44,6 +65,9 @@ public sealed class UsageRefundService(
             return new UsageRefundResult(MapEntry(existing), MapWallet(walletRow), AlreadyApplied: true);
         }
 
+        if (originalCharge.QuotaMode == nameof(CreditQuotaMode.Unlimited) || originalCharge.CreditsCharged == 0)
+            throw new InvalidOperationException("Unlimited usage has no numeric credits to refund.");
+
         var refundedCredits = await dbContext.UsageLedgerEntries
             .Where(row =>
                 row.CustomerAccountId == command.CustomerAccountId &&
@@ -62,6 +86,12 @@ public sealed class UsageRefundService(
             command.Credits,
             now,
             cancellationToken);
+        var topUpRestoration = await creditLifecycle.ApplyTopUpRefundAsync(
+            originalCharge,
+            Math.Max(0m, command.Credits - restoration.Restored.Sum(item => item.CreditsApplied) -
+                restoration.Expired.Sum(item => item.CreditsApplied)),
+            now,
+            cancellationToken);
         var entry = new UsageLedgerEntry(
             Guid.NewGuid(),
             command.CustomerAccountId,
@@ -77,8 +107,12 @@ public sealed class UsageRefundService(
             AuditDescription: reason,
             RelatedEntryId: originalCharge.Id,
             AllocationSource: originalCharge.AllocationSource,
-            AllowanceDateKey: originalCharge.AllowanceDateKey);
-        var expiredSourceRefund = restoration.Expired.Sum(item => item.CreditsApplied);
+            AllowanceDateKey: originalCharge.AllowanceDateKey,
+            QuotaMode: Enum.Parse<CreditQuotaMode>(originalCharge.QuotaMode),
+            SourceSubscriptionId: originalCharge.SourceSubscriptionId,
+            SourceSubscriptionExpiresAtUtc: originalCharge.SourceSubscriptionExpiresAtUtc);
+        var expiredSourceRefund = restoration.Expired.Sum(item => item.CreditsApplied) +
+            topUpRestoration.Expired.Sum(item => item.CreditsApplied);
         var spendableRefund = command.Credits - expiredSourceRefund;
         var updatedWallet = spendableRefund > 0
             ? MapWallet(walletRow).AddCredits(spendableRefund, now)
@@ -100,7 +134,11 @@ public sealed class UsageRefundService(
             RelatedEntryId = entry.RelatedEntryId,
             AllocationSource = entry.AllocationSource,
             AllowanceDateKey = entry.AllowanceDateKey,
-            SubscriptionCreditsApplied = restoration.Restored.Sum(item => item.CreditsApplied) + expiredSourceRefund
+            QuotaMode = entry.QuotaMode.ToString(),
+            SourceSubscriptionId = entry.SourceSubscriptionId,
+            SourceSubscriptionExpiresAtUtc = entry.SourceSubscriptionExpiresAtUtc,
+            SubscriptionCreditsApplied = restoration.Restored.Sum(item => item.CreditsApplied) +
+                topUpRestoration.Restored.Sum(item => item.CreditsApplied) + expiredSourceRefund
         });
         foreach (var allocation in restoration.Restored.Concat(restoration.Expired))
         {
@@ -109,6 +147,17 @@ public sealed class UsageRefundService(
                 Id = Guid.NewGuid(),
                 UsageLedgerEntryId = entry.Id,
                 SubscriptionCreditPeriodId = allocation.PeriodId,
+                GrantLedgerEntryId = allocation.GrantLedgerEntryId,
+                CreditsApplied = allocation.CreditsApplied
+            });
+        }
+        foreach (var allocation in topUpRestoration.Restored.Concat(topUpRestoration.Expired))
+        {
+            dbContext.TopUpUsageCreditAllocations.Add(new TopUpUsageCreditAllocationRow
+            {
+                Id = Guid.NewGuid(),
+                UsageLedgerEntryId = entry.Id,
+                TopUpCreditSourceId = allocation.PeriodId,
                 GrantLedgerEntryId = allocation.GrantLedgerEntryId,
                 CreditsApplied = allocation.CreditsApplied
             });
@@ -125,6 +174,19 @@ public sealed class UsageRefundService(
                 AuditDescription = "Usage refund attributed to expired subscription credits; excluded from spendable balance.",
                 RelatedEntryId = expired.GrantLedgerEntryId, AllocationSource = SubscriptionCreditLifecycleService.SubscriptionAllocationSource,
                 AllowanceDateKey = expired.PeriodId.ToString("N")
+            });
+        }
+        foreach (var expired in topUpRestoration.Expired)
+        {
+            dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+            {
+                Id = Guid.NewGuid(), CustomerAccountId = command.CustomerAccountId, ActorId = Guid.Empty,
+                TenantId = command.TenantId, EntryType = nameof(UsageLedgerEntryType.Adjustment),
+                OperationCode = "Billing.TahlilAppTopUpExpiredRefundOffset",
+                CreditsCharged = -expired.CreditsApplied, PricingPolicyVersion = "tahlilapp-topup-v1",
+                IdempotencyKey = $"{idempotencyKey}:expired-topup-source-offset:{expired.PeriodId:N}", OccurredAt = now,
+                AuditDescription = "Usage refund attributed to expired TahlilApp top-up credits; excluded from spendable balance.",
+                RelatedEntryId = expired.GrantLedgerEntryId, AllocationSource = "tahlilapp-topup"
             });
         }
         walletRow.Balance = updatedWallet.Balance;
@@ -220,5 +282,8 @@ public sealed class UsageRefundService(
             row.ExternalUserId,
             row.AuditDescription,
             row.RelatedEntryId,
-            row.CompletionStatus);
+            row.CompletionStatus,
+            QuotaMode: Enum.Parse<CreditQuotaMode>(row.QuotaMode),
+            SourceSubscriptionId: row.SourceSubscriptionId,
+            SourceSubscriptionExpiresAtUtc: row.SourceSubscriptionExpiresAtUtc);
 }

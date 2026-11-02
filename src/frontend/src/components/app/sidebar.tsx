@@ -12,7 +12,7 @@ import {
 } from "@/integrations/financial-copilot/auth";
 import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
 import { formatNumber } from "@/lib/format/persian";
-import { computeCreditProgress, type CreditTone } from "@/lib/credit-progress";
+import { computeCreditProgress, creditQuotaLabel, type CreditTone } from "@/lib/credit-progress";
 
 const CREDIT_TONE_CLASS: Record<CreditTone, string> = {
   healthy: "bg-emerald",
@@ -68,7 +68,7 @@ export function ConversationSidebar() {
       if (activeId === id) navigate({ to: "/chat" });
     },
   });
-  const credit = usage
+  const credit = usage && usage.creditQuotaMode !== "Unlimited"
     ? computeCreditProgress(usage.availableSpendingCapacity, usage.planIncludedCredits)
     : null;
   const [showAdmin, setShowAdmin] = useState(false);
@@ -109,7 +109,7 @@ export function ConversationSidebar() {
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
             گفتگوهای اخیر
           </p>
-          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 scrollbar-thin">
             {threads.length === 0 && (
               <p className="text-xs text-muted-foreground px-3 py-2">گفتگویی نیست.</p>
             )}
@@ -166,12 +166,18 @@ export function ConversationSidebar() {
                 </button>
               </span>
               <span className="shrink-0 whitespace-nowrap text-[11px] text-foreground">
-                {credit?.limit != null
-                  ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
-                  : formatNumber(credit?.remaining ?? 0)}
+                {creditQuotaLabel(usage.creditQuotaMode, credit?.limit != null
+                    ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
+                    : formatNumber(credit?.remaining ?? 0))}
               </span>
             </div>
-            <div
+            {usage.creditQuotaMode === "Unlimited" ? (
+              usage.subscriptionExpiresAtUtc && (
+                <div className="text-[11px] text-muted-foreground">
+                  تا {new Date(usage.subscriptionExpiresAtUtc).toLocaleDateString("fa-IR")}
+                </div>
+              )
+            ) : <div
               className="h-1 w-full bg-muted rounded-full overflow-hidden"
               role="progressbar"
               aria-label="اعتبار باقی‌مانده هوش مصنوعی"
@@ -183,7 +189,7 @@ export function ConversationSidebar() {
                 className={`h-full transition-all ${credit?.tone ? CREDIT_TONE_CLASS[credit.tone] : "bg-muted"}`}
                 style={{ width: `${credit?.percentage ?? 0}%` }}
               />
-            </div>
+            </div>}
           </div>
         )}
         <div className="flex items-center justify-between px-1">

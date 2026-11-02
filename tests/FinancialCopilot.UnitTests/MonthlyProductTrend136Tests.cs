@@ -256,6 +256,93 @@ public sealed class MonthlyProductTrend136Tests
     }
 
     [Fact]
+    public async Task Normalizer_UsesReceiptOrderWhenProviderPublicationTimeIsMissing()
+    {
+        await using var db = CreateDb();
+        var trendCalculator = new CompanyMonthlyActivityTrendSnapshotCalculator(
+            db,
+            new EfCoreCompanyMonthlyActivityTrendSnapshotRepository(db));
+        var normalizer = new NadpcoApiMonthlyActivityNormalizer(
+            db,
+            new NoOpRevenueMix(),
+            trendCalculator,
+            new NoOpRanking(),
+            NullLogger<NadpcoApiMonthlyActivityNormalizer>.Instance);
+        await normalizer.NormalizeAsync(
+            Payload("receipt-revision-1", "2026-06-01T10:00:00Z", ReportJson(10, 100, null)),
+            CancellationToken.None);
+        await normalizer.NormalizeAsync(
+            Payload("receipt-revision-2", "2026-06-02T10:00:00Z", ReportJson(20, 200, null)),
+            CancellationToken.None);
+        await normalizer.NormalizeAsync(
+            Payload("receipt-revision-stale", "2026-05-30T10:00:00Z", ReportJson(5, 50, null)),
+            CancellationToken.None);
+
+        var accepted = Assert.Single(await db.MonthlyReports.Where(row => row.IsAccepted).ToListAsync());
+        Assert.Equal("receipt-revision-2", accepted.RevisionFingerprint);
+        Assert.Equal("Accepted", accepted.RevisionStatus);
+        var stale = await db.MonthlyReports.SingleAsync(row => row.RevisionFingerprint == "receipt-revision-stale");
+        Assert.False(stale.IsAccepted);
+        Assert.Equal("RejectedOlder", stale.RevisionStatus);
+
+        var snapshot = await db.CompanyMonthlyActivityTrendSnapshots.SingleAsync(row =>
+            row.ExternalCompanyId == "3" && row.ReportYear == 1405 && row.ReportMonth == 3);
+        Assert.Equal(200m, snapshot.MonthlySalesAmount);
+    }
+
+    [Fact]
+    public async Task Normalizer_ReplayPromotesPreviouslyPendingNewerRevisionAndRefreshesSnapshot()
+    {
+        await using var db = CreateDb();
+        var trendCalculator = new CompanyMonthlyActivityTrendSnapshotCalculator(
+            db,
+            new EfCoreCompanyMonthlyActivityTrendSnapshotRepository(db));
+        var normalizer = new NadpcoApiMonthlyActivityNormalizer(
+            db,
+            new NoOpRevenueMix(),
+            trendCalculator,
+            new NoOpRanking(),
+            NullLogger<NadpcoApiMonthlyActivityNormalizer>.Instance);
+
+        await normalizer.NormalizeAsync(
+            Payload("accepted-before-fix", "2026-06-01T10:00:00Z", ReportJson(10, 100, null)),
+            CancellationToken.None);
+        var acceptedBeforeCorrection = await db.MonthlyReports.SingleAsync(row => row.IsAccepted);
+        var pendingCorrection = new NormalizedMonthlyReportRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = acceptedBeforeCorrection.ProviderName,
+            ExternalCompanyId = acceptedBeforeCorrection.ExternalCompanyId,
+            ExternalReportId = acceptedBeforeCorrection.ExternalReportId,
+            CompanyId = acceptedBeforeCorrection.CompanyId,
+            OutputType = acceptedBeforeCorrection.OutputType,
+            PeriodStart = acceptedBeforeCorrection.PeriodStart,
+            PeriodEnd = acceptedBeforeCorrection.PeriodEnd,
+            ReportType = acceptedBeforeCorrection.ReportType,
+            LogicalReportKey = acceptedBeforeCorrection.LogicalReportKey,
+            RevisionFingerprint = "receipt-revision-2",
+            SourcePayloadChecksum = "receipt-revision-2",
+            LastSynchronizedAt = DateTimeOffset.Parse("2026-06-02T10:00:00Z", CultureInfo.InvariantCulture),
+            IsAccepted = false,
+            RevisionStatus = "Pending"
+        };
+        db.MonthlyReports.Add(pendingCorrection);
+        db.MonthlyReportLineItems.Add(Line(pendingCorrection.Id, "corrected", 200m));
+        await db.SaveChangesAsync();
+
+        await normalizer.NormalizeAsync(
+            Payload("receipt-revision-2", "2026-06-02T10:00:00Z", ReportJson(20, 200, null)),
+            CancellationToken.None);
+
+        var accepted = Assert.Single(await db.MonthlyReports.Where(row => row.IsAccepted).ToListAsync());
+        Assert.Equal("receipt-revision-2", accepted.RevisionFingerprint);
+        Assert.Equal("Accepted", accepted.RevisionStatus);
+        var snapshot = await db.CompanyMonthlyActivityTrendSnapshots.SingleAsync(row =>
+            row.ExternalCompanyId == "3" && row.ReportYear == 1405 && row.ReportMonth == 3);
+        Assert.Equal(200m, snapshot.MonthlySalesAmount);
+    }
+
+    [Fact]
     public async Task ComparisonRepository_UsesOnlyProductSalesOutputTypeZeroAcceptedRows()
     {
         await using var db = CreateDb();
@@ -539,8 +626,11 @@ public sealed class MonthlyProductTrend136Tests
             "monthly", "3", JsonSerializer.Serialize(new NadpcoMonthlyActivityEnvelope(productJson, null, null, null, null, "[]")), checksum,
             DateTimeOffset.Parse(publishDate, CultureInfo.InvariantCulture));
 
-    private static string ReportJson(decimal quantity, decimal value, string publishDateTime = "2026-06-01T10:00:00Z") =>
-        $"[{{\"activityID\":9003,\"com_ID\":3,\"year\":1405,\"month\":3,\"outputType\":0,\"publishDateTime\":\"{publishDateTime}\",\"productCode\":\"P-1\",\"productTitle\":\"A\",\"productUnit\":\"ton\",\"salesQuantity\":{quantity.ToString(CultureInfo.InvariantCulture)},\"salesValue\":{value.ToString(CultureInfo.InvariantCulture)}}}]";
+    private static string ReportJson(decimal quantity, decimal value, string? publishDateTime = "2026-06-01T10:00:00Z")
+    {
+        var publishedAtJson = publishDateTime is null ? "null" : JsonSerializer.Serialize(publishDateTime);
+        return $"[{{\"activityID\":9003,\"com_ID\":3,\"year\":1405,\"month\":3,\"outputType\":0,\"publishDateTime\":{publishedAtJson},\"productCode\":\"P-1\",\"productTitle\":\"A\",\"productUnit\":\"ton\",\"salesQuantity\":{quantity.ToString(CultureInfo.InvariantCulture)},\"salesValue\":{value.ToString(CultureInfo.InvariantCulture)}}}]";
+    }
 
     private static NormalizedMonthlyReportRow Report(string id, string type, int? output, bool accepted, DateOnly start, DateOnly end) => new()
     {

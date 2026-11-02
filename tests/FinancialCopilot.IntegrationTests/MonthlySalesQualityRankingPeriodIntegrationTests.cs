@@ -30,7 +30,7 @@ public sealed class MonthlySalesQualityRankingPeriodIntegrationTests
 
         using var response = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "\u0631\u062a\u0628\u0647 \u0628\u0646\u062f\u06cc \u06af\u0632\u0627\u0631\u0634 \u0645\u0627\u0647\u0627\u0646\u0647\u061f" },
+            new { message = "\u0631\u062a\u0628\u0647\u200c\u0628\u0646\u062f\u06cc \u06af\u0632\u0627\u0631\u0634\u200c\u0647\u0627\u06cc \u0645\u0627\u0647\u0627\u0646\u0647 \u0631\u0627 \u0646\u0634\u0627\u0646 \u0628\u062f\u0647" },
             CancellationToken.None);
         using var document = await ReadJsonAsync(response);
 
@@ -43,8 +43,21 @@ public sealed class MonthlySalesQualityRankingPeriodIntegrationTests
         Assert.Equal(1405, ranking.GetProperty("reportYear").GetInt32());
         Assert.Equal(6, ranking.GetProperty("reportMonth").GetInt32());
 
-        var item = Assert.Single(ranking.GetProperty("items").EnumerateArray());
-        Assert.Equal("KOUCHIN", item.GetProperty("symbol").GetString());
+        Assert.Equal(["\u06a9\u06af\u0647\u0631", "\u0641\u0648\u0644\u0627\u062f", "\u06a9\u0686\u0627\u062f"], ranking.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("symbol").GetString()));
+
+        var actions = root.GetProperty("suggestedActions").EnumerateArray().ToArray();
+        Assert.Equal(3, actions.Length);
+        Assert.Equal(["\u06a9\u06af\u0647\u0631", "\u0641\u0648\u0644\u0627\u062f", "\u06a9\u0686\u0627\u062f"], actions.Select(action => action.GetProperty("presetSlots")
+            .GetProperty("symbol").GetString()));
+        Assert.All(actions, action =>
+        {
+            var symbol = action.GetProperty("presetSlots").GetProperty("symbol").GetString();
+            var expected = $"\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 {symbol} \u0631\u0627 \u0646\u0634\u0627\u0646 \u0628\u062f\u0647";
+            Assert.Equal(expected, action.GetProperty("label").GetString());
+            Assert.Equal(expected, action.GetProperty("message").GetString());
+            Assert.Equal("monthly_activity_trend", action.GetProperty("capabilityCode").GetString());
+        });
     }
 
     [Fact]
@@ -106,7 +119,9 @@ public sealed class MonthlySalesQualityRankingPeriodApiFactory : AiFacadeApiFact
             using var scope = Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
             db.MonthlySalesQualityRankingSnapshots.AddRange(
-                CreateSnapshot("kouchin-id", "KOUCHIN", 1405, 6, 88m),
+                CreateSnapshot("kouchin-id", "\u06a9\u06af\u0647\u0631", 1405, 6, 88m, rank: 1),
+                CreateSnapshot("kghar-id", "\u0641\u0648\u0644\u0627\u062f", 1405, 6, 82m, rank: 2),
+                CreateSnapshot("folad-id", "\u06a9\u0686\u0627\u062f", 1405, 6, 78m, rank: 3),
                 CreateSnapshot("current-month-id", "CURRENT", 1405, 7, 99m));
             db.SaveChanges();
             _seeded = true;
@@ -118,7 +133,8 @@ public sealed class MonthlySalesQualityRankingPeriodApiFactory : AiFacadeApiFact
         string symbol,
         int year,
         byte month,
-        decimal score) => new()
+        decimal score,
+        int rank = 1) => new()
     {
         Id = Guid.NewGuid(),
         ExternalCompanyId = idSuffix,
@@ -131,7 +147,7 @@ public sealed class MonthlySalesQualityRankingPeriodApiFactory : AiFacadeApiFact
         QualityScore = score,
         QualityLabel = "Strong",
         ConfidenceScore = 90m,
-        RankMarket = 1,
+        RankMarket = rank,
         DimensionScoresJson = "{}",
         PositiveDriversJson = "[]",
         NegativeDriversJson = "[]",

@@ -9,6 +9,7 @@ import { formatNumber, formatPercent, toPersianDigits } from "@/lib/format/persi
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { QuarterlyFinancialTable, quarterlyFinancialTableModelFromTypedResult } from "@/components/app/quarterly-financial-table";
+import { FinancialStatementAnalysisCard } from "@/components/app/financial-statement-analysis";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
@@ -124,6 +125,7 @@ function AssistantBlock({
         typedQuarterly.status !== "Unavailable" && typedQuarterly.periodsNewestFirst.length > 0))
     ? quarterlyFinancialTableModelFromTypedResult(typedQuarterly)
     : null;
+  const financialStatementAnalysis = block.financialStatementAnalysisResult;
   const dailyTradesSource = "منبع: آمار معاملات روزانه";
   const sourceMatch = message.match(/\s*(منبع: آمار معاملات روزانه)[.。]?\s*$/u);
   const hasDailyTradesSource = sourceMatch !== null;
@@ -162,12 +164,13 @@ function AssistantBlock({
         className={`flex-1 space-y-5 min-w-0 ${isRtlMessage ? "text-right" : "text-left"}`}
         dir={isRtlMessage ? "rtl" : "ltr"}
       >
-        {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource) && (
+        {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource || financialStatementAnalysis) && (
           <div className="space-y-1">
             {displayMessage.length > 0 && !typedQuarterlyTable && (
               <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
             )}
             {typedQuarterlyTable && <QuarterlyFinancialTable model={typedQuarterlyTable} />}
+            {financialStatementAnalysis && <FinancialStatementAnalysisCard data={financialStatementAnalysis} />}
             {tradingDate && (
               <p className="text-xs leading-relaxed text-muted-foreground">{tradingDate}</p>
             )}

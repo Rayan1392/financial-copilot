@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { Bot, ChevronLeft, ChevronRight, ExternalLink, Eye, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Bot, ChevronLeft, ChevronRight, ExternalLink, Eye, Plus, X } from "lucide-react";
 import {
   dismissInsight,
   explainInsight,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/followed-symbols.functions";
 import { searchSymbolMetadata, type SymbolMetadata } from "@/lib/metadata.functions";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatInsightScore,
   formatShamsiDate,
@@ -33,6 +34,8 @@ export const Route = createFileRoute("/_app/followed-symbols")({
   component: FollowedSymbolsPage,
 });
 
+type FollowedSymbolsTab = "symbols" | "add" | "events";
+
 function FollowedSymbolsPage() {
   const qc = useQueryClient();
   const fetchFollowed = useServerFn(getFollowedSymbols);
@@ -43,6 +46,7 @@ function FollowedSymbolsPage() {
   const dismiss = useServerFn(dismissInsight);
   const explain = useServerFn(explainInsight);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<FollowedSymbolsTab>("symbols");
   const [typeFilter, setTypeFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [includeDismissed, setIncludeDismissed] = useState(false);
@@ -102,6 +106,20 @@ function FollowedSymbolsPage() {
   });
   const followedIds = new Set(followed.data?.symbols.map((item) => item.externalCompanyId) ?? []);
 
+  useEffect(() => {
+    if (window.location.hash === "#symbol-search") setActiveTab("add");
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "add" || window.location.hash !== "#symbol-search") return;
+    const frame = window.requestAnimationFrame(() => {
+      const input = document.getElementById("symbol-search");
+      input?.focus({ preventScroll: true });
+      input?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab]);
+
   return (
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mx-auto max-w-4xl space-y-8">
@@ -111,185 +129,230 @@ function FollowedSymbolsPage() {
           </p>
           <h1 className="text-3xl font-bold text-foreground">مدیریت دیده‌بان</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            نمادهای دنبال‌شده یک فهرست شخصی برای پیگیری در قابلیت‌های آینده هوش مصنوعی هستند و
-            به‌معنای پرتفوی، اندازه موقعیت، بهای تمام‌شده یا میزان exposure نیستند.
+            نمادها را اضافه کنید تا قیمت و رویدادهای مرتبط را یکجا دنبال کنید. این فهرست پرتفوی یا
+            محاسبه سود و زیان نیست.
           </p>
         </header>
 
-        <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
-          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald">
-                خوراک هوشمند
-              </p>
-              <h2 className="mt-1 text-xl font-semibold">رویدادهای نمادهای دیده‌بان</h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={typeFilter}
-                onChange={(event) => {
-                  setTypeFilter(event.target.value);
-                  setSkip(0);
-                }}
-                className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-emerald/50"
-              >
-                <option value="">همه نوع‌ها</option>
-                <option value="MonthlyReportPublished">گزارش‌های ماهانه</option>
-                <option value="MonthlySalesAnomaly">ناهنجاری‌های فروش</option>
-                <option value="MonthlyQualityRankingChange">تغییرات کیفیت</option>
-                <option value="PriceMovement">حرکت قیمت</option>
-                <option value="ComprehensiveAnalysisPublished">تحلیل‌های منتشرشده</option>
-                <option value="FinancialStatementPublished">صورت‌های مالی</option>
-                <option value="DataFreshnessWarning">هشدار تازگی داده</option>
-              </select>
-              <select
-                value={severityFilter}
-                onChange={(event) => {
-                  setSeverityFilter(event.target.value);
-                  setSkip(0);
-                }}
-                className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-emerald/50"
-              >
-                <option value="">همه سطح‌ها</option>
-                <option value="Critical">بحرانی</option>
-                <option value="Important">مهم</option>
-                <option value="Notice">قابل توجه</option>
-                <option value="Informational">اطلاع‌رسانی</option>
-              </select>
-              <label className="flex items-center gap-2 rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={includeDismissed}
-                  onChange={(event) => {
-                    setIncludeDismissed(event.target.checked);
-                    setSkip(0);
-                  }}
-                  className="accent-emerald"
-                />
-                حذف‌شده‌ها
-              </label>
-            </div>
-          </div>
-
-          {insights.isLoading && (
-            <p className="text-sm text-muted-foreground">در حال بارگذاری رویدادها...</p>
-          )}
-          {insights.isError && (
-            <p className="text-sm text-rose">بارگذاری رویدادهای شخصی‌سازی‌شده انجام نشد.</p>
-          )}
-          {!insights.isLoading && !insights.isError && insights.data?.emptyState && (
-            <div className="rounded-lg border border-hairline bg-background/50 p-4">
-              <p className="text-sm text-muted-foreground">
-                {localizeEmptyStateMessage(insights.data.emptyState.message)}
-              </p>
-            </div>
-          )}
-          <div className="grid gap-3">
-            {insights.data?.items.map((item) => (
-              <InsightCard
-                key={item.insight.id}
-                item={item}
-                explanation={explanations[item.insight.id]}
-                onSeen={() => mark.mutate(item.insight.id)}
-                onDismiss={() => hide.mutate(item.insight.id)}
-                onAsk={() => ask.mutate(item.insight.id)}
-                busy={mark.isPending || hide.isPending || ask.isPending}
-              />
-            ))}
-          </div>
-          {!insights.isLoading && !insights.isError && (insights.data?.totalCount ?? 0) > 0 && (
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {skip + 1}-{Math.min(skip + take, insights.data?.totalCount ?? 0)} از{" "}
-                {insights.data?.totalCount ?? 0}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as FollowedSymbolsTab)}
+          dir="rtl"
+          className="space-y-5"
+        >
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl bg-surface/70 p-1 ring-1 ring-hairline">
+            <TabsTrigger value="symbols" className="min-h-10 gap-2 px-2 text-xs sm:text-sm">
+              <Eye className="size-4" aria-hidden="true" />
+              <span>نمادهای من</span>
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
+                {followed.data?.symbols.length ?? 0}
               </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSkip(Math.max(0, skip - take))}
-                  disabled={skip === 0}
-                  className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
-                  aria-label="رویدادهای قبلی"
-                >
-                  <ChevronLeft className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSkip(skip + take)}
-                  disabled={skip + take >= (insights.data?.totalCount ?? 0)}
-                  className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
-                  aria-label="رویدادهای بعدی"
-                >
-                  <ChevronRight className="size-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
+            </TabsTrigger>
+            <TabsTrigger value="add" className="min-h-10 gap-2 px-2 text-xs sm:text-sm">
+              <Plus className="size-4" aria-hidden="true" />
+              <span>افزودن نماد</span>
+            </TabsTrigger>
+            <TabsTrigger value="events" className="min-h-10 gap-2 px-2 text-xs sm:text-sm">
+              <Bell className="size-4" aria-hidden="true" />
+              <span>رویدادها</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="symbol-search">
-            افزودن نماد با جستجوی شرکت
-          </label>
-          <input
-            id="symbol-search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="نام نماد یا شرکت را جستجو کنید"
-            className="mt-2 w-full rounded-xl border border-hairline bg-background px-4 py-3 text-sm outline-none focus:border-emerald/50"
-          />
-          <div className="mt-4 grid gap-2 md:grid-cols-2">
-            {searchQuery.data?.map((item) => (
-              <SearchResult
-                key={item.externalCompanyId}
-                item={item}
-                followed={followedIds.has(item.externalCompanyId)}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">نمادهای دیده‌بان</h2>
-            <span className="text-xs text-muted-foreground">
-              {followed.data?.symbols.length ?? 0} نماد
-            </span>
-          </div>
-          {followed.isLoading && (
-            <p className="text-sm text-muted-foreground">در حال بارگذاری نمادهای دنبال‌شده...</p>
-          )}
-          {followed.isError && (
-            <p className="text-sm text-rose">بارگذاری نمادهای دنبال‌شده انجام نشد.</p>
-          )}
-          {!followed.isLoading && !followed.isError && followed.data?.symbols.length === 0 && (
-            <p className="text-sm text-muted-foreground">هنوز نمادی را دنبال نکرده‌اید.</p>
-          )}
-          <div className="grid gap-3">
-            {followed.data?.symbols.map((item) => (
-              <div
-                key={item.externalCompanyId}
-                className="flex items-center justify-between rounded-xl border border-hairline bg-background/50 px-4 py-3"
-              >
+          <TabsContent value="events" className="mt-0">
+            <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
+              <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <div className="font-semibold text-foreground">{item.symbol}</div>
-                  <div className="text-xs text-muted-foreground">{item.companyName}</div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">
-                    شناسه شرکت: {item.externalCompanyId}
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald">
+                    خوراک هوشمند
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold">رویدادهای نمادهای دیده‌بان</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={typeFilter}
+                    onChange={(event) => {
+                      setTypeFilter(event.target.value);
+                      setSkip(0);
+                    }}
+                    className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-emerald/50"
+                  >
+                    <option value="">همه نوع‌ها</option>
+                    <option value="MonthlyReportPublished">گزارش‌های ماهانه</option>
+                    <option value="MonthlySalesAnomaly">ناهنجاری‌های فروش</option>
+                    <option value="MonthlyQualityRankingChange">تغییرات کیفیت</option>
+                    <option value="PriceMovement">حرکت قیمت</option>
+                    <option value="ComprehensiveAnalysisPublished">تحلیل‌های منتشرشده</option>
+                    <option value="FinancialStatementPublished">صورت‌های مالی</option>
+                    <option value="DataFreshnessWarning">هشدار تازگی داده</option>
+                  </select>
+                  <select
+                    value={severityFilter}
+                    onChange={(event) => {
+                      setSeverityFilter(event.target.value);
+                      setSkip(0);
+                    }}
+                    className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-emerald/50"
+                  >
+                    <option value="">همه سطح‌ها</option>
+                    <option value="Critical">بحرانی</option>
+                    <option value="Important">مهم</option>
+                    <option value="Notice">قابل توجه</option>
+                    <option value="Informational">اطلاع‌رسانی</option>
+                  </select>
+                  <label className="flex items-center gap-2 rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={includeDismissed}
+                      onChange={(event) => {
+                        setIncludeDismissed(event.target.checked);
+                        setSkip(0);
+                      }}
+                      className="accent-emerald"
+                    />
+                    حذف‌شده‌ها
+                  </label>
+                </div>
+              </div>
+
+              {insights.isLoading && (
+                <p className="text-sm text-muted-foreground">در حال بارگذاری رویدادها...</p>
+              )}
+              {insights.isError && (
+                <p className="text-sm text-rose">بارگذاری رویدادهای شخصی‌سازی‌شده انجام نشد.</p>
+              )}
+              {!insights.isLoading && !insights.isError && insights.data?.emptyState && (
+                <div className="rounded-lg border border-hairline bg-background/50 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    {localizeEmptyStateMessage(insights.data.emptyState.message)}
+                  </p>
+                </div>
+              )}
+              <div className="grid gap-3">
+                {insights.data?.items.map((item) => (
+                  <InsightCard
+                    key={item.insight.id}
+                    item={item}
+                    explanation={explanations[item.insight.id]}
+                    onSeen={() => mark.mutate(item.insight.id)}
+                    onDismiss={() => hide.mutate(item.insight.id)}
+                    onAsk={() => ask.mutate(item.insight.id)}
+                    busy={mark.isPending || hide.isPending || ask.isPending}
+                  />
+                ))}
+              </div>
+              {!insights.isLoading && !insights.isError && (insights.data?.totalCount ?? 0) > 0 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    {skip + 1}-{Math.min(skip + take, insights.data?.totalCount ?? 0)} از{" "}
+                    {insights.data?.totalCount ?? 0}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSkip(Math.max(0, skip - take))}
+                      disabled={skip === 0}
+                      className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
+                      aria-label="رویدادهای قبلی"
+                    >
+                      <ChevronLeft className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSkip(skip + take)}
+                      disabled={skip + take >= (insights.data?.totalCount ?? 0)}
+                      className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
+                      aria-label="رویدادهای بعدی"
+                    >
+                      <ChevronRight className="size-4" />
+                    </button>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => remove.mutate(item.externalCompanyId)}
-                  disabled={remove.isPending}
-                  className="rounded-lg border border-rose/30 px-3 py-1.5 text-xs text-rose hover:bg-rose/10 disabled:opacity-50"
-                >
-                  لغو دنبال‌کردن
-                </button>
+              )}
+            </section>
+          </TabsContent>
+
+          <TabsContent value="add" className="mt-0">
+            <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
+              <label className="text-xs font-medium text-muted-foreground" htmlFor="symbol-search">
+                افزودن نماد با جستجوی شرکت
+              </label>
+              <input
+                id="symbol-search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="نام نماد یا شرکت را جستجو کنید"
+                className="mt-2 w-full rounded-xl border border-hairline bg-background px-4 py-3 text-sm outline-none focus:border-emerald/50"
+              />
+              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                {searchQuery.data?.map((item) => (
+                  <SearchResult
+                    key={item.externalCompanyId}
+                    item={item}
+                    followed={followedIds.has(item.externalCompanyId)}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="symbols" className="mt-0">
+            <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">نمادهای دیده‌بان</h2>
+                <span className="text-xs text-muted-foreground">
+                  {followed.data?.symbols.length ?? 0} نماد
+                </span>
+              </div>
+              {followed.isLoading && (
+                <p className="text-sm text-muted-foreground">
+                  در حال بارگذاری نمادهای دنبال‌شده...
+                </p>
+              )}
+              {followed.isError && (
+                <p className="text-sm text-rose">بارگذاری نمادهای دنبال‌شده انجام نشد.</p>
+              )}
+              {!followed.isLoading && !followed.isError && followed.data?.symbols.length === 0 && (
+                <div className="rounded-xl border border-dashed border-hairline bg-background/40 px-4 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    هنوز نمادی به دیده‌بان اضافه نکرده‌اید.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("add")}
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald px-4 py-2 text-sm font-medium text-primary-foreground transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+                  >
+                    <Plus className="size-4" aria-hidden="true" />
+                    جستجو و افزودن نماد
+                  </button>
+                </div>
+              )}
+              <div className="grid gap-3">
+                {followed.data?.symbols.map((item) => (
+                  <div
+                    key={item.externalCompanyId}
+                    className="flex items-center justify-between rounded-xl border border-hairline bg-background/50 px-4 py-3"
+                  >
+                    <div>
+                      <div className="font-semibold text-foreground">{item.symbol}</div>
+                      <div className="text-xs text-muted-foreground">{item.companyName}</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        شناسه شرکت: {item.externalCompanyId}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => remove.mutate(item.externalCompanyId)}
+                      disabled={remove.isPending}
+                      className="rounded-lg border border-rose/30 px-3 py-1.5 text-xs text-rose hover:bg-rose/10 disabled:opacity-50"
+                    >
+                      لغو دنبال‌کردن
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

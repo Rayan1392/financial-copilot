@@ -552,7 +552,7 @@ public sealed class MonthlyActivityBackfillCoordinator(
         CancellationToken cancellationToken)
     {
         var reports = await dbContext.MonthlyReports.AsNoTracking()
-            .Where(row => row.ProviderName == providerName)
+            .Where(row => row.ProviderName == providerName && row.IsAccepted)
             .Select(row => new { row.ExternalCompanyId, row.PeriodStart, row.ReportType, row.OutputType })
             .ToListAsync(cancellationToken);
 

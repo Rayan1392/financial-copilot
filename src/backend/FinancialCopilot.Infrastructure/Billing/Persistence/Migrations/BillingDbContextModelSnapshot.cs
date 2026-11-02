@@ -782,6 +782,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         new
                         {
                             PlanCode = "Free",
+                            CapabilityCode = "Page.Disclosures",
+                            PolicyVersion = "v1",
+                            IsEnabled = false
+                        },
+                        new
+                        {
+                            PlanCode = "Free",
                             CapabilityCode = "Watchlist.Symbols",
                             PolicyVersion = "v1",
                             IsEnabled = true,
@@ -864,6 +871,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         new
                         {
                             PlanCode = "Pro",
+                            CapabilityCode = "Page.Disclosures",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Pro",
                             CapabilityCode = "Watchlist.Symbols",
                             PolicyVersion = "v1",
                             IsEnabled = true,
@@ -917,6 +931,111 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         },
                         new
                         {
+                            PlanCode = "Max",
+                            CapabilityCode = "AiQuery.Scanner",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "AiQuery.StockAnalysis",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "AiQuery.FinancialComparison",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "AiQuery.CodalAnalysis",
+                            PolicyVersion = "v1",
+                            IsEnabled = true,
+                            Limit = 30m
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "AiQuery.PortfolioAnalysis",
+                            PolicyVersion = "v1",
+                            IsEnabled = true,
+                            Limit = 10m
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "Reports.Read",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "Page.Disclosures",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "Watchlist.Symbols",
+                            PolicyVersion = "v1",
+                            IsEnabled = true,
+                            Limit = 20m
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "Portfolio.Records",
+                            PolicyVersion = "v1",
+                            IsEnabled = true,
+                            Limit = 10m
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "Tracker.Rules",
+                            PolicyVersion = "v1",
+                            IsEnabled = true,
+                            Limit = 20m
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "Radar.Symbols",
+                            PolicyVersion = "v1",
+                            IsEnabled = true,
+                            Limit = 20m
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "MarketPulse.Read",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "AiQuery.PersonalDigest",
+                            PolicyVersion = "v1",
+                            IsEnabled = true,
+                            Limit = 30m
+                        },
+                        new
+                        {
+                            PlanCode = "Max",
+                            CapabilityCode = "Notifications.Telegram",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
                             PlanCode = "Plus",
                             CapabilityCode = "AiQuery.Scanner",
                             PolicyVersion = "v1",
@@ -963,6 +1082,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         {
                             PlanCode = "Plus",
                             CapabilityCode = "Reports.Read",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Plus",
+                            CapabilityCode = "Page.Disclosures",
                             PolicyVersion = "v1",
                             IsEnabled = true
                         },
@@ -1123,9 +1249,19 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("QuotaMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("Finite");
+
                     b.HasKey("Code");
 
-                    b.ToTable("billing_subscription_plans", (string)null);
+                    b.ToTable("billing_subscription_plans", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_billing_subscription_plans_quota_mode", "(\"QuotaMode\" = 'Finite' AND \"IncludedCredits\" >= 0) OR (\"QuotaMode\" = 'Unlimited' AND \"IncludedCredits\" = 0)");
+                        });
 
                     b.HasData(
                         new
@@ -1133,22 +1269,286 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                             Code = "Free",
                             IncludedCredits = 250m,
                             Name = "Free",
-                            PricingPolicyVersion = "v1"
+                            PricingPolicyVersion = "v1",
+                            QuotaMode = "Finite"
                         },
                         new
                         {
                             Code = "Pro",
                             IncludedCredits = 2600m,
                             Name = "Pro",
-                            PricingPolicyVersion = "v1"
+                            PricingPolicyVersion = "v1",
+                            QuotaMode = "Finite"
                         },
                         new
                         {
                             Code = "Plus",
                             IncludedCredits = 260m,
                             Name = "Plus",
-                            PricingPolicyVersion = "v1"
+                            PricingPolicyVersion = "v1",
+                            QuotaMode = "Finite"
+                        },
+                        new
+                        {
+                            Code = "Max",
+                            IncludedCredits = 0m,
+                            Name = "Max",
+                            PricingPolicyVersion = "v1",
+                            QuotaMode = "Unlimited"
                         });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TahlilAppTopUpPurchaseRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CreditsPurchased")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CustomerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EventId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid?>("ExternalPlanSubscriptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExternalUserId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid?>("GrantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("GrantLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("GrantedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PackageId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PackageVersion")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("PaidAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Partner")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("PaymentId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTimeOffset>("PlanExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PlanSlug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("PlanStartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PurchaseId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTimeOffset>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalPlanSubscriptionId");
+
+                    b.HasIndex("CustomerAccountId", "ReceivedAtUtc");
+
+                    b.HasIndex("Partner", "EventId")
+                        .IsUnique();
+
+                    b.HasIndex("Partner", "PaymentId")
+                        .IsUnique();
+
+                    b.HasIndex("Partner", "PurchaseId")
+                        .IsUnique();
+
+                    b.ToTable("billing_tahlilapp_topup_purchases", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpCreditSourceRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ExternalPlanSubscriptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("GrantLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("GrantedCredits")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("RemainingCredits")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalPlanSubscriptionId");
+
+                    b.HasIndex("PurchaseId")
+                        .IsUnique();
+
+                    b.HasIndex("CustomerAccountId", "Status", "ExpiresAtUtc");
+
+                    b.ToTable("billing_topup_credit_sources", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpOfferRow", b =>
+                {
+                    b.Property<string>("OfferId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("OfferId", "Version");
+
+                    b.HasIndex("Credits", "IsActive");
+
+                    b.ToTable("billing_topup_offers", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            OfferId = "TA-TOPUP-100",
+                            Version = "v1",
+                            Credits = 100,
+                            IsActive = true
+                        },
+                        new
+                        {
+                            OfferId = "TA-TOPUP-500",
+                            Version = "v1",
+                            Credits = 500,
+                            IsActive = true
+                        },
+                        new
+                        {
+                            OfferId = "TA-TOPUP-1000",
+                            Version = "v1",
+                            Credits = 1000,
+                            IsActive = true
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpUsageCreditAllocationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CreditsApplied")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("GrantLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TopUpCreditSourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UsageLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GrantLedgerEntryId");
+
+                    b.HasIndex("TopUpCreditSourceId");
+
+                    b.HasIndex("UsageLedgerEntryId", "TopUpCreditSourceId")
+                        .IsUnique();
+
+                    b.ToTable("billing_topup_usage_credit_allocations", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpUsageCreditHoldRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CreditsHeld")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("TopUpCreditSourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UsageReservationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopUpCreditSourceId");
+
+                    b.HasIndex("UsageReservationId", "TopUpCreditSourceId")
+                        .IsUnique();
+
+                    b.ToTable("billing_topup_usage_credit_holds", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageCreditAllocationRow", b =>
@@ -1288,7 +1688,20 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<string>("QuotaMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("Finite");
+
                     b.Property<Guid?>("RelatedEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SourceSubscriptionExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SourceSubscriptionId")
                         .HasColumnType("uuid");
 
                     b.Property<decimal?>("SubscriptionCreditsApplied")
@@ -1308,9 +1721,14 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
 
                     b.HasIndex("RelatedEntryId");
 
+                    b.HasIndex("SourceSubscriptionId");
+
                     b.HasIndex("CustomerAccountId", "OccurredAt");
 
-                    b.ToTable("billing_usage_ledger_entries", (string)null);
+                    b.ToTable("billing_usage_ledger_entries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_billing_usage_ledger_entries_quota_mode", "\"QuotaMode\" = 'Finite' OR (\"QuotaMode\" = 'Unlimited' AND \"CreditsCharged\" = 0 AND \"SourceSubscriptionId\" IS NOT NULL AND \"SourceSubscriptionExpiresAtUtc\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageReservationRow", b =>
@@ -1346,6 +1764,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<string>("QuotaMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("Finite");
+
                     b.Property<string>("RequestFingerprint")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -1353,6 +1778,12 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.Property<decimal>("ReservedCredits")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTimeOffset?>("SourceSubscriptionExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SourceSubscriptionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Status")
                         .IsConcurrencyToken()
@@ -1365,7 +1796,12 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
 
-                    b.ToTable("billing_usage_reservations", (string)null);
+                    b.HasIndex("SourceSubscriptionId");
+
+                    b.ToTable("billing_usage_reservations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_billing_usage_reservations_quota_mode", "(\"QuotaMode\" = 'Finite' AND \"ReservedCredits\" > 0 AND \"SourceSubscriptionId\" IS NULL) OR (\"QuotaMode\" = 'Unlimited' AND \"ReservedCredits\" = 0 AND \"SourceSubscriptionId\" IS NOT NULL AND \"SourceSubscriptionExpiresAtUtc\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.WalletProjectionRow", b =>
@@ -1495,6 +1931,65 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TahlilAppTopUpPurchaseRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.ExternalPlanSubscriptionRow", null)
+                        .WithMany()
+                        .HasForeignKey("ExternalPlanSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpCreditSourceRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.ExternalPlanSubscriptionRow", null)
+                        .WithMany()
+                        .HasForeignKey("ExternalPlanSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpUsageCreditAllocationRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpCreditSourceRow", null)
+                        .WithMany()
+                        .HasForeignKey("TopUpCreditSourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.UsageLedgerEntryRow", null)
+                        .WithMany()
+                        .HasForeignKey("UsageLedgerEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpUsageCreditHoldRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.TopUpCreditSourceRow", null)
+                        .WithMany()
+                        .HasForeignKey("TopUpCreditSourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.UsageReservationRow", null)
+                        .WithMany()
+                        .HasForeignKey("UsageReservationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageCreditAllocationRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionCreditPeriodRow", null)
@@ -1523,6 +2018,22 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasForeignKey("UsageReservationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageLedgerEntryRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.ExternalPlanSubscriptionRow", null)
+                        .WithMany()
+                        .HasForeignKey("SourceSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageReservationRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.ExternalPlanSubscriptionRow", null)
+                        .WithMany()
+                        .HasForeignKey("SourceSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }

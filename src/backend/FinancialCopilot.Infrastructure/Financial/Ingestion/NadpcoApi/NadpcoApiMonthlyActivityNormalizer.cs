@@ -63,11 +63,12 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                        row.RevisionFingerprint == revisionFingerprint,
                 cancellationToken);
 
-            // The same accepted revision may be replayed by a scheduled sync.  A replay is a
-            // no-op, including its line items: this keeps row ids/provenance stable and prevents
-            // multiplicity from growing on each fetch.
+            // Replayed revisions keep their row ids and line items. A prior Pending revision is
+            // re-evaluated against the current accepted pointer in case stronger ordering evidence
+            // is now available; accepted or rejected revisions remain otherwise idempotent.
             if (existingCandidate is not null)
             {
+                await ReconcilePendingRevisionAsync(existingCandidate, cancellationToken);
                 continue;
             }
 
@@ -110,9 +111,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 }
                 else if (comparison == 0)
                 {
-                    // Equal or missing provider evidence is not enough to infer a correction.
-                    // Keep the current pointer and retain the candidate for review; receipt time
-                    // and checksum ordering must never turn an unknown revision into last-write-wins.
+                    // Equal provider timestamps (or equal receipt timestamps when both provider
+                    // timestamps are absent) do not establish an ordering. Keep the current
+                    // pointer and retain the candidate for review; checksum ordering is not evidence.
                     report.IsAccepted = false;
                     report.RevisionStatus = "Pending";
                 }
@@ -280,7 +281,48 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             return incomingPublished.CompareTo(currentPublished);
         if (incoming.ProviderPublishedAtUtc is not null && current.ProviderPublishedAtUtc is null) return 1;
         if (incoming.ProviderPublishedAtUtc is null && current.ProviderPublishedAtUtc is not null) return -1;
-        return 0;
+        return incoming.LastSynchronizedAt.CompareTo(current.LastSynchronizedAt);
+    }
+
+    private async Task ReconcilePendingRevisionAsync(
+        NormalizedMonthlyReportRow candidate,
+        CancellationToken cancellationToken)
+    {
+        if (candidate.IsAccepted || candidate.RevisionStatus != "Pending")
+            return;
+
+        var current = await dbContext.MonthlyReports
+            .Where(row => row.LogicalReportKey == candidate.LogicalReportKey && row.IsAccepted)
+            .OrderBy(row => row.ExternalReportId)
+            .ThenBy(row => row.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (current is null)
+        {
+            candidate.IsAccepted = true;
+            candidate.RevisionStatus = "Accepted";
+        }
+        else
+        {
+            var comparison = CompareRevisionEvidence(candidate, current);
+            if (comparison > 0)
+            {
+                current.IsAccepted = false;
+                current.RevisionStatus = "Superseded";
+                candidate.IsAccepted = true;
+                candidate.RevisionStatus = "Accepted";
+            }
+            else if (comparison < 0)
+            {
+                candidate.RevisionStatus = "RejectedOlder";
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static string BuildSourceRowFingerprint(NadpcoApiMonthlyActivityItem item) =>

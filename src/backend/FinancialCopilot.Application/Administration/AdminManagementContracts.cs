@@ -22,7 +22,8 @@ public sealed record AdminPlanView(
     string Code,
     string Name,
     decimal IncludedCredits,
-    string PricingPolicyVersion);
+    string PricingPolicyVersion,
+    string QuotaMode = "Finite");
 
 public sealed record AdminPlanCapabilityView(
     string CapabilityCode,
@@ -38,7 +39,9 @@ public sealed record AdminSubscriptionView(
     string? PlanCode,
     DateTimeOffset? EffectiveFrom,
     DateTimeOffset? EffectiveTo,
-    long Revision);
+    long Revision,
+    string CreditQuotaMode = "Finite",
+    DateTimeOffset? SubscriptionExpiresAtUtc = null);
 
 public sealed record AdminUsageLedgerView(
     Guid Id,
@@ -53,7 +56,10 @@ public sealed record AdminUsageLedgerView(
     string IdempotencyKey,
     DateTimeOffset OccurredAt,
     string? CompletionStatus,
-    string? AuditDescription);
+    string? AuditDescription,
+    string CreditQuotaMode = "Finite",
+    Guid? SourceSubscriptionId = null,
+    DateTimeOffset? SubscriptionExpiresAtUtc = null);
 
 public sealed record AdminSecurityAuditView(
     Guid AuditId,

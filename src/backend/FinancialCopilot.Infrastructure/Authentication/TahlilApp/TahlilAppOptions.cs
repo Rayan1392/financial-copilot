@@ -45,7 +45,8 @@ public sealed class TahlilAppOptions
     public Dictionary<string, string> PlanMap { get; set; } = new(StringComparer.Ordinal)
     {
         ["sapio_plus"] = "Plus",
-        ["sapio_pro"] = "Pro"
+        ["sapio_pro"] = "Pro",
+        ["sapio_max"] = "Max"
     };
 
     /// <summary>Key ring location for Data Protection (Design §17.1). Required when the feature is enabled.</summary>
@@ -83,7 +84,7 @@ public sealed class TahlilAppRevalidationOptions
 
 public sealed class TahlilAppOptionsValidator : IValidateOptions<TahlilAppOptions>
 {
-    private static readonly HashSet<string> CanonicalPlans = new(StringComparer.Ordinal) { "Free", "Plus", "Pro" };
+    private static readonly HashSet<string> CanonicalPlans = new(StringComparer.Ordinal) { "Free", "Plus", "Pro", "Max" };
     private static readonly Regex EnvironmentVariableName = new("^[A-Z_][A-Z0-9_]{0,127}$", RegexOptions.CultureInvariant);
 
     public ValidateOptionsResult Validate(string? name, TahlilAppOptions options)
@@ -140,7 +141,7 @@ public sealed class TahlilAppOptionsValidator : IValidateOptions<TahlilAppOption
 
             if (!CanonicalPlans.Contains(sapinoPlan))
             {
-                failures.Add($"PlanMap target '{sapinoPlan}' is not a canonical Billing plan (Free, Plus, Pro).");
+                failures.Add($"PlanMap target '{sapinoPlan}' is not a canonical Billing plan (Free, Plus, Pro, Max).");
             }
         }
 

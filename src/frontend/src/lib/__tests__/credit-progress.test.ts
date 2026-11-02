@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeCreditProgress, toneForPercentage } from "../credit-progress";
+import { computeCreditProgress, creditQuotaLabel, toneForPercentage } from "../credit-progress";
 
 describe("computeCreditProgress", () => {
+  it("labels Unlimited quota without rendering a numeric sentinel", () => {
+    expect(creditQuotaLabel("Unlimited", "0 از 0")).toBe("نامحدود");
+    expect(creditQuotaLabel("Finite", "12 از 260")).toBe("12 از 260");
+  });
   it.each([
     [18, 25, 72],
     [18, 300, 6],

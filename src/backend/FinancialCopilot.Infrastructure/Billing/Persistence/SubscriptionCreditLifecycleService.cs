@@ -145,6 +145,12 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         DateTimeOffset? effectiveFrom,
         bool authoritativeWindow)
     {
+        if (newPlanCode == "Max")
+        {
+            // Unlimited is an entitlement window only. It never creates a numeric allowance source.
+            return null;
+        }
+
         if (newPlanCode is "Plus" or "Pro" && !authoritativeWindow)
         {
             var current = await FindLatestPeriodAsync(account.Id, cancellationToken);
@@ -361,6 +367,34 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             {
                 ClosePeriod(account, wallet, period, now, ForfeitedStatus, ForfeitureOperationCode);
             }
+            var revokedIds = newlyRevoked.Select(row => row.Id).ToArray();
+            var topUps = await dbContext.TopUpCreditSources.Where(row => row.CustomerAccountId == account.Id &&
+                revokedIds.Contains(row.ExternalPlanSubscriptionId) && row.Status == ActiveStatus).ToListAsync(cancellationToken);
+            foreach (var source in topUps)
+            {
+                var holds = await dbContext.TopUpUsageCreditHolds.Where(row => row.TopUpCreditSourceId == source.Id).ToListAsync(cancellationToken);
+                dbContext.TopUpUsageCreditHolds.RemoveRange(holds);
+                var forfeited = source.RemainingCredits;
+                if (forfeited > 0)
+                {
+                    wallet.Balance = Math.Max(0m, wallet.Balance - forfeited);
+                    wallet.UpdatedAt = now;
+                    wallet.Revision++;
+                    dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+                    {
+                        Id = Guid.NewGuid(), CustomerAccountId = account.Id, ActorId = Guid.Empty, TenantId = account.TenantId,
+                        EntryType = nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Adjustment),
+                        OperationCode = "Billing.TahlilAppTopUpForfeiture", CreditsCharged = -forfeited,
+                        PricingPolicyVersion = "tahlilapp-topup-v1", IdempotencyKey = $"tahlilapp-topup-forfeiture:{source.Id:N}",
+                        OccurredAt = now, RelatedEntryId = source.GrantLedgerEntryId,
+                        AuditDescription = "Unused TahlilApp top-up credits forfeited after authoritative subscription revocation.",
+                        AllocationSource = "tahlilapp-topup"
+                    });
+                }
+                source.RemainingCredits = 0;
+                source.Status = ForfeitedStatus;
+                source.Revision++;
+            }
         }
 
         await EnsureExternalPlanPeriodsAsync(account, wallet, now, cancellationToken);
@@ -404,7 +438,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         var hasPaid = await dbContext.ExternalPlanSubscriptions.AnyAsync(
             row => row.CustomerAccountId == customerAccountId && !row.IsRevoked &&
                    row.StartsAtUtc <= now && row.ExpiresAtUtc > now &&
-                   (row.PlanCode == "Plus" || row.PlanCode == "Pro"), cancellationToken);
+                   (row.PlanCode == "Plus" || row.PlanCode == "Pro" || row.PlanCode == "Max"), cancellationToken);
         if (hasPaid) return null;
         var cooldown = dbContext.PaidExpiryCooldowns.Local.SingleOrDefault(
             row => row.CustomerAccountId == customerAccountId) ??
@@ -435,12 +469,14 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             .ThenBy(row => row.PlanCode == "Plus" ? 0 : 1)
             .ThenBy(row => row.StartsAtUtc)
             .ToArray();
-        var activePaid = active.Where(row => row.PlanCode is "Plus" or "Pro").ToArray();
-
-        account.SubscriptionPlanCode = activePaid.Any(row => row.PlanCode == "Pro") ? "Pro" :
-            activePaid.Length > 0 ? "Plus" : "Free";
-        account.SubscriptionEffectiveFrom = activePaid.Length == 1 ? activePaid[0].StartsAtUtc : null;
-        account.SubscriptionEffectiveTo = activePaid.Length == 0 ? null : activePaid.Max(row => row.ExpiresAtUtc);
+        var activePaid = active.Where(row => row.PlanCode is "Plus" or "Pro" or "Max").ToArray();
+        var effective = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.ResolveActivePlanSet(
+            activePaid.Select(row => new FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppPlanSubscription(
+                row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc, row.IdentityKey)).ToArray(),
+            now);
+        account.SubscriptionPlanCode = effective.PlanCode;
+        account.SubscriptionEffectiveFrom = effective.EffectiveFrom;
+        account.SubscriptionEffectiveTo = effective.EffectiveTo;
         account.SubscriptionActivationIsAuthoritative = true;
 
         var changed = false;
@@ -469,6 +505,12 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
 
             foreach (var subscription in activePaid)
             {
+                if (subscription.PlanCode == "Max")
+                {
+                    // Max has no numeric source or wallet grant.
+                    continue;
+                }
+
                 var periodExists = await dbContext.SubscriptionCreditPeriods.AnyAsync(row =>
                     row.CustomerAccountId == account.Id && row.SubscriptionIdentity == subscription.IdentityKey &&
                     row.PeriodNumber == 0, cancellationToken);
@@ -481,31 +523,9 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                 }
 
                 var plan = await FindPlanAsync(subscription.PlanCode, cancellationToken);
-                SubscriptionCreditPeriodRow? source = null;
-                if (subscription.PlanCode == "Pro" && !subscription.PlusTransferApplied)
-                {
-                    var plusPeriods = await dbContext.SubscriptionCreditPeriods
-                        .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Plus" &&
-                                      row.Status == ActiveStatus && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
-                        .ToListAsync(cancellationToken);
-                    plusPeriods.AddRange(dbContext.SubscriptionCreditPeriods.Local.Where(row =>
-                        row.CustomerAccountId == account.Id && row.PlanCode == "Plus" &&
-                        row.Status == ActiveStatus && row.StartsAtUtc <= now && row.ExpiresAtUtc > now &&
-                        plusPeriods.All(existing => existing.Id != row.Id)));
-                    source = plusPeriods.OrderBy(row => row.ExpiresAtUtc).FirstOrDefault();
-                }
-                var transferred = source?.RemainingCredits ?? 0m;
-                if (transferred > 0 && wallet.ReservedAmount > 0)
-                {
-                    continue;
-                }
                 await AddPeriodAsync(account, wallet, plan, subscription.StartsAtUtc, 0, 0, now,
-                    cancellationToken, transferred, transferred > 0 ? source : null,
-                    subscription.IdentityKey, subscription.ExpiresAtUtc);
-                if (subscription.PlanCode == "Pro" && !subscription.PlusTransferApplied)
-                {
-                    subscription.PlusTransferApplied = true;
-                }
+                    cancellationToken, subscriptionIdentity: subscription.IdentityKey,
+                    expiresAtUtc: subscription.ExpiresAtUtc);
                 changed = true;
             }
 
@@ -513,7 +533,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         }
 
         var lastPaidExpiry = subscriptions
-            .Where(row => row.PlanCode is "Plus" or "Pro")
+            .Where(row => row.PlanCode is "Plus" or "Pro" or "Max")
             .Select(row => (DateTimeOffset?)(row.RevokedAtUtc ?? row.ExpiresAtUtc))
             .Max();
         PaidExpiryCooldownRow? cooldown = null;
@@ -522,7 +542,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             cooldown = await dbContext.PaidExpiryCooldowns.SingleOrDefaultAsync(
                 row => row.CustomerAccountId == account.Id, cancellationToken);
             var observedRevocation = subscriptions
-                .Where(row => row.PlanCode is "Plus" or "Pro" && row.IsRevoked)
+                .Where(row => row.PlanCode is "Plus" or "Pro" or "Max" && row.IsRevoked)
                 .Select(row => (DateTimeOffset?)row.RevokedAtUtc)
                 .Max();
             var cooldownEnd = expiry.AddDays(30);
@@ -717,11 +737,19 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         var expired = await dbContext.SubscriptionCreditPeriods
             .Where(row => row.CustomerAccountId == accountId && row.Status == ActiveStatus && row.ExpiresAtUtc <= now)
             .ToListAsync(cancellationToken);
-        if (expired.Count == 0) return 0m;
+        var expiredTopUps = await dbContext.TopUpCreditSources
+            .Where(row => row.CustomerAccountId == accountId && row.Status == ActiveStatus && row.ExpiresAtUtc <= now)
+            .ToListAsync(cancellationToken);
+        var topUpIds = expiredTopUps.Select(row => row.Id).ToArray();
+        var topUpHolds = topUpIds.Length == 0 ? [] : await dbContext.TopUpUsageCreditHolds
+            .Where(row => topUpIds.Contains(row.TopUpCreditSourceId)).ToListAsync(cancellationToken);
+        var expiredTopUpUnheld = expiredTopUps.Sum(row => Math.Max(0m, row.RemainingCredits -
+            topUpHolds.Where(hold => hold.TopUpCreditSourceId == row.Id).Sum(hold => hold.CreditsHeld)));
+        if (expired.Count == 0) return expiredTopUpUnheld;
         var ids = expired.Select(row => row.Id).ToArray();
         var holds = await dbContext.UsageCreditHolds.Where(row => ids.Contains(row.SubscriptionCreditPeriodId))
             .ToListAsync(cancellationToken);
-        return expired.Sum(row => Math.Max(0m, row.RemainingCredits -
+        return expiredTopUpUnheld + expired.Sum(row => Math.Max(0m, row.RemainingCredits -
             holds.Where(hold => hold.SubscriptionCreditPeriodId == row.Id).Sum(hold => hold.CreditsHeld)));
     }
 
@@ -753,13 +781,169 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             else prior.CreditsHeld += held;
             left -= held;
         }
+        var topUps = await dbContext.TopUpCreditSources.Where(row => row.CustomerAccountId == accountId &&
+            row.Status == ActiveStatus && row.CreatedAtUtc <= now && row.ExpiresAtUtc > now)
+            .OrderBy(row => row.ExpiresAtUtc).ThenBy(row => row.CreatedAtUtc).ThenBy(row => row.Id).ToListAsync(cancellationToken);
+        var topUpIds = topUps.Select(row => row.Id).ToArray();
+        var topUpExisting = topUpIds.Length == 0 ? [] : await dbContext.TopUpUsageCreditHolds
+            .Where(row => topUpIds.Contains(row.TopUpCreditSourceId)).ToListAsync(cancellationToken);
+        foreach (var source in topUps)
+        {
+            if (left <= 0) break;
+            var heldAlready = topUpExisting.Where(row => row.TopUpCreditSourceId == source.Id).Sum(row => row.CreditsHeld) +
+                dbContext.TopUpUsageCreditHolds.Local.Where(row => row.TopUpCreditSourceId == source.Id &&
+                    dbContext.Entry(row).State == EntityState.Added).Sum(row => row.CreditsHeld);
+            var held = Math.Min(left, Math.Max(0m, source.RemainingCredits - heldAlready));
+            if (held <= 0) continue;
+            var prior = topUpExisting.FirstOrDefault(row => row.UsageReservationId == reservationId && row.TopUpCreditSourceId == source.Id) ??
+                dbContext.TopUpUsageCreditHolds.Local.FirstOrDefault(row => row.UsageReservationId == reservationId && row.TopUpCreditSourceId == source.Id);
+            if (prior is null) dbContext.TopUpUsageCreditHolds.Add(new TopUpUsageCreditHoldRow
+                { Id = Guid.NewGuid(), UsageReservationId = reservationId, TopUpCreditSourceId = source.Id, CreditsHeld = held });
+            else prior.CreditsHeld += held;
+            left -= held;
+        }
     }
 
-    public async Task ReleaseHoldsAsync(Guid reservationId, CancellationToken cancellationToken)
+    public async Task<decimal> ReleaseHoldsAsync(Guid reservationId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var holds = await dbContext.UsageCreditHolds.Where(row => row.UsageReservationId == reservationId)
             .ToListAsync(cancellationToken);
         dbContext.UsageCreditHolds.RemoveRange(holds);
+        var topUpHolds = await dbContext.TopUpUsageCreditHolds.Where(row => row.UsageReservationId == reservationId)
+            .ToListAsync(cancellationToken);
+        decimal expiredCredits = 0m;
+        foreach (var hold in topUpHolds)
+        {
+            var source = await dbContext.TopUpCreditSources.SingleAsync(row => row.Id == hold.TopUpCreditSourceId, cancellationToken);
+            if (source.Status == ExpiredStatus || source.ExpiresAtUtc <= now)
+            {
+                var heldByOtherReservations = await dbContext.TopUpUsageCreditHolds
+                    .Where(row => row.TopUpCreditSourceId == source.Id && row.UsageReservationId != reservationId)
+                    .SumAsync(row => (decimal?)row.CreditsHeld, cancellationToken) ?? 0m;
+                var expiredRemainder = Math.Max(0m, source.RemainingCredits - heldByOtherReservations);
+                source.RemainingCredits = heldByOtherReservations;
+                source.Status = ExpiredStatus;
+                source.Revision++;
+                expiredCredits += expiredRemainder;
+                if (expiredRemainder > 0)
+                {
+                    var account = await dbContext.CustomerAccounts.SingleAsync(row => row.Id == source.CustomerAccountId, cancellationToken);
+                    dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+                    {
+                        Id = Guid.NewGuid(), CustomerAccountId = source.CustomerAccountId, ActorId = Guid.Empty,
+                        TenantId = account.TenantId, EntryType = nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Adjustment),
+                        OperationCode = "Billing.TahlilAppTopUpExpiredHoldRelease", CreditsCharged = -expiredRemainder,
+                        PricingPolicyVersion = "tahlilapp-topup-v1",
+                        IdempotencyKey = $"tahlilapp-topup-expired-hold:{hold.Id:N}", OccurredAt = now,
+                        RelatedEntryId = source.GrantLedgerEntryId,
+                        AuditDescription = "Unused top-up credits, including the released hold, expired with the original subscription window.",
+                        AllocationSource = "tahlilapp-topup"
+                    });
+                }
+            }
+        }
+        dbContext.TopUpUsageCreditHolds.RemoveRange(topUpHolds);
+        return expiredCredits;
+    }
+
+    public async Task<TopUpUsageChargeResult> ApplyTopUpUsageChargeAsync(
+        Guid customerAccountId, DateTimeOffset reservationCreatedAt, decimal chargedCredits, DateTimeOffset now,
+        Guid? reservationId, CancellationToken cancellationToken)
+    {
+        if (chargedCredits <= 0) return new TopUpUsageChargeResult(Array.Empty<TopUpCreditApplication>(), 0m);
+        var sources = new List<TopUpCreditSourceRow>();
+        var held = reservationId is { } id
+            ? await dbContext.TopUpUsageCreditHolds.Where(row => row.UsageReservationId == id).ToListAsync(cancellationToken)
+            : [];
+        if (held.Count > 0)
+        {
+            var ids = held.Select(row => row.TopUpCreditSourceId).ToArray();
+            sources = await dbContext.TopUpCreditSources.Where(row => ids.Contains(row.Id)).ToListAsync(cancellationToken);
+        }
+        else
+        {
+            sources = await dbContext.TopUpCreditSources.Where(row => row.CustomerAccountId == customerAccountId &&
+                row.Status == ActiveStatus && row.CreatedAtUtc <= reservationCreatedAt && row.RemainingCredits > 0)
+                .OrderBy(row => row.ExpiresAtUtc).ThenBy(row => row.CreatedAtUtc).ThenBy(row => row.Id).ToListAsync(cancellationToken);
+        }
+        var amountLeft = chargedCredits;
+        var applications = new List<TopUpCreditApplication>();
+        var expiredRemainder = 0m;
+        foreach (var source in sources.OrderBy(row => row.ExpiresAtUtc).ThenBy(row => row.CreatedAtUtc).ThenBy(row => row.Id))
+        {
+            if (amountLeft <= 0) break;
+            var available = held.Count > 0 ? held.Single(row => row.TopUpCreditSourceId == source.Id).CreditsHeld : source.RemainingCredits;
+            var applied = Math.Min(available, amountLeft);
+            if (applied <= 0) continue;
+            source.RemainingCredits -= applied;
+            source.Revision++;
+            applications.Add(new(source.Id, source.GrantLedgerEntryId, applied));
+            amountLeft -= applied;
+            if (source.Status == ExpiredStatus || source.ExpiresAtUtc <= now)
+            {
+                var heldByOtherReservationsQuery = dbContext.TopUpUsageCreditHolds
+                    .Where(row => row.TopUpCreditSourceId == source.Id);
+                if (reservationId is { } currentReservationId)
+                    heldByOtherReservationsQuery = heldByOtherReservationsQuery
+                        .Where(row => row.UsageReservationId != currentReservationId);
+                var heldByOtherReservations = await heldByOtherReservationsQuery
+                    .SumAsync(row => (decimal?)row.CreditsHeld, cancellationToken) ?? 0m;
+                var forfeited = Math.Max(0m, source.RemainingCredits - heldByOtherReservations);
+                if (forfeited > 0)
+                {
+                    source.RemainingCredits = heldByOtherReservations;
+                    expiredRemainder += forfeited;
+                    var account = await dbContext.CustomerAccounts.SingleAsync(row => row.Id == source.CustomerAccountId, cancellationToken);
+                    dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+                    {
+                        Id = Guid.NewGuid(), CustomerAccountId = source.CustomerAccountId, ActorId = Guid.Empty,
+                        TenantId = account.TenantId, EntryType = nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Adjustment),
+                        OperationCode = "Billing.TahlilAppTopUpExpiredHoldRemainder", CreditsCharged = -forfeited,
+                        PricingPolicyVersion = "tahlilapp-topup-v1", IdempotencyKey = $"tahlilapp-topup-held-remainder:{reservationId}:{source.Id:N}",
+                        OccurredAt = now, RelatedEntryId = source.GrantLedgerEntryId,
+                        AuditDescription = "Unconsumed reservation hold expired with the original top-up window.",
+                        AllocationSource = "tahlilapp-topup"
+                    });
+                }
+                source.Status = ExpiredStatus;
+            }
+        }
+        if (held.Count > 0) dbContext.TopUpUsageCreditHolds.RemoveRange(held);
+        return new TopUpUsageChargeResult(applications, expiredRemainder);
+    }
+
+    public async Task<SubscriptionCreditRefundResult> ApplyTopUpRefundAsync(
+        UsageLedgerEntryRow originalCharge, decimal refundCredits, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var allocations = await dbContext.TopUpUsageCreditAllocations.Where(row => row.UsageLedgerEntryId == originalCharge.Id).ToListAsync(cancellationToken);
+        if (allocations.Count == 0 || refundCredits <= 0)
+            return new SubscriptionCreditRefundResult([], []);
+        var refunded = await (from allocation in dbContext.TopUpUsageCreditAllocations
+            join refund in dbContext.UsageLedgerEntries on allocation.UsageLedgerEntryId equals refund.Id
+            where refund.RelatedEntryId == originalCharge.Id && refund.EntryType == nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Refund)
+            select allocation).ToListAsync(cancellationToken);
+        var restored = new List<SubscriptionCreditApplication>();
+        var expired = new List<SubscriptionCreditApplication>();
+        var left = refundCredits;
+        foreach (var allocation in allocations)
+        {
+            if (left <= 0) break;
+            var prior = refunded.Where(row => row.TopUpCreditSourceId == allocation.TopUpCreditSourceId).Sum(row => row.CreditsApplied);
+            var available = Math.Max(0m, allocation.CreditsApplied - prior);
+            var source = await dbContext.TopUpCreditSources.SingleAsync(row => row.Id == allocation.TopUpCreditSourceId, cancellationToken);
+            var amount = Math.Min(Math.Min(available, left), source.GrantedCredits - source.RemainingCredits);
+            if (amount <= 0) continue;
+            left -= amount;
+            var item = new SubscriptionCreditApplication(source.Id, source.GrantLedgerEntryId, amount);
+            if (source.Status == ActiveStatus && now < source.ExpiresAtUtc)
+            {
+                source.RemainingCredits += amount;
+                source.Revision++;
+                restored.Add(item);
+            }
+            else expired.Add(item);
+        }
+        return new SubscriptionCreditRefundResult(restored, expired);
     }
 
     public async Task<SubscriptionCreditRefundResult> ApplyRefundAsync(
@@ -872,6 +1056,61 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             processed++;
         }
 
+        return processed;
+    }
+
+    public async Task<int> ProcessDueTopUpsAsync(int maximumCount, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (maximumCount <= 0) return 0;
+        var sourceIds = await dbContext.TopUpCreditSources.AsNoTracking()
+            .Where(row => row.Status == ActiveStatus && row.ExpiresAtUtc <= now)
+            .OrderBy(row => row.ExpiresAtUtc).ThenBy(row => row.Id)
+            .Select(row => row.Id).Take(maximumCount).ToListAsync(cancellationToken);
+        var processed = 0;
+        foreach (var sourceId in sourceIds)
+        {
+            const int maximumConcurrencyAttempts = 3;
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    var source = await dbContext.TopUpCreditSources.SingleOrDefaultAsync(row => row.Id == sourceId, cancellationToken);
+                    if (source is null || source.Status != ActiveStatus || source.ExpiresAtUtc > now) break;
+                    var holds = await dbContext.TopUpUsageCreditHolds.Where(row => row.TopUpCreditSourceId == source.Id).ToListAsync(cancellationToken);
+                    var held = holds.Sum(row => row.CreditsHeld);
+                    var expired = Math.Max(0m, source.RemainingCredits - held);
+                    var wallet = await dbContext.WalletProjections.SingleAsync(row => row.CustomerAccountId == source.CustomerAccountId, cancellationToken);
+                    var account = await dbContext.CustomerAccounts.SingleAsync(row => row.Id == source.CustomerAccountId, cancellationToken);
+                    if (expired > 0)
+                    {
+                        wallet.Balance -= expired; wallet.UpdatedAt = now; wallet.Revision++;
+                        dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+                        {
+                            Id = Guid.NewGuid(), CustomerAccountId = source.CustomerAccountId, ActorId = Guid.Empty,
+                            TenantId = account.TenantId, EntryType = nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Adjustment),
+                            OperationCode = "Billing.TahlilAppTopUpExpiry", CreditsCharged = -expired,
+                            PricingPolicyVersion = "tahlilapp-topup-v1", IdempotencyKey = $"tahlilapp-topup-expiry:{source.Id:N}",
+                            OccurredAt = now, RelatedEntryId = source.GrantLedgerEntryId,
+                            AuditDescription = "Unused TahlilApp top-up credits expired with the original subscription window.",
+                            AllocationSource = "tahlilapp-topup"
+                        });
+                    }
+                    source.RemainingCredits = held;
+                    source.Status = ExpiredStatus;
+                    source.Revision++;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    processed++;
+                    break;
+                }
+                catch (DbUpdateConcurrencyException) when (attempt < maximumConcurrencyAttempts)
+                {
+                    // A concurrent settlement may consume part of the persisted hold while
+                    // expiry is being applied. SaveChanges rolled back; reload the source,
+                    // holds and wallet before calculating the unused remainder again.
+                    dbContext.ChangeTracker.Clear();
+                }
+            }
+        }
         return processed;
     }
 
@@ -1147,6 +1386,9 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         }
     }
 }
+
+public sealed record TopUpCreditApplication(Guid SourceId, Guid GrantLedgerEntryId, decimal CreditsApplied);
+public sealed record TopUpUsageChargeResult(IReadOnlyList<TopUpCreditApplication> Applications, decimal ExpiredRemainderCredits);
 
 public sealed record SubscriptionCreditApplication(
     Guid PeriodId,

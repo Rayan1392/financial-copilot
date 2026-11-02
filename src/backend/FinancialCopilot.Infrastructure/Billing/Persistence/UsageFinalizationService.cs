@@ -15,6 +15,27 @@ public sealed class UsageFinalizationService(
         UsageCommitCommand command,
         CancellationToken cancellationToken)
     {
+        const int maximumConcurrencyAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await CommitOnceAsync(command, cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < maximumConcurrencyAttempts)
+            {
+                // Expiry, source-aware settlement and concurrent source grants can all change
+                // the same wallet/source revisions. SaveChanges rolls back its transaction;
+                // reload the complete production operation and re-evaluate its persisted holds.
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<UsageFinalizationResult> CommitOnceAsync(
+        UsageCommitCommand command,
+        CancellationToken cancellationToken)
+    {
         Validate(command);
 
         var reservationRow = await GetReservationAsync(
@@ -72,7 +93,18 @@ public sealed class UsageFinalizationService(
         var reservation = MapReservation(reservationRow);
         var wallet = MapWallet(walletRow);
         var now = timeProvider.GetUtcNow();
-        var subscriptionCreditApplications = await creditLifecycle.ApplyUsageChargeAsync(
+        var isUnlimited = reservation.QuotaMode == CreditQuotaMode.Unlimited;
+        if (isUnlimited)
+        {
+            var sourceRevoked = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
+                .AnyAsync(row => row.Id == reservation.SourceSubscriptionId && row.IsRevoked, cancellationToken);
+            if (sourceRevoked)
+                throw new InvalidOperationException("A revoked Unlimited subscription cannot finalize pending usage.");
+        }
+        var creditsCharged = isUnlimited ? 0m : command.ActualCharge.CreditsCharged;
+        IReadOnlyList<SubscriptionCreditApplication> subscriptionCreditApplications = isUnlimited
+            ? Array.Empty<SubscriptionCreditApplication>()
+            : await creditLifecycle.ApplyUsageChargeAsync(
             command.CustomerAccountId,
             reservation.CreatedAt,
             command.ActualCharge.CreditsCharged,
@@ -80,11 +112,22 @@ public sealed class UsageFinalizationService(
             command.AllowanceDateKey,
             cancellationToken,
             reservationRow.Id);
-        reservation.Commit(command.ActualCharge.CreditsCharged);
-        var updatedWallet = wallet.Commit(
-            reservation.ReservedCredits,
-            command.ActualCharge.CreditsCharged,
-            now);
+        var topUpCharge = isUnlimited
+            ? new TopUpUsageChargeResult(Array.Empty<TopUpCreditApplication>(), 0m)
+            : await creditLifecycle.ApplyTopUpUsageChargeAsync(
+            command.CustomerAccountId,
+            reservation.CreatedAt,
+            Math.Max(0m, command.ActualCharge.CreditsCharged - subscriptionCreditApplications.Sum(item => item.CreditsApplied)),
+            now,
+            reservationRow.Id,
+            cancellationToken);
+        var topUpCreditApplications = topUpCharge.Applications;
+        reservation.Commit(creditsCharged);
+        var updatedWallet = isUnlimited
+            ? wallet
+            : wallet.Commit(reservation.ReservedCredits, creditsCharged, now);
+        if (topUpCharge.ExpiredRemainderCredits > 0)
+            updatedWallet = updatedWallet with { Balance = Math.Max(0m, updatedWallet.Balance - topUpCharge.ExpiredRemainderCredits), UpdatedAt = now, Revision = updatedWallet.Revision + 1 };
         var entry = new UsageLedgerEntry(
             Guid.NewGuid(),
             command.CustomerAccountId,
@@ -93,7 +136,7 @@ public sealed class UsageFinalizationService(
             command.ApiClientId,
             UsageLedgerEntryType.Charge,
             reservation.OperationCode,
-            command.ActualCharge.CreditsCharged,
+            creditsCharged,
             command.ActualCharge.PricingPolicyVersion,
             command.LedgerIdempotencyKey.Trim(),
             now,
@@ -108,9 +151,12 @@ public sealed class UsageFinalizationService(
             EstimatedCost: command.EstimatedCost,
             AllocationSource: command.AllocationSource ??
                 (subscriptionCreditApplications.Count == 0
-                    ? null
+                    ? topUpCreditApplications.Count == 0 ? null : "tahlilapp-topup"
                     : SubscriptionCreditLifecycleService.SubscriptionAllocationSource),
-            AllowanceDateKey: command.AllowanceDateKey);
+            AllowanceDateKey: command.AllowanceDateKey,
+            QuotaMode: reservation.QuotaMode,
+            SourceSubscriptionId: reservation.SourceSubscriptionId,
+            SourceSubscriptionExpiresAtUtc: reservation.SourceSubscriptionExpiresAtUtc);
 
         reservationRow.Status = reservation.Status.ToString();
         reservationRow.CommittedCredits = reservation.CommittedCredits;
@@ -119,8 +165,13 @@ public sealed class UsageFinalizationService(
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
         walletRow.Revision = updatedWallet.Revision;
         var ledgerRow = MapLedgerRow(entry);
-        ledgerRow.RelatedEntryId = subscriptionCreditApplications.FirstOrDefault()?.GrantLedgerEntryId;
-        ledgerRow.SubscriptionCreditsApplied = subscriptionCreditApplications.Sum(item => item.CreditsApplied);
+        ledgerRow.RelatedEntryId = subscriptionCreditApplications.FirstOrDefault()?.GrantLedgerEntryId ??
+            topUpCreditApplications.FirstOrDefault()?.GrantLedgerEntryId;
+        ledgerRow.SubscriptionCreditsApplied = subscriptionCreditApplications.Sum(item => item.CreditsApplied) +
+            topUpCreditApplications.Sum(item => item.CreditsApplied);
+        ledgerRow.QuotaMode = reservation.QuotaMode.ToString();
+        ledgerRow.SourceSubscriptionId = reservation.SourceSubscriptionId;
+        ledgerRow.SourceSubscriptionExpiresAtUtc = reservation.SourceSubscriptionExpiresAtUtc;
         dbContext.UsageLedgerEntries.Add(ledgerRow);
         foreach (var allocation in subscriptionCreditApplications)
         {
@@ -130,6 +181,15 @@ public sealed class UsageFinalizationService(
                 UsageLedgerEntryId = ledgerRow.Id,
                 SubscriptionCreditPeriodId = allocation.PeriodId,
                 GrantLedgerEntryId = allocation.GrantLedgerEntryId,
+                CreditsApplied = allocation.CreditsApplied
+            });
+        }
+        foreach (var allocation in topUpCreditApplications)
+        {
+            dbContext.TopUpUsageCreditAllocations.Add(new TopUpUsageCreditAllocationRow
+            {
+                Id = Guid.NewGuid(), UsageLedgerEntryId = ledgerRow.Id,
+                TopUpCreditSourceId = allocation.SourceId, GrantLedgerEntryId = allocation.GrantLedgerEntryId,
                 CreditsApplied = allocation.CreditsApplied
             });
         }
@@ -156,7 +216,11 @@ public sealed class UsageFinalizationService(
                 entry.EstimatedCost,
                 entry.AllocationSource,
                 entry.AllowanceDateKey,
-                SubscriptionCreditsApplied = subscriptionCreditApplications.Sum(item => item.CreditsApplied)
+                entry.QuotaMode,
+                entry.SourceSubscriptionId,
+                entry.SourceSubscriptionExpiresAtUtc,
+                SubscriptionCreditsApplied = subscriptionCreditApplications.Sum(item => item.CreditsApplied) +
+                    topUpCreditApplications.Sum(item => item.CreditsApplied)
             },
             now);
 
@@ -237,11 +301,15 @@ public sealed class UsageFinalizationService(
         var reservation = MapReservation(reservationRow);
         var now = timeProvider.GetUtcNow();
         reservation.Release(reason);
-        var updatedWallet = MapWallet(walletRow).Release(reservation.ReservedCredits, now);
+        var updatedWallet = reservation.QuotaMode == CreditQuotaMode.Unlimited
+            ? MapWallet(walletRow)
+            : MapWallet(walletRow).Release(reservation.ReservedCredits, now);
 
         reservationRow.Status = reservation.Status.ToString();
         reservationRow.FinalizationReason = reservation.FinalizationReason;
-        await creditLifecycle.ReleaseHoldsAsync(reservationRow.Id, cancellationToken);
+        var expiredTopUpCredits = await creditLifecycle.ReleaseHoldsAsync(reservationRow.Id, now, cancellationToken);
+        if (expiredTopUpCredits > 0)
+            updatedWallet = updatedWallet with { Balance = Math.Max(0m, updatedWallet.Balance - expiredTopUpCredits), UpdatedAt = now, Revision = updatedWallet.Revision + 1 };
         walletRow.Balance = updatedWallet.Balance;
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
@@ -343,7 +411,10 @@ public sealed class UsageFinalizationService(
             ledger.ApiClientId != command.ApiClientId ||
             ledger.EntryType != nameof(UsageLedgerEntryType.Charge) ||
             ledger.OperationCode != reservation.OperationCode ||
-            ledger.CreditsCharged != command.ActualCharge.CreditsCharged ||
+            ledger.CreditsCharged != (Enum.Parse<CreditQuotaMode>(reservation.QuotaMode) == CreditQuotaMode.Unlimited ? 0m : command.ActualCharge.CreditsCharged) ||
+            ledger.QuotaMode != reservation.QuotaMode ||
+            ledger.SourceSubscriptionId != reservation.SourceSubscriptionId ||
+            ledger.SourceSubscriptionExpiresAtUtc != reservation.SourceSubscriptionExpiresAtUtc ||
             ledger.PricingPolicyVersion != command.ActualCharge.PricingPolicyVersion ||
             (ledger.CompletionStatus is not null &&
                 ledger.CompletionStatus != command.CompletionStatus) ||
@@ -376,7 +447,10 @@ public sealed class UsageFinalizationService(
             row.CreatedAt,
             row.ExpiresAt,
             Enum.Parse<UsageReservationStatus>(row.Status),
-            row.FinalizationReason);
+            row.FinalizationReason,
+            Enum.Parse<CreditQuotaMode>(row.QuotaMode),
+            row.SourceSubscriptionId,
+            row.SourceSubscriptionExpiresAtUtc);
 
     private static UsageLedgerEntry MapLedger(UsageLedgerEntryRow row) =>
         new(
@@ -402,7 +476,10 @@ public sealed class UsageFinalizationService(
             row.TotalTokens,
             row.EstimatedCost,
             row.AllocationSource,
-            row.AllowanceDateKey);
+            row.AllowanceDateKey,
+            Enum.Parse<CreditQuotaMode>(row.QuotaMode),
+            row.SourceSubscriptionId,
+            row.SourceSubscriptionExpiresAtUtc);
 
     private static UsageLedgerEntryRow MapLedgerRow(UsageLedgerEntry entry) =>
         new()
@@ -429,6 +506,9 @@ public sealed class UsageFinalizationService(
             TotalTokens = entry.TotalTokens,
             EstimatedCost = entry.EstimatedCost,
             AllocationSource = entry.AllocationSource,
-            AllowanceDateKey = entry.AllowanceDateKey
+            AllowanceDateKey = entry.AllowanceDateKey,
+            QuotaMode = entry.QuotaMode.ToString(),
+            SourceSubscriptionId = entry.SourceSubscriptionId,
+            SourceSubscriptionExpiresAtUtc = entry.SourceSubscriptionExpiresAtUtc
         };
 }

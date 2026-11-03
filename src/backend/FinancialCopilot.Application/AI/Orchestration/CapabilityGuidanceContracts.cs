@@ -24,7 +24,44 @@ public sealed record CapabilityGuidanceRequest(
     IReadOnlyCollection<EntityResolutionCandidate>? EntityCandidates = null,
     IReadOnlyCollection<string>? ActorAvailableCapabilities = null,
     string? CorrelationId = null,
-    string Channel = "web-ai");
+    string Channel = "web-ai",
+    string? Symbol = null,
+    string? AttemptedCapability = null);
+
+/// <summary>
+/// The symbol a non-answered question was about, and the capability that was tried, so the guidance can offer
+/// follow-ups for that same symbol. Prefers the validated symbol slot of the semantic frame; otherwise uses the
+/// symbol the routed intent itself extracted from the message (the same text its answer names).
+/// </summary>
+public static class CapabilityGuidanceSubject
+{
+    public static (string? Symbol, string? AttemptedCapability) From(
+        ValidatedQueryFrame? frame,
+        DetectedIntent intent,
+        string message)
+    {
+        var symbol = frame?.Slots
+            .FirstOrDefault(slot =>
+                slot.Type == QuerySlotType.CompanyOrSymbol &&
+                slot.ValidationState == QuerySlotValidationState.Valid &&
+                slot.CanonicalEntity is not null)
+            ?.CanonicalEntity!.DisplaySymbol;
+        symbol ??= intent switch
+        {
+            DetectedIntent.MonthlyActivityTrend => MonthlyActivityTrendIntentRules.ExtractCompanySymbol(message),
+            DetectedIntent.FinancialStatementTableLookup when FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message) =>
+                FinancialStatementTableIntentRules.BuildQuarterlyQuery(message).CompanyQuery,
+            _ => null
+        };
+        var attempted = intent switch
+        {
+            DetectedIntent.MonthlyActivityTrend => "monthly_activity_trend",
+            DetectedIntent.FinancialStatementTableLookup => "financial_statement_table",
+            _ => frame?.CapabilityCode
+        };
+        return (string.IsNullOrWhiteSpace(symbol) ? null : symbol.Trim(), attempted);
+    }
+}
 
 public interface ICapabilityGuidanceService
 {
@@ -58,6 +95,9 @@ public sealed class CapabilityGuidanceService(
         if (request.Outcome == DialogueOutcome.TemporarilyUnavailable && target is not null && enabled.Any(item => item.Code == target))
             return RecordPresented([Action($"retry:{target}", SuggestedActionKind.Retry, Label(request.ReplyLanguage, "Try again", "تلاش دوباره"), request.Message, target, new Dictionary<string, string>(), "temporary_failure", request.ReplyLanguage)], request);
 
+        var followUps = SymbolFollowUps(request, enabled);
+        if (followUps.Count > 0) return RecordPresented(followUps, request);
+
         return RecordPresented(enabled.Take(MaximumActions).Select(definition => Action($"help:{definition.Code}", SuggestedActionKind.ShowCapabilityHelp,
             Label(request.ReplyLanguage, "Try: ", "مثال: ") + Example(definition, request.ReplyLanguage), Example(definition, request.ReplyLanguage), definition.Code, new Dictionary<string, string>(), "capability_help", request.ReplyLanguage)).ToArray(), request);
     }
@@ -67,6 +107,37 @@ public sealed class CapabilityGuidanceService(
             .Where(definition => definition.SuggestionPolicy.IncludeInGuidance)
             .Select(definition => new CapabilityHelpSummary(definition.Code, Alias(definition, language), Example(definition, language), registry.Version))
             .ToArray();
+
+    /// <summary>
+    /// Follow-ups for a question that was not answered: the monthly sales trend and the quarterly report, which work
+    /// for listed companies. They name the symbol the user asked about; without one they show the catalog's example
+    /// symbol as an example. The capability that just found no data for that symbol is not offered again.
+    /// </summary>
+    private IReadOnlyList<SuggestedAction> SymbolFollowUps(CapabilityGuidanceRequest request, IReadOnlyCollection<CapabilityDefinition> enabled)
+    {
+        var symbol = request.Symbol;
+        var actions = new List<SuggestedAction>();
+        foreach (var (code, english, persian) in FollowUpTemplates)
+        {
+            if (!enabled.Any(item => item.Code == code)) continue;
+            if (symbol is not null && request.Outcome == DialogueOutcome.NoData && request.AttemptedCapability == code) continue;
+            var message = string.Format(request.ReplyLanguage == "fa" ? persian : english, symbol ?? ExampleSymbol);
+            actions.Add(symbol is null
+                ? Action($"help:{code}", SuggestedActionKind.ShowCapabilityHelp, Label(request.ReplyLanguage, "Try: ", "مثال: ") + message,
+                    message, code, new Dictionary<string, string>(), "capability_help", request.ReplyLanguage)
+                : Action($"related:{code}", SuggestedActionKind.RunRelatedCapability, message,
+                    message, code, new Dictionary<string, string> { ["symbol"] = symbol }, "same_symbol_follow_up", request.ReplyLanguage));
+        }
+        return actions;
+    }
+
+    private const string ExampleSymbol = "فولاد";
+
+    private static readonly (string Code, string English, string Persian)[] FollowUpTemplates =
+    [
+        ("monthly_activity_trend", "chart monthly sales for {0}", "روند فروش {0}"),
+        ("financial_statement_table", "show {0} quarterly income statement", "گزارش فصلی {0}")
+    ];
 
     private IEnumerable<CapabilityDefinition> Enabled(IReadOnlyCollection<string>? available) => registry.GetEnabled().Where(definition => available is null || available.Contains(definition.Code, StringComparer.Ordinal));
     private SuggestedAction Action(string id, SuggestedActionKind kind, string label, string message, string capability, IReadOnlyDictionary<string, string> slots, string reason, string language)

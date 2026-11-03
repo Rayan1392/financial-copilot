@@ -801,6 +801,7 @@ public sealed class AiQueryOrchestrationService(
 
         await dialogueGate.RecordOutcomeAsync(
             request, conversationId, clarificationRequired, outcome.ReasonCode, cancellationToken);
+        var guidanceSubject = CapabilityGuidanceSubject.From(request.SemanticFrame, detectedIntent, request.Message);
         var suggestedActions = guidanceService.Suggest(new CapabilityGuidanceRequest(
             request.OriginalUserMessage ?? request.Message,
             outcome.ReplyLanguage,
@@ -808,7 +809,9 @@ public sealed class AiQueryOrchestrationService(
             outcome.ReasonCode,
             request.SemanticFrame?.Interpretation,
             CorrelationId: request.CorrelationId,
-            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
+            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+            Symbol: guidanceSubject.Symbol,
+            AttemptedCapability: guidanceSubject.AttemptedCapability));
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(

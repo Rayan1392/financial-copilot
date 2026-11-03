@@ -64,6 +64,7 @@ internal sealed class MessagePersistenceFunction(
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(request.Message) &&
             !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message) &&
             outcome == DialogueOutcome.Unsupported;
+        var guidanceSubject = CapabilityGuidanceSubject.From(request.SemanticFrame, intent, request.Message);
         IReadOnlyCollection<SuggestedAction> suggestions = deterministicSuggestionsApplied
             ? deterministicSuggestedActions?.ToArray() ?? Array.Empty<SuggestedAction>()
             : malformedProductComposition
@@ -75,7 +76,9 @@ internal sealed class MessagePersistenceFunction(
                 outcomeReasonCode,
                 request.SemanticFrame?.Interpretation,
                 CorrelationId: request.CorrelationId,
-                Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
+                Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+                Symbol: guidanceSubject.Symbol,
+                AttemptedCapability: guidanceSubject.AttemptedCapability));
 
         var persisted = await repository.PersistExchangeAsync(
             new ConversationExchange(

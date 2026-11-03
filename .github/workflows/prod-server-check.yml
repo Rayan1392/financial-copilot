@@ -51,7 +51,17 @@ jobs:
           if timeout 60 git ls-remote --exit-code origin prod >/dev/null 2>&1; then echo "GitHub reachable from server: yes"; else echo "GitHub reachable from server: NO"; fi
           echo "== compose files"; ls -1 docker-compose*.yml
           echo "== .env (selected non-secret keys only)"
-          grep -E '^(IMAGE_TAG|API_IMAGE|WORKER_IMAGE|FRONTEND_IMAGE|TELEGRAM_GATEWAY_IMAGE|VITE_MOBILE_AUTO_REDIRECT|COMPOSE_FILE|COMPOSE_PROJECT_NAME)=' .env || echo "(none of the selected keys set)"
+          grep -E '^(IMAGE_TAG|API_IMAGE|WORKER_IMAGE|FRONTEND_IMAGE|TELEGRAM_GATEWAY_IMAGE|VITE_MOBILE_AUTO_REDIRECT|FRONTEND_MOBILE_AUTO_REDIRECT|FRONTEND_API_BASE_URL|COMPOSE_FILE|COMPOSE_PROJECT_NAME)=' .env || echo "(none of the selected keys set)"
+          if [ -f docker-compose.override.yml ]; then
+            echo "== override: tracked=$(git ls-files --error-unmatch docker-compose.override.yml >/dev/null 2>&1 && echo yes || echo no); service and image lines only"
+            grep -nE '^  [A-Za-z0-9_-]+:\s*$|^\s+(image|build|dockerfile|pull_policy):' docker-compose.override.yml || true
+          fi
+          echo "== images compose resolves (runtime files, current IMAGE_TAG)"
+          docker compose config --images 2>&1 | sort
+          echo "== images compose resolves with IMAGE_TAG=probe (which services follow IMAGE_TAG)"
+          IMAGE_TAG=probe docker compose config --images 2>&1 | sort
+          echo "== build file set resolves with IMAGE_TAG=probe"
+          IMAGE_TAG=probe docker compose -f docker-compose.yml -f docker-compose.local-build.yml config --images 2>&1 | sort
           echo "== running services"
           docker compose ps --format '{{.Service}} {{.Image}} {{.Status}}'
           echo "== recent local images"

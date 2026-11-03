@@ -17,19 +17,3 @@ export function sameMonthChangePercent(point: MonthlyTrendChartPointViewModel): 
     return null;
   return (point.currentYear / point.previousYear - 1) * 100;
 }
-
-/**
- * Month index under a tap, from its x position in the chart box (left-to-right, like the axis). Taps on the value
- * axis or outside the plot return null.
- */
-export function monthIndexFromTap(
-  x: number,
-  chartWidth: number,
-  plot: { left: number; right: number },
-  monthCount: number,
-): number | null {
-  const plotWidth = chartWidth - plot.left - plot.right;
-  if (monthCount <= 0 || plotWidth <= 0 || x < plot.left || x > chartWidth - plot.right)
-    return null;
-  return Math.min(monthCount - 1, Math.floor(((x - plot.left) / plotWidth) * monthCount));
-}

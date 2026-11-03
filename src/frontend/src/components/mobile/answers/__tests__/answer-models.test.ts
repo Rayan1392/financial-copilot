@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  defaultSelectedMonth,
-  monthIndexFromTap,
-  sameMonthChangePercent,
-} from "../monthly-sales-trend-mobile-model";
+import { columnIndexFromTap } from "../chart-tap";
+import { defaultSelectedMonth, sameMonthChangePercent } from "../monthly-sales-trend-mobile-model";
 import {
   barWidthsPercent,
   formatQuarterlyCell,
@@ -11,6 +8,12 @@ import {
   periodsNewestFirst,
   shortPeriodLabel,
 } from "../quarterly-report-mobile-model";
+import {
+  amountAxisScale,
+  defaultSelectedPeriod,
+  periodTickLines,
+} from "../quarterly-trend-chart-mobile-model";
+import type { QuarterlyChartPoint } from "@/components/app/quarterly-financial-chart-data";
 import type { MonthlyTrendChartPointViewModel } from "@/components/app/monthly-activity-trend-chart-view-model";
 import type { QuarterlyFinancialTableRow } from "@/components/app/quarterly-financial-table";
 
@@ -50,11 +53,11 @@ describe("monthly sales trend (mobile)", () => {
   it("maps a tap to the month column under it and ignores the value axis", () => {
     const plot = { left: 40, right: 4 };
     // 300 px wide chart: plot from 40 to 296 (256 px) split into 12 columns.
-    expect(monthIndexFromTap(20, 300, plot, 12)).toBeNull();
-    expect(monthIndexFromTap(41, 300, plot, 12)).toBe(0);
-    expect(monthIndexFromTap(40 + 256 * (2.5 / 12), 300, plot, 12)).toBe(2);
-    expect(monthIndexFromTap(296, 300, plot, 12)).toBe(11);
-    expect(monthIndexFromTap(299, 300, plot, 12)).toBeNull();
+    expect(columnIndexFromTap(20, 300, plot, 12)).toBeNull();
+    expect(columnIndexFromTap(41, 300, plot, 12)).toBe(0);
+    expect(columnIndexFromTap(40 + 256 * (2.5 / 12), 300, plot, 12)).toBe(2);
+    expect(columnIndexFromTap(296, 300, plot, 12)).toBe(11);
+    expect(columnIndexFromTap(299, 300, plot, 12)).toBeNull();
   });
 });
 
@@ -113,5 +116,49 @@ describe("quarterly report (mobile)", () => {
         "۳۰ آذر ۱۴۰۴",
       ]),
     ).toBe("دوره منتهی به ۳۰ آذر ۱۴۰۴");
+  });
+});
+
+const quarterPoint = (sales: number | null, grossMargin: number | null): QuarterlyChartPoint => ({
+  label: "x",
+  shortLabel: "x",
+  sales,
+  grossProfit: null,
+  netProfit: null,
+  grossMargin,
+  interestIncome: null,
+  netInterestIncome: null,
+  bankingGrossMargin: null,
+  feeProfitMargin: null,
+});
+
+describe("quarterly trend chart (mobile)", () => {
+  it("scales the amount axis to short ticks and names the scaled unit", () => {
+    expect(amountAxisScale(9_999)).toEqual({ divisor: 1, unitLabel: "میلیون ریال" });
+    expect(amountAxisScale(150_000)).toEqual({ divisor: 1_000, unitLabel: "میلیارد ریال" });
+    expect(amountAxisScale(184_523_110)).toEqual({
+      divisor: 1_000_000,
+      unitLabel: "هزار میلیارد ریال",
+    });
+  });
+
+  it("opens on the latest period with any charted value", () => {
+    const keys = ["sales", "grossMargin"] as const;
+    expect(
+      defaultSelectedPeriod(
+        [quarterPoint(1, 2), quarterPoint(null, 3), quarterPoint(null, null)],
+        keys,
+      ),
+    ).toBe(1);
+    expect(defaultSelectedPeriod([quarterPoint(null, null)], keys)).toBe(0);
+    expect(defaultSelectedPeriod([], keys)).toBe(0);
+  });
+
+  it("splits period ticks into a quarter line and a year line", () => {
+    expect(
+      periodTickLines({ label: "x", year: 1405, quarter: 2, sourceIndex: 0 }, "فصل دوم ۱۴۰۵"),
+    ).toEqual(["فصل ۲", "۱۴۰۵"]);
+    expect(periodTickLines({ label: "x", sourceIndex: 0 }, "آذر ۱۴۰۴")).toEqual(["آذر", "۱۴۰۴"]);
+    expect(periodTickLines({ label: "x", sourceIndex: 0 }, "۱۴۰۴")).toEqual(["۱۴۰۴", ""]);
   });
 });

@@ -522,6 +522,112 @@ async function main() {
           },
         );
         await answers.close();
+
+        const trend = await newPhoneContext(browser, { width, theme });
+        const trendPage = await trend.newPage();
+        await check(
+          `Quarterly trend chart @${width}px ${theme}: themed, labels fit, tap a period, panel below`,
+          async () => {
+            await open(trendPage, analysisRoute, "main section[aria-labelledby]");
+            const summary = trendPage.locator("summary", { hasText: "نمودار روند" });
+            await summary.scrollIntoViewIfNeeded();
+            await summary.click();
+            const details = trendPage.locator("details[open]").first();
+            const chart = details.locator("[role=img]");
+            await chart.scrollIntoViewIfNeeded();
+
+            // Same surface as the quarterly cards, series colors from the active theme.
+            const look = await details.evaluate((element, expectedTheme) => {
+              const surface = getComputedStyle(
+                element.querySelector(".bg-surface"),
+              ).backgroundColor;
+              const card = document.querySelector("[aria-label='اقلام گزارش فصلی'] > li");
+              const bar = element.querySelector(".recharts-bar-rectangle path");
+              return {
+                surface,
+                card: getComputedStyle(card).backgroundColor,
+                bar: bar?.getAttribute("fill"),
+                light: document.documentElement.classList.contains("light"),
+                expectedTheme,
+              };
+            }, theme);
+            assert(look.surface === look.card, `chart ${look.surface} vs cards ${look.card}`);
+            assert(look.light === (theme === "light"), "theme class");
+            assert(look.bar === (theme === "light" ? "#1d4ed8" : "#60a5fa"), `bar ${look.bar}`);
+
+            // Every axis label inside the chart box, at least 12 px, period labels not overlapping.
+            const labels = await chart.evaluate((element) => {
+              const box = element.getBoundingClientRect();
+              const ticks = [...element.querySelectorAll(".recharts-cartesian-axis-tick text")];
+              const boxes = ticks.map((text) => text.getBoundingClientRect());
+              const xTicks = [
+                ...element.querySelectorAll(".recharts-xAxis .recharts-cartesian-axis-tick text"),
+              ]
+                .map((text) => text.getBoundingClientRect())
+                .sort((a, b) => a.left - b.left);
+              return {
+                count: ticks.length,
+                clipped: boxes.filter(
+                  (rect) =>
+                    rect.left < box.left - 0.5 ||
+                    rect.right > box.right + 0.5 ||
+                    rect.top < box.top - 0.5 ||
+                    rect.bottom > box.bottom + 0.5,
+                ).length,
+                small: ticks.filter((text) => parseFloat(getComputedStyle(text).fontSize) < 12)
+                  .length,
+                overlapping: xTicks.filter(
+                  (rect, index) => index > 0 && rect.left < xTicks[index - 1].right,
+                ).length,
+                periods: xTicks.length,
+                centers: xTicks.map((rect) => rect.left + rect.width / 2),
+                innerScroll: element.scrollWidth - element.clientWidth,
+              };
+            });
+            assert(labels.periods === 5, `${labels.periods} period labels`);
+            assert(labels.clipped === 0, `${labels.clipped} clipped axis labels`);
+            assert(labels.small === 0, `${labels.small} axis labels under 12 px`);
+            assert(labels.overlapping === 0, `${labels.overlapping} overlapping period labels`);
+            assert(labels.innerScroll <= 1, "chart scrolls sideways");
+
+            // Tap the 3rd period (chronological: فصل چهارم ۱۴۰۴), then step forward.
+            const box = await chart.boundingBox();
+            await trendPage.touchscreen.tap(labels.centers[2], box.y + box.height * 0.4);
+            const panel = details.locator("[aria-live=polite]");
+            const sales = new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 2 });
+            const text = await panel.textContent();
+            assert(text.includes("فصل چهارم ۱۴۰۴"), `tap selected: ${text}`);
+            assert(text.includes(`${sales.format(171230455)} میلیون ریال`), `sales value: ${text}`);
+            assert(text.includes("٪"), "gross margin value");
+            await details.getByRole("button", { name: "فصل بعد" }).click();
+            assert((await panel.textContent()).includes("فصل اول ۱۴۰۵"), "next period");
+            assert(
+              (await details.locator(".recharts-tooltip-wrapper").count()) === 0,
+              "tooltip present",
+            );
+            const chartNow = await chart.boundingBox();
+            const panelBox = await panel.boundingBox();
+            assert(
+              panelBox.y >= chartNow.y + chartNow.height - 1,
+              "the detail panel overlaps the chart",
+            );
+            assert((await horizontalOverflow(trendPage)) <= 1, "page overflow");
+
+            const violations = await runAxe(trendPage);
+            const small = await smallText(trendPage);
+            const targets = await smallTargets(trendPage);
+            assert(violations.length === 0, violations.join("; "));
+            assert(
+              small.length === 0 && targets.length === 0,
+              [...small, ...targets].slice(0, 6).join("; "),
+            );
+            await chart.scrollIntoViewIfNeeded();
+            await trendPage.screenshot({
+              path: path.join(SCREENSHOT_DIR, `quarterly-trend-${theme}-${width}.png`),
+            });
+          },
+        );
+        await trend.close();
       }
     }
 
@@ -550,6 +656,18 @@ async function main() {
         assert(
           (await desktopAnswersPage.getByRole("list", { name: "اقلام گزارش فصلی" }).count()) === 0,
           "cards on desktop",
+        );
+        const desktopChart = desktopAnswersPage.getByRole("region", { name: /نمودار فصلی/ });
+        assert(
+          (await desktopChart
+            .locator(".recharts-bar-rectangle path")
+            .first()
+            .getAttribute("fill")) === "#3b82f6",
+          "desktop quarterly chart colors",
+        );
+        assert(
+          (await desktopAnswersPage.getByRole("button", { name: "فصل قبل" }).count()) === 0,
+          "phone chart controls on desktop",
         );
       },
     );

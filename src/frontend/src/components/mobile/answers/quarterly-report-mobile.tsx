@@ -4,7 +4,6 @@ import type {
   QuarterlyFinancialTableModel,
   QuarterlyFinancialTableRow,
 } from "@/components/app/quarterly-financial-table";
-import { QuarterlyFinancialChart } from "@/components/app/quarterly-financial-chart";
 import { QUARTERLY_CHANGE_COLUMN_HEADER } from "@/components/app/quarterly-financial-table-constants";
 import { resolveQuarterlyChangeColors } from "@/components/app/quarterly-financial-table-colors";
 import { quarterlyPeriodHeaderLines } from "@/components/app/quarterly-financial-table-header";
@@ -16,6 +15,7 @@ import {
   periodsNewestFirst,
   shortPeriodLabel,
 } from "./quarterly-report-mobile-model";
+import { QuarterlyTrendChartMobile } from "./quarterly-trend-chart-mobile";
 
 interface Props {
   model: QuarterlyFinancialTableModel;
@@ -145,7 +145,7 @@ export function QuarterlyReportMobile({
               aria-hidden="true"
             />
           </summary>
-          <QuarterlyFinancialChart model={model} />
+          <QuarterlyTrendChartMobile model={model} />
         </details>
       )}
 

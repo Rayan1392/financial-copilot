@@ -109,8 +109,8 @@ The evidence keys:
 
 | Suite | Before (develop) | After | Notes |
 |---|---|---|---|
-| Vitest (`npx vitest run`) | 5 files failed, 2 tests failed, 203 passed | **5 files failed, 2 tests failed, 382 passed** | Identical pre-existing failures: `markdown-message` (quarterly header text), `monthly-product-trend-chart` (failed-trend message), and 3 `scripts/*.browser.test.mjs` that Vitest collects but cannot run. **No new failures**; 179 new tests pass (14 of them for the mobile answer layouts). |
-| Browser checks (`npm run test:mobile-browser`) | — | **85/85 pass** | Production build + `wrangler dev --local`, Chrome headless, mock API. Includes the analysis conversation (sales trend + quarterly report) at 320/360/390 px in both themes. |
+| Vitest (`npx vitest run`) | 5 files failed, 2 tests failed, 203 passed | **5 files failed, 2 tests failed, 388 passed** | Identical pre-existing failures: `markdown-message` (quarterly header text), `monthly-product-trend-chart` (failed-trend message), and 3 `scripts/*.browser.test.mjs` that Vitest collects but cannot run. **No new failures**; 185 new tests pass (20 of them for the mobile answer layouts, including the quarterly trend chart). |
+| Browser checks (`npm run test:mobile-browser`) | — | **91/91 pass** | Production build + `wrangler dev --local`, Chrome headless, mock API. Includes the analysis conversation (sales trend, quarterly report and its trend chart) at 320/360/390 px in both themes. Built with `VITE_MOBILE_AUTO_REDIRECT=false`, the default the flag-off check expects. |
 | .NET replay characterization (2 tests) | — | **2/2 pass** | Needs local `Authentication__Email__Enabled=false` (see above) |
 | `tsc --noEmit` | fails (pre-existing) | no new errors in new or changed code | Remaining errors are pre-existing (`/disclosures` link search param, `/auth` navigations without `search`, `_app.top-up`, test fixture typings). |
 | ESLint | — | new files clean | Existing files are not Prettier-clean on `develop`; they were not reformatted. |
@@ -159,6 +159,24 @@ renders exactly as before, which is verified in the browser at 1440 px and by te
 | Values are the desktop cell strings: parentheses for negatives, «—» unavailable (announced «ناموجود»), «-» zero, «٪» on margin rows | No value is recomputed or reformatted. |
 | Design tokens for both themes; trend chart collapsed under «نمودار روند»; image download kept (44 px); EPS and provenance notes kept | |
 
+### Quarterly trend chart on phones (`components/mobile/answers/quarterly-trend-chart-mobile.tsx`, 2026-11-03, third pass)
+
+The chart behind «نمودار روند» used the desktop `QuarterlyFinancialChart`: a white, light-only card at least 640 px
+wide that scrolled sideways, with 10 px ticks and a hover tooltip. On phones it is now its own renderer; the desktop
+chart is unchanged.
+
+| Decision | Why |
+|---|---|
+| Themed surface (`bg-surface`, the same as the quarterly cards) with series colors per theme: a lighter tone on dark, a darker tone on light, same hues as desktop (`QUARTERLY_TREND_SERIES_COLORS`) | Consistent with the cards in both themes; the desktop white card was the only light block in the dark theme. |
+| Fits the screen width; the plot uses the card's full inner width; the chart never scrolls sideways | At 320 px five periods get about 39 px each, enough for upright labels. |
+| Period labels on two upright 12 px lines («فصل ۲» over «۱۴۰۵»), the selected one in bold. When the measured column is narrower than 38 px (many periods), labels are angled like the monthly chart instead | Readable Persian without rotation in the common case. The choice follows the measured width, so it does not clip on any width or period count. |
+| The amount axis is scaled to short ticks (million → billion or thousand-billion rials), named in a note above the chart; the percent axis stays in percent. Axis widths are sized from the drawn ticks | Nine-digit million-rial ticks would take a third of the width. Exact values are never read from the axis. |
+| **Tap a period** (selection computed from the tap position) or use «فصل قبل»/«فصل بعد» (44 px) | No tooltip: a panel **below** the plot shows the period, its end date, and every series value. The selected period's bars and dot are emphasized; the others are dimmed. |
+| Panel values are the table cell text, the same strings the cards show (parentheses for negatives, «—» unavailable and announced «ناموجود», «٪» on margins), with «میلیون ریال» on amounts | The chart, cards and table never disagree. Which row feeds which series now has one owner, `quarterlyChartSeriesRows` in `quarterly-financial-chart-data.ts`, used by both the desktop points and the phone panel. |
+| Legend as a wrapped list with bar or line swatches; a screen-reader table of every period and series | Nothing from the desktop legend or its screen-reader table is dropped. Series whose line item is absent from the report are not listed. |
+
+The tap-to-column helper is shared by both phone charts (`components/mobile/answers/chart-tap.ts`).
+
 ### Verification (production build in the Worker runtime, mock API, real-shaped answers)
 
 - **Fixtures** (`scripts/mobile-workspace/answer-fixtures.mjs`, typed by `answer-fixtures.d.mts`):
@@ -173,10 +191,21 @@ renders exactly as before, which is verified in the browser at 1440 px and by te
   - 15 cards render, and expanding one and opening the chart work;
   - the table has 15 rows, its item column is pinned, and it scrolls inside its region;
   - axe finds no serious or critical issues, text is ≥ 12 px and touch targets are ≥ 44 px.
-- **Desktop at 1440 px** still renders the original chart card (Recharts legend) and the fixed quarterly table.
+- **Quarterly trend chart** at 320, 360 and 390 px in dark and light:
+  - the chart surface equals the cards' surface and the bars use the theme's colors;
+  - all five period labels are upright, inside the chart, ≥ 12 px and not overlapping, and every axis tick is
+    inside the chart box;
+  - tapping the third period shows «فصل چهارم ۱۴۰۴» with its exact sales in million rials and its margin;
+    «فصل بعد» moves to «فصل اول ۱۴۰۵»;
+  - no tooltip is rendered, the panel is below the plot, there is no page-level or chart horizontal scroll, and
+    axe, text-size and touch-target checks pass.
+- **Desktop at 1440 px** still renders the original chart card (Recharts legend), the fixed quarterly table and the
+  original quarterly chart colors, with no phone chart controls.
 - **Unit tests** (`components/mobile/answers/__tests__`) cover:
   - month selection, tap mapping and same-month change;
   - period ordering, cell formatting and bar scaling;
+  - the trend chart's axis scaling, default period, tick lines, panel values with units, period stepping and its
+    screen-reader table;
   - that every value, change and period of the desktop table appears in the phone table view, and every period in
     an expanded card.
 
@@ -214,9 +243,8 @@ renders exactly as before, which is verified in the browser at 1440 px and by te
 4. **Other answer blocks keep desktop renderers on phones.** Product trend, statement analysis and disclosure
    listings were not redesigned. Polish item: the monospace «دنبال کردن نماد» button in scanner rows wraps
    awkwardly at 360 px.
-   The optional quarterly trend chart (`QuarterlyFinancialChart`, shown when `/api/ui/v1/config` enables it or for
-   banks) keeps its light-only colors and scrolls sideways inside its region. On phones it is collapsed under
-   «نمودار روند».
+   The banking variant of the quarterly trend chart (three bars, two margin lines) shares the phone renderer but was
+   checked only in unit tests, not in a rendered banking fixture.
 5. **Same-key retry stays unavailable** until B-3 is approved, built and verified. A user who resends after a
    first-message failure without checking تاریخچه can still create a duplicate conversation; the message mitigates
    this but cannot prevent it.

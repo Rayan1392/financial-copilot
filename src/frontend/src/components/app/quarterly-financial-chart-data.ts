@@ -29,24 +29,47 @@ export interface QuarterlyChartPoint {
   feeProfitMargin: number | null;
 }
 
-function rowValues(rows: QuarterlyFinancialTableRow[], sourceItemId: number | null, grossMargin = false) {
-  const row = rows.find((item) => grossMargin
+export type QuarterlyChartSeriesKey = Exclude<keyof QuarterlyChartPoint, "label" | "shortLabel">;
+
+function findRow(rows: QuarterlyFinancialTableRow[], sourceItemId: number | null, grossMargin = false) {
+  return rows.find((item) => grossMargin
     ? item.rowId === "gross_margin" || (item.rowId == null && item.grossMargin && !item.bankingMargin)
     : item.sourceItemId === sourceItemId || item.rowId === `source_${sourceItemId}`);
-  return row?.chartValues ?? [];
+}
+
+/** The table row behind each chart series, so a chart value can be shown with the table's own cell text. */
+export function quarterlyChartSeriesRows(
+  model: QuarterlyFinancialTableModel,
+): Partial<Record<QuarterlyChartSeriesKey, QuarterlyFinancialTableRow>> {
+  if (model.templateId === "BankingIncomeStatement") {
+    const bankRow = (rowId: string) => model.rows.find((row) => row.rowId === rowId);
+    return {
+      netProfit: findRow(model.rows, 143),
+      interestIncome: bankRow("source_304"),
+      netInterestIncome: bankRow("source_306"),
+      bankingGrossMargin: bankRow("banking_gross_margin"),
+      feeProfitMargin: bankRow("banking_fee_margin"),
+    };
+  }
+  return {
+    sales: findRow(model.rows, 15),
+    grossProfit: findRow(model.rows, 139),
+    netProfit: findRow(model.rows, 143),
+    grossMargin: findRow(model.rows, null, true),
+  };
 }
 
 export function quarterlyChartPoints(model: QuarterlyFinancialTableModel): QuarterlyChartPoint[] {
-  const banking = model.templateId === "BankingIncomeStatement";
-  const sales = banking ? [] : rowValues(model.rows, 15);
-  const grossProfit = banking ? [] : rowValues(model.rows, 139);
-  const netProfit = rowValues(model.rows, 143);
-  const grossMargin = banking ? [] : rowValues(model.rows, null, true);
-  const bankValue = (rowId: string) => model.rows.find((row) => row.rowId === rowId)?.chartValues ?? [];
-  const interestIncome = banking ? bankValue("source_304") : [];
-  const netInterestIncome = banking ? bankValue("source_306") : [];
-  const bankingGrossMargin = banking ? bankValue("banking_gross_margin") : [];
-  const feeProfitMargin = banking ? bankValue("banking_fee_margin") : [];
+  const seriesRows = quarterlyChartSeriesRows(model);
+  const values = (key: QuarterlyChartSeriesKey) => seriesRows[key]?.chartValues ?? [];
+  const sales = values("sales");
+  const grossProfit = values("grossProfit");
+  const netProfit = values("netProfit");
+  const grossMargin = values("grossMargin");
+  const interestIncome = values("interestIncome");
+  const netInterestIncome = values("netInterestIncome");
+  const bankingGrossMargin = values("bankingGrossMargin");
+  const feeProfitMargin = values("feeProfitMargin");
   return model.quarters.map((quarter, index) => {
     const labels = quarterlyPeriodHeaderLines(quarter);
     const year = labels.join(" ").match(/[۰-۹٠-٩0-9]{4}/)?.[0] ?? "";

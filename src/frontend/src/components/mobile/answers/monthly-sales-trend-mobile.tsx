@@ -16,11 +16,8 @@ import {
   createMonthlyTrendChartCardViewModel,
   formatMonthlyTrendAmount,
 } from "@/components/app/monthly-activity-trend-chart-view-model";
-import {
-  defaultSelectedMonth,
-  monthIndexFromTap,
-  sameMonthChangePercent,
-} from "./monthly-sales-trend-mobile-model";
+import { defaultSelectedMonth, sameMonthChangePercent } from "./monthly-sales-trend-mobile-model";
+import { columnIndexFromTap } from "./chart-tap";
 import { downloadMonthlyTrendChartImage } from "@/components/app/monthly-activity-trend-chart-image";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { useInteractiveChartTheme } from "@/components/app/use-chart-theme";
@@ -172,7 +169,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
             role="img"
             onClick={(event) => {
               const box = event.currentTarget.getBoundingClientRect();
-              const index = monthIndexFromTap(
+              const index = columnIndexFromTap(
                 event.clientX - box.left,
                 box.width,
                 { left: CHART_MARGIN.left + axisWidth, right: CHART_MARGIN.right },

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageList } from "@/components/app/message-list";
 import { quarterlyFinancialTableModelFromTypedResult } from "@/components/app/quarterly-financial-table";
 import { formatQuarterlyCell } from "../quarterly-report-mobile-model";
+import { QuarterlyTrendChartMobile } from "../quarterly-trend-chart-mobile";
 import type {
   AssistantChatBlock,
   ChatMessage,
@@ -164,5 +165,41 @@ describe("quarterly report on phones", () => {
     const { container } = renderAnswers("default");
     expect(screen.queryByRole("list", { name: "اقلام گزارش فصلی" })).not.toBeInTheDocument();
     expect(container.querySelector("table.table-fixed")).not.toBeNull();
+  });
+});
+
+describe("quarterly trend chart on phones", () => {
+  const model = quarterlyFinancialTableModelFromTypedResult(quarterly);
+  const latest = model.quarters.length - 1;
+  const row = (label: string) => model.rows.find((item) => item.label === label)!;
+  const panel = () => screen.getByText(/· فصل .* از /).closest("[aria-live]") as HTMLElement;
+
+  it("opens on the latest period with the table values of every series, units included", () => {
+    render(<QuarterlyTrendChartMobile model={model} />);
+    expect(panel()).toHaveTextContent("فصل دوم ۱۴۰۵");
+    expect(panel()).toHaveTextContent(`${row("فروش").values[latest]} میلیون ریال`);
+    expect(panel()).toHaveTextContent(`${row("سود (زیان) ناخالص").values[latest]} میلیون ریال`);
+    expect(panel()).toHaveTextContent(`${row("سود (زیان) خالص").values[latest]} میلیون ریال`);
+    expect(panel()).toHaveTextContent(
+      formatQuarterlyCell(row("حاشیه سود ناخالص"), row("حاشیه سود ناخالص").values[latest]),
+    );
+    expect(screen.getByText(/محور راست: مبالغ به هزار میلیارد ریال/)).toBeInTheDocument();
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("steps through periods with the buttons", () => {
+    render(<QuarterlyTrendChartMobile model={model} />);
+    expect(screen.getByRole("button", { name: "فصل بعد" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "فصل قبل" }));
+    expect(panel()).toHaveTextContent("فصل اول ۱۴۰۵");
+    expect(panel()).toHaveTextContent(row("فروش").values[latest - 1]);
+  });
+
+  it("lists every period and series value for screen readers", () => {
+    render(<QuarterlyTrendChartMobile model={model} />);
+    const table = document.querySelector("table.sr-only") as HTMLTableElement;
+    expect(table.tBodies[0].rows).toHaveLength(model.quarters.length);
+    for (const value of row("فروش").values.slice(0, model.quarters.length))
+      expect(table).toHaveTextContent(value);
   });
 });

@@ -97,6 +97,13 @@ services:
         Authentication__TahlilApp__PlanMap__sapio_pro: ${TAHLILAPP_PLAN_MAP_SAPIO_PRO:-Pro}
         DataProtection__KeyRingPath: ${DATA_PROTECTION_KEY_RING_PATH:-/var/lib/sapioai/dpkeys}
         TAHLILAPP_CLIENT_SECRET: ${TAHLILAPP_CLIENT_SECRET:-}
+        # Feature 151 top-up signing credentials are passed to the API only.
+        Billing__TahlilAppTopUps__Enabled: ${Billing__TahlilAppTopUps__Enabled:-false}
+        Billing__TahlilAppTopUps__Authentication__Issuer: ${Billing__TahlilAppTopUps__Authentication__Issuer:-}
+        Billing__TahlilAppTopUps__Authentication__Audience: ${Billing__TahlilAppTopUps__Authentication__Audience:-sapio-tahlilapp-topup}
+        Billing__TahlilAppTopUps__Authentication__SigningKeys__prod-dev-key: ${TAHLILAPP_TOPUP_SIGNING_KEY:?set TAHLILAPP_TOPUP_SIGNING_KEY in .env}
+        # The host-side interpolation variable must not be exposed as a second container variable.
+        TAHLILAPP_TOPUP_SIGNING_KEY: ""
         OpenApi__Enabled: ${OPENAPI_ENABLED:-false}
         OpenApi__ServerUrl: ${OPENAPI_SERVER_URL:-}
         AiProvider__DefaultProvider: ${AI_PROVIDER_DEFAULT_PROVIDER:-OpenAI}
@@ -554,7 +561,9 @@ services:
       TAHLILAPP_CLIENT_SECRET: ""
       Billing__TahlilAppTopUps__Enabled: "false"
       Billing__TahlilAppTopUps__Authentication__Issuer: ""
-      Billing__TahlilAppTopUps__Authentication__SigningKeys__sapio-tahlilapp-current: ""
+      Billing__TahlilAppTopUps__Authentication__Audience: ""
+      Billing__TahlilAppTopUps__Authentication__SigningKeys__prod-dev-key: ""
+      TAHLILAPP_TOPUP_SIGNING_KEY: ""
       FEATURE141_READONLY_CONNECTION_STRING: ''
       Feature141__Enabled: "false"
       DataSyncMessaging__ConsumerCount: ${DATA_SYNC_CONSUMER_COUNT:-4}

@@ -1,0 +1,174 @@
+{
+  "id": "metric_avg_12m_monthly_sales",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "AVG_12M_MONTHLY_SALES"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Average 12-Month Monthly Sales",
+    "Description": "Governed semantic definition for Average 12-Month Monthly Sales.",
+    "Category": 3,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      0
+    ],
+    "Aliases": [
+      {
+        "Expression": "average 12 month sales",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "avg 12m sales",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "متوسط فروش ۱۲ ماهه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "متوسط فروش 12 ماهه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش ۱۲ ماهه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش 12 ماهه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش ۱۲ ماه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش 12 ماه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش دوازده ماه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش ۱۲ ماه اخیر",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش 12 ماه اخیر",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "AVG_12M_MONTHLY_SALES"
+        },
+        "PeriodType": 0,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

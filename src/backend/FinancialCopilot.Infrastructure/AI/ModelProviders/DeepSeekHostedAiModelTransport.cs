@@ -33,6 +33,10 @@ public sealed class DeepSeekHostedAiModelTransport(
         {
             payload["response_format"] = new JsonObject { ["type"] = "json_object" };
         }
+        if (request.MaxOutputTokens is > 0)
+        {
+            payload["max_tokens"] = request.MaxOutputTokens.Value;
+        }
 
         if (request.Tools is { Count: > 0 })
         {
@@ -69,7 +73,8 @@ public sealed class DeepSeekHostedAiModelTransport(
                     MapToolCalls(message?.ToolCalls),
                     body.Usage?.PromptTokens,
                     body.Usage?.CompletionTokens,
-                    ResponseId: body.Id);
+                    ResponseId: body.Id,
+                    CachedInputTokens: body.Usage?.PromptCacheHitTokens);
             }
 
             var failure = await ReadFailureAsync(response, cancellationToken);
@@ -103,7 +108,9 @@ public sealed class DeepSeekHostedAiModelTransport(
                 AttemptNumber: 0,
                 response.InputTokens,
                 response.OutputTokens,
-                UsedTools: response.ToolCalls.Count > 0));
+                UsedTools: response.ToolCalls.Count > 0,
+                CachedInputTokens: response.CachedInputTokens,
+                Workload: request.Workload));
     }
 
     public Task<HostedAiEmbeddingResponse> CreateEmbeddingsAsync(
@@ -264,7 +271,9 @@ public sealed class DeepSeekHostedAiModelTransport(
     private sealed record DeepSeekUsage(
         [property: JsonPropertyName("prompt_tokens")] int? PromptTokens,
         [property: JsonPropertyName("completion_tokens")] int? CompletionTokens,
-        [property: JsonPropertyName("total_tokens")] int? TotalTokens);
+        [property: JsonPropertyName("total_tokens")] int? TotalTokens,
+        // The part of prompt_tokens served from DeepSeek's context cache.
+        [property: JsonPropertyName("prompt_cache_hit_tokens")] int? PromptCacheHitTokens = null);
 
     private sealed record DeepSeekErrorResponse(DeepSeekError? Error);
 

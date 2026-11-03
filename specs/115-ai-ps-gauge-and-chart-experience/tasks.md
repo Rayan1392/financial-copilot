@@ -1,26 +1,44 @@
 # Feature 115 Tasks (Updated)
 
-## [x] Task 5 - Implement Gauge Rendering
-
-Use the verified CyclicalWaves semantics.
-
-Do not implement: - vendor guessing - local quantile calculation -
-alternative bucket algorithms
-
-Acceptance: - six equal-width bands render in a,b,c,d,e,f visual order. - percentages use provider
-counts and reconcile to 100. - needle uses current TTM PS ratio. - band ranges use `start..min`,
-four equal intervals across `min..max`, and `max..end`. - start/end/min/max/avg remain available as
-separate provider facts. - values outside `start..end` clamp visibly.
-
-## Task 6 - Integrate AI Responses
-
-Support: - direct P/S Gauge questions - optional Gauge inset in monthly
-sales trend responses - no live provider calls from AI rendering path
-
-
 Tasks - AI P/S Gauge and Historical Chart Experience
 
 All tasks are specification-only and remain unimplemented.
+
+## [ ] Task 0 - Amend the P/S TTM Marker Source
+
+Update the design, provider-neutral contract, read-model selection policy, and
+presentation requirements so the P/S TTM marker is selected from
+`CyclicalWavesMetricSnapshots` by the resolved company's `SymbolIsin` with
+`MetricType = 'LastPS'`, then extracted from `RawResponseJson.data.ps_ratio`.
+
+The Forward marker is explicitly out of scope and retains its current source and
+behavior. This task does not change plain `PS_TTM` lookup, scanner semantics, or
+ComprehensiveAnalysis behavior.
+
+Acceptance:
+
+- The latest accepted `LastPS` snapshot is selected deterministically and matched
+  on `SymbolIsin`.
+- The persisted-snapshot reader includes `LastPS` in its supported metric types;
+  filtering only `PS`, `PE`, or `Equilibrium` is non-compliant.
+- `RawResponseJson.data.ps_ratio` is the sole P/S TTM marker input.
+- Missing, malformed, or non-numeric `ps_ratio` is missing/invalid; it is never
+  zero and never falls back to `PS_TTM`, gauge `close`, or Forward P/S.
+- Acceptance is based on a successful `Changed` or `NoChange` acquisition for the
+  same snapshot; failed acquisition checks are not eligible.
+- Selection filters to valid numeric `ps_ratio` values before applying the
+  deterministic newest-snapshot ordering. If the newest accepted row is invalid,
+  an older valid row may be used only under the documented explicit fallback
+  policy and must be marked as older/fallback data.
+- The structured result carries source identity/date and a semantic source label
+  such as `LastPS.ps_ratio`.
+- `ttmPs.value`, when present, must equal the selected `LastPS.data.ps_ratio`;
+  frontend and export renderers must not treat `ttmPs.value` and
+  `needle.sourceValue` as independent sources or choose a normalized `PS_TTM`
+  value.
+- Standalone, monthly-sales compact, conversation reload, and PNG export consume
+  the same value and angle.
+- No AI, frontend, reload, or export path calls CyclicalWaves.
 
 ## [ ] Task 1 - Define and Validate Visualization Options
 
@@ -344,7 +362,7 @@ six bands and textual equivalents;
 
 boundary/needle screenshot parity;
 
-TTM/Forward/GaugeClose separation;
+LastPS-backed TTM marker / Forward / GaugeClose separation;
 
 source date/freshness/warnings;
 

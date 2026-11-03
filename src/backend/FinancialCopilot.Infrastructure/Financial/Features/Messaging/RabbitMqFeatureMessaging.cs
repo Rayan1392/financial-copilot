@@ -33,12 +33,67 @@ public sealed class RabbitMqFeatureOptions
     public ushort PrefetchCount { get; init; } = 1;
 
     public int? ConsumerTimeoutMilliseconds { get; init; }
+
+    /// <summary>
+    /// Maximum concurrently leased publisher channels on the process-wide publisher connection.
+    /// </summary>
+    public int PublisherChannelLimit { get; init; } = 4;
+
+    /// <summary>
+    /// Upper bound, per message, for waiting on a publisher channel and completing the publish.
+    /// </summary>
+    public int PublishTimeoutSeconds { get; init; } = 30;
 }
 
-public sealed class RabbitMqFeatureBus(
-    IOptions<RabbitMqFeatureOptions> options,
-    ILogger<RabbitMqFeatureBus> logger) : IFeatureRecalculationPublisher, IFeatureRecalculationConsumer
+/// <summary>
+/// Publishes and consumes feature-recalculation messages over two long-lived connections per process:
+/// one for publishing and one for the consumer.
+/// </summary>
+public sealed class RabbitMqFeatureBus :
+    IFeatureRecalculationPublisher,
+    IFeatureRecalculationConsumer,
+    IAsyncDisposable,
+    IDisposable
 {
+    private const string ConnectionName = "FinancialCopilot.Features";
+
+    private readonly IOptions<RabbitMqFeatureOptions> options;
+    private readonly ILogger<RabbitMqFeatureBus> logger;
+    private readonly RabbitMqConnectionPolicy policy;
+    private readonly RabbitMqSharedConnection publisherConnection;
+    private readonly RabbitMqSharedConnection consumerConnection;
+    private readonly RabbitMqPublisherChannelPool publisherChannels;
+
+    public RabbitMqFeatureBus(
+        IOptions<RabbitMqFeatureOptions> options,
+        ILogger<RabbitMqFeatureBus> logger)
+        : this(
+            options,
+            logger,
+            CreateConnectionFactory(options.Value),
+            RabbitMqConnectionPolicy.Create(options.Value.PublisherChannelLimit, options.Value.PublishTimeoutSeconds),
+            TimeProvider.System)
+    {
+    }
+
+    internal RabbitMqFeatureBus(
+        IOptions<RabbitMqFeatureOptions> options,
+        ILogger<RabbitMqFeatureBus> logger,
+        IConnectionFactory connectionFactory,
+        RabbitMqConnectionPolicy policy,
+        TimeProvider timeProvider)
+    {
+        this.options = options;
+        this.logger = logger;
+        this.policy = policy;
+        publisherConnection = new RabbitMqSharedConnection(
+            connectionFactory, $"{ConnectionName}.Publisher", policy, timeProvider, logger);
+        consumerConnection = new RabbitMqSharedConnection(
+            connectionFactory, $"{ConnectionName}.Consumer", policy, timeProvider, logger);
+        publisherChannels = new RabbitMqPublisherChannelPool(
+            publisherConnection, channelOptions: null, policy, logger);
+    }
+
     public Task PublishRequestedAsync(FeatureRecalculationRequested request, CancellationToken cancellationToken) =>
         PublishAsync(options.Value.RequestedQueue, request, cancellationToken);
 
@@ -48,14 +103,27 @@ public sealed class RabbitMqFeatureBus(
     public Task PublishFailedAsync(FeatureRecalculationFailed notification, CancellationToken cancellationToken) =>
         PublishAsync(options.Value.FailedQueue, notification, cancellationToken);
 
-    public async Task ConsumeAsync(
+    public Task ConsumeAsync(
         Func<FeatureRecalculationRequested, CancellationToken, Task> handler,
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
         EnsureEnabled(settings);
-        await using var connection = await CreateConnectionAsync(settings, cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        return RabbitMqResilientConsumer.RunAsync(
+            consumerConnection,
+            (channel, token) => StartConsumingAsync(channel, settings, handler, token),
+            "feature recalculation",
+            policy,
+            logger,
+            cancellationToken);
+    }
+
+    private async Task StartConsumingAsync(
+        IChannel channel,
+        RabbitMqFeatureOptions settings,
+        Func<FeatureRecalculationRequested, CancellationToken, Task> handler,
+        CancellationToken cancellationToken)
+    {
         await DeclareQueueAsync(channel, settings.RequestedQueue, settings.ConsumerTimeoutMilliseconds, cancellationToken);
         await channel.BasicQosAsync(
             prefetchSize: 0,
@@ -109,23 +177,37 @@ public sealed class RabbitMqFeatureBus(
             autoAck: false,
             consumer: consumer,
             cancellationToken: cancellationToken);
-        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
     }
 
     private async Task PublishAsync<T>(string queue, T payload, CancellationToken cancellationToken)
     {
         var settings = options.Value;
         EnsureEnabled(settings);
-        await using var connection = await CreateConnectionAsync(settings, cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-        await DeclareQueueAsync(channel, queue, consumerTimeoutMilliseconds: null, cancellationToken);
-        await channel.BasicPublishAsync(
-            exchange: string.Empty,
-            routingKey: queue,
-            mandatory: false,
-            body: JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions),
-            cancellationToken: cancellationToken);
+        var body = JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions);
+        await publisherChannels.ExecuteAsync(
+            messageCount: 1,
+            async (channel, token) =>
+            {
+                await DeclareQueueAsync(channel, queue, consumerTimeoutMilliseconds: null, token);
+                await channel.BasicPublishAsync(
+                    exchange: string.Empty,
+                    routingKey: queue,
+                    mandatory: false,
+                    body: body,
+                    cancellationToken: token);
+            },
+            cancellationToken);
     }
+
+    public async ValueTask DisposeAsync()
+    {
+        await publisherChannels.DisposeAsync();
+        await publisherConnection.DisposeAsync();
+        await consumerConnection.DisposeAsync();
+    }
+
+    // A synchronously disposed service provider throws for singletons that are only IAsyncDisposable.
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
     private static void EnsureEnabled(RabbitMqFeatureOptions settings)
     {
@@ -135,21 +217,13 @@ public sealed class RabbitMqFeatureBus(
         }
     }
 
-    private static Task<IConnection> CreateConnectionAsync(
-        RabbitMqFeatureOptions settings,
-        CancellationToken cancellationToken)
-    {
-        var factory = new ConnectionFactory
-        {
-            HostName = settings.HostName,
-            Port = settings.Port,
-            VirtualHost = settings.VirtualHost,
-            UserName = settings.UserName,
-            Password = settings.Password
-        };
-
-        return factory.CreateConnectionAsync("FinancialCopilot.Features", cancellationToken);
-    }
+    private static ConnectionFactory CreateConnectionFactory(RabbitMqFeatureOptions settings) =>
+        RabbitMqConnectionPolicy.CreateConnectionFactory(
+            settings.HostName,
+            settings.Port,
+            settings.VirtualHost,
+            settings.UserName,
+            settings.Password);
 
     private static Task<QueueDeclareOk> DeclareQueueAsync(
         IChannel channel,

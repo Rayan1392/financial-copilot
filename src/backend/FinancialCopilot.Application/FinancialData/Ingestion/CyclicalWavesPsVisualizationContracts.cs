@@ -40,7 +40,7 @@ public sealed record PsEligibleCompanyScope(
 
 public sealed record PsGaugeDistribution(
     long BucketA, long BucketB, long BucketC, long BucketD, long BucketE, long BucketF,
-    decimal GaugeClose, decimal BoundaryStart, decimal BoundaryMin, decimal BoundaryAverage,
+    decimal GaugeClose, decimal GaugeAverage, decimal BoundaryStart, decimal BoundaryMin, decimal BoundaryAverage,
     decimal BoundaryMax, decimal BoundaryEnd);
 
 public sealed record PsCurrentValues(string Symbol, string Ticker, decimal TtmPsRatio, decimal ForwardPsRatio, DateOnly ObservationDate);
@@ -66,6 +66,23 @@ public interface ICyclicalWavesPsProviderClient
     Task<PsProviderResult<PsHistorySeries>> GetHistoryAsync(string symbolIsin, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Scope-free P/S acquisition boundary used by Feature 126 after a symbol has
+/// already been admitted by the authoritative eligibility projection.
+/// </summary>
+public interface ICyclicalWavesPsAcceptedOperation
+{
+    Task<PsProviderResult<PsGaugeDistribution>> AcquireAcceptedPsGaugeAsync(
+        string approvedSymbolIsin,
+        CancellationToken cancellationToken);
+}
+
+public interface IFeature114AcceptedPsVisualizationPersistence
+{
+    Task PersistAcceptedGaugeAsync(Guid companyId, string symbolIsin, PsGaugeDistribution gauge,
+        DateTimeOffset fetchedAtUtc, string? correlationId, CancellationToken cancellationToken);
+}
+
 public interface IPsEligibleCompanyScopeReader
 {
     Task<PsEligibleCompanyScope> ReadAsync(int? maxCompanies, CancellationToken cancellationToken);
@@ -85,7 +102,7 @@ public sealed record PsVisualizationReadModel(
 public sealed record PsPersistedSnapshotFacts(
     string ProviderName,
     string? ProviderSymbol,
-    decimal TtmPsRatio,
+    decimal? TtmPsRatio,
     decimal ForwardPsRatio,
     decimal GaugeClose,
     decimal BoundaryStart,
@@ -99,7 +116,11 @@ public sealed record PsPersistedSnapshotFacts(
     long BucketD,
     long BucketE,
     long BucketF,
-    DateTimeOffset LastSyncedAtUtc);
+    DateTimeOffset LastSyncedAtUtc,
+    Guid? TtmSourceSnapshotId = null,
+    string? TtmSourceSymbolIsin = null,
+    DateTimeOffset? TtmSourceAcquiredAtUtc = null,
+    DateOnly? TtmSourceObservationDate = null);
 
 public interface ICompanyPsVisualizationReader
 {

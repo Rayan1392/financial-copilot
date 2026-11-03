@@ -1,0 +1,230 @@
+{
+  "datasetCaseCount": 13,
+  "attemptedCaseCount": 13,
+  "completedCaseCount": 10,
+  "failedOrMissingCaseCount": 3,
+  "unconditionalCompletionRate": 0.7692307692307693,
+  "exactMeasureCases": 9,
+  "unconditionalExactMeasureRate": 0.6923076923076923,
+  "metamorphicGroupCount": 6,
+  "metamorphicGroupsPassed": 4,
+  "perCase": [
+    {
+      "caseId": "meta-amount-01",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-amount-02",
+      "status": "failed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [],
+      "exactMeasureSet": false,
+      "failureCode": "requirements_contain_unsupported_financial_value_operation"
+    },
+    {
+      "caseId": "meta-amount-03",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [],
+      "exactMeasureSet": false,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-quantity-vs-amount-quantity",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-quantity-vs-amount-amount",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-production-vs-sales-production",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-production-vs-sales-sales",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-growth-quantity",
+      "status": "failed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "selectedMeasureIds": [],
+      "exactMeasureSet": false,
+      "failureCode": "requirements_contain_unsupported_financial_value_operation"
+    },
+    {
+      "caseId": "meta-growth-amount",
+      "status": "failed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [],
+      "exactMeasureSet": false,
+      "failureCode": "navigator_selected_unrecognized_financial_reference"
+    },
+    {
+      "caseId": "meta-company-scope-one",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-company-scope-two",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-period-scope-latest",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    },
+    {
+      "caseId": "meta-period-scope-series",
+      "status": "completed",
+      "expectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "selectedMeasureIds": [
+        "metric_monthly_sales"
+      ],
+      "exactMeasureSet": true,
+      "failureCode": null
+    }
+  ],
+  "metamorphicGroups": [
+    {
+      "group": "amount-paraphrase",
+      "relation": "equivalent",
+      "caseIds": [
+        "meta-amount-01",
+        "meta-amount-02",
+        "meta-amount-03"
+      ],
+      "allCompleted": false,
+      "metamorphicCheck": "full_selected-plan-signature-equality",
+      "passed": false
+    },
+    {
+      "group": "company-scope",
+      "relation": "contrast",
+      "caseIds": [
+        "meta-company-scope-one",
+        "meta-company-scope-two"
+      ],
+      "allCompleted": true,
+      "metamorphicCheck": "entity-count",
+      "passed": true
+    },
+    {
+      "group": "growth-unit-contrast",
+      "relation": "contrast",
+      "caseIds": [
+        "meta-growth-quantity",
+        "meta-growth-amount"
+      ],
+      "allCompleted": false,
+      "metamorphicCheck": "measure-set",
+      "passed": false
+    },
+    {
+      "group": "period-scope",
+      "relation": "contrast",
+      "caseIds": [
+        "meta-period-scope-latest",
+        "meta-period-scope-series"
+      ],
+      "allCompleted": true,
+      "metamorphicCheck": "presentation",
+      "passed": true
+    },
+    {
+      "group": "production-versus-sales",
+      "relation": "contrast",
+      "caseIds": [
+        "meta-production-vs-sales-production",
+        "meta-production-vs-sales-sales"
+      ],
+      "allCompleted": true,
+      "metamorphicCheck": "measure-set",
+      "passed": true
+    },
+    {
+      "group": "quantity-versus-amount",
+      "relation": "contrast",
+      "caseIds": [
+        "meta-quantity-vs-amount-quantity",
+        "meta-quantity-vs-amount-amount"
+      ],
+      "allCompleted": true,
+      "metamorphicCheck": "measure-set",
+      "passed": true
+    }
+  ]
+}

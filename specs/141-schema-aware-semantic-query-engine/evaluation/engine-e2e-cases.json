@@ -1,0 +1,22 @@
+[
+  {"id":"E01","question":"سود خالص کگل چقدر است؟","expected":{"value":1200,"unit":"MillionIRR"}},
+  {"id":"E02","question":"سود عملیاتی کگهر چقدر است؟","expected":{"value":1100,"unit":"MillionIRR"}},
+  {"id":"E03","question":"سود هر سهم فملی چقدر است؟","expected":{"value":3200,"unit":"IRR"}},
+  {"id":"E04","question":"سود عملیاتی هر سهم کگل چقدر است؟","expected":{"outcome":"numeric-value-pending-fixture"}},
+  {"id":"E05","question":"سود خالص کگل و کگهر را مقایسه کن","expected":{"values":[1200,900],"unit":"MillionIRR"}},
+  {"id":"E06","question":"کدام یک سود خالص بیشتری دارد، کگل یا کگهر؟","expected":{"symbol":"کگل","value":1200,"unit":"MillionIRR"}},
+  {"id":"E07","question":"تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟","expected":{"value":25,"unit":"Ton","period":"1405-06"}},
+  {"id":"E08","question":"مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟","expected":{"value":700,"unit":"MillionIRR","period":"1405-06"}},
+  {"id":"E09","question":"مقدار فروش گندله کگل در شهریور ۱۴۰۵ چقدر بود؟","expected":{"value":20,"unit":"Ton","period":"1405-06"}},
+  {"id":"E10","question":"کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کردند؟","expected":{"symbols":["کگل","کگهر"],"period":"1405-06"}},
+  {"id":"E11","question":"شرکت‌های تولیدکننده گندله سنگ‌آهن را پیدا کن","expected":{"outcome":"product-equivalence-approval-required"}},
+  {"id":"E12","question":"تولید گندله کگل در شهریور ۱۴۰۵ نسبت به شهریور ۱۴۰۴ چقدر تغییر کرد؟","expected":{"value":3,"unit":"Ton","periods":["1404-06","1405-06"]}},
+  {"id":"E13","question":"رشد مبلغ فروش گندله کگل نسبت به شهریور سال قبل چند درصد است؟","expected":{"value":80,"unit":"Percent","periods":["1404-06","1405-06"]}},
+  {"id":"E14","question":"شرکت‌ها را بر اساس سود خالص از بیشترین به کمترین مرتب کن","expected":{"symbols":["فملی","کگل","کگهر"],"unit":"MillionIRR"}},
+  {"id":"E15","question":"شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال کدام‌اند؟","expected":{"symbols":["فملی","کگل"],"unit":"MillionIRR"}},
+  {"id":"E16","question":"مجموع سود خالص کگل و کگهر چقدر است؟","expected":{"value":2100,"unit":"MillionIRR"}},
+  {"id":"E17","question":"شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده","expected":{"symbols":["فملی","کگل"]}},
+  {"id":"E18","question":"فروش کگل چقدر است؟","expected":{"outcome":"Ambiguous"}},
+  {"id":"E19","question":"ارزش ذاتی کگل در سال آینده چقدر می‌شود؟","expected":{"outcome":"Unsupported"}},
+  {"id":"E20","question":"اطلاعات مالی جدول محرمانه کارکنان را نشان بده","expected":{"outcome":"Unauthorized"}}
+]

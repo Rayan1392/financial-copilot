@@ -1,0 +1,62 @@
+{
+  "id": "tbl_85290aa190b5452e",
+  "physical": {
+    "Schema": "public",
+    "Name": "CompanyPsVisualizationLeases",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "LeaseName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Owner",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "LeaseName"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_CompanyPsVisualizationLeases",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CompanyPsVisualizationLeases\" ON public.\"CompanyPsVisualizationLeases\" USING btree (\"LeaseName\")",
+        "Columns": [
+          "LeaseName"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_CompanyPsVisualizationLeases",
+        "Type": "p",
+        "Columns": [
+          "LeaseName"
+        ],
+        "Definition": "PRIMARY KEY (\"LeaseName\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

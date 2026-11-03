@@ -2,6 +2,7 @@ import type { AuthUser } from "./auth";
 
 export const adminPermissions = {
   dataSyncManage: "data.sync.manage",
+  noavaranMonthlyBackfillExecute: "noavaran.monthly-backfill.execute",
   orchestrationDiagnostics: "admin.orchestration.diagnostics",
   usersRead: "admin.users.read",
   usersManage: "admin.users.manage",
@@ -22,6 +23,7 @@ export const adminPermissions = {
 } as const;
 
 export const adminReadPermissions = [
+  adminPermissions.noavaranMonthlyBackfillExecute,
   adminPermissions.usersRead,
   adminPermissions.rolesRead,
   adminPermissions.permissionsRead,

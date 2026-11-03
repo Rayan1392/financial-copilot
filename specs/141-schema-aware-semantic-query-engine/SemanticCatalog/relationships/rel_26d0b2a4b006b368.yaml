@@ -1,0 +1,53 @@
+{
+    "id":  "rel_26d0b2a4b006b368",
+    "from":  {
+                 "schema":  "public",
+                 "table":  "FinancialStatements",
+                 "columns":  [
+                                 "ExternalCompanyId"
+                             ]
+             },
+    "to":  {
+               "schema":  "public",
+               "table":  "Companies",
+               "columns":  [
+                               "ExternalCompanyId"
+                           ]
+           },
+    "physicalConstraint":  null,
+    "physicalConstraintPresent":  false,
+    "inferredCardinality":  "many-to-one",
+    "joinGrain":  {
+                      "manySide":  "One FinancialStatements header per provider statement observation, identified to its company by (ProviderName, ExternalCompanyId).",
+                      "oneSide":  "One Companies row per (ProviderName, ExternalCompanyId); unique index IX_Companies_ProviderName_ExternalCompanyId.",
+                      "providerScope":  "The join key is the pair (ProviderName, ExternalCompanyId): compiled SQL always equates FinancialStatements.ProviderName with Companies.ProviderName in addition to this column pair."
+                  },
+    "nullableBehavior":  {
+                             "fromKeyNullable":  false,
+                             "toKeyNullable":  false,
+                             "referentialIntegrityEnforced":  false,
+                             "orphanBehavior":  "No FK constraint; a statement whose provider identity has no Companies row is not returned."
+                         },
+    "verification":  {
+                         "status":  "verified-application-logical-relationship",
+                         "applicationModelField":  "FinancialStatements.(ProviderName, ExternalCompanyId)",
+                         "targetIdentity":  "Companies.(ProviderName, ExternalCompanyId), the base identity of the NoavaranEligibleCompanies view",
+                         "physicalForeignKey":  "not-present; FinancialStatements.CompanyId is NULL for every NoavaranCurrentApi statement",
+                         "dataJoinUniqueness":  "Read-only live check 2026-10-29: 37,346 of 37,346 NoavaranCurrentApi statements match exactly one Companies row by (ProviderName, ExternalCompanyId)."
+                     },
+    "semantic":  {
+                     "approved":  true,
+                     "status":  "owner-approved-runtime-join",
+                     "runtimeJoinable":  true,
+                     "queryAuthorization":  {
+                                                "approved":  true,
+                                                "queryable":  true,
+                                                "reason":  "Noavaran statements identify their company through the provider identity; FinancialStatements.CompanyId must not be required.",
+                                                "provenance":  "product-owner-confirmed:Feature141-noavaran-company-mapping-2026-10-29"
+                                            }
+                 },
+    "provenance":  {
+                       "source":  "Product-owner data contract (Feature 141 Noavaran company mapping) plus read-only live PostgreSQL verification",
+                       "verified":  true
+                   }
+}

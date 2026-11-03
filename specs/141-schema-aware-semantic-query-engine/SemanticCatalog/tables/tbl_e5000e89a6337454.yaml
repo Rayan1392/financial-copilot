@@ -1,0 +1,135 @@
+{
+  "id": "tbl_e5000e89a6337454",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_customer_accounts",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "UserId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "AccountType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "BillingMode",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreditLineApprovedLimit",
+        "Type": "numeric(18,4)",
+        "Nullable": true
+      },
+      {
+        "Name": "CreditLineWarningThreshold",
+        "Type": "numeric(18,4)",
+        "Nullable": true
+      },
+      {
+        "Name": "SubscriptionPlanCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "SubscriptionEffectiveFrom",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "SubscriptionEffectiveTo",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "SubscriptionRevision",
+        "Type": "bigint",
+        "Nullable": false,
+        "DefaultValue": "0"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "SubscriptionPlanCode"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_subscription_plans",
+        "PrincipalColumns": [
+          "Code"
+        ],
+        "Definition": "FOREIGN KEY (\"SubscriptionPlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_billing_customer_accounts_SubscriptionPlanCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_customer_accounts_SubscriptionPlanCode\" ON public.billing_customer_accounts USING btree (\"SubscriptionPlanCode\")",
+        "Columns": [
+          "SubscriptionPlanCode"
+        ]
+      },
+      {
+        "Name": "IX_billing_customer_accounts_TenantId_UserId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_customer_accounts_TenantId_UserId\" ON public.billing_customer_accounts USING btree (\"TenantId\", \"UserId\")",
+        "Columns": [
+          "TenantId",
+          "UserId"
+        ]
+      },
+      {
+        "Name": "PK_billing_customer_accounts",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_customer_accounts\" ON public.billing_customer_accounts USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_billing_customer_accounts_billing_subscription_plans_Subscr~",
+        "Type": "f",
+        "Columns": [
+          "SubscriptionPlanCode"
+        ],
+        "Definition": "FOREIGN KEY (\"SubscriptionPlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_billing_customer_accounts",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -15,6 +15,15 @@ export type MonthlyTrendExportPalette = {
   grid: string;
   surface: string;
   watermark: string;
+  positive: string;
+  negative: string;
+};
+
+export type MonthlyTrendExplanationLine = {
+  beforeValue: string;
+  valueLabel: string | null;
+  afterValue: string;
+  tone: "positive" | "negative" | "neutral";
 };
 
 export type MonthlyTrendChartPointViewModel = {
@@ -38,7 +47,7 @@ export type MonthlyTrendChartCardViewModel = {
   previousYearLegend: string;
   averageLegend: string;
   points: MonthlyTrendChartPointViewModel[];
-  explanationLines: string[];
+  explanationLines: MonthlyTrendExplanationLine[];
   sourceContext: string;
   calculationContext: string;
   palette: MonthlyTrendExportPalette;
@@ -51,24 +60,28 @@ const jalaliMonthNames = [
 
 const exportPalettes: Record<MonthlyTrendChartTheme, MonthlyTrendExportPalette> = {
   dark: {
-    currentYear: "#10b981",
-    previousYear: "#6366f1",
-    average: "#f59e0b",
-    foreground: "#f4f4f5",
-    mutedForeground: "#a1a1aa",
-    grid: "rgba(255,255,255,0.12)",
+    currentYear: "#34d399",
+    previousYear: "#818cf8",
+    average: "#fbbf24",
+    foreground: "#ffffff",
+    mutedForeground: "#e4e4e7",
+    grid: "rgba(255,255,255,0.22)",
     surface: "#24242a",
-    watermark: "rgba(244,244,245,0.14)",
+    watermark: "rgba(244,244,245,0.22)",
+    positive: "#34d399",
+    negative: "#fb7185",
   },
   light: {
-    currentYear: "#059669",
-    previousYear: "#4f46e5",
-    average: "#d97706",
-    foreground: "#27272a",
-    mutedForeground: "#52525b",
-    grid: "rgba(63,63,70,0.18)",
+    currentYear: "#047857",
+    previousYear: "#4338ca",
+    average: "#b45309",
+    foreground: "#18181b",
+    mutedForeground: "#3f3f46",
+    grid: "rgba(63,63,70,0.28)",
     surface: "#fafafa",
-    watermark: "rgba(39,39,42,0.13)",
+    watermark: "rgba(39,39,42,0.18)",
+    positive: "#047857",
+    negative: "#be123c",
   },
 };
 
@@ -102,8 +115,8 @@ export function createMonthlyTrendChartCardViewModel(
     averageLegend: "میانگین ۱۲ ماهه",
     points,
     explanationLines: [
-      ...data.insights.map((insight) => insight.textFa),
-      ...data.missingDataPoints.map((point) => `⚠ ${point.reasonFa}`),
+      ...data.insights.map((insight) => formatInsightLine(data, insight.kind, insight.textFa)),
+      ...data.missingDataPoints.map((point) => neutralExplanationLine(`⚠ ${point.reasonFa}`)),
     ],
     sourceContext,
     calculationContext,
@@ -130,11 +143,75 @@ function mapPoint(point: MonthlyActivityTrendChartPoint): MonthlyTrendChartPoint
   };
 }
 
+/** Exact amount for tooltips and the mobile detail panel: grouped, up to one decimal, Persian digits. */
+export function formatMonthlyTrendAmount(value: number): string {
+  return toPersianDigits(value.toLocaleString("en", { maximumFractionDigits: 1 }));
+}
+
 function formatBarAmount(value: number | null): string | null {
   if (value === null) return null;
   return toPersianDigits(
     Math.round(value).toLocaleString("en-US", { maximumFractionDigits: 0 }),
   );
+}
+
+const percentagePattern = /[+-]?\s*[0-9۰-۹٠-٩]+(?:[.,٫][0-9۰-۹٠-٩]+)?\s*[%٪]/;
+
+function formatInsightLine(
+  data: MonthlyActivityTrendResult,
+  kind: string,
+  text: string,
+): MonthlyTrendExplanationLine {
+  const persianText = toPersianDigits(text);
+  const match = percentagePattern.exec(persianText);
+  const percentage = insightPercentage(data, kind, match?.[0]);
+  if (!match || percentage === null) return neutralExplanationLine(persianText);
+
+  return {
+    beforeValue: persianText.slice(0, match.index),
+    valueLabel: formatSignedPercentage(percentage),
+    afterValue: persianText.slice(match.index + match[0].length),
+    tone: percentage > 0 ? "positive" : percentage < 0 ? "negative" : "neutral",
+  };
+}
+
+function insightPercentage(
+  data: MonthlyActivityTrendResult,
+  kind: string,
+  matchedText?: string,
+): number | null {
+  const structuredValue = kind === "YoYGrowth"
+    ? data.salesAmountYoYGrowthPercent
+    : kind === "VsAverage12Month"
+      ? data.salesVsAverage12MonthPercent
+      : undefined;
+  if (structuredValue !== undefined) return structuredValue;
+  if (!matchedText) return null;
+
+  const normalized = matchedText
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace("٫", ".")
+    .replace(/[%٪\s]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatSignedPercentage(value: number): string {
+  const absoluteValue = Math.abs(value).toFixed(1).replace(".", "٫");
+  const digits = toPersianDigits(absoluteValue);
+  if (value > 0) return `+${digits}٪`;
+  if (value < 0) return `(${digits}٪)`;
+  return `${digits}٪`;
+}
+
+function neutralExplanationLine(text: string): MonthlyTrendExplanationLine {
+  return {
+    beforeValue: toPersianDigits(text),
+    valueLabel: null,
+    afterValue: "",
+    tone: "neutral",
+  };
 }
 
 function sumReportedSales(

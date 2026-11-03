@@ -1,0 +1,431 @@
+{
+  "status": "succeeded_with_partial_coverage",
+  "question": "\u06A9\u062F\u0627\u0645 \u0634\u0631\u06A9\u062A\u200C\u0647\u0627 \u06AF\u0646\u062F\u0644\u0647 \u062A\u0648\u0644\u06CC\u062F \u0645\u06CC\u200C\u06A9\u0646\u0646\u062F\u061F",
+  "executionMode": "live-llm-plus-isolated-postgresql",
+  "provider": "OpenAI",
+  "model": "gpt-5.6-luna",
+  "measureIds": [
+    "metric_monthly_production_quantity"
+  ],
+  "productConcept": {
+    "Status": 0,
+    "CatalogId": "product_iron_ore_pellets",
+    "CatalogVersion": "product-catalog-v1",
+    "CanonicalLabel": "\u06AF\u0646\u062F\u0644\u0647 \u0633\u0646\u06AF\u200C\u0622\u0647\u0646",
+    "ApprovedAliases": [
+      "\u06AF\u0646\u062F\u0644\u0647",
+      "\u06AF\u0646\u062F\u0644\u0647 \u0633\u0646\u06AF\u200C\u0622\u0647\u0646"
+    ],
+    "ApprovalReference": "owner-confirmed:feature141-product-equivalence:2026-10-09",
+    "MappingCoverageStatus": "approved-aliases-only",
+    "DiagnosticCode": null
+  },
+  "companyReferences": [],
+  "planEntities": [
+    {
+      "EntityKind": "Product",
+      "UserReference": "\u06AF\u0646\u062F\u0644\u0647",
+      "ResolvedEntityId": null,
+      "ResolvedEntityKey": "product_iron_ore_pellets",
+      "IdentityProvenance": "product-catalog-v1:owner-confirmed:feature141-product-equivalence:2026-10-09",
+      "IdentityVerified": true
+    }
+  ],
+  "periodPolicy": "observed-production-trailing-12-months-v1",
+  "reportingWindowStart": "2025-10-09",
+  "reportingWindowEnd": "2026-10-09",
+  "companyScope": {
+    "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+    "ScopeId": "feature141-isolated-tenant-company-scope",
+    "ApprovalReference": "owner-approved-isolated-fixture-scope",
+    "CompanyCoverageComplete": true
+  },
+  "postgresStatus": "Incomplete",
+  "diagnostic": "population_discovery_product_alias_coverage_incomplete",
+  "sqlExecuted": true,
+  "compiledSql": "WITH eligible_observations AS (SELECT c.\u0022Id\u0022 AS \u0022CompanyId\u0022, c.\u0022Name\u0022 AS \u0022CompanyName\u0022, c.\u0022Ticker\u0022 AS \u0022CompanySymbol\u0022, li.\u0022Title\u0022 AS \u0022ProductTitle\u0022, li.\u0022ProductCode\u0022 AS \u0022ProductCode\u0022, li.\u0022ProductionQuantity\u0022 AS \u0022Value\u0022, li.\u0022Unit\u0022 AS \u0022SourceUnit\u0022, r.\u0022PeriodStart\u0022 AS \u0022PeriodStart\u0022, r.\u0022PeriodEnd\u0022 AS \u0022PeriodEnd\u0022, r.\u0022ProviderName\u0022 AS \u0022ProviderName\u0022, r.\u0022Id\u0022 AS \u0022ReportId\u0022, r.\u0022ExternalReportId\u0022 AS \u0022ExternalReportId\u0022, li.\u0022SourceRowFingerprint\u0022 AS \u0022SourceRowFingerprint\u0022, li.\u0022SourceMultiplicity\u0022 AS \u0022SourceMultiplicity\u0022, COUNT(*) OVER (PARTITION BY c.\u0022Id\u0022, r.\u0022PeriodEnd\u0022) AS \u0022SamePeriodCandidateCount\u0022, ROW_NUMBER() OVER (PARTITION BY c.\u0022Id\u0022 ORDER BY r.\u0022PeriodEnd\u0022 DESC, r.\u0022PeriodStart\u0022 DESC, r.\u0022Id\u0022 ASC, li.\u0022ProductCode\u0022 ASC) AS \u0022DiscoveryRank\u0022 FROM \u0022public\u0022.\u0022MonthlyReportLineItems\u0022 li JOIN \u0022public\u0022.\u0022MonthlyReports\u0022 r ON li.\u0022MonthlyReportId\u0022 = r.\u0022Id\u0022 JOIN \u0022public\u0022.\u0022Companies\u0022 c ON r.\u0022CompanyId\u0022 = c.\u0022Id\u0022 WHERE c.\u0022Id\u0022 = ANY(@company_ids) AND r.\u0022ProviderName\u0022 = @provider_name AND r.\u0022ReportType\u0022 = @report_type AND r.\u0022OutputType\u0022 = @output_type AND r.\u0022IsAccepted\u0022 = @is_accepted AND r.\u0022RevisionStatus\u0022 = @revision_status AND r.\u0022PeriodEnd\u0022 \u003E= @period_start AND r.\u0022PeriodEnd\u0022 \u003C= @period_end AND li.\u0022ProductionQuantity\u0022 \u003E 0 AND BTRIM(li.\u0022Title\u0022) = ANY(@product_aliases)) SELECT *, \u0027partial\u0027 AS \u0022ProductMappingCoverageStatus\u0022, @company_coverage_complete AS \u0022CompanyCoverageComplete\u0022 FROM eligible_observations WHERE \u0022DiscoveryRank\u0022 = 1 ORDER BY \u0022CompanyName\u0022 ASC, \u0022CompanyId\u0022 ASC LIMIT @row_limit",
+  "sqlParameters": [
+    {
+      "Name": "provider_name",
+      "Value": "NoavaranCurrentApi"
+    },
+    {
+      "Name": "report_type",
+      "Value": "ProductSales"
+    },
+    {
+      "Name": "output_type",
+      "Value": 0
+    },
+    {
+      "Name": "is_accepted",
+      "Value": true
+    },
+    {
+      "Name": "revision_status",
+      "Value": "Accepted"
+    },
+    {
+      "Name": "period_start",
+      "Value": "2025-10-09"
+    },
+    {
+      "Name": "period_end",
+      "Value": "2026-10-09"
+    },
+    {
+      "Name": "product_aliases",
+      "Value": [
+        "\u06AF\u0646\u062F\u0644\u0647",
+        "\u06AF\u0646\u062F\u0644\u0647 \u0633\u0646\u06AF\u200C\u0622\u0647\u0646"
+      ]
+    },
+    {
+      "Name": "company_coverage_complete",
+      "Value": true
+    },
+    {
+      "Name": "row_limit",
+      "Value": 21
+    }
+  ],
+  "compilerDiagnostics": [],
+  "queryPlan": {
+    "ContractVersion": 1,
+    "CatalogVersion": "1",
+    "CatalogHash": "91bd31549418bdbd870b878079efa2808f9122d02cb7725aab5d4bab8595d1a2",
+    "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+    "Entities": [
+      {
+        "EntityKind": "Product",
+        "UserReference": "\u06AF\u0646\u062F\u0644\u0647",
+        "ResolvedEntityId": null,
+        "ResolvedEntityKey": "product_iron_ore_pellets",
+        "IdentityProvenance": "product-catalog-v1:owner-confirmed:feature141-product-equivalence:2026-10-09",
+        "IdentityVerified": true
+      }
+    ],
+    "Sources": [
+      {
+        "ReferenceType": 3,
+        "CatalogId": "metric_monthly_production_quantity",
+        "SourceItemCatalogId": null,
+        "ProviderName": null,
+        "StatementType": null,
+        "SourceItemId": null,
+        "MetricCode": "metric_monthly_production_quantity",
+        "Unit": null,
+        "UnitStatus": null,
+        "IdentityStatus": "catalog-mapped",
+        "SemanticReviewStatus": "pending-or-unresolved",
+        "Queryable": false
+      }
+    ],
+    "RelationshipIds": [
+      "rel_31e410fb3ae11956"
+    ],
+    "Projection": [
+      {
+        "CatalogId": "metric_monthly_production_quantity",
+        "Role": 0
+      }
+    ],
+    "Filters": [],
+    "Period": {
+      "Policies": [
+        "approved-observation-window"
+      ],
+      "ComparisonScopes": [],
+      "SelectLatestByReportingPeriod": false,
+      "UseSynchronizationTimestampForRecency": false,
+      "ReportingPeriodStart": "2025-10-09",
+      "ReportingPeriodEnd": "2026-10-09",
+      "MaximumPeriods": 12
+    },
+    "Statement": {
+      "Scopes": [],
+      "Providers": [],
+      "StatementTypes": [],
+      "SelectionKeys": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "PreferComposing": false,
+      "PreservePeriodType": true,
+      "PreserveAuditState": true,
+      "PreserveRestatementState": true,
+      "PreserveRevisionIdentity": true,
+      "RequireUnambiguousSelection": true
+    },
+    "Aggregations": [],
+    "Sort": [],
+    "Pagination": {
+      "Offset": 0,
+      "Limit": 20
+    },
+    "Presentation": 1,
+    "FinancialOperation": {
+      "Operation": 0,
+      "Kind": 0,
+      "ComparisonMode": 0,
+      "ValueDefinitionCatalogIds": [],
+      "FormulaAuthorized": false
+    },
+    "RetrievalComplete": true,
+    "SemanticReviewApproved": true,
+    "QueryAuthorized": true,
+    "ExecutionEligible": true,
+    "Diagnostics": [
+      "\u06A9\u0627\u062A\u0627\u0644\u0648\u06AF \u0645\u0648\u062C\u0648\u062F \u0631\u0627\u0628\u0637\u0647 \u06CC\u0627 \u0645\u0639\u06CC\u0627\u0631 \u0642\u0627\u0628\u0644\u200C\u0627\u0633\u062A\u0641\u0627\u062F\u0647\u200C\u0627\u06CC \u0628\u0631\u0627\u06CC \u0634\u0646\u0627\u0633\u0627\u06CC\u06CC \u0634\u0631\u06A9\u062A\u200C\u0647\u0627\u06CC \u062A\u0648\u0644\u06CC\u062F\u06A9\u0646\u0646\u062F\u0647 \u06AF\u0646\u062F\u0644\u0647 \u0627\u0631\u0627\u0626\u0647 \u0646\u0645\u06CC\u200C\u06A9\u0646\u062F.",
+      "navigation_metadata_pending:dimension-dim_company",
+      "navigation_metadata_pending:shared-dimensions",
+      "navigation_metadata_pending:financial-semantic-catalog",
+      "navigation_metadata_pending:domain-company-industry",
+      "semantic_meaning_unapproved:dimension-dim_company",
+      "semantic_meaning_unapproved:shared-dimensions",
+      "semantic_meaning_unapproved:financial-semantic-catalog",
+      "semantic_meaning_unapproved:domain-company-industry",
+      "query_not_authorized:dimension-dim_company",
+      "query_not_authorized:shared-dimensions",
+      "query_not_authorized:financial-semantic-catalog",
+      "query_not_authorized:domain-company-industry",
+      "population_product_production_activity_resolved_to_monthly_production_quantity",
+      "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+      "product_population_coverage_limited_to_approved_aliases",
+      "population_discovery_uses_trailing_12_calendar_month_observation_window",
+      "offline_plan_execution_disabled"
+    ],
+    "ReviewedProductEquivalence": null,
+    "CompanyPopulationId": null,
+    "CompanyPopulationApprovalReference": null,
+    "ProductConcept": {
+      "Status": 0,
+      "CatalogId": "product_iron_ore_pellets",
+      "CatalogVersion": "product-catalog-v1",
+      "CanonicalLabel": "\u06AF\u0646\u062F\u0644\u0647 \u0633\u0646\u06AF\u200C\u0622\u0647\u0646",
+      "ApprovedAliases": [
+        "\u06AF\u0646\u062F\u0644\u0647",
+        "\u06AF\u0646\u062F\u0644\u0647 \u0633\u0646\u06AF\u200C\u0622\u0647\u0646"
+      ],
+      "ApprovalReference": "owner-confirmed:feature141-product-equivalence:2026-10-09",
+      "MappingCoverageStatus": "approved-aliases-only",
+      "DiagnosticCode": null
+    },
+    "CompanyDiscoveryScope": {
+      "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+      "ScopeId": "feature141-isolated-tenant-company-scope",
+      "ApprovalReference": "owner-approved-isolated-fixture-scope",
+      "CompanyCoverageComplete": true
+    },
+    "PopulationCoveragePolicyId": "observed-production-trailing-12-months-v1",
+    "PopulationSalesScope": null
+  },
+  "sourceCatalogIds": [
+    "metric_monthly_production_quantity"
+  ],
+  "relationshipCatalogIds": [
+    "rel_31e410fb3ae11956",
+    "rel_4e54d40aee8b45e4"
+  ],
+  "physicalObjectCatalogIds": [
+    "tbl_8ecd0432a4292998_MonthlyReportId",
+    "tbl_8e759d70dada6bd8_Id",
+    "tbl_8e759d70dada6bd8_CompanyId",
+    "tbl_8646d83cdb350f92_Id",
+    "tbl_8ecd0432a4292998_ProductionQuantity",
+    "tbl_8ecd0432a4292998_ProductCode",
+    "tbl_8ecd0432a4292998_Title",
+    "tbl_8ecd0432a4292998_Unit",
+    "tbl_8e759d70dada6bd8_PeriodStart",
+    "tbl_8e759d70dada6bd8_PeriodEnd",
+    "tbl_8e759d70dada6bd8_ProviderName",
+    "tbl_8e759d70dada6bd8_ReportType",
+    "tbl_8e759d70dada6bd8_OutputType",
+    "tbl_8e759d70dada6bd8_IsAccepted",
+    "tbl_8e759d70dada6bd8_RevisionStatus",
+    "tbl_8e759d70dada6bd8_ExternalReportId",
+    "tbl_8ecd0432a4292998_SourceRowFingerprint",
+    "tbl_8ecd0432a4292998_SourceMultiplicity",
+    "tbl_8646d83cdb350f92_Name",
+    "tbl_8ecd0432a4292998",
+    "tbl_8e759d70dada6bd8",
+    "tbl_8646d83cdb350f92"
+  ],
+  "rows": [
+    {
+      "CompanyId": "5202a885-2afc-4939-a09d-f794c6bf058a",
+      "CompanyName": "Dynamically discovered producer",
+      "CompanySymbol": "NEWP",
+      "ProductTitle": "\u06AF\u0646\u062F\u0644\u0647 \u0633\u0646\u06AF\u200C\u0622\u0647\u0646",
+      "ProductCode": "NoavaranCurrentApi:feature141-new-producer:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "Value": 62,
+      "SourceUnit": "ton",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "ProviderName": "NoavaranCurrentApi",
+      "ReportId": "12c924fe-24b5-40d3-9c62-c3d52267e6b2",
+      "ExternalReportId": "fixture-new-producer-shahrivar-1405",
+      "SourceRowFingerprint": "row-fixture-new-producer-shahrivar-1405-NoavaranCurrentApi:feature141-new-producer:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "SourceMultiplicity": 1,
+      "SamePeriodCandidateCount": 1,
+      "DiscoveryRank": 1,
+      "ProductMappingCoverageStatus": "partial",
+      "CompanyCoverageComplete": true
+    },
+    {
+      "CompanyId": "2a437020-35d6-4d57-b1bd-a209d7af06fb",
+      "CompanyName": "Fixture Kegel",
+      "CompanySymbol": "\u06A9\u06AF\u0644",
+      "ProductTitle": "\u06AF\u0646\u062F\u0644\u0647",
+      "ProductCode": "NoavaranCurrentApi:feature141-kgel:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "Value": 25,
+      "SourceUnit": "ton",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "ProviderName": "NoavaranCurrentApi",
+      "ReportId": "23592725-e0f2-42ac-b903-9afe7ce426e3",
+      "ExternalReportId": "fixture-kgel-shahrivar-1405",
+      "SourceRowFingerprint": "row-fixture-kgel-shahrivar-1405-NoavaranCurrentApi:feature141-kgel:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "SourceMultiplicity": 1,
+      "SamePeriodCandidateCount": 1,
+      "DiscoveryRank": 1,
+      "ProductMappingCoverageStatus": "partial",
+      "CompanyCoverageComplete": true
+    },
+    {
+      "CompanyId": "f7a05252-afe0-4ddb-8537-8cc18da7a40b",
+      "CompanyName": "Fixture Kog\u0647\u0631",
+      "CompanySymbol": "\u06A9\u06AF\u0647\u0631",
+      "ProductTitle": "\u06AF\u0646\u062F\u0644\u0647",
+      "ProductCode": "NoavaranCurrentApi:feature141-kgehr:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "Value": 47,
+      "SourceUnit": "ton",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "ProviderName": "NoavaranCurrentApi",
+      "ReportId": "17531772-5b8a-450f-ac1d-639c544007a9",
+      "ExternalReportId": "fixture-kgehr-shahrivar-1405",
+      "SourceRowFingerprint": "row-fixture-kgehr-shahrivar-1405-NoavaranCurrentApi:feature141-kgehr:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "SourceMultiplicity": 1,
+      "SamePeriodCandidateCount": 1,
+      "DiscoveryRank": 1,
+      "ProductMappingCoverageStatus": "partial",
+      "CompanyCoverageComplete": true
+    },
+    {
+      "CompanyId": "a64bbbd9-7788-4bf0-a8c7-2ed304be5d68",
+      "CompanyName": "Positive pellet producer without sales",
+      "CompanySymbol": "NOSALES",
+      "ProductTitle": "\u06AF\u0646\u062F\u0644\u0647",
+      "ProductCode": "NoavaranCurrentApi:feature141-production-only:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "Value": 80,
+      "SourceUnit": "ton",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "ProviderName": "NoavaranCurrentApi",
+      "ReportId": "1a99773f-ab41-4bc3-9afc-ab3d63ff273f",
+      "ExternalReportId": "fixture-production-only-shahrivar-1405",
+      "SourceRowFingerprint": "row-fixture-production-only-shahrivar-1405-NoavaranCurrentApi:feature141-production-only:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton",
+      "SourceMultiplicity": 1,
+      "SamePeriodCandidateCount": 1,
+      "DiscoveryRank": 1,
+      "ProductMappingCoverageStatus": "partial",
+      "CompanyCoverageComplete": true
+    }
+  ],
+  "expectedCompanyIds": [
+    "2a437020-35d6-4d57-b1bd-a209d7af06fb",
+    "5202a885-2afc-4939-a09d-f794c6bf058a",
+    "a64bbbd9-7788-4bf0-a8c7-2ed304be5d68",
+    "f7a05252-afe0-4ddb-8537-8cc18da7a40b"
+  ],
+  "exactCompanySetMatch": true,
+  "finalPersianAnswer": "\u062F\u0631 \u06AF\u0632\u0627\u0631\u0634\u200C\u0647\u0627\u06CC \u0645\u0627\u0647\u0627\u0646\u0647\u0654 \u0648\u0627\u062C\u062F \u0634\u0631\u0627\u06CC\u0637 \u0628\u0627\u0632\u0647\u0654 \u06F2\u06F0\u06F2\u06F5-\u06F1\u06F0-\u06F0\u06F9 \u062A\u0627 \u06F2\u06F0\u06F2\u06F6-\u06F1\u06F0-\u06F0\u06F9\u060C \u062A\u0648\u0644\u06CC\u062F \u0645\u062B\u0628\u062A \u06AF\u0646\u062F\u0644\u0647 \u0628\u0631\u0627\u06CC \u0634\u0631\u06A9\u062A\u200C\u0647\u0627\u06CC \u0632\u06CC\u0631 \u0645\u0634\u0627\u0647\u062F\u0647 \u0634\u062F: Dynamically discovered producer (NEWP): \u062A\u0648\u0644\u06CC\u062F \u062B\u0628\u062A\u200C\u0634\u062F\u0647\u0654 \u06AF\u0646\u062F\u0644\u0647 \u06F6\u06F2 \u062A\u0646 \u062F\u0631 \u0628\u0627\u0632\u0647\u0654 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F8-\u06F2\u06F3 \u062A\u0627 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F9-\u06F2\u06F2\u061B \n\u0645\u0646\u0628\u0639: NoavaranCurrentApi\u060C \u06AF\u0632\u0627\u0631\u0634 fixture-new-producer-shahrivar-1405\u061B Fixture Kegel (\u06A9\u06AF\u0644): \u062A\u0648\u0644\u06CC\u062F \u062B\u0628\u062A\u200C\u0634\u062F\u0647\u0654 \u06AF\u0646\u062F\u0644\u0647 \u06F2\u06F5 \u062A\u0646 \u062F\u0631 \u0628\u0627\u0632\u0647\u0654 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F8-\u06F2\u06F3 \u062A\u0627 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F9-\u06F2\u06F2\u061B \n\u0645\u0646\u0628\u0639: NoavaranCurrentApi\u060C \u06AF\u0632\u0627\u0631\u0634 fixture-kgel-shahrivar-1405\u061B Fixture Kog\u0647\u0631 (\u06A9\u06AF\u0647\u0631): \u062A\u0648\u0644\u06CC\u062F \u062B\u0628\u062A\u200C\u0634\u062F\u0647\u0654 \u06AF\u0646\u062F\u0644\u0647 \u06F4\u06F7 \u062A\u0646 \u062F\u0631 \u0628\u0627\u0632\u0647\u0654 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F8-\u06F2\u06F3 \u062A\u0627 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F9-\u06F2\u06F2\u061B \n\u0645\u0646\u0628\u0639: NoavaranCurrentApi\u060C \u06AF\u0632\u0627\u0631\u0634 fixture-kgehr-shahrivar-1405\u061B Positive pellet producer without sales (NOSALES): \u062A\u0648\u0644\u06CC\u062F \u062B\u0628\u062A\u200C\u0634\u062F\u0647\u0654 \u06AF\u0646\u062F\u0644\u0647 \u06F8\u06F0 \u062A\u0646 \u062F\u0631 \u0628\u0627\u0632\u0647\u0654 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F8-\u06F2\u06F3 \u062A\u0627 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F9-\u06F2\u06F2\u061B \n\u0645\u0646\u0628\u0639: NoavaranCurrentApi\u060C \u06AF\u0632\u0627\u0631\u0634 fixture-production-only-shahrivar-1405. \u0627\u06CC\u0646 \u0641\u0647\u0631\u0633\u062A \u062C\u0632\u0626\u06CC \u0627\u0633\u062A: \u067E\u0648\u0634\u0634 \u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0634\u0631\u06A9\u062A\u200C\u0647\u0627 \u06CC\u0627 \u0646\u06AF\u0627\u0634\u062A \u0645\u062D\u0635\u0648\u0644 \u06A9\u0627\u0645\u0644 \u0646\u06CC\u0633\u062A \u0648 \u0627\u0632 \u0622\u0646 \u0646\u0645\u06CC\u200C\u062A\u0648\u0627\u0646 \u0646\u062A\u06CC\u062C\u0647 \u06AF\u0631\u0641\u062A \u06A9\u0647 \u0634\u0631\u06A9\u062A\u200C\u0647\u0627\u06CC \u0641\u0647\u0631\u0633\u062A\u200C\u0646\u0634\u062F\u0647 \u062A\u0648\u0644\u06CC\u062F \u0646\u062F\u0627\u0634\u062A\u0647\u200C\u0627\u0646\u062F.",
+  "evidence": [
+    {
+      "Company": "Dynamically discovered producer (NEWP)",
+      "Product": "\u06AF\u0646\u062F\u0644\u0647 \u0633\u0646\u06AF\u200C\u0622\u0647\u0646",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "Provider": "NoavaranCurrentApi",
+      "ReportIdentities": [
+        "fixture-new-producer-shahrivar-1405"
+      ],
+      "SourceReferences": [
+        "row-fixture-new-producer-shahrivar-1405-NoavaranCurrentApi:feature141-new-producer:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton"
+      ],
+      "Facts": {
+        "Value": "62",
+        "SourceUnit": "ton"
+      },
+      "EvidenceStatus": "verified"
+    },
+    {
+      "Company": "Fixture Kegel (\u06A9\u06AF\u0644)",
+      "Product": "\u06AF\u0646\u062F\u0644\u0647",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "Provider": "NoavaranCurrentApi",
+      "ReportIdentities": [
+        "fixture-kgel-shahrivar-1405"
+      ],
+      "SourceReferences": [
+        "row-fixture-kgel-shahrivar-1405-NoavaranCurrentApi:feature141-kgel:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton"
+      ],
+      "Facts": {
+        "Value": "25",
+        "SourceUnit": "ton"
+      },
+      "EvidenceStatus": "verified"
+    },
+    {
+      "Company": "Fixture Kog\u0647\u0631 (\u06A9\u06AF\u0647\u0631)",
+      "Product": "\u06AF\u0646\u062F\u0644\u0647",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "Provider": "NoavaranCurrentApi",
+      "ReportIdentities": [
+        "fixture-kgehr-shahrivar-1405"
+      ],
+      "SourceReferences": [
+        "row-fixture-kgehr-shahrivar-1405-NoavaranCurrentApi:feature141-kgehr:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton"
+      ],
+      "Facts": {
+        "Value": "47",
+        "SourceUnit": "ton"
+      },
+      "EvidenceStatus": "verified"
+    },
+    {
+      "Company": "Positive pellet producer without sales (NOSALES)",
+      "Product": "\u06AF\u0646\u062F\u0644\u0647",
+      "PeriodStart": "2026-08-23",
+      "PeriodEnd": "2026-09-22",
+      "Provider": "NoavaranCurrentApi",
+      "ReportIdentities": [
+        "fixture-production-only-shahrivar-1405"
+      ],
+      "SourceReferences": [
+        "row-fixture-production-only-shahrivar-1405-NoavaranCurrentApi:feature141-production-only:TITLE:\u06AF\u0646\u062F\u0644\u0647|UNIT:ton"
+      ],
+      "Facts": {
+        "Value": "80",
+        "SourceUnit": "ton"
+      },
+      "EvidenceStatus": "verified"
+    }
+  ],
+  "queryFingerprint": "3adf75239db16412f62ea424d09ab3d10cd86aed3f7f9e532eb425d910267a5f",
+  "modelCalls": 2,
+  "inputTokens": 6503,
+  "outputTokens": 664,
+  "latencyMs": 8987,
+  "secretValuesLogged": false
+}

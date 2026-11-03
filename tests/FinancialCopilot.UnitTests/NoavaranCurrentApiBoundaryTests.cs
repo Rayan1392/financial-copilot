@@ -4,6 +4,8 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -40,7 +42,14 @@ public sealed class NoavaranCurrentApiBoundaryTests
         {
             Assert.Contains("fromDate=140401", r.Uri);
             Assert.DoesNotContain("fromDate", r.Body);
-            Assert.Contains("\"companyIds\":[3]", r.Body);
+            if (r.Uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                Assert.Contains("\"companyIds\":3", r.Body);
+            }
+            else
+            {
+                Assert.Contains("\"companyIds\":[3]", r.Body);
+            }
         });
     }
 
@@ -56,18 +65,25 @@ public sealed class NoavaranCurrentApiBoundaryTests
         await client.FetchMonthlyReportsAsync("13150", CancellationToken.None);
 
         var monthly = requests.Where(r => r.Uri.Contains("MonthlyActivity")).ToArray();
-        Assert.Equal(6, monthly.Length); // 5 ProductSales (outputTypeId 0–4) + 1 ServiceSales
+        Assert.Equal(5, monthly.Length); // ProductSales output types 0–4 only
         Assert.All(monthly, r =>
         {
             Assert.Contains("fromDate=140502", r.Uri);
             Assert.Contains("toDate=140502", r.Uri);
             Assert.DoesNotContain("fromDate", r.Body);
-            Assert.Contains("\"companyIds\":[13150]", r.Body);
+            if (r.Uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                Assert.Contains("\"companyIds\":13150", r.Body);
+            }
+            else
+            {
+                Assert.Contains("\"companyIds\":[13150]", r.Body);
+            }
         });
     }
 
     [Fact]
-    public async Task MonthlyActivity_ServiceSalesFailure_IsIsolatedAndKeepsProductSales()
+    public async Task MonthlyActivity_ServiceSalesFailure_RemainsRetryable()
     {
         var requests = new List<(string Uri, string Body)>();
         using var httpClient = new HttpClient(new StubHandler(async request =>
@@ -89,12 +105,14 @@ public sealed class NoavaranCurrentApiBoundaryTests
             BaseAddress = new Uri("https://data3.nadpco.com/")
         };
 
-        var client = CreateClient(httpClient, new NoavaranCurrentApiBoundaryOverride());
-        var payload = await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
+        var serviceBoundary = new NoavaranCurrentApiBoundaryOverride();
+        serviceBoundary.SetReportingType(1_000_005);
+        var client = CreateClient(httpClient, serviceBoundary);
+        await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchMonthlyReportsAsync("3", CancellationToken.None));
 
-        // The envelope is stored with the new 6-field shape; service-sales degrades to "[]".
-        Assert.Contains("\"productSalesType0\"", payload.Payload, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("\"serviceSales\":\"[]\"", payload.Payload, StringComparison.OrdinalIgnoreCase);
+        // The selected ServiceSales endpoint failure is preserved for the existing retry path.
+        Assert.Single(requests, request => request.Uri.Contains("ServiceSales", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -126,11 +144,18 @@ public sealed class NoavaranCurrentApiBoundaryTests
 
     private static NadpcoApiDataProviderClient CreateClient(
         HttpClient httpClient,
-        INoavaranCurrentApiBoundaryOverride boundary) =>
-        new(
+        INoavaranCurrentApiBoundaryOverride boundary)
+    {
+        if (boundary.ReportingType is null)
+        {
+            boundary.SetReportingType(1_000_000);
+        }
+
+        return new(
             httpClient,
             new ProviderRawPayloadStore(CreateProviderDbContext()),
-            new SequenceTokenProvider("token"),
+            new NadpcoApiTokenCache(
+                new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()))),
             Options.Create(new NadpcoApiProviderOptions
             {
                 StatementFromYear = 1403,
@@ -140,6 +165,7 @@ public sealed class NoavaranCurrentApiBoundaryTests
             TimeProvider.System,
             NullLogger<NadpcoApiDataProviderClient>.Instance,
             boundary);
+    }
 
     private static FinancialProviderDbContext CreateProviderDbContext() =>
         new(new DbContextOptionsBuilder<FinancialProviderDbContext>()

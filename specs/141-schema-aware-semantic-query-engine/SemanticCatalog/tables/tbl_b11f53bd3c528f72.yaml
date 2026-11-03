@@ -1,0 +1,153 @@
+{
+  "id": "tbl_b11f53bd3c528f72",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationDeliveryAttempts",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationIntentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PartNumber",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "DeliveryPartKey",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "AttemptNumber",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderMessageId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "ErrorCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "ErrorRedacted",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "StartedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CompletedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "NextRetryAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationIntents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationDeliveryAttempts_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_NotificationDeliveryAttempts_IdempotencyKey\" ON public.\"NotificationDeliveryAttempts\" USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "IX_NotificationDeliveryAttempts_NotificationIntentId_PartNumbe~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationDeliveryAttempts_NotificationIntentId_PartNumbe~\" ON public.\"NotificationDeliveryAttempts\" USING btree (\"NotificationIntentId\", \"PartNumber\", \"Status\")",
+        "Columns": [
+          "NotificationIntentId",
+          "PartNumber",
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_NotificationDeliveryAttempts",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationDeliveryAttempts\" ON public.\"NotificationDeliveryAttempts\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_NotificationDeliveryAttempts_DeliveredPart",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_NotificationDeliveryAttempts_DeliveredPart\" ON public.\"NotificationDeliveryAttempts\" USING btree (\"DeliveryPartKey\") WHERE ((\"Status\")::text = 'Delivered'::text)",
+        "Columns": [
+          "DeliveryPartKey"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_NotificationDeliveryAttempts_NotificationIntents_Notificati~",
+        "Type": "f",
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_NotificationDeliveryAttempts",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

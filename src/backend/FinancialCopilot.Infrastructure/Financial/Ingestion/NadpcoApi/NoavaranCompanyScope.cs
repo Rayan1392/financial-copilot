@@ -57,4 +57,27 @@ public static class NoavaranCompanyScope
             .OrderBy(id => id)
             .ToArray();
     }
+
+    /// <summary>Distinct numeric vendor company ids for one persisted ReportingType.</summary>
+    public static async Task<IReadOnlyList<int>> EligibleCompanyIdsAsync(
+        FinancialIngestionDbContext dbContext,
+        string providerName,
+        int reportingType,
+        CancellationToken cancellationToken)
+    {
+        var ids = await EligibleCompanies(dbContext, providerName)
+            .Where(row => row.ReportingType == reportingType)
+            .Select(row => row.ExternalCompanyId)
+            .ToListAsync(cancellationToken);
+
+        return ids
+            .Select(id => int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : (int?)null)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+    }
 }

@@ -16,13 +16,19 @@ public sealed record AdminRoleView(
 
 public sealed record AdminTenantView(Guid TenantId, string Name);
 
-public sealed record AdminTenantMemberView(Guid UserId, string Email, bool IsDefault);
+public sealed record AdminTenantMemberView(
+    Guid UserId,
+    string? Email,
+    bool IsDefault,
+    string? DisplayName,
+    bool IsTahlilAppConnected);
 
 public sealed record AdminPlanView(
     string Code,
     string Name,
     decimal IncludedCredits,
-    string PricingPolicyVersion);
+    string PricingPolicyVersion,
+    string QuotaMode = "Finite");
 
 public sealed record AdminPlanCapabilityView(
     string CapabilityCode,
@@ -38,7 +44,9 @@ public sealed record AdminSubscriptionView(
     string? PlanCode,
     DateTimeOffset? EffectiveFrom,
     DateTimeOffset? EffectiveTo,
-    long Revision);
+    long Revision,
+    string CreditQuotaMode = "Finite",
+    DateTimeOffset? SubscriptionExpiresAtUtc = null);
 
 public sealed record AdminUsageLedgerView(
     Guid Id,
@@ -53,7 +61,10 @@ public sealed record AdminUsageLedgerView(
     string IdempotencyKey,
     DateTimeOffset OccurredAt,
     string? CompletionStatus,
-    string? AuditDescription);
+    string? AuditDescription,
+    string CreditQuotaMode = "Finite",
+    Guid? SourceSubscriptionId = null,
+    DateTimeOffset? SubscriptionExpiresAtUtc = null);
 
 public sealed record AdminSecurityAuditView(
     Guid AuditId,
@@ -106,6 +117,7 @@ public sealed record AdminRoleChange(string Name, bool IsEnabled, string Reason)
 public sealed record AdminUserStatusChange(bool IsEnabled, bool Unlock, string Reason);
 public sealed record AdminTenantMembershipChange(bool IsDefault, string? Reason);
 public sealed record AdminPlanUpsert(string Code, string Name, decimal IncludedCredits, string PricingPolicyVersion, string Reason);
+public sealed record AdminPlanIncludedCreditsChange(decimal IncludedCredits, string PricingPolicyVersion, string Reason);
 public sealed record AdminCapabilityUpsert(string CapabilityCode, string PolicyVersion, bool IsEnabled, decimal? Limit);
 public sealed record AdminSubscriptionChange(string? PlanCode, DateTimeOffset? EffectiveFrom, DateTimeOffset? EffectiveTo, long ExpectedRevision, string Reason);
 
@@ -127,6 +139,7 @@ public interface IAdminManagementService
     Task RemoveTenantMembershipAsync(Guid tenantId, Guid userId, AdminMutationContext context, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<AdminPlanView>> GetPlansAsync(CancellationToken cancellationToken);
     Task<AdminPlanView> UpsertPlanAsync(AdminPlanUpsert change, AdminMutationContext context, CancellationToken cancellationToken);
+    Task<AdminPlanView> UpdatePlanIncludedCreditsAsync(string planCode, AdminPlanIncludedCreditsChange change, AdminMutationContext context, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<AdminPlanCapabilityView>> GetPlanCapabilitiesAsync(string planCode, CancellationToken cancellationToken);
     Task SetPlanCapabilitiesAsync(string planCode, IReadOnlyCollection<AdminCapabilityUpsert> changes, AdminMutationContext context, CancellationToken cancellationToken);
     Task<AdminSubscriptionView> GetSubscriptionAsync(Guid tenantId, Guid customerAccountId, CancellationToken cancellationToken);

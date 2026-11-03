@@ -1,0 +1,28 @@
+{
+  "id": "rel_7ea100339cd75190",
+  "from": {
+    "schema": "public",
+    "table": "Companies",
+    "columns": [
+      "IndustryId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "Industries",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE SET NULL",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

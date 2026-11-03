@@ -1,0 +1,91 @@
+{
+  "id": "tbl_521bd48b4df6eae1",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioGovernedMappings",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MappingType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawValue",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedValue",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "ResolutionJson",
+        "Type": "character varying(10000)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsApproved",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "ResolvedByActorId",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "ResolvedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioGovernedMappings_MappingType_RawValue",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioGovernedMappings_MappingType_RawValue\" ON public.\"FundPortfolioGovernedMappings\" USING btree (\"MappingType\", \"RawValue\")",
+        "Columns": [
+          "MappingType",
+          "RawValue"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioGovernedMappings",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioGovernedMappings\" ON public.\"FundPortfolioGovernedMappings\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioGovernedMappings",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

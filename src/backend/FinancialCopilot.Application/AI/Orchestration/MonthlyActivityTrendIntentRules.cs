@@ -43,9 +43,21 @@ public static class MonthlyActivityTrendIntentRules
         "production sales chart"
     ];
 
+    private static readonly string[] UnicodeTrendPhrases =
+    [
+        "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647",
+        "\u0686\u0627\u0631\u062a \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647",
+        "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634",
+        "\u0631\u0648\u0646\u062f \u062a\u0648\u0644\u06cc\u062f \u0648 \u0641\u0631\u0648\u0634",
+        "\u0646\u0645\u0648\u062f\u0627\u0631 \u062a\u0648\u0644\u06cc\u062f \u0648 \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647",
+        "\u0646\u0645\u0648\u062f\u0627\u0631 \u0641\u0631\u0648\u0634",
+        "\u0646\u0645\u0648\u062f\u0627\u0631 \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647"
+    ];
+
     private static readonly string[] NormalizedTrendPhrases =
         CanonicalMonthlySalesTrendPhrases
             .Concat(SupportedTrendPhrases)
+            .Concat(UnicodeTrendPhrases)
             .Select(NormalizeText)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
@@ -53,6 +65,9 @@ public static class MonthlyActivityTrendIntentRules
     public static bool LooksLikeMonthlyActivityTrendQuery(string? query)
     {
         if (string.IsNullOrWhiteSpace(query)) return false;
+        // A validated product slot belongs to the product-aware V2 capability.  Do not let the
+        // broad company trend phrase consume it before product resolution has run.
+        if (MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(query)) return false;
         var normalized = NormalizeText(query);
         return NormalizedTrendPhrases.Any(phrase =>
             normalized.Contains(phrase, StringComparison.OrdinalIgnoreCase));
@@ -63,6 +78,19 @@ public static class MonthlyActivityTrendIntentRules
         if (string.IsNullOrWhiteSpace(query)) return null;
 
         var normalized = NormalizeText(query);
+
+        // A labeled company/symbol entity is stronger evidence than nearby metric,
+        // period, chart, or calculation words. Prefer that slot before scanning the
+        // remaining natural-language text for ticker-like tokens.
+        foreach (var marker in new[] { "\u0646\u0645\u0627\u062f", "\u0634\u0631\u06a9\u062a", "\u0633\u0647\u0645" })
+        {
+            var markerIndex = normalized.IndexOf(marker, StringComparison.Ordinal);
+            if (markerIndex < 0) continue;
+            var afterMarker = normalized[(markerIndex + marker.Length)..];
+            var explicitCandidates = ExtractCandidateTokens(afterMarker);
+            var explicitCandidate = SelectBestCandidate(explicitCandidates);
+            if (explicitCandidate is not null) return explicitCandidate;
+        }
 
         // Strip the matched trend phrase to reduce noise before symbol extraction.
         var matchedPhrase = NormalizedTrendPhrases

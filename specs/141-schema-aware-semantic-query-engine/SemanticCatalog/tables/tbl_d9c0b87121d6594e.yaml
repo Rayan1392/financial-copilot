@@ -1,0 +1,95 @@
+{
+  "id": "tbl_d9c0b87121d6594e",
+  "physical": {
+    "Schema": "public",
+    "Name": "ComprehensiveAnalyses",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "Title",
+        "Type": "character varying(500)",
+        "Nullable": false
+      },
+      {
+        "Name": "Summary",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "PersianCreatedAt",
+        "Type": "character varying(30)",
+        "Nullable": false
+      },
+      {
+        "Name": "AuthorId",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "AuthorName",
+        "Type": "character varying(200)",
+        "Nullable": false
+      },
+      {
+        "Name": "SyncedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "PlainTextSummary",
+        "Type": "character varying(10000)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_ComprehensiveAnalyses_CreatedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ComprehensiveAnalyses_CreatedAt\" ON public.\"ComprehensiveAnalyses\" USING btree (\"CreatedAt\")",
+        "Columns": [
+          "CreatedAt"
+        ]
+      },
+      {
+        "Name": "PK_ComprehensiveAnalyses",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ComprehensiveAnalyses\" ON public.\"ComprehensiveAnalyses\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_ComprehensiveAnalyses",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

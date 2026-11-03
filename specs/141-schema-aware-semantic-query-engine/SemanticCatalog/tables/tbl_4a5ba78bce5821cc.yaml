@@ -1,0 +1,115 @@
+{
+  "id": "tbl_4a5ba78bce5821cc",
+  "physical": {
+    "Schema": "public",
+    "Name": "InvestmentFunds",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalFundId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "FundName",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedFundName",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "FundSymbol",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationNumber",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ManagerName",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsActive",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_InvestmentFunds_ProviderName_ExternalFundId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_InvestmentFunds_ProviderName_ExternalFundId\" ON public.\"InvestmentFunds\" USING btree (\"ProviderName\", \"ExternalFundId\") WHERE (\"ExternalFundId\" IS NOT NULL)",
+        "Columns": [
+          "ProviderName",
+          "ExternalFundId"
+        ]
+      },
+      {
+        "Name": "IX_InvestmentFunds_ProviderName_NormalizedFundName",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_InvestmentFunds_ProviderName_NormalizedFundName\" ON public.\"InvestmentFunds\" USING btree (\"ProviderName\", \"NormalizedFundName\")",
+        "Columns": [
+          "ProviderName",
+          "NormalizedFundName"
+        ]
+      },
+      {
+        "Name": "PK_InvestmentFunds",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_InvestmentFunds\" ON public.\"InvestmentFunds\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_InvestmentFunds",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "id": "tbl_fcf96af10bc419d0",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioImportRuns",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TriggerType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedByActorId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "StartedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CompletedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "Status",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "DiscoveredCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "DuplicateCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PartialCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "FailedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioImportRuns_ProviderName",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioImportRuns_ProviderName\" ON public.\"FundPortfolioImportRuns\" USING btree (\"ProviderName\")",
+        "Columns": [
+          "ProviderName"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioImportRuns_Status_StartedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioImportRuns_Status_StartedAtUtc\" ON public.\"FundPortfolioImportRuns\" USING btree (\"Status\", \"StartedAtUtc\")",
+        "Columns": [
+          "Status",
+          "StartedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioImportRuns",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioImportRuns\" ON public.\"FundPortfolioImportRuns\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioImportRuns",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

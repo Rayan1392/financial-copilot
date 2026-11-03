@@ -1,0 +1,354 @@
+{
+  "id": "tbl_4f3dd93b63d1766f",
+  "physical": {
+    "Schema": "public",
+    "Name": "CompanyMonthlyActivityTrendSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanySymbol",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyName",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryTitle",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "CategoryId",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "CategoryTitle",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportYear",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportMonth",
+        "Type": "smallint",
+        "Nullable": false
+      },
+      {
+        "Name": "FiscalEndDate",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "FiscalYear",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "FiscalMonthIndex",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "FiscalMonthNameFa",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "CalendarYear",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "CalendarMonth",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "MonthlySalesAmount",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "MonthlyProductionQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MonthlySalesQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MonthlyAverageSalesRate",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "HasMixedProductUnits",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductUnitSummary",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "SameMonthPreviousYearSalesAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SameMonthPreviousYearProductionQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SameMonthPreviousYearSalesQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Average12MonthSalesAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Average12MonthPeriodCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "YtdSalesAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "YtdProductionQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "YtdSalesQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "YtdPreviousMonthSalesAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesAmountMomGrowthPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesAmountYoYGrowthPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ProductionQuantityYoYGrowthPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesQuantityYoYGrowthPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CurrentMonthOutputType",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "YtdOutputType",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "YtdPreviousMonthOutputType",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceReportId",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRawPayloadId",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "IsComparablePreviousYearAvailable",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsAverage12MonthComplete",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "DataCompletenessScore",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_CompanyMonthlyActivityTrendSnapshots_FiscalPeriod",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyMonthlyActivityTrendSnapshots_FiscalPeriod\" ON public.\"CompanyMonthlyActivityTrendSnapshots\" USING btree (\"ExternalCompanyId\", \"FiscalYear\", \"FiscalMonthIndex\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "FiscalYear",
+          "FiscalMonthIndex"
+        ]
+      },
+      {
+        "Name": "IX_CompanyMonthlyActivityTrendSnapshots_ProviderCalculated",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyMonthlyActivityTrendSnapshots_ProviderCalculated\" ON public.\"CompanyMonthlyActivityTrendSnapshots\" USING btree (\"SourceProviderName\", \"CalculatedAtUtc\")",
+        "Columns": [
+          "SourceProviderName",
+          "CalculatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_CompanyMonthlyActivityTrendSnapshots_SymbolPeriod",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyMonthlyActivityTrendSnapshots_SymbolPeriod\" ON public.\"CompanyMonthlyActivityTrendSnapshots\" USING btree (\"CompanySymbol\", \"ReportYear\", \"ReportMonth\")",
+        "Columns": [
+          "CompanySymbol",
+          "ReportYear",
+          "ReportMonth"
+        ]
+      },
+      {
+        "Name": "PK_CompanyMonthlyActivityTrendSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CompanyMonthlyActivityTrendSnapshots\" ON public.\"CompanyMonthlyActivityTrendSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_CompanyMonthlyActivityTrendSnapshots_CompanyPeriod",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_CompanyMonthlyActivityTrendSnapshots_CompanyPeriod\" ON public.\"CompanyMonthlyActivityTrendSnapshots\" USING btree (\"ExternalCompanyId\", \"ReportYear\", \"ReportMonth\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "ReportYear",
+          "ReportMonth"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_CompanyMonthlyActivityTrendSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Persisted company-month activity trend projection with governed comparisons, completeness, output types, and source provenance.",
+    "descriptionFa": "نمای روند فعالیت ماهانه شرکت با مقایسه‌های حاکم، کامل‌بودن داده، نوع خروجی و منشأ منبع.",
+    "purpose": "Chart-ready monthly production/sales trend responses; the AI path reads snapshots instead of aggregating raw line items at request time.",
+    "grain": "Company external identity + report year/month and governed output-type selections.",
+    "columns": {
+      "ExternalCompanyId": "Provider-facing company key",
+      "ReportYear/ReportMonth": "Reported month",
+      "MonthlySalesAmount/MonthlyProductionQuantity/MonthlySalesQuantity": "Persisted monthly totals",
+      "MonthlyAverageSalesRate": "Governed average rate",
+      "SameMonthPreviousYear*": "Prior-year comparison measures",
+      "Average12Month*": "Rolling average and period count",
+      "Ytd*": "Year-to-date values",
+      "*GrowthPercent": "Governed period comparisons",
+      "CurrentMonthOutputType/YtdOutputType/YtdPreviousMonthOutputType": "Source output-type policies",
+      "HasMixedProductUnits/ProductUnitSummary/DataCompletenessScore": "Quality/comparability state",
+      "SourceProviderName/SourceReportId/SourceRawPayloadId": "Provenance",
+      "CalculatedAtUtc": "Snapshot calculation timestamp"
+    },
+    "units": "Persisted SalesAmount is million IRR; product quantities retain provider units; response layer converts amount to billion toman (value × 0.0001) where that contract applies. Mixed units are flagged.",
+    "relationships": [
+      "ExternalCompanyId has no physical FK to Companies; resolver joins must use provider identity policy."
+    ],
+    "metricReferences": [
+      "Feature 076/077/136 trend snapshot and response policy is authoritative; do not create raw-line generic trend calculations."
+    ],
+    "providerPolicy": "Respect SourceProviderName, output-type fields, data completeness, and existing specialized response policy.",
+    "periodSemantics": "ReportYear/ReportMonth are report month; calendar/fiscal fields are separate. CalculatedAtUtc is not report period end.",
+    "examples": [
+      "روند فروش ماهانه شرکت X",
+      "Compare monthly sales with the same month last year"
+    ],
+    "cautions": [
+      "Mixed product units make aggregate quantities incomparable.",
+      "Persisted trend data may be stale or incomplete; do not equate latest date with complete coverage."
+    ],
+    "sourceVerification": "Trend snapshot contracts/calculator/query path and README monetary conversion policy.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

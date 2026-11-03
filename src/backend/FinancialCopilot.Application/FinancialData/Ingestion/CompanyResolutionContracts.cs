@@ -13,7 +13,8 @@ public sealed record ResolvedCompany(
     string? SymbolIsin,
     string? CompanyIsin,
     string? TseSymbol = null,
-    string? CompanySymbol = null);
+    string? CompanySymbol = null,
+    string? Name = null);
 
 /// <summary>
 /// Resolves a company from a ticker symbol using a normalized, multi-step lookup.
@@ -27,6 +28,29 @@ public interface ICompanyResolverService
     /// Never throws — returns <c>null</c> when no match is found.
     /// </summary>
     Task<ResolvedCompany?> ResolveBySymbolAsync(string symbol, CancellationToken ct = default);
+}
+
+public enum CompanyResolutionStatus
+{
+    Resolved,
+    NotFound,
+    Ambiguous,
+    InvalidIdentifier,
+    UnsupportedProviderCompany
+}
+
+public sealed record CompanyResolutionOutcome(
+    CompanyResolutionStatus Status,
+    ResolvedCompany? Company = null,
+    string? Reason = null);
+
+/// <summary>Detailed, provider-aware result used where guessing a company is unsafe.</summary>
+public interface ICompanyResolutionOutcomeService
+{
+    Task<CompanyResolutionOutcome> ResolveAsync(
+        string? identifier,
+        string providerName,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Summary result returned by <see cref="ICyclicalWavesCompanyMappingService.SyncMappingAsync"/>.</summary>

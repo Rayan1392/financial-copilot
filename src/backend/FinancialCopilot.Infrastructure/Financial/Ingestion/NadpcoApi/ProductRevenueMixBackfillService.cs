@@ -31,6 +31,7 @@ public sealed class ProductRevenueMixBackfillService(
         var reports = await dbContext.MonthlyReports
             .AsNoTracking()
             .Where(r => r.ProviderName == ProviderName
+                     && r.IsAccepted
                      && r.ReportType == "ProductSales"
                      && (r.OutputType == null || r.OutputType == 0))
             .Select(r => new CandidateReport(

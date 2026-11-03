@@ -20,6 +20,16 @@ PostgreSQL and returned only as `HttpOnly`, `SameSite=Strict` cookies scoped to
 `/api/auth/v1`. Passwords, raw refresh tokens, wallet balances, plan limits, and credit amounts
 must not be stored in JWT claims.
 
+`Authentication:OwnedIdentity:AccessTokenMinutes` must be between 1 and 60 minutes; the
+committed baseline is 15 minutes. Logout revokes refresh sessions. Because access tokens are
+stateless, a token already issued before logout can remain usable until expiry; password reset
+and security-stamp changes invalidate owned-user tokens that carry the stamp claim.
+
+If the API is behind a reverse proxy, configure `ForwardedHeaders:Enabled=true` only together
+with explicit `KnownProxies` or `KnownNetworks` and a bounded `ForwardLimit`. Do not use a
+global network or trust arbitrary `X-Forwarded-For` headers. Forwarded headers are applied before
+request logging, authentication, and rate limiting so public-auth limits use the real client IP.
+
 ## Local Frontend Connectivity
 
 The local .NET API launch profile listens on `http://localhost:5074`. Browser-side frontend
@@ -56,9 +66,11 @@ dotnet ef database update `
 ```
 
 The authentication migration creates Identity, permission, tenant-membership, and refresh-token
-tables. The Billing migration creates versioned `billing_plan_capabilities` and seeds the
-initial `Free`, `Pro`, `Plus`, and `Premium` policy matrix for scanner, stock analysis, reports,
-watchlist, portfolio, deep research, and AI-credit enforcement.
+tables. The Billing migration creates versioned `billing_plan_capabilities` and seeds the active
+`Free`, `Plus`, and `Pro` policy matrix for scanner, stock analysis, reports, watchlist, portfolio,
+deep research, and AI-credit enforcement. The approved monthly AI-credit grants are Free `25`,
+Plus `260`, and Pro `2600`. Subscription synchronization is idempotent and does not reset an
+existing wallet or grant credits on plan changes.
 
 ## Seed Strategy
 

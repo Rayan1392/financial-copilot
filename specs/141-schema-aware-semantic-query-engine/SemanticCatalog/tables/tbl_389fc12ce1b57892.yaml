@@ -1,0 +1,101 @@
+{
+  "id": "tbl_389fc12ce1b57892",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationCategoryPreferences",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PreferenceId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Enabled",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "MinimumSeverity",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "CooldownMinutes",
+        "Type": "integer",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "PreferenceId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationPreferences",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"PreferenceId\") REFERENCES \"NotificationPreferences\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationCategoryPreferences_PreferenceId_EventType",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_NotificationCategoryPreferences_PreferenceId_EventType\" ON public.\"NotificationCategoryPreferences\" USING btree (\"PreferenceId\", \"EventType\")",
+        "Columns": [
+          "PreferenceId",
+          "EventType"
+        ]
+      },
+      {
+        "Name": "PK_NotificationCategoryPreferences",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationCategoryPreferences\" ON public.\"NotificationCategoryPreferences\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_NotificationCategoryPreferences_NotificationPreferences_Pre~",
+        "Type": "f",
+        "Columns": [
+          "PreferenceId"
+        ],
+        "Definition": "FOREIGN KEY (\"PreferenceId\") REFERENCES \"NotificationPreferences\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_NotificationCategoryPreferences",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

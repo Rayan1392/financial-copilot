@@ -1,0 +1,220 @@
+{
+  "id": "tbl_6fe63dc1b8b4b227",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundEquityPeriodActivities",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "SecurityType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "RawSecurityName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedSecurityName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "PurchasedQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "PurchaseCostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SoldQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SaleProceedsAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ActivityClassification",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "QuantityReconciliationDifference",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ReconciliationStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "KnownCorporateActionAdjustment",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MonetaryUnit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false,
+        "DefaultValue": "'-infinity'::timestamp with time zone"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundEquityPeriodActivities_ExternalCompanyId_PeriodEndDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPeriodActivities_ExternalCompanyId_PeriodEndDate\" ON public.\"FundEquityPeriodActivities\" USING btree (\"ExternalCompanyId\", \"PeriodEndDate\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "PeriodEndDate"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPeriodActivities_FundId_PeriodEndDate_ActivityCla~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPeriodActivities_FundId_PeriodEndDate_ActivityCla~\" ON public.\"FundEquityPeriodActivities\" USING btree (\"FundId\", \"PeriodEndDate\", \"ActivityClassification\")",
+        "Columns": [
+          "FundId",
+          "PeriodEndDate",
+          "ActivityClassification"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPeriodActivities_ReconciliationStatus_SecurityType",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPeriodActivities_ReconciliationStatus_SecurityType\" ON public.\"FundEquityPeriodActivities\" USING btree (\"ReconciliationStatus\", \"SecurityType\")",
+        "Columns": [
+          "ReconciliationStatus",
+          "SecurityType"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPeriodActivities_ReportId_PeriodContext_SourceLog~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundEquityPeriodActivities_ReportId_PeriodContext_SourceLog~\" ON public.\"FundEquityPeriodActivities\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\", \"NormalizedSecurityName\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow",
+          "NormalizedSecurityName"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPeriodActivities_TradingInstrumentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPeriodActivities_TradingInstrumentId\" ON public.\"FundEquityPeriodActivities\" USING btree (\"TradingInstrumentId\")",
+        "Columns": [
+          "TradingInstrumentId"
+        ]
+      },
+      {
+        "Name": "PK_FundEquityPeriodActivities",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundEquityPeriodActivities\" ON public.\"FundEquityPeriodActivities\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundEquityPeriodActivities",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

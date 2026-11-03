@@ -14,7 +14,10 @@ namespace FinancialCopilot.API.Controllers;
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
 public sealed class AdminManagementController(
     ICurrentActorContext actorContext,
-    IAdminManagementService administration) : ControllerBase
+    IAdminManagementService administration,
+    IAdminUserQueries userQueries,
+    IAdminChatHistoryQueries chatHistoryQueries,
+    IAuthorizationService authorizationService) : ControllerBase
 {
     [HttpGet("users")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
@@ -25,6 +28,79 @@ public sealed class AdminManagementController(
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
     public Task<AdminUserView> GetUser(Guid userId, CancellationToken cancellationToken) =>
         administration.GetUserAsync(Actor.TenantId, userId, cancellationToken);
+
+    [HttpGet("users/directory")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<AdminUserDirectoryPage> GetUserDirectory([FromQuery] AdminUserDirectoryQuery query, CancellationToken cancellationToken)
+    {
+        var canReadSubscription = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded;
+        var canReadCredits = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminUsageLedgerRead)).Succeeded;
+        var canManageSubscription = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsManage)).Succeeded;
+        var canAdjustCredits = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminCreditsAdjust)).Succeeded;
+        var canResolveBillingAccount = canReadSubscription || canReadCredits || canManageSubscription || canAdjustCredits;
+        return await userQueries.GetDirectoryAsync(Actor.TenantId, query, canReadSubscription, canReadCredits, canResolveBillingAccount, cancellationToken);
+    }
+
+    [HttpGet("users/{userId:guid}/customer-360")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<AdminCustomer360View> GetCustomer360(Guid userId, CancellationToken cancellationToken)
+    {
+        var permissions = new AdminCustomer360Permissions(
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded,
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminUsageLedgerRead)).Succeeded,
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminBillingAuditRead)).Succeeded);
+        return await userQueries.GetCustomer360Async(Actor.TenantId, userId, permissions, cancellationToken);
+    }
+
+    [HttpGet("users/{userId:guid}/chat-history")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<ActionResult<AdminChatHistoryPage>> GetCustomerChatHistory(
+        Guid userId,
+        [FromQuery] int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1 || page > int.MaxValue / 20)
+        {
+            return BadRequest("Page must be a positive value within the supported range.");
+        }
+
+        return Ok(await chatHistoryQueries.GetPageAsync(Actor.TenantId, userId, page, cancellationToken));
+    }
+
+    [HttpGet("users/{userId:guid}/chat-history/{turnId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<ActionResult<AdminChatHistoryTurn>> GetCustomerChatHistoryTurn(
+        Guid userId,
+        Guid turnId,
+        CancellationToken cancellationToken) =>
+        (await chatHistoryQueries.GetTurnAsync(
+            Actor.TenantId,
+            userId,
+            Actor.ActorId,
+            Actor.ActorType.ToString(),
+            HttpContext.TraceIdentifier,
+            turnId,
+            cancellationToken)) is { } turn ? Ok(turn) : NotFound();
+
+    [HttpGet("users/{userId:guid}/customer-360/credits")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsageLedgerRead)]
+    public Task<AdminCreditHistoryPage> GetCustomerCreditHistory(
+        Guid userId,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default) =>
+        userQueries.GetCreditHistoryAsync(Actor.TenantId, userId, pageSize, cursor, cancellationToken);
+
+    [HttpGet("users/{userId:guid}/customer-360/purchases")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    [Authorize(Policy = AuthorizationPolicies.AdminBillingAuditRead)]
+    public Task<AdminPurchaseHistoryPage> GetCustomerPurchaseHistory(
+        Guid userId,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default) =>
+        userQueries.GetPurchaseHistoryAsync(Actor.TenantId, userId, pageSize, cursor, cancellationToken);
 
     [HttpPatch("users/{userId:guid}/status")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersManage)]
@@ -104,6 +180,15 @@ public sealed class AdminManagementController(
     [Authorize(Policy = AuthorizationPolicies.AdminPlansManage)]
     public Task<AdminPlanView> PublishPlan(AdminPlanPublishRequest request, CancellationToken cancellationToken) =>
         administration.UpsertPlanAsync(new AdminPlanUpsert(request.Code, request.Name, request.IncludedCredits, request.PricingPolicyVersion, request.Reason), Context(FinancialCopilotPermissions.AdminPlansManage, request.Reason), cancellationToken);
+
+    [HttpPatch("plans/{planCode}/included-credits")]
+    [Authorize(Policy = AuthorizationPolicies.AdminPlansManage)]
+    public Task<AdminPlanView> UpdatePlanIncludedCredits(string planCode, AdminPlanIncludedCreditsRequest request, CancellationToken cancellationToken) =>
+        administration.UpdatePlanIncludedCreditsAsync(
+            planCode,
+            new AdminPlanIncludedCreditsChange(request.IncludedCredits, request.PricingPolicyVersion, request.Reason),
+            Context(FinancialCopilotPermissions.AdminPlansManage, request.Reason),
+            cancellationToken);
 
     [HttpGet("plans/{planCode}/capabilities")]
     [Authorize(Policy = AuthorizationPolicies.AdminPlansRead)]

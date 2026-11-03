@@ -1,0 +1,472 @@
+{
+  "id": "tbl_9881dde7a4f6ad9d",
+  "physical": {
+    "Schema": "public",
+    "Name": "UserAlertRecords",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationIntentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "OutcomeHandoffId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "OutcomeSequence",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEventId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "AlertRuleId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "AlertRuleTriggerId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "SymbolKey",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Category",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Severity",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeliveryStatus",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeliveryReason",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeliveredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "SuppressedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "DeadLetteredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "TerminalAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceReference",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "EvidenceSnapshotJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceHash",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "DetectorVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "RuleVersion",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "PreferenceVersion",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "WhyText",
+        "Type": "character varying(4000)",
+        "Nullable": false
+      },
+      {
+        "Name": "SimilarityKey",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "DismissedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "RestoredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "MutedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "MutedScope",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "Feedback",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "FeedbackAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RetainEvidenceUntilUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RetainFeedbackUntilUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RedactedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "AlertRuleTriggerId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "AlertRuleTriggers",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"AlertRuleTriggerId\") REFERENCES \"AlertRuleTriggers\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Columns": [
+          "AlertRuleId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "AlertRules",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"AlertRuleId\") REFERENCES \"AlertRules\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Columns": [
+          "SourceEventId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "InsightEvents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"SourceEventId\") REFERENCES \"InsightEvents\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationIntents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "OutcomeHandoffId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationOutcomeHandoffs",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"OutcomeHandoffId\") REFERENCES \"NotificationOutcomeHandoffs\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_UserAlertRecords_Actor_Category_Type",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Actor_Category_Type\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"Category\", \"EventType\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "Category",
+          "EventType"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_Actor_Cursor",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Actor_Cursor\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"CreatedAtUtc\", \"Id\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "CreatedAtUtc",
+          "Id"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_Actor_Delivery",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Actor_Delivery\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"DeliveryStatus\", \"CreatedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "DeliveryStatus",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_Actor_Dismissed",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Actor_Dismissed\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"DismissedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "DismissedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_Actor_Feedback",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Actor_Feedback\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"FeedbackAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "FeedbackAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_Actor_Muted",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Actor_Muted\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"MutedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "MutedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_Actor_Symbol",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Actor_Symbol\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"SymbolKey\", \"CreatedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "SymbolKey",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_AlertRuleId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_AlertRuleId\" ON public.\"UserAlertRecords\" USING btree (\"AlertRuleId\")",
+        "Columns": [
+          "AlertRuleId"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_AlertRuleTriggerId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_AlertRuleTriggerId\" ON public.\"UserAlertRecords\" USING btree (\"AlertRuleTriggerId\")",
+        "Columns": [
+          "AlertRuleTriggerId"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_OutcomeHandoffId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_OutcomeHandoffId\" ON public.\"UserAlertRecords\" USING btree (\"OutcomeHandoffId\")",
+        "Columns": [
+          "OutcomeHandoffId"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_Similarity",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_Similarity\" ON public.\"UserAlertRecords\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"SimilarityKey\", \"CreatedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "SimilarityKey",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertRecords_SourceEventId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertRecords_SourceEventId\" ON public.\"UserAlertRecords\" USING btree (\"SourceEventId\")",
+        "Columns": [
+          "SourceEventId"
+        ]
+      },
+      {
+        "Name": "PK_UserAlertRecords",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_UserAlertRecords\" ON public.\"UserAlertRecords\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_UserAlertRecords_Intent_Sequence",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_UserAlertRecords_Intent_Sequence\" ON public.\"UserAlertRecords\" USING btree (\"NotificationIntentId\", \"OutcomeSequence\")",
+        "Columns": [
+          "NotificationIntentId",
+          "OutcomeSequence"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_UserAlertRecords_AlertRuleTriggers_AlertRuleTriggerId",
+        "Type": "f",
+        "Columns": [
+          "AlertRuleTriggerId"
+        ],
+        "Definition": "FOREIGN KEY (\"AlertRuleTriggerId\") REFERENCES \"AlertRuleTriggers\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "FK_UserAlertRecords_AlertRules_AlertRuleId",
+        "Type": "f",
+        "Columns": [
+          "AlertRuleId"
+        ],
+        "Definition": "FOREIGN KEY (\"AlertRuleId\") REFERENCES \"AlertRules\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "FK_UserAlertRecords_InsightEvents_SourceEventId",
+        "Type": "f",
+        "Columns": [
+          "SourceEventId"
+        ],
+        "Definition": "FOREIGN KEY (\"SourceEventId\") REFERENCES \"InsightEvents\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "FK_UserAlertRecords_NotificationIntents_NotificationIntentId",
+        "Type": "f",
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_UserAlertRecords_NotificationOutcomeHandoffs_OutcomeHandoff~",
+        "Type": "f",
+        "Columns": [
+          "OutcomeHandoffId"
+        ],
+        "Definition": "FOREIGN KEY (\"OutcomeHandoffId\") REFERENCES \"NotificationOutcomeHandoffs\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_UserAlertRecords",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

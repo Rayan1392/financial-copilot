@@ -19,7 +19,7 @@ RUN rm -f /app/publish/appsettings.json /app/publish/appsettings.Development.jso
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache krb5-libs
+RUN apk add --no-cache krb5-libs tzdata
 COPY --from=build /app/publish ./
 COPY docker/appsettings.Production.json ./appsettings.Production.json
 USER app

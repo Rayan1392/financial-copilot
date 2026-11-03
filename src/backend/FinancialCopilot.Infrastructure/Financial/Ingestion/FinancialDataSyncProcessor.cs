@@ -23,7 +23,8 @@ public sealed class FinancialDataSyncProcessor(
     IFinancialDataProviderRouter? providerRouter = null,
     IFinancialRatioProvider? ratioProvider = null,
     INoavaranCurrentApiBoundaryOverride? boundaryOverride = null,
-    IFundamentalIndexCoverageProvider? coverageProvider = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
+    IFundamentalIndexCoverageProvider? coverageProvider = null,
+    CompanyDisclosureFeedCache? disclosureFeedCache = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
     private readonly IReadOnlyDictionary<(string ProviderName, ProviderDataset Dataset), IFinancialPayloadNormalizer> _normalizers =
         normalizers.ToDictionary(normalizer => (normalizer.ProviderName, normalizer.Dataset));
@@ -31,7 +32,7 @@ public sealed class FinancialDataSyncProcessor(
     public async Task<DataSyncProcessingResult> ProcessAsync(
         DataSyncRequest request,
         CancellationToken cancellationToken) =>
-        await ProcessCoreAsync(
+        await ProcessProviderAsync(
             request,
             () => FetchPayloadAsync(request, cancellationToken),
             cancellationToken);
@@ -40,15 +41,27 @@ public sealed class FinancialDataSyncProcessor(
         DataSyncRequest request,
         ProviderRawPayload payload,
         CancellationToken cancellationToken) =>
-        await ProcessCoreAsync(
+        await ProcessProviderAsync(
             request,
             () => Task.FromResult(payload),
             cancellationToken);
 
+    public async Task<DataSyncProcessingResult> ProcessProviderAsync(
+        DataSyncRequest request,
+        Func<Task<ProviderRawPayload>> payloadFactory,
+        CancellationToken cancellationToken,
+        bool rethrowProviderExceptions = false) =>
+        await ProcessCoreAsync(
+            request,
+            payloadFactory,
+            cancellationToken,
+            rethrowProviderExceptions);
+
     private async Task<DataSyncProcessingResult> ProcessCoreAsync(
         DataSyncRequest request,
         Func<Task<ProviderRawPayload>> payloadFactory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool rethrowProviderExceptions)
     {
         var existing = await dbContext.SyncRuns.SingleOrDefaultAsync(
             row => row.IdempotencyKey == request.IdempotencyKey,
@@ -84,6 +97,7 @@ public sealed class FinancialDataSyncProcessor(
         run.StartedAt ??= timeProvider.GetUtcNow();
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        var acquiringProviderPayload = false;
         try
         {
             if (ShouldSkipCyclicalWavesSymbolSync(request))
@@ -110,11 +124,39 @@ public sealed class FinancialDataSyncProcessor(
                     request.SourceDateRangeEndJalali);
             }
 
+            if (request.Dataset == ProviderDataset.MonthlyProductionSales)
+            {
+                boundaryOverride?.SetMonthlyActivityOutputType(request.MonthlyActivityOutputType);
+                if (boundaryOverride is not null &&
+                    string.Equals(
+                        ProviderSources.NormalizeName(request.ProviderName),
+                        ProviderSources.NoavaranCurrentApiName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    var reportingType = request.ExternalReference is null
+                        ? null
+                        : await dbContext.Companies
+                            .AsNoTracking()
+                            .Where(company =>
+                                company.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                                company.ExternalCompanyId == request.ExternalReference)
+                            .Select(company => company.ReportingType)
+                            .SingleOrDefaultAsync(cancellationToken);
+                    boundaryOverride.SetReportingType(reportingType);
+                }
+            }
+
+            acquiringProviderPayload = true;
             var payload = await payloadFactory();
+            acquiringProviderPayload = false;
             await rawPayloads.StoreAsync(payload, cancellationToken);
             var normalizationPayload = payload with { Dataset = request.Dataset };
             var outcome = await _normalizers[(normalizationPayload.ProviderName, normalizationPayload.Dataset)]
                 .NormalizeAsync(normalizationPayload, cancellationToken);
+
+            // Normalizers persist source disclosures. Expire every cached filter/page as soon
+            // as persisted data may have changed, including company catalog/name mappings.
+            disclosureFeedCache?.Invalidate();
 
             run.SourcePayloadChecksum = payload.Checksum;
             run.ProcessedRecords = outcome.ProcessedRecords;
@@ -186,6 +228,17 @@ public sealed class FinancialDataSyncProcessor(
                 postgresException.Message);
 
             // A normal return deliberately ACKs this permanent failure at the RabbitMQ boundary.
+            return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException && acquiringProviderPayload)
+        {
+            logger.LogError(exception, "Financial data provider acquisition failed for {Dataset}.", request.Dataset);
+            await MarkRunFailedAsync(run, exception.Message, cancellationToken);
+            if (rethrowProviderExceptions)
+            {
+                throw;
+            }
+
             return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -260,7 +313,11 @@ public sealed class FinancialDataSyncProcessor(
             ProviderDataset.Symbols => ResolveSymbolProvider(request.ProviderName)
                 .FetchSymbolsAsync(cancellationToken),
             ProviderDataset.FinancialStatements => ResolveStatementProvider(request.ProviderName)
-                .FetchFinancialStatementsAsync(RequireExternalReference(request), cancellationToken),
+                .FetchFinancialStatementsAsync(
+                    RequireExternalReference(request),
+                    cancellationToken,
+                    request.StatementFiscalYear,
+                    request.StatementPeriodMonths),
             ProviderDataset.MonthlyProductionSales => ResolveMonthlyProvider(request.ProviderName)
                 .FetchMonthlyReportsAsync(RequireExternalReference(request), cancellationToken),
             ProviderDataset.FinancialRatios => ResolveRatioProvider(request.ProviderName)
@@ -318,7 +375,42 @@ public sealed class FinancialDataSyncProcessor(
             query = query.Where(row => row.ProviderName == run.ProviderName);
         }
 
+        if (TryGetMonthlyActivityOutputType(run.IdempotencyKey) is { } outputType)
+        {
+            query = outputType == 0
+                ? query.Where(row =>
+                    (row.ReportType == "ProductSales" && (row.OutputType == 0 || row.OutputType == null)) ||
+                    (row.ReportType == "ServiceSales" && row.OutputType == null))
+                : query.Where(row => row.ReportType == "ProductSales" && row.OutputType == outputType);
+        }
+        else
+        {
+            // A combined/full monthly request is complete only after the authoritative monthly
+            // source has produced rows. Output types 1-4 alone must not create false completion.
+            query = query.Where(row =>
+                (row.ReportType == "ProductSales" && (row.OutputType == 0 || row.OutputType == null)) ||
+                (row.ReportType == "ServiceSales" && row.OutputType == null));
+        }
+
         return await query.AnyAsync(cancellationToken);
+    }
+
+    private static int? TryGetMonthlyActivityOutputType(string idempotencyKey)
+    {
+        var markerIndex = idempotencyKey.LastIndexOf("-ot", StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var valueStart = markerIndex + 3;
+        var valueEnd = idempotencyKey.IndexOf('-', valueStart);
+        var token = valueEnd < 0
+            ? idempotencyKey[valueStart..]
+            : idempotencyKey[valueStart..valueEnd];
+        return int.TryParse(token, out var outputType) && outputType is >= 0 and <= 4
+            ? outputType
+            : null;
     }
 
     private static bool TryResolveRunPeriod(

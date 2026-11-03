@@ -1,0 +1,116 @@
+{
+  "id": "metric_ebit",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "EBIT"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "EBIT",
+    "Description": "Governed semantic definition for EBIT.",
+    "Category": 0,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "ebit",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "EBIT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "سود قبل از بهره و مالیات",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EBIT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "سود عملیاتی پیش از بهره",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EBIT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      },
+      {
+        "MetricCode": {
+          "Value": "FINANCE_COSTS"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      },
+      {
+        "MetricCode": {
+          "Value": "INCOME_TAX"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT"
+        },
+        "PeriodType": 1,
+        "Required": true
+      },
+      {
+        "MetricCode": {
+          "Value": "FINANCE_COSTS"
+        },
+        "PeriodType": 1,
+        "Required": true
+      },
+      {
+        "MetricCode": {
+          "Value": "INCOME_TAX"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "rel_81dd1d3446fb4715",
+  "from": {
+    "schema": "public",
+    "table": "auth_refresh_tokens",
+    "columns": [
+      "UserId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "auth_users",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -147,12 +147,22 @@
     scrollbar-width: none;
   }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-muted-foreground) 32%, transparent) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background-color: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: oklch(1 0 0 / 0.08);
+    background-color: color-mix(in srgb, var(--color-muted-foreground) 32%, transparent);
     border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--color-muted-foreground) 52%, transparent);
   }
 
   @keyframes cursor-blink {
@@ -187,4 +197,63 @@
     fill: var(--color-muted-foreground);
     text-anchor: middle;
   }
+}
+
+.admin-panel .admin-table {
+  min-width: 680px;
+  text-align: right;
+}
+
+.admin-panel .admin-table thead th {
+  height: 44px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-panel .admin-table tbody td {
+  padding: 0.85rem 1rem;
+  color: #334155;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.admin-panel .admin-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+/* Feature 153 (AC-33): with reduced motion, sheets and entrance animations change opacity only. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
+  [data-vaul-drawer] {
+    transition-duration: 1ms !important;
+  }
+}
+
+/* Feature 153 T15: answer blocks were sized for desktop. On the phone layout (MessageList density="compact")
+   no text renders below 12 px; desktop keeps its sizes. */
+[data-density="compact"]
+  :is(
+    [class~="text-[7px]"],
+    [class~="text-[8px]"],
+    [class~="text-[9px]"],
+    [class~="text-[10px]"],
+    [class~="text-[11px]"]
+  ) {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Feature 153: danger text on the mobile surfaces. The light theme's rose is too light for 4.5:1 on surfaces. */
+.mobile-danger-text {
+  color: var(--rose);
+}
+.light .mobile-danger-text {
+  color: oklch(0.5 0.2 22);
 }

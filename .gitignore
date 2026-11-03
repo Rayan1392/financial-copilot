@@ -3,10 +3,15 @@
 **/.env
 **/.env.*
 !**/.env.example
+# Local SMTP credentials are kept in this untracked Development overlay.
+src/backend/FinancialCopilot.API/appsettings.Development.Local.json
 .vs/
 .idea/
 .vscode/
 /specs.zip
+/tools/local-state/
+/src/backend/FinancialCopilot.API/DataProtectionKeys/*
+!/src/backend/FinancialCopilot.API/DataProtectionKeys/.gitkeep
 
 
 graphify-out/
@@ -20,3 +25,4 @@ graphify-out/
 --profile
 --prompt-mode
 *.tar
+backups/

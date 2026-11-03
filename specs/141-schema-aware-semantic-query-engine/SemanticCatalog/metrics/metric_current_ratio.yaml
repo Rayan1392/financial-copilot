@@ -1,0 +1,59 @@
+{
+  "id": "metric_current_ratio",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "CURRENT_RATIO"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Current Ratio",
+    "Description": "Governed semantic definition for Current Ratio.",
+    "Category": 5,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "current ratio",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "CURRENT_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت جاری",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "CURRENT_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "fixtureId": "feature141-engine-e2e-fixture",
+  "version": "1.0.0",
+  "date": "2026-10-28",
+  "note": "Authoritative fixture for engine-e2e-suite-v1.json. 'seeded' blocks are created by Feature141EngineVerticalSliceRunner in the disposable PostgreSQL database on every run; 'proposed' blocks are design values that no runner seeds yet and that no governance approval exists for. Values are never read from Development or production databases.",
+  "unitPolicy": {
+    "financialStatement": "MillionIRR",
+    "perShare": "IRRPerShare",
+    "monthlySalesAmount": "MillionIRR",
+    "productionQuantity": "Ton"
+  },
+  "seeded": {
+    "provider": "NoavaranCurrentApi",
+    "sourceItems": [
+      { "statementType": "IncomeStatement", "sourceItemId": 161, "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528", "catalogId": "source_item_682beceadddc1458", "titleFa": "سود عملیاتی هر سهم", "effectiveUnit": "IRRPerShare", "role": "expected" },
+      { "statementType": "IncomeStatement", "sourceItemId": 162, "titleFa": "سود هر سهم قبل از کسر مالیات", "role": "decoy-other-item" }
+    ],
+    "companies": [
+      { "symbol": "کگهر", "role": "expected" },
+      { "symbol": "کگل", "role": "decoy-other-company" }
+    ],
+    "statementLineItems": [
+      { "symbol": "کگهر", "periodStart": "2026-03-21", "periodEnd": "2026-06-21", "persianPeriodStart": "1405-01-01", "persianPeriodEnd": "1405-03-31", "isComposing": false, "sourceItemId": 161, "value": 3753, "role": "expected" },
+      { "symbol": "کگهر", "periodStart": "2026-03-21", "periodEnd": "2026-06-21", "isComposing": false, "sourceItemId": 162, "value": 5555, "role": "decoy-other-item" },
+      { "symbol": "کگهر", "periodStart": "2025-12-21", "periodEnd": "2026-03-20", "isComposing": false, "sourceItemId": 161, "value": 3001, "role": "decoy-older-period" },
+      { "symbol": "کگل", "periodStart": "2026-03-21", "periodEnd": "2026-06-21", "isComposing": false, "sourceItemId": 161, "value": 9999, "role": "decoy-other-company" }
+    ]
+  },
+  "proposed": {
+    "companies": [
+      { "symbol": "کگل", "netProfit": 1200, "operatingProfit": 1500, "eps": 2400 },
+      { "symbol": "کگهر", "netProfit": 900, "operatingProfit": 1100, "eps": 1800 },
+      { "symbol": "فملی", "netProfit": 1600, "operatingProfit": 2000, "eps": 3200 }
+    ],
+    "monthlyProductRows": [
+      { "symbol": "کگل", "product": "گندله", "period": "1405-06", "productionQuantity": 25, "salesQuantity": 20, "salesAmount": 450 },
+      { "symbol": "کگل", "product": "گندله", "period": "1404-06", "productionQuantity": 22, "salesQuantity": 18, "salesAmount": 250 },
+      { "symbol": "کگهر", "product": "گندله سنگ‌آهن", "period": "1405-06", "productionQuantity": 47, "salesQuantity": 40, "salesAmount": 700 },
+      { "symbol": "کگهر", "product": "گندله سنگ‌آهن", "period": "1404-06", "productionQuantity": 30, "salesQuantity": 25, "salesAmount": 400 }
+    ],
+    "note": "Carried over from engine-e2e-fixture.json (2026-10-20). Not seeded, not approved; product equivalence of گندله and گندله سنگ‌آهن is deliberately not asserted."
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "S6-flag-off",
+  "run": {
+    "Question": "رتبه‌بندی مبلغ فروش گندله در مرداد ۱۴۰۵",
+    "Enabled": false,
+    "Answer": "### برترین گزارش‌ها از نظر کیفیت تولید و فروش\r\nدوره: 1405/07\r\nاین رتبه‌بندی توصیه خرید/فروش نیست و فقط کیفیت داده‌های تولید و فروش را ارزیابی می‌کند.\r\n\r\n| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |\r\n|---:|---|---|---|---:|---|---|---:|",
+    "PersistedUserMessage": "رتبه‌بندی مبلغ فروش گندله در مرداد ۱۴۰۵",
+    "PersistedAssistantMessage": "### برترین گزارش‌ها از نظر کیفیت تولید و فروش\r\nدوره: 1405/07\r\nاین رتبه‌بندی توصیه خرید/فروش نیست و فقط کیفیت داده‌های تولید و فروش را ارزیابی می‌کند.\r\n\r\n| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |\r\n|---:|---|---|---|---:|---|---|---:|",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_sales_quality_ranking Disposition=DeterministicFallback CorrelationId=feature141-pilot-5da35fcde2bb4d2395e40ab57725f594 | Chat semantic route selected. Route=semantic_capability Capability=monthly_sales_quality_ranking ExtractedEntities=entity:رتبه,entity:بندی,entity:مبلغ,entity:گندله,entity:مرداد RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=monthly_sales_quality_ranking Status=NoData ReasonCode=supported_but_no_rows PayloadType=MonthlySalesQualityRankingResponse",
+    "SemanticCapability": "monthly_sales_quality_ranking",
+    "Intent": "MonthlySalesQualityRanking",
+    "Outcome": "NoData",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:monthly_sales_quality_ranking"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 25.0000,
+    "WalletBalanceAfter": 24.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 8687.0404,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_sales_quality_ranking Disposition=DeterministicFallback CorrelationId=feature141-pilot-5da35fcde2bb4d2395e40ab57725f594",
+      "Chat semantic route selected. Route=semantic_capability Capability=monthly_sales_quality_ranking ExtractedEntities=entity:رتبه,entity:بندی,entity:مبلغ,entity:گندله,entity:مرداد RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=monthly_sales_quality_ranking Status=NoData ReasonCode=supported_but_no_rows PayloadType=MonthlySalesQualityRankingResponse",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-5da35fcde2bb4d2395e40ab57725f594 RolloutMode=Shadow LegacyCapability=monthly_sales_quality_ranking LegacyConfidence=0.9 SemanticIntent=monthly_sales_quality_ranking SemanticCapabilityCandidate=monthly_sales_quality_ranking SemanticConfidence=0.9 ExtractedCompany=رتبه ExtractedProduct=(null) ExtractedMetric=فروش ExtractedPerio"
+    ],
+    "ExecutedQueries": []
+  }
+}

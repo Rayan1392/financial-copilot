@@ -1,0 +1,98 @@
+{
+  "id": "A1",
+  "run": {
+    "Question": "سود خالص وبملت در دوره شش‌ماهه منتهی به شهریور ۱۴۰۵ بر اساس صورت مالی جداگانه چقدر بوده؟",
+    "Enabled": true,
+    "Answer": "وبملت در دوره شش‌ماهه منتهی به ۳۱ شهریور ۱۴۰۵، سود خالص: ۱۰۲٬۵۲۷٫۸۱ میلیارد تومان.",
+    "PersistedUserMessage": "سود خالص وبملت در دوره شش‌ماهه منتهی به شهریور ۱۴۰۵ بر اساس صورت مالی جداگانه چقدر بوده؟",
+    "PersistedAssistantMessage": "وبملت در دوره شش‌ماهه منتهی به ۳۱ شهریور ۱۴۰۵، سود خالص: ۱۰۲٬۵۲۷٫۸۱ میلیارد تومان.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd Fingerprint=58d38f0d554c2efcaf88b86d3279b3ef22286351ff47477b6b05e95e18593665 Status=Succeeded Rows=1 ElapsedMs=2.9319",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_table Disposition=DeterministicFallback CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd | Chat semantic route selected. Route=semantic_capability Capability=financial_statement_table ExtractedEntities=entity:خالص,entity:وبملت,entity:دوره,entity:شش,entity:ماهه,entity:منتهی,entity:شهریور,entity:بر,entity:اساس,entity:جداگانه RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=financial_statement_table Status=NoData ReasonCode=supported_but_no_rows PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_table:NoData Definitive=True CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd",
+    "SemanticCapability": "financial_statement_table",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 7614,
+      "CompletionTokens": 1092,
+      "TotalTokens": 8706,
+      "EstimatedCost": null,
+      "ExecutionRoute": "feature141_fallback"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 74.0000,
+    "WalletBalanceAfter": 73.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=وبملت Products= RequestedMeasures=netProfit PeriodKind=ExplicitMonth PeriodCount=6 ComparisonMode=None Presentation=Scalar",
+      "Feature141 named statement period. EndMonthStart=08/23/2026 EndMonthEnd=09/22/2026 Months=6 CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd",
+      "Feature141 statement shape classified. Shape=SingleCompanyValue Diagnostic=none Operation=Retrieve Ranking=none Constraints= RequestedFields= Filters=none CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd",
+      "Feature141 query completed. CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd Fingerprint=58d38f0d554c2efcaf88b86d3279b3ef22286351ff47477b6b05e95e18593665 Status=Succeeded Rows=1 ElapsedMs=2.9319"
+    ],
+    "ElapsedMs": 24063.4161,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=financial_statement_table Disposition=DeterministicFallback CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd",
+      "Chat semantic route selected. Route=semantic_capability Capability=financial_statement_table ExtractedEntities=entity:خالص,entity:وبملت,entity:دوره,entity:شش,entity:ماهه,entity:منتهی,entity:شهریور,entity:بر,entity:اساس,entity:جداگانه RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=financial_statement_table Status=NoData ReasonCode=supported_but_no_rows PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:financial_statement_table:NoData Definitive=True CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-3d1cdb0035c64ff7a98cdaf2723217fd RolloutMode=Shadow LegacyCapability=financial_statement_table LegacyConfidence=0.8 SemanticIntent=financial_statement_table SemanticCapabilityCandidate=financial_statement_table SemanticConfidence=0.8 ExtractedCompany=خالص ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) Reso"
+    ],
+    "ExecutedQueries": [
+      {
+        "Sql": "WITH latest_period AS (\n  SELECT MAX(st_scope.\"PeriodEnd\") AS \"PeriodEnd\"\n  FROM \"public\".\"FinancialStatements\" st_scope\n  JOIN \"public\".\"Companies\" co_scope ON st_scope.\"ExternalCompanyId\" = co_scope.\"ExternalCompanyId\" AND st_scope.\"ProviderName\" = co_scope.\"ProviderName\"\n  WHERE co_scope.\"Id\" = @company_id\n    AND st_scope.\"ProviderName\" = @provider_name\n    AND st_scope.\"StatementType\" = @statement_type AND st_scope.\"IsComposing\" = @is_composing\n  GROUP BY st_scope.\"IsComposing\"\n)\nSELECT li.\"Value\" AS \"Value\", st.\"PeriodEnd\" AS \"PeriodEnd\", st.\"Id\" AS \"StatementId\", st.\"ProviderName\" AS \"ProviderName\", st.\"StatementType\" AS \"StatementType\", @source_item_id AS \"SourceItemId\", (SELECT si.\"Unit\" FROM \"public\".\"FinancialStatementSourceItems\" si WHERE si.\"Id\" = @source_item_catalog_id) AS \"SourceUnit\", @source_item_catalog_id AS \"SourceItemCatalogId\", st.\"IsComposing\" AS \"IsComposing\", co.\"Id\" AS \"CompanyId\", st.\"PeriodType\" AS \"PeriodType\", st.\"IsAudited\" AS \"IsAudited\", st.\"IsRepresented\" AS \"IsRepresented\", st.\"ExternalStatementId\" AS \"ExternalStatementId\", st.\"PeriodStart\" AS \"PeriodStart\", st.\"SourcePayloadChecksum\" AS \"SourcePayloadChecksum\", st.\"PublishedAt\" AS \"PublishedAt\", st.\"LastSynchronizedAt\" AS \"LastSynchronizedAt\", st.\"WarningsJson\" AS \"WarningsJson\", st.\"LogicalVendor\" AS \"LogicalVendor\", st.\"SourceMode\" AS \"SourceMode\"\nFROM \"public\".\"FinancialStatements\" st\nJOIN \"public\".\"Companies\" co ON st.\"ExternalCompanyId\" = co.\"ExternalCompanyId\" AND st.\"ProviderName\" = co.\"ProviderName\"\nLEFT JOIN \"public\".\"FinancialStatementLineItems\" li ON li.\"FinancialStatementId\" = st.\"Id\" AND li.\"SourceItemCatalogId\" = @source_item_catalog_id\nWHERE co.\"Id\" = @company_id\n  AND st.\"ProviderName\" = @provider_name\n  AND st.\"StatementType\" = @statement_type\n  AND EXISTS (SELECT 1 FROM \"public\".\"FinancialStatementSourceItems\" si WHERE si.\"Id\" = @source_item_catalog_id AND si.\"ProviderName\" = @provider_name AND si.\"StatementType\" = @statement_type AND si.\"SourceItemId\" = @source_item_id)\n  AND st.\"IsComposing\" = @is_composing\n  AND st.\"PeriodEnd\" IN (SELECT \"PeriodEnd\" FROM latest_period)\nORDER BY st.\"PeriodEnd\" DESC, st.\"PeriodType\", st.\"Id\"\nLIMIT @row_limit OFFSET @row_offset",
+        "Parameters": {
+          "company_id": "308d5136-079d-489b-a8d3-8db222706f41",
+          "source_item_catalog_id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+          "provider_name": "NoavaranCurrentApi",
+          "statement_type": "IncomeStatement",
+          "source_item_id": "143",
+          "is_composing": "False",
+          "row_limit": "101",
+          "row_offset": "0"
+        },
+        "Status": "Succeeded",
+        "DiagnosticCode": null,
+        "EffectiveUnit": "MillionIRR",
+        "Rows": [
+          {
+            "Value": "1025278132",
+            "PeriodEnd": "2026-09-22",
+            "StatementId": "0741e9de-dd4c-4033-a4a9-28e0e69b9e04",
+            "ProviderName": "NoavaranCurrentApi",
+            "StatementType": "IncomeStatement",
+            "SourceItemId": "143",
+            "SourceUnit": "N/A",
+            "SourceItemCatalogId": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+            "IsComposing": "False",
+            "CompanyId": "308d5136-079d-489b-a8d3-8db222706f41",
+            "PeriodType": "SixMonths",
+            "IsAudited": "False",
+            "IsRepresented": "False",
+            "ExternalStatementId": "554251",
+            "PeriodStart": "2026-03-21",
+            "SourcePayloadChecksum": "31903056BAB40645BDB4B05001AB4F974F4CC6DDD608C86DD29C3ED0236681FD",
+            "PublishedAt": "2026-10-22",
+            "LastSynchronizedAt": "10/24/2026 10:56:52",
+            "WarningsJson": "[{\"code\":\"NadpcoApiStatementSelection\",\"statementID\":554251,\"sourceStatementType\":\"IncomeStatement\",\"bourseSymbol\":\"\\u0648\\u0628\\u0645\\u0644\\u062A\",\"fullTitle\":\"\\u0628\\u0627\\u0646\\u06A9 \\u0645\\u0644\\u062A\",\"isAudited\":false,\"isRepresented\":false,\"isComposing\":false,\"jalaliFiscalYearEnd\":\"1405/12/29\",\"jalaliPeriodEnd\":\"1405/06/31\",\"jalaliAnouncementDate\":\"1405/07/30\",\"anouncementDate\":\"2026-10-22T20:58:05+03:30\",\"assumedScale\":\"MillionRials\",\"sourceAmountUnit\":\"N/A\",\"invalidObservations\":[]}]",
+            "LogicalVendor": null,
+            "SourceMode": null
+          }
+        ]
+      }
+    ]
+  }
+}

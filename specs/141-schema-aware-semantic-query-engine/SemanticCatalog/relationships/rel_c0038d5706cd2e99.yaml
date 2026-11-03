@@ -1,0 +1,28 @@
+{
+  "id": "rel_c0038d5706cd2e99",
+  "from": {
+    "schema": "public",
+    "table": "AlertRuleEvaluationStates",
+    "columns": [
+      "RuleId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "AlertRules",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"RuleId\") REFERENCES \"AlertRules\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "one-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -1,5 +1,7 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Insights;
+using FinancialCopilot.Application.FinancialData.Semantics.Intent;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Entities;
@@ -13,6 +15,65 @@ public sealed record SemanticScannerPayload(ScannerQueryPlan Plan, ScannerTableR
 public sealed record SemanticComprehensiveAnalysisPayload(
     ComprehensiveAnalysisQueryResponse Analysis,
     SymbolLookupTableResult Lookup);
+
+public sealed record IndustryRelativeValuationPayload(
+    IndustryRelativeValuationReadModel ReadModel,
+    string PresentationText);
+
+public sealed class IndustryRelativeValuationCapabilityExecutor(
+    IIndustryRelativeValuationReadRepository repository,
+    IndustryRelativeValuationReadOptions readOptions,
+    string? registeredCapabilityCode = null) : IConversationalCapabilityExecutor
+{
+    public IndustryRelativeValuationCapabilityExecutor(
+        IIndustryRelativeValuationReadRepository repository,
+        string? registeredCapabilityCode = null)
+        : this(repository, new IndustryRelativeValuationReadOptions(), registeredCapabilityCode)
+    {
+    }
+
+    private static readonly IReadOnlySet<string> Codes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "symbol_vs_industry_relative_valuation", "industry_relative_valuation_ranking",
+        "industry_relative_valuation_summary", "symbol_pair_within_industry"
+    };
+
+    public string CapabilityCode => registeredCapabilityCode ?? "symbol_vs_industry_relative_valuation";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
+    {
+        if (!Codes.Contains(frame.CapabilityCode)) return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, "unsupported_feature_125_capability");
+        var group = ParseId(frame.Value(QuerySlotType.IndustryGroup) ?? frame.Value(QuerySlotType.Industry));
+        var ids = ParseIds(frame.Value(QuerySlotType.CompaniesOrSymbols) ?? frame.Value(QuerySlotType.CompanyOrSymbol));
+        var options = readOptions;
+        options.Validate();
+        var requestedLimit = int.TryParse(frame.Value(QuerySlotType.ResultLimit), out var parsed)
+            ? parsed
+            : options.DefaultResultLimit;
+        if (requestedLimit < 1 || requestedLimit > options.MaximumResultLimit)
+        {
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.ResultLimitExceeded);
+        }
+        var limit = requestedLimit;
+        try
+        {
+            var read = await repository.ReadAsync(new IndustryRelativeValuationReadRequest(group, ids, frame.CapabilityCode, limit), cancellationToken);
+            if (read is null)
+            {
+                return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows);
+            }
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Executed, DialogueOutcomeReasonCodes.None,
+                new IndustryRelativeValuationPayload(read, IndustryRelativeValuationPresentation.Explain(read, context.ReplyLanguage)));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Failed, DialogueOutcomeReasonCodes.ProviderOrToolFailure);
+        }
+    }
+
+    private static Guid? ParseId(string? value) => Guid.TryParse(value, out var id) ? id : null;
+    private static IReadOnlyList<Guid> ParseIds(string? value) => string.IsNullOrWhiteSpace(value) ? [] : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(ParseId).Where(x => x.HasValue).Select(x => x!.Value).Take(2).ToArray();
+}
 
 public sealed class StockScreeningCapabilityExecutor(
     IScannerQueryParser parser,
@@ -50,6 +111,16 @@ public sealed class StockScreeningCapabilityExecutor(
             : cached with { ExecutionFacts = cached.ExecutionFacts with { FromCache = true } };
         if (cached is null)
             await scannerCache.SetResultAsync(cacheScope, dataVersion, executionRequest, table, cancellationToken);
+        // Feature 148: an unavailable criterion or a missing unit is answered with its own message, not as "no rows".
+        if (table.Issue is { } issue)
+            return new CapabilityExecutionResult(
+                frame.CapabilityCode,
+                frame.RegistryVersion,
+                issue.Kind == ScannerExecutionIssueKind.ClarificationRequired
+                    ? CapabilityExecutionStatus.ClarificationRequired
+                    : CapabilityExecutionStatus.Unsupported,
+                issue.ReasonCode,
+                issue.Message);
         var payload = new SemanticScannerPayload(parsed.Plan, table);
         return table.Rows.Count == 0 ? NoData(frame, payload) : Success(frame, payload);
     }
@@ -65,13 +136,84 @@ public sealed class MonthlyActivityTrendCapabilityExecutor(
         var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
         if (symbol is null) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
         var presentation = frame.Value(QuerySlotType.Presentation);
+        var period = frame.Interpretation.Period;
+        int? lastAvailableMonths = null;
+        var unsupported = (frame.Interpretation.UnsupportedParts ?? []).ToList();
+        if (period is not null)
+        {
+            if (string.Equals(period.Value, "LastAvailableMonths", StringComparison.OrdinalIgnoreCase)
+                && period.Count is >= 1 and <= 120)
+                lastAvailableMonths = period.Count;
+            else if (string.Equals(period.Value, "LatestAvailable", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(period.Value, "Unspecified", StringComparison.OrdinalIgnoreCase))
+            {
+                // The specialized executor already selects the latest persisted observation.
+            }
+            else
+                unsupported.Add($"period:{period.Value}{(period.Count.HasValue ? $":{period.Count.Value}" : string.Empty)}");
+        }
+
+        var operations = frame.Interpretation.RequestedOperations ?? [];
+        var supportedOperations = new HashSet<string>(["LatestValue", "TimeSeries", "Chart", "MonthOverMonthGrowth"], StringComparer.OrdinalIgnoreCase);
+        unsupported.AddRange(operations.Where(operation => !supportedOperations.Contains(operation)));
         var result = await useCase.ExecuteAsync(new MonthlyActivityTrendQuery(
             frame.Interpretation.OriginalText,
             symbol,
-            IncludeChartPayload: !string.Equals(presentation, nameof(PresentationKind.Summary), StringComparison.OrdinalIgnoreCase)), cancellationToken);
+            context.MonthlyActivityTrendReportYear,
+            context.MonthlyActivityTrendReportMonth,
+            IncludeChartPayload: !string.Equals(presentation, nameof(PresentationKind.Summary), StringComparison.OrdinalIgnoreCase),
+            LastAvailableMonths: lastAvailableMonths,
+            RequestedOperations: operations,
+            UnsupportedParts: unsupported.Distinct(StringComparer.OrdinalIgnoreCase).ToArray()), cancellationToken);
         return result is null
             ? NoData(frame)
             : Success(frame, result);
+    }
+}
+
+public sealed class MonthlyProductComparisonCapabilityExecutor(
+    IMonthlyProductComparisonUseCase useCase) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "monthly_product_comparison";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
+        if (symbol is null) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+        var product = frame.Value(QuerySlotType.Product);
+        var currentPeriodText = frame.Value(QuerySlotType.Period);
+        var comparisonPeriodText = frame.Value(QuerySlotType.ComparisonBaseline);
+        var currentPeriod = ParseJalaliPeriod(currentPeriodText);
+        var comparisonPeriod = ParseJalaliPeriod(comparisonPeriodText);
+        if ((!string.IsNullOrWhiteSpace(currentPeriodText) && currentPeriod is null) ||
+            (!string.IsNullOrWhiteSpace(comparisonPeriodText) && comparisonPeriod is null))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported,
+                "unsupported_period_format");
+        var result = await useCase.ExecuteAsync(new MonthlyProductComparisonQuery(
+            symbol,
+            currentPeriod,
+            comparisonPeriod,
+            product,
+            string.IsNullOrWhiteSpace(product) ? MonthlyProductComparisonFocus.All : MonthlyProductComparisonFocus.Sales),
+            cancellationToken);
+        return result.State is MonthlyProductComparisonState.Unavailable or MonthlyProductComparisonState.Error
+            ? new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
+                result.BlockingReason?.ToString() ?? DialogueOutcomeReasonCodes.SupportedButNoRows, result)
+            : Success(frame, result);
+    }
+
+    private static JalaliPeriod? ParseJalaliPeriod(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var parts = value.Split('/', StringSplitOptions.TrimEntries);
+        return parts.Length == 2 && int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year)
+            && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var month)
+            && JalaliPeriod.TryCreate(year, month, out var period)
+                ? period
+                : null;
     }
 }
 
@@ -128,19 +270,135 @@ public sealed class ProductRevenueMixCapabilityExecutor(IProductRevenueMixQueryU
     }
 }
 
+public sealed record ProductSalesValuePayload(
+    string CompanySymbol,
+    string ProductTitle,
+    JalaliPeriod Period,
+    decimal SalesAmountMillionRial,
+    MonthlyProductTrendResult Source);
+
+public sealed class ProductSalesValueCapabilityExecutor(
+    IMonthlyProductTrendQueryUseCase useCase,
+    ISemanticCapabilityExecutionObserver? executionObserver = null) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "product_sales_value";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        executionObserver?.BeforeExecute(CapabilityCode, frame, context);
+        // This capability answers only the monetary SalesAmount. A sold or produced volume (tons) is a different
+        // measure: report it as unsupported so the chat fallback can answer it, instead of returning an amount.
+        if (ProductSemanticIntentRules.RequestsPhysicalQuantity(frame.Interpretation.OriginalText))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported,
+                "requested_measure_is_physical_quantity");
+        // It answers only the latest reported month. A question naming a month or year must not be answered with
+        // the latest month's value: report it as unsupported so the chat fallback can answer the requested period.
+        if (PersianReportingPeriodNormalizer.MentionsReportingPeriod(frame.Interpretation.OriginalText))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported,
+                "requested_period_is_not_latest_month");
+        var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
+        var product = frame.Value(QuerySlotType.Product);
+        if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(product))
+            return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+
+        var companySlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var productSlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.Product);
+
+        var result = await useCase.ExecuteAsync(
+            new MonthlyProductTrendQuery(
+                symbol,
+                product,
+                Focus: MonthlyProductComparisonFocus.Sales,
+                CanonicalCompany: companySlot?.CanonicalEntity,
+                CanonicalProduct: productSlot?.CanonicalProduct),
+            cancellationToken);
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.NotFound)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "product_not_found");
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, "product_ambiguous", result);
+
+        var latest = result.Points
+            .Where(point => !point.IsGap && point.SalesValueMillionRial.HasValue)
+            .OrderByDescending(point => point.Period.Year)
+            .ThenByDescending(point => point.Period.Month)
+            .FirstOrDefault();
+        if (latest is null || result.ProductTitle is null || result.CompanySymbol is null)
+            return NoData(frame, result);
+
+        return Success(frame, new ProductSalesValuePayload(
+            result.CompanySymbol,
+            result.ProductTitle,
+            latest.Period,
+            latest.SalesValueMillionRial!.Value,
+            result));
+    }
+}
+
+public sealed class ProductSalesTrendCapabilityExecutor(
+    IMonthlyProductTrendQueryUseCase useCase,
+    ISemanticCapabilityExecutionObserver? executionObserver = null) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "product_sales_trend";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        executionObserver?.BeforeExecute(CapabilityCode, frame, context);
+        var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
+        var product = frame.Value(QuerySlotType.Product);
+        if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(product))
+            return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+
+        var companySlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var productSlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.Product);
+        var unsupportedTimeWindow = MonthlyProductTrendIntentRules
+            .BuildQuery(frame.Interpretation.OriginalText).UnsupportedTimeWindow;
+
+        var result = await useCase.ExecuteAsync(
+            new MonthlyProductTrendQuery(
+                symbol,
+                product,
+                Focus: MonthlyProductComparisonFocus.Sales,
+                CanonicalCompany: companySlot?.CanonicalEntity,
+                CanonicalProduct: productSlot?.CanonicalProduct,
+                UnsupportedTimeWindow: unsupportedTimeWindow),
+            cancellationToken);
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.NotFound)
+            return result.BlockingReason == "unsupported_time_window"
+                ? new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, result.BlockingReason, result)
+                : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "product_not_found");
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, "product_ambiguous", result);
+        if (result.Points.All(point => point.IsGap || !point.SalesValueMillionRial.HasValue))
+            return NoData(frame, result);
+
+        return Success(frame, result);
+    }
+}
+
 public sealed class FinancialStatementTableCapabilityExecutor(IFinancialStatementTableQueryUseCase useCase) : IConversationalCapabilityExecutor
 {
     public string CapabilityCode => "financial_statement_table";
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
     {
+        var quarterly = FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(frame.Interpretation.OriginalText);
         var query = new FinancialStatementTableQuery(
             frame.Interpretation.OriginalText,
             frame.Value(QuerySlotType.CompanyOrSymbol),
-            ParseEnum<FinancialStatementType>(frame.Value(QuerySlotType.StatementType)),
+            ParseEnum<FinancialStatementType>(frame.Value(QuerySlotType.StatementType)) ??
+                (quarterly ? FinancialStatementType.IncomeStatement : null),
             ParseInt(frame.Value(QuerySlotType.Period)),
             ParseBool(frame.Value(QuerySlotType.AuditStatus)),
             ParseBool(frame.Value(QuerySlotType.RestatementStatus)),
-            ParseBool(frame.Value(QuerySlotType.ConsolidationScope)));
+            ParseBool(frame.Value(QuerySlotType.ConsolidationScope)),
+            UseQuarterlyReportTable: quarterly,
+            QuarterCount: FinancialStatementTableIntentRules.ResolveQuarterCount(frame.Interpretation.OriginalText),
+            EndingPeriod: FinancialStatementTableIntentRules.ResolveEndingPeriod(frame.Interpretation.OriginalText));
         var result = await useCase.ExecuteAsync(query, cancellationToken);
         return result is null ? NoData(frame) : Success(frame, result);
     }
@@ -168,6 +426,25 @@ public sealed class FinancialStatementAnalysisCapabilityExecutor(IFinancialState
             IncludeSourceDetails: true);
         var result = await useCase.ExecuteAsync(query, cancellationToken);
         return result is null ? NoData(frame) : Success(frame, result);
+    }
+}
+
+public sealed class FinancialStatementValueSearchCapabilityExecutor(
+    IFinancialStatementValueSearchService searchService,
+    IFinancialStatementValueSearchProvider provider) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "financial_statement_value_search";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
+    {
+        var raw = frame.Value(QuerySlotType.NumericClues);
+        if (string.IsNullOrWhiteSpace(raw)) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+        var parsed = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+                ? new FinancialStatementValueClue(number) : null).ToArray();
+        if (parsed.Any(clue => clue is null) || parsed.Length is 0 or > 20) return Missing(frame, "invalid_numeric_clues");
+        var result = await searchService.SearchAsync(new FinancialStatementValueSearchRequest(provider.ProviderName, FinancialStatementType.IncomeStatement, parsed!), cancellationToken);
+        return result.Outcome == FinancialStatementValueSearchOutcome.NoMatch ? NoData(frame, result) : Success(frame, result);
     }
 }
 
@@ -205,7 +482,7 @@ public sealed class MonthlySalesQualityCapabilityExecutor(IMonthlySalesQualityRa
             IndustryTitle: industry,
             Scope: string.IsNullOrWhiteSpace(industry) ? MonthlySalesQualityScope.Market : MonthlySalesQualityScope.Industry,
             Direction: ParseEnum<MonthlySalesQualityDirection>(frame.Value(QuerySlotType.Sort)) ?? MonthlySalesQualityDirection.Top,
-            Limit: Math.Clamp(ParseInt(frame.Value(QuerySlotType.ResultLimit)) ?? 10, 1, 50),
+            Limit: ParseInt(frame.Value(QuerySlotType.ResultLimit)) ?? 0,
             IncludeExplanation: true,
             IncludeDimensionScores: false,
             OnlyEligibleRows: true);

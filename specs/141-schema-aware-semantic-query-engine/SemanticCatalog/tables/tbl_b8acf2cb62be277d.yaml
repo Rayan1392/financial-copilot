@@ -1,0 +1,126 @@
+{
+  "id": "tbl_b8acf2cb62be277d",
+  "physical": {
+    "Schema": "public",
+    "Name": "FollowedSymbols",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Symbol",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyName",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyNameEnglish",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "Source",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "FollowedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FollowedSymbols_ExternalCompanyId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FollowedSymbols_ExternalCompanyId\" ON public.\"FollowedSymbols\" USING btree (\"ExternalCompanyId\")",
+        "Columns": [
+          "ExternalCompanyId"
+        ]
+      },
+      {
+        "Name": "IX_FollowedSymbols_TenantId_ActorId_ActorType",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FollowedSymbols_TenantId_ActorId_ActorType\" ON public.\"FollowedSymbols\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType"
+        ]
+      },
+      {
+        "Name": "IX_FollowedSymbols_TenantId_ActorId_ActorType_ExternalCompanyId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FollowedSymbols_TenantId_ActorId_ActorType_ExternalCompanyId\" ON public.\"FollowedSymbols\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"ExternalCompanyId\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "ExternalCompanyId"
+        ]
+      },
+      {
+        "Name": "PK_FollowedSymbols",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FollowedSymbols\" ON public.\"FollowedSymbols\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FollowedSymbols",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

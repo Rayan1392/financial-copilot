@@ -19,10 +19,31 @@ public interface IMonthlyActivityBackfillCoordinator
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Queues one bounded month request for every eligible company whose persisted reporting type
+    /// matches the requested value.
+    /// </summary>
+    Task<MonthlyActivityReportingTypeBackfillStartResult> StartForReportingTypeAsync(
+        MonthlyActivityReportingTypeBackfillRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Per-month progress computed from durable sync-run history. Also records the durable
     /// backfill-complete marker once every planned month has fully completed.
     /// </summary>
     Task<MonthlyActivityBackfillProgress> GetProgressAsync(CancellationToken cancellationToken);
+
+    Task<MonthlyActivityBackfillBatch?> GetBatchAsync(Guid batchId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<MonthlyActivityBackfillBatch>> ListBatchesAsync(
+        int limit,
+        CancellationToken cancellationToken);
+}
+
+public interface IMonthlyActivityBackfillOutboxRelay
+{
+    Task<int> RelayPendingAsync(int maximumCount, CancellationToken cancellationToken);
+
+    Task<int> ReconcileActiveBatchesAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -35,14 +56,48 @@ public interface IMonthlyActivityBackfillStateReader
     Task<bool> IsBackfillCompletedAsync(CancellationToken cancellationToken);
 }
 
-public sealed record MonthlyActivityBackfillRequest(string RequestedBy);
+public sealed record MonthlyActivityBackfillRequest(
+    string RequestedBy,
+    ShamsiMonth? TargetMonth = null);
+
+public sealed record MonthlyActivityReportingTypeBackfillRequest(
+    string RequestedBy,
+    ShamsiMonth TargetMonth,
+    int ReportingType);
 
 public sealed record MonthlyActivityBackfillStartResult(
     string Outcome,
     int MonthsPlanned,
     int CompaniesPlanned,
     int RequestsEnqueued,
-    MonthlyActivityBackfillProgress Progress);
+    MonthlyActivityBackfillProgress Progress,
+    Guid? BatchId = null);
+
+public sealed record MonthlyActivityReportingTypeBackfillStartResult(
+    string Outcome,
+    int ShamsiYear,
+    int ShamsiMonth,
+    int ReportingType,
+    int CompaniesPlanned,
+    int RequestsEnqueued,
+    Guid? BatchId = null);
+
+public sealed record MonthlyActivityBackfillBatch(
+    Guid BatchId,
+    string Status,
+    string RequestedBy,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? PublishingStartedAt,
+    DateTimeOffset? PublishedAt,
+    DateTimeOffset? CompletedAt,
+    int? TargetShamsiYear,
+    int? TargetShamsiMonth,
+    int PlannedCount,
+    int PublishedCount,
+    int ProcessedCount,
+    int FailedCount,
+    int RetryableCount,
+    string? LastError);
 
 public sealed record MonthlyActivityBackfillMonthProgress(
     int ShamsiYear,

@@ -32,7 +32,11 @@ public sealed record HostedAiCompletionResponse(
     bool CacheHit = false,
     decimal? ProviderReportedCost = null,
     string? ProviderReportedCurrency = null,
-    string? ResponseId = null);
+    string? ResponseId = null,
+    int? CachedInputTokens = null,
+    int? CacheWriteInputTokens = null,
+    int? CacheWrite30mInputTokens = null,
+    int? CacheWrite12hInputTokens = null);
 
 public sealed record HostedAiEmbeddingResponse(
     IReadOnlyCollection<IReadOnlyList<float>> Vectors,
@@ -71,7 +75,12 @@ public sealed class ConfiguredHostedAiModelClient(
                     response.CacheHit,
                     response.ToolCalls.Count > 0,
                     ProviderReportedCost: response.ProviderReportedCost,
-                    ProviderReportedCurrency: response.ProviderReportedCurrency),
+                    ProviderReportedCurrency: response.ProviderReportedCurrency,
+                    CachedInputTokens: response.CachedInputTokens,
+                    CacheWriteInputTokens: response.CacheWriteInputTokens,
+                    CacheWrite30mInputTokens: response.CacheWrite30mInputTokens,
+                    CacheWrite12hInputTokens: response.CacheWrite12hInputTokens,
+                    Workload: request.Workload),
                 ResponseId: response.ResponseId);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
@@ -90,12 +99,30 @@ public sealed class ConfiguredHostedAiModelClient(
         {
             throw;
         }
+        catch (HttpRequestException exception)
+        {
+            throw new AiModelProviderException(
+                AiExecutionStatus.RuntimeUnavailable,
+                "hosted_provider_transport_failed",
+                "The hosted AI request failed before an HTTP response was received.",
+                exception,
+                httpStatusCode: (int?)exception.StatusCode,
+                providerErrorCode: exception.HttpRequestError.ToString());
+        }
+        catch (System.Text.Json.JsonException exception)
+        {
+            throw new AiModelProviderException(
+                AiExecutionStatus.InvalidStructuredOutput,
+                "hosted_request_serialization_failed",
+                "The hosted AI request or response could not be processed as JSON.",
+                exception);
+        }
         catch (Exception exception)
         {
             throw new AiModelProviderException(
                 AiExecutionStatus.Failed,
-                "hosted_provider_failed",
-                "Hosted AI provider request failed.",
+                "hosted_client_internal_error",
+                "The hosted AI client failed before returning a provider response.",
                 exception);
         }
     }

@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using Microsoft.Extensions.Logging;
@@ -15,20 +17,24 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 public sealed class NadpcoApiDataProviderClient(
     HttpClient httpClient,
     IProviderRawPayloadStore rawPayloads,
-    INadpcoApiTokenProvider tokenProvider,
+    NadpcoApiTokenCache tokenCache,
     IOptions<NadpcoApiProviderOptions> options,
     TimeProvider timeProvider,
     ILogger<NadpcoApiDataProviderClient> logger,
-    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null) :
+    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null,
+    INoavaranMonthlyReportTypeResolver? reportTypeResolver = null) :
     ISymbolDataProvider,
     IFinancialStatementProvider,
     IMonthlyProductionSalesProvider,
+    INadpcoMonthlyProductSalesDirectProvider,
     IFinancialRatioProvider,
     IFundamentalIndexCoverageProvider,
     IFinancialDataProviderHealthService
 {
     private readonly NadpcoApiProviderOptions _settings = options.Value;
     private readonly SemaphoreSlim _throttle = new(Math.Max(1, options.Value.MaxReadParallelism));
+    private readonly INoavaranMonthlyReportTypeResolver _reportTypeResolver =
+        reportTypeResolver ?? new NoavaranMonthlyReportTypeResolver();
 
     // Access to the current-API monthly-activity endpoints is granted only from Shamsi 1404 onward;
     // requesting 1403 or earlier returns HTTP 500. Enforced in code so a misconfigured earlier
@@ -80,6 +86,64 @@ public sealed class NadpcoApiDataProviderClient(
             cancellationToken);
     }
 
+    public async Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken,
+        int? fiscalYear,
+        int? periodMonths)
+    {
+        if (fiscalYear is null)
+        {
+            return await FetchFinancialStatementsAsync(externalCompanyId, cancellationToken);
+        }
+
+        if (fiscalYear is < 1300 or > 1600)
+            throw new ArgumentOutOfRangeException(nameof(fiscalYear));
+        if (periodMonths is not null and not (3 or 6 or 9 or 12))
+            throw new ArgumentOutOfRangeException(nameof(periodMonths));
+
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var periods = periodMonths is { } requested ? [requested] : new[] { 3, 6, 9, 12 };
+        var balanceSheets = new List<string>();
+        var incomeStatements = new List<string>();
+        var cashFlows = new List<string>();
+
+        foreach (var months in periods)
+        {
+            var suffix = $"?fromYear={fiscalYear.Value}&toYear={fiscalYear.Value}&perTId={months}";
+            balanceSheets.Add(await PostJsonForPayloadAsync(
+                $"api/v2/FS/BalanceSheet/Values{suffix}",
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()), cancellationToken));
+            incomeStatements.Add(await PostJsonForPayloadAsync(
+                $"api/v2/FS/IncomeStatement/Values{suffix}",
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()), cancellationToken));
+            cashFlows.Add(await PostJsonForPayloadAsync(
+                $"api/v2/FS/CashFlow/Values{suffix}",
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()), cancellationToken));
+        }
+
+        var envelope = new NadpcoFinancialStatementEnvelope(
+            CombineStatementPayloads(balanceSheets),
+            CombineStatementPayloads(incomeStatements),
+            CombineStatementPayloads(cashFlows));
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+        var endpoint = $"api/v2/FS/*/Values?fromYear={fiscalYear.Value}&toYear={fiscalYear.Value}&perTId={(periodMonths?.ToString(CultureInfo.InvariantCulture) ?? "3,6,9,12")}";
+        return await StorePayloadAsync(ProviderDataset.FinancialStatements, endpoint, companyId, json, cancellationToken);
+    }
+
+    private static string CombineStatementPayloads(IEnumerable<string> payloads)
+    {
+        var rows = new List<JsonElement>();
+        foreach (var payload in payloads)
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
+                rows.AddRange(document.RootElement.EnumerateArray().Select(item => item.Clone()));
+        }
+        return JsonSerializer.Serialize(rows, JsonOptions);
+    }
+
     public async Task<ProviderRawPayload> FetchMonthlyReportsAsync(
         string externalCompanyId,
         CancellationToken cancellationToken)
@@ -100,16 +164,158 @@ public sealed class NadpcoApiDataProviderClient(
         // JSON body makes v3 ServiceSales return HTTP 500. The body carries only companyIds.
         var fromToken = ToShamsiYearMonthToken(ClampMonthlyActivityFromDate(requestedFromDate));
         var toToken = ToShamsiYearMonthToken(requestedToDate);
+        var route = _reportTypeResolver.Resolve(boundaryOverride?.ReportingType);
+        if (route.ProviderType is null)
+        {
+            logger.LogWarning(
+                "NADPCO monthly activity route unavailable for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, Diagnostic={Diagnostic}",
+                companyId,
+                route.ReportingType,
+                route.Outcome,
+                route.Diagnostic);
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"NADPCO monthly activity has no route for company {companyId}: {route.Diagnostic}");
+        }
+
+        logger.LogInformation(
+            "NADPCO monthly activity route selected for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, ProviderType={ProviderType}, Endpoint={Endpoint}",
+            companyId,
+            route.ReportingType,
+            route.Outcome,
+            route.ProviderType,
+            route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales
+                ? "api/v3/MonthlyActivity/ServiceSales"
+                : "api/v2/MonthlyActivity/ProductSales");
+
+        if (route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales)
+        {
+            return await FetchServiceSalesAsync(companyId, fromToken, toToken, cancellationToken);
+        }
+
         var body = new NadpcoApiMonthlyActivityRequest(
             new[] { ParseCompanyId(companyId) },
             FromDate: null,
             ToDate: null,
             OutputType: null);
 
+        return await FetchProductSalesAllOutputTypesAsync(
+            companyId,
+            fromToken,
+            toToken,
+            body,
+            // The type-0 request owns the monthly source decision. Output types 1-4 remain
+            // independent ProductSales requests and must never probe ServiceSales.
+            type0FailureIsFatal: boundaryOverride?.MonthlyActivityOutputType is null or 0,
+            monthlyActivityOutputType: null,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task<ProviderRawPayload> FetchServiceSalesAsync(
+        string companyId,
+        string? fromToken,
+        string? toToken,
+        CancellationToken cancellationToken)
+    {
+        var json = await PostJsonForPayloadAsync(
+            BuildMonthlyActivityEndpoint(
+                "api/v3/MonthlyActivity/ServiceSales",
+                fromToken,
+                toToken,
+                outputType: null),
+            new NadpcoApiServiceSalesRequest(ParseCompanyId(companyId)),
+            cancellationToken);
+        var envelope = new NadpcoMonthlyActivityEnvelope(null, null, null, null, null, json);
+        return await StorePayloadAsync(
+            ProviderDataset.MonthlyProductionSales,
+            "api/v3/MonthlyActivity/ServiceSales",
+            companyId,
+            JsonSerializer.Serialize(envelope, JsonOptions),
+            cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
+        string externalCompanyId,
+        int shamsiYear,
+        int shamsiMonth,
+        CancellationToken cancellationToken,
+        int? monthlyActivityOutputType = null)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        if (shamsiYear < MonthlyActivityMinimumShamsiYear || shamsiMonth is < 1 or > 12)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(shamsiYear),
+                $"NADPCO monthly activity supports Shamsi year {MonthlyActivityMinimumShamsiYear} onward and months 1-12.");
+        }
+
+        var monthToken = string.Create(CultureInfo.InvariantCulture, $"{shamsiYear:D4}{shamsiMonth:D2}");
+        var body = new NadpcoApiMonthlyActivityRequest(
+            new[] { ParseCompanyId(companyId) },
+            FromDate: null,
+            ToDate: null,
+            OutputType: null);
+
+        return await FetchProductSalesAllOutputTypesAsync(
+            companyId,
+            monthToken,
+            monthToken,
+            body,
+            // The direct path owns the same type-0 source decision as the scheduled path. A
+            // caller that explicitly targets output types 1-4 remains ProductSales-only.
+            type0FailureIsFatal: monthlyActivityOutputType is null or 0,
+            monthlyActivityOutputType: monthlyActivityOutputType,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
+        string companyId,
+        string? fromToken,
+        string? toToken,
+        NadpcoApiMonthlyActivityRequest body,
+        bool type0FailureIsFatal,
+        int? monthlyActivityOutputType,
+        CancellationToken cancellationToken)
+    {
+        var route = _reportTypeResolver.Resolve(boundaryOverride?.ReportingType);
+        if (route.ProviderType is null)
+        {
+            logger.LogWarning(
+                "NADPCO monthly activity route unavailable for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, Diagnostic={Diagnostic}",
+                companyId,
+                route.ReportingType,
+                route.Outcome,
+                route.Diagnostic);
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"NADPCO monthly activity has no route for company {companyId}: {route.Diagnostic}");
+        }
+
+        logger.LogInformation(
+            "NADPCO monthly activity route selected for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, ProviderType={ProviderType}, Endpoint={Endpoint}",
+            companyId,
+            route.ReportingType,
+            route.Outcome,
+            route.ProviderType,
+            route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales
+                ? "api/v3/MonthlyActivity/ServiceSales"
+                : "api/v2/MonthlyActivity/ProductSales");
+
+        if (route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales)
+        {
+            return await FetchServiceSalesAsync(companyId, fromToken, toToken, cancellationToken);
+        }
+
         // Fetch all 5 outputTypeId values (0–4) independently so a failure for one type does not
         // block the others. Null means the fetch failed; the normalizer skips null slots.
         var productSalesByType = new string?[5];
-        for (var outputTypeId = 0; outputTypeId <= 4; outputTypeId++)
+        const string serviceSales = "[]";
+        var outputTypes = monthlyActivityOutputType is { } requestedOutputType
+            ? [requestedOutputType]
+            : boundaryOverride?.MonthlyActivityOutputType is { } selectedOutputType
+                ? [selectedOutputType]
+            : Enumerable.Range(0, 5);
+        foreach (var outputTypeId in outputTypes)
         {
             try
             {
@@ -121,6 +327,14 @@ public sealed class NadpcoApiDataProviderClient(
             }
             catch (FinancialProviderException exception)
             {
+                if (outputTypeId == 0 && type0FailureIsFatal)
+                {
+                    // A type-0 provider failure is not evidence that the company is a service
+                    // company. Preserve the failed run and retry it; never classify it through
+                    // ServiceSales.
+                    throw;
+                }
+
                 logger.LogWarning(
                     "NADPCO ProductSales outputTypeId={OutputTypeId} fetch failed for company {CompanyId} " +
                     "({ProviderErrorCode}); skipping this output type.",
@@ -128,28 +342,7 @@ public sealed class NadpcoApiDataProviderClient(
                     companyId,
                     exception.Code);
             }
-        }
 
-        // ServiceSales failures are isolated so they cannot poison the product-sales data of the
-        // same company-month. Degrade to an empty service-sales payload with a visible warning;
-        // service rows resume once the month is re-requested.
-        string serviceSales;
-        try
-        {
-            serviceSales = await PostJsonForPayloadAsync(
-                BuildMonthlyActivityEndpoint(
-                    "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
-                body,
-                cancellationToken);
-        }
-        catch (FinancialProviderException exception)
-        {
-            logger.LogWarning(
-                "NADPCO ServiceSales fetch failed for company {CompanyId} ({ProviderErrorCode}); " +
-                "persisting product sales only for this request.",
-                companyId,
-                exception.Code);
-            serviceSales = "[]";
         }
 
         var envelope = new NadpcoMonthlyActivityEnvelope(
@@ -190,6 +383,88 @@ public sealed class NadpcoApiDataProviderClient(
             cancellationToken);
     }
 
+    public async Task<ProviderRawPayload> FetchManualFinancialStatementAsync(
+        string externalCompanyId,
+        int fiscalYearEnding,
+        int periodMonths,
+        ManualNoavaranFinancialStatementType statementType,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var (dataset, endpoint, json) = statementType switch
+        {
+            ManualNoavaranFinancialStatementType.BalanceSheet => await FetchStatementAsync(
+                "api/v2/FS/BalanceSheet/Values", FinancialStatementType.BalanceSheet),
+            ManualNoavaranFinancialStatementType.IncomeStatement => await FetchStatementAsync(
+                "api/v2/FS/IncomeStatement/Values", FinancialStatementType.IncomeStatement),
+            ManualNoavaranFinancialStatementType.CashFlow => await FetchStatementAsync(
+                "api/v2/FS/CashFlow/Values", FinancialStatementType.CashFlow),
+            ManualNoavaranFinancialStatementType.FinancialRatios => await FetchRatiosAsync(),
+            _ => throw new ArgumentOutOfRangeException(nameof(statementType))
+        };
+
+        return await StorePayloadAsync(dataset, endpoint, companyId, json, cancellationToken);
+
+        async Task<(ProviderDataset Dataset, string Endpoint, string Json)> FetchStatementAsync(
+            string path,
+            FinancialStatementType selectedType)
+        {
+            var endpointUrl = BuildManualStatementEndpoint(path);
+            var selectedPayload = await PostJsonForPayloadAsync(
+                endpointUrl,
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()),
+                cancellationToken);
+            var empty = "[]";
+            var envelope = selectedType switch
+            {
+                FinancialStatementType.BalanceSheet => new NadpcoFinancialStatementEnvelope(selectedPayload, empty, empty),
+                FinancialStatementType.IncomeStatement => new NadpcoFinancialStatementEnvelope(empty, selectedPayload, empty),
+                FinancialStatementType.CashFlow => new NadpcoFinancialStatementEnvelope(empty, empty, selectedPayload),
+                _ => throw new ArgumentOutOfRangeException(nameof(selectedType))
+            };
+            return (ProviderDataset.FinancialStatements, endpointUrl, JsonSerializer.Serialize(envelope, JsonOptions));
+        }
+
+        async Task<(ProviderDataset Dataset, string Endpoint, string Json)> FetchRatiosAsync()
+        {
+            var endpointUrl = BuildManualFundamentalIndexEndpoint();
+            var payload = await PostJsonForPayloadAsync(
+                endpointUrl,
+                new NadpcoApiFundamentalIndexRequest(
+                    companyIds,
+                    NadpcoApiFundamentalIndexMap.MappedIndexIds.ToArray()),
+                cancellationToken);
+            return (ProviderDataset.FundamentalIndexes, endpointUrl, payload);
+        }
+
+        string BuildManualStatementEndpoint(string path) => BuildManualEndpoint(
+            path,
+            _settings.StatementIsAudited,
+            _settings.StatementIsRepresented,
+            _settings.StatementIsComposing);
+
+        string BuildManualFundamentalIndexEndpoint() => BuildManualEndpoint(
+            "api/v2/CompanyFundamentalIndex/Values",
+            _settings.FundamentalIndexIsAudited,
+            _settings.FundamentalIndexIsRepresented,
+            _settings.FundamentalIndexIsComposing);
+
+        string BuildManualEndpoint(string path, bool? isAudited, bool? isRepresented, bool? isComposing)
+        {
+            var query = new List<string>
+            {
+                $"fromYear={fiscalYearEnding}",
+                $"toYear={fiscalYearEnding}",
+                $"perTId={periodMonths}"
+            };
+            if (isAudited is not null) query.Add($"isAudited={isAudited.Value.ToString().ToLowerInvariant()}");
+            if (isRepresented is not null) query.Add($"isRepresented={isRepresented.Value.ToString().ToLowerInvariant()}");
+            if (isComposing is not null) query.Add($"isComposing={isComposing.Value.ToString().ToLowerInvariant()}");
+            return $"{path}?{string.Join("&", query)}";
+        }
+    }
+
     // Spec 050: all-index coverage. Sends an EMPTY companyIndexIds so the vendor returns every index,
     // and an explicit Shamsi year range — independent of the curated 041 allowlist and configured years.
     public async Task<ProviderRawPayload> FetchAllFundamentalIndexesAsync(
@@ -214,36 +489,21 @@ public sealed class NadpcoApiDataProviderClient(
             cancellationToken);
     }
 
-    public async Task<ProviderHealthResult> CheckAsync(CancellationToken cancellationToken)
+    public Task<ProviderHealthResult> CheckAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            await tokenProvider.GetTokenAsync(forceRefresh: true, cancellationToken);
-            return new ProviderHealthResult(
-                ProviderName,
-                ProviderHealthStatus.Healthy,
-                timeProvider.GetUtcNow(),
-                "Authenticated token request succeeded.");
-        }
-        catch (FinancialProviderException exception)
-        {
-            logger.LogWarning(
-                "NADPCO API health check failed with provider error {ProviderErrorCode}.",
-                exception.Code);
-            var status = exception.Code == FinancialProviderErrorCode.InvalidResponse
-                ? ProviderHealthStatus.Degraded
-                : ProviderHealthStatus.Unavailable;
-            return new ProviderHealthResult(ProviderName, status, timeProvider.GetUtcNow(), exception.Code.ToString());
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogWarning(exception, "NADPCO API health check failed.");
-            return new ProviderHealthResult(
-                ProviderName,
-                ProviderHealthStatus.Unavailable,
-                timeProvider.GetUtcNow(),
-                "TransportFailure");
-        }
+        // Health is intentionally cache-only. It must never call the vendor token endpoint because
+        // NADPCO enforces a limited daily token allowance. TryGetToken checks the in-process cache
+        // first and then the shared Redis cache, without fetching or refreshing a token.
+        cancellationToken.ThrowIfCancellationRequested();
+        var now = timeProvider.GetUtcNow();
+        var hasCachedToken = tokenCache.TryGetToken(now, out _);
+        return Task.FromResult(new ProviderHealthResult(
+            ProviderName,
+            hasCachedToken ? ProviderHealthStatus.Healthy : ProviderHealthStatus.Degraded,
+            now,
+            hasCachedToken
+                ? "A valid cached authenticated token is available."
+                : "No valid cached authenticated token is available."));
     }
 
     private async Task<ProviderRawPayload> FetchGetRawAsync(

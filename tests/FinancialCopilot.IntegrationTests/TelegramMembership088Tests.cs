@@ -179,8 +179,16 @@ public sealed class TelegramMembership088Tests : IClassFixture<TelegramMembershi
         using var register = await client.PostAsJsonAsync(
             "/api/auth/v1/register",
             new { email, password = "StrongPassword!123" });
-        using var session = await ReadJsonAsync(register);
         register.EnsureSuccessStatusCode();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var accountUser = await db.Users.SingleAsync(row => row.Email == email);
+            accountUser.EmailVerificationRequired = false;
+            await db.SaveChangesAsync();
+        }
+        using var login = await client.PostAsJsonAsync("/api/auth/v1/login", new { email, password = "StrongPassword!123" });
+        using var session = await ReadJsonAsync(login);
         var accessToken = session.RootElement.GetProperty("accessToken").GetString()!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         var token = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
@@ -260,6 +268,10 @@ public sealed class TelegramMembershipApiFactory : OwnedIdentityApiFactory
         });
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<AuthDbContext>();
+            services.RemoveAll<DbContextOptions<AuthDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<AuthDbContext>>();
+            services.AddDbContext<AuthDbContext>(options => options.UseInMemoryDatabase("telegram-membership-auth"));
             services.RemoveAll<ITelegramChannelMembershipProvider>();
             services.AddSingleton<ITelegramChannelMembershipProvider, FakeTelegramMembershipProvider>();
         });

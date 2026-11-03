@@ -1,0 +1,49 @@
+{
+  "id": "S2-flag-off",
+  "run": {
+    "Question": "روند فروش گندله کگل در ۱۲ ماه اخیر",
+    "Enabled": false,
+    "Answer": "روند فروش گندله کگل (کگل)",
+    "PersistedUserMessage": "روند فروش گندله کگل در ۱۲ ماه اخیر",
+    "PersistedAssistantMessage": "روند فروش گندله کگل (کگل)",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-839b2937f66344fea841d633a7ef29d7 | Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=entity:کگل,product:گندله RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=Executed ReasonCode=none PayloadType=MonthlyProductTrendResult",
+    "SemanticCapability": "product_sales_trend",
+    "Intent": "MonthlyProductTrend",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:product_sales_trend"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 268.0000,
+    "WalletBalanceAfter": 267.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 6694.1561,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-839b2937f66344fea841d633a7ef29d7",
+      "Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=entity:کگل,product:گندله RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=Executed ReasonCode=none PayloadType=MonthlyProductTrendResult",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-839b2937f66344fea841d633a7ef29d7 RolloutMode=Canary LegacyCapability=product_sales_trend LegacyConfidence=0.99 SemanticIntent=product_sales_trend SemanticCapabilityCandidate=product_sales_trend SemanticConfidence=0.99 ExtractedCompany=کگل ExtractedProduct=گندله ExtractedMetric=فروش ExtractedPeriod=(null) ResolvedCompany=کگل C"
+    ],
+    "ExecutedQueries": []
+  }
+}

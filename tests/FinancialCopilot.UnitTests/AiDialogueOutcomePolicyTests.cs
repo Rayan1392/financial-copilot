@@ -5,6 +5,22 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class AiDialogueOutcomePolicyTests
 {
+    [Fact]
+    public void EntityNotFound_IsNotCollapsedIntoGenericClarification()
+    {
+        var outcome = new DialogueOutcomeResult(
+            DialogueOutcome.ClarificationNeeded,
+            DialogueOutcomeReasonCodes.EntityNotFound,
+            "fa",
+            null,
+            false);
+
+        var message = AiDialogueOutcomePolicy.ComposeSystemMessage(outcome);
+
+        Assert.Contains("\u067e\u06cc\u062f\u0627 \u0646\u0634\u062f", message);
+        Assert.DoesNotContain("\u0627\u0637\u0644\u0627\u0639\u0627\u062a \u0628\u06cc\u0634\u062a\u0631\u06cc", message);
+    }
+
     [Theory]
     [InlineData("P/E فولاد", "fa")]
     [InlineData("چارت روند فروش فولاد", "fa")]

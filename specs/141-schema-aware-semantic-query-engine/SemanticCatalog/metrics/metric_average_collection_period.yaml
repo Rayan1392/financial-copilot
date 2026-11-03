@@ -1,0 +1,59 @@
+{
+  "id": "metric_average_collection_period",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "AVERAGE_COLLECTION_PERIOD"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Average Collection Period",
+    "Description": "Governed semantic definition for Average Collection Period.",
+    "Category": 5,
+    "Unit": {
+      "Code": "days",
+      "DisplayLabel": "Days"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "average collection period",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "AVERAGE_COLLECTION_PERIOD"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "دوره وصول مطالبات",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVERAGE_COLLECTION_PERIOD"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

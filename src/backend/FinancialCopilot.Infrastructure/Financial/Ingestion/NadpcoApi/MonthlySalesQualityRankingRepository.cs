@@ -5,22 +5,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
-internal sealed class MonthlySalesQualityRankingRepository(FinancialIngestionDbContext dbContext)
+internal sealed class MonthlySalesQualityRankingRepository(
+    FinancialIngestionDbContext dbContext,
+    TimeProvider timeProvider)
     : IMonthlySalesQualityRankingRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<(int ReportYear, byte ReportMonth)?> GetLatestAvailablePeriodAsync(CancellationToken ct = default)
+    public Task<(int ReportYear, byte ReportMonth)> GetLatestRankablePeriodAsync(CancellationToken ct = default)
     {
-        var period = await dbContext.MonthlySalesQualityRankingSnapshots
-            .AsNoTracking()
-            .Where(r => r.IsEligible)
-            .OrderByDescending(r => r.ReportYear)
-            .ThenByDescending(r => r.ReportMonth)
-            .Select(r => new { r.ReportYear, r.ReportMonth })
-            .FirstOrDefaultAsync(ct);
-
-        return period is null ? null : (period.ReportYear, period.ReportMonth);
+        ct.ThrowIfCancellationRequested();
+        var period = ShamsiMonthCalculator.LatestCompletedCalendarMonth(timeProvider.GetUtcNow());
+        return Task.FromResult((period.Year, (byte)period.Month));
     }
 
     public async Task<MonthlySalesQualityRankingResponse> GetRankingAsync(
@@ -29,7 +25,7 @@ internal sealed class MonthlySalesQualityRankingRepository(FinancialIngestionDbC
     {
         var period = query.ReportYear.HasValue && query.ReportMonth.HasValue
             ? (query.ReportYear.Value, query.ReportMonth.Value)
-            : await GetLatestAvailablePeriodAsync(ct) ?? (0, (byte)0);
+            : await GetLatestRankablePeriodAsync(ct);
 
         if (period.Item1 == 0)
         {

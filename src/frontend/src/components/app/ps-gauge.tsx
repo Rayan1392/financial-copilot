@@ -28,7 +28,7 @@ export function PsGauge({
   const { forward: forwardAngle, ttm: ttmAngle } = getPsGaugeMarkerAngles(data);
   const forwardOuter = forwardAngle === undefined ? undefined : point(forwardAngle, 121);
   const forwardInner = forwardAngle === undefined ? undefined : point(forwardAngle, 96);
-  const ttm = data.ttmPs.value ?? data.needle?.sourceValue;
+  const ttm = data.ttmPs.value;
   const ttmNeedle = ttmAngle === undefined ? undefined : point(ttmAngle, 112);
   return (
     <section

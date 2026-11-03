@@ -1,0 +1,93 @@
+{
+  "id": "tbl_cc5b98c58de0fa25",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_user_logins",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "LoginProvider",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderKey",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderDisplayName",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "UserId",
+        "Type": "uuid",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "LoginProvider",
+      "ProviderKey"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "UserId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_user_logins_UserId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_user_logins_UserId\" ON public.auth_user_logins USING btree (\"UserId\")",
+        "Columns": [
+          "UserId"
+        ]
+      },
+      {
+        "Name": "PK_auth_user_logins",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_user_logins\" ON public.auth_user_logins USING btree (\"LoginProvider\", \"ProviderKey\")",
+        "Columns": [
+          "LoginProvider",
+          "ProviderKey"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_user_logins_auth_users_UserId",
+        "Type": "f",
+        "Columns": [
+          "UserId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_user_logins",
+        "Type": "p",
+        "Columns": [
+          "LoginProvider",
+          "ProviderKey"
+        ],
+        "Definition": "PRIMARY KEY (\"LoginProvider\", \"ProviderKey\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

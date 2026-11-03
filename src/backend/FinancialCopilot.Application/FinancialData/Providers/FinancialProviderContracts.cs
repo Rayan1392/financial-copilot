@@ -59,6 +59,13 @@ public interface IFinancialStatementProvider
     Task<ProviderRawPayload> FetchFinancialStatementsAsync(
         string externalCompanyId,
         CancellationToken cancellationToken);
+
+    Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken,
+        int? fiscalYear,
+        int? periodMonths) =>
+        FetchFinancialStatementsAsync(externalCompanyId, cancellationToken);
 }
 
 public interface IMonthlyProductionSalesProvider
@@ -66,6 +73,20 @@ public interface IMonthlyProductionSalesProvider
     Task<ProviderRawPayload> FetchMonthlyReportsAsync(
         string externalCompanyId,
         CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Fetches NADPCO ProductSales outputs for an explicit company-month. OutputType 0 owns the shared
+/// ProductSales-versus-ServiceSales source decision; explicit output types 1-4 remain ProductSales-only.
+/// </summary>
+public interface INadpcoMonthlyProductSalesDirectProvider
+{
+    Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
+        string externalCompanyId,
+        int shamsiYear,
+        int shamsiMonth,
+        CancellationToken cancellationToken,
+        int? monthlyActivityOutputType = null);
 }
 
 public interface IFinancialRatioProvider
@@ -140,7 +161,10 @@ public enum FinancialProviderErrorCode
     Timeout,
     Unauthorized,
     RemoteUnavailable,
-    InvalidResponse
+    InvalidResponse,
+
+    // Feature 148: the provider integration was retired; no request was sent.
+    ProviderRetired
 }
 
 public sealed class FinancialProviderException(

@@ -1,0 +1,151 @@
+{
+  "id": "tbl_79523f50acd63dd8",
+  "physical": {
+    "Schema": "public",
+    "Name": "ArchiveImportRuns",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Action",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedBy",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "DatasetSelectionJson",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "StartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "FinishedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompaniesConsidered",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestsEnqueued",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SkippedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ConflictCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "FailedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Frozen",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "Diagnostics",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      },
+      {
+        "Name": "LockOwner",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "LockLeaseExpiresAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_ArchiveImportRuns_LockLeaseExpiresAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ArchiveImportRuns_LockLeaseExpiresAt\" ON public.\"ArchiveImportRuns\" USING btree (\"LockLeaseExpiresAt\")",
+        "Columns": [
+          "LockLeaseExpiresAt"
+        ]
+      },
+      {
+        "Name": "IX_ArchiveImportRuns_StartedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ArchiveImportRuns_StartedAt\" ON public.\"ArchiveImportRuns\" USING btree (\"StartedAt\")",
+        "Columns": [
+          "StartedAt"
+        ]
+      },
+      {
+        "Name": "IX_ArchiveImportRuns_Status",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ArchiveImportRuns_Status\" ON public.\"ArchiveImportRuns\" USING btree (\"Status\")",
+        "Columns": [
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_ArchiveImportRuns",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ArchiveImportRuns\" ON public.\"ArchiveImportRuns\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_ArchiveImportRuns",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "id": "tbl_7a5a2e8f32a82e87",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundamentalIndexCatchUpRuns",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedBy",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "FromShamsiYear",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ToShamsiYear",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "StartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "FinishedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompaniesConsidered",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestsEnqueued",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "FailedCompanies",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "FailedCompanyIdsJson",
+        "Type": "character varying(4000)",
+        "Nullable": false
+      },
+      {
+        "Name": "Diagnostics",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      },
+      {
+        "Name": "LockOwner",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "LockLeaseExpiresAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundamentalIndexCatchUpRuns_LockLeaseExpiresAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundamentalIndexCatchUpRuns_LockLeaseExpiresAt\" ON public.\"FundamentalIndexCatchUpRuns\" USING btree (\"LockLeaseExpiresAt\")",
+        "Columns": [
+          "LockLeaseExpiresAt"
+        ]
+      },
+      {
+        "Name": "IX_FundamentalIndexCatchUpRuns_StartedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundamentalIndexCatchUpRuns_StartedAt\" ON public.\"FundamentalIndexCatchUpRuns\" USING btree (\"StartedAt\")",
+        "Columns": [
+          "StartedAt"
+        ]
+      },
+      {
+        "Name": "IX_FundamentalIndexCatchUpRuns_Status",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundamentalIndexCatchUpRuns_Status\" ON public.\"FundamentalIndexCatchUpRuns\" USING btree (\"Status\")",
+        "Columns": [
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_FundamentalIndexCatchUpRuns",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundamentalIndexCatchUpRuns\" ON public.\"FundamentalIndexCatchUpRuns\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundamentalIndexCatchUpRuns",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

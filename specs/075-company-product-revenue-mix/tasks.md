@@ -198,3 +198,34 @@ End-to-End Tests
 - Product dependency risk score
 - Product diversification score
 - Industry-level product comparison
+
+---
+
+## Implementation Extension — Deterministic Suggested Actions
+
+### Task 11 — Typed-result selector
+
+- Add a pure ProductRevenueMix follow-up selector that reads the successful typed result only.
+- Preserve the result/display order and scan past invalid rows until two safe products are found.
+- Reject duplicate normalized titles, aggregate/“other” rows, placeholders, and parser-unsafe rows.
+
+### Task 12 — Existing capability round trips
+
+- Validate product messages with `MonthlyProductTrendIntentRules` and the capability interpreter.
+- Validate the parent-company message with `MonthlyActivityTrendIntentRules` and the interpreter.
+- Require enabled target capabilities; execute no downstream use case during validation.
+
+### Task 13 — Existing SuggestedAction and persistence path
+
+- Build at most two `monthly_product_trend` actions, then one `monthly_activity_trend` action.
+- Reuse registry-versioned SHA-256 IDs, the existing `SuggestedAction` contract, and relevance reason
+  `product_revenue_mix_follow_up`.
+- Set `DeterministicSuggestionsApplied` for successful typed results, including an explicit empty
+  collection. Preserve generic guidance on non-success paths.
+
+### Task 14 — Verification and report
+
+- Add focused selector, round-trip, slot, ordering, ID, zero-action, and persistence tests.
+- Run ProductRevenueMix and Features 136/137/138 regressions, routing/architecture/Telegram/frontend
+  suites, and an API round-trip validation.
+- Record implementation and test evidence in `ImplementationReport.md`.

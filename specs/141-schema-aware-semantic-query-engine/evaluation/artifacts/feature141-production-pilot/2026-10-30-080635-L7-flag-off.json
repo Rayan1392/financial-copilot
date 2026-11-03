@@ -1,0 +1,49 @@
+{
+  "id": "L7-flag-off",
+  "run": {
+    "Question": "مبلغ فروش گندله کگهر در تیر ۱۴۰۵ چقدر بود؟",
+    "Enabled": false,
+    "Answer": "این پرسش را نمی‌توانم به‌صورت قابل اتکا پاسخ بدهم. می‌توانم نمادها را با معیارهای مالی فیلتر کنم، شاخص‌های یک نماد را نشان بدهم، روند فروش ماهانه را نمایش دهم یا تحلیل‌های ثبت‌شده را ارائه کنم.",
+    "PersistedUserMessage": "مبلغ فروش گندله کگهر در تیر ۱۴۰۵ چقدر بود؟",
+    "PersistedAssistantMessage": "این پرسش را نمی‌توانم به‌صورت قابل اتکا پاسخ بدهم. می‌توانم نمادها را با معیارهای مالی فیلتر کنم، شاخص‌های یک نماد را نشان بدهم، روند فروش ماهانه را نمایش دهم یا تحلیل‌های ثبت‌شده را ارائه کنم.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_value Disposition=DeterministicFallback CorrelationId=feature141-pilot-cfb167ec97ca4d63840680e4434aa541 | Chat semantic route selected. Route=semantic_capability Capability=product_sales_value ExtractedEntities=entity:مبلغ,entity:کگهر,entity:تیر,product:گندله RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=product_sales_value Status=Unsupported ReasonCode=requested_period_is_not_latest_month PayloadType=none",
+    "SemanticCapability": "product_sales_value",
+    "Intent": "MonthlyProductTrend",
+    "Outcome": "Unsupported",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "ValidationFailed",
+      "CreditsCharged": 0,
+      "RemainingSpendingCapacity": 25.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:product_sales_value"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 0.0000,
+    "WalletBalanceBefore": 217.0000,
+    "WalletBalanceAfter": 217.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 6488.1587,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_value Disposition=DeterministicFallback CorrelationId=feature141-pilot-cfb167ec97ca4d63840680e4434aa541",
+      "Chat semantic route selected. Route=semantic_capability Capability=product_sales_value ExtractedEntities=entity:مبلغ,entity:کگهر,entity:تیر,product:گندله RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=product_sales_value Status=Unsupported ReasonCode=requested_period_is_not_latest_month PayloadType=none",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-cfb167ec97ca4d63840680e4434aa541 RolloutMode=Canary LegacyCapability=product_sales_value LegacyConfidence=0.99 SemanticIntent=product_sales_value SemanticCapabilityCandidate=product_sales_value SemanticConfidence=0.99 ExtractedCompany=مبلغ ExtractedProduct=گندله ExtractedMetric=فروش ExtractedPeriod=(null) ResolvedCompany=کگهر"
+    ],
+    "ExecutedQueries": []
+  }
+}

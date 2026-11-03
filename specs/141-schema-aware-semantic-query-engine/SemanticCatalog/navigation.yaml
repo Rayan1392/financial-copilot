@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "root": {
+    "nodeId": "financial-semantic-catalog",
+    "titleEn": "Financial Semantic Catalog",
+    "titleFa": "کاتالوگ معنایی مالی",
+    "description": "Hierarchical discovery index over canonical financial semantics.",
+    "concepts": ["financial data", "market data", "داده مالی", "داده بازار"]
+  },
+  "domains": [
+    {"nodeId":"domain-company-industry","titleEn":"Company & Industry","titleFa":"شرکت و صنعت","description":"Company, market, industry, group, and instrument identity.","concepts":["company","issuer","industry","sector","market","instrument","security","شرکت","ناشر","صنعت","گروه صنعتی","بازار","نماد","ابزار معاملاتی"],"tables":["Companies","Markets","Industries","IndustryGroups","TradingInstruments"],"metricIds":[]},
+    {"nodeId":"domain-monthly-activity","titleEn":"Monthly Production & Sales","titleFa":"تولید و فروش ماهانه","description":"Provider-reported monthly activity, product identity, and governed trend projections.","concepts":["monthly report","production","sales","product","گزارش ماهانه","دوره ماهانه","تولید","فروش","محصول","روند ماهانه","رشد فروش","رشد تولید"],"tables":["MonthlyReports","MonthlyReportLineItems","CompanyMonthlyActivityTrendSnapshots"],"metricIds":["metric_monthly_production_growth_yoy","metric_monthly_production_quantity","metric_monthly_sales","metric_monthly_sales_growth_mom","metric_monthly_sales_growth_yoy","metric_monthly_sales_quantity","metric_monthly_sales_quantity_growth_yoy","metric_monthly_sales_rate","metric_monthly_sales_to_production_ratio","metric_monthly_sales_ytd","metric_monthly_sales_ytd_previous_month","metric_avg_12m_monthly_sales"]},
+    {"nodeId":"domain-financial-statements","titleEn":"Financial Statements","titleFa":"صورت‌های مالی","description":"Statement headers, normalized lines, source items, mappings, and governed metric definitions.","concepts":["financial statement","statement line","net profit","revenue","assets","liabilities","صورت مالی","سود خالص","درآمد","دارایی","بدهی","قلم صورت مالی"],"tables":["FinancialStatements","FinancialStatementLineItems","FinancialStatementSourceItems","FinancialStatementSourceItemMetricMappings"],"metricIds":["metric_asset_turnover","metric_average_collection_period","metric_capital","metric_comprehensive_liquidity_index","metric_current_assets_to_total_assets","metric_current_debt_to_total_assets","metric_current_ratio","metric_debt_to_equity","metric_ebit","metric_ebit_growth_qoq","metric_ebit_growth_yoy","metric_eps","metric_eps_growth_qoq","metric_eps_growth_yoy","metric_finance_costs","metric_gross_profit","metric_gross_profit_growth_qoq","metric_gross_profit_growth_yoy","metric_gross_profit_margin","metric_income_tax","metric_net_profit","metric_net_profit_growth_qoq","metric_net_profit_growth_rate","metric_net_profit_growth_yoy","metric_net_profit_margin","metric_operating_cash_flow","metric_operating_profit","metric_operating_profit_growth_qoq","metric_operating_profit_growth_yoy","metric_operating_profit_margin"]},
+    {"nodeId":"domain-financial-analytics","titleEn":"Financial Analytics","titleFa":"تحلیل‌های مالی","description":"Persisted derived metrics and governed valuation outputs.","concepts":["financial metric","valuation","P/E","P/S","EPS","ratio","شاخص مالی","ارزش‌گذاری","نسبت مالی","رتبه ارزندگی"],"tables":["DerivedMetrics","CompanyIndustryRelativeValuations"],"metricIds":["metric_pe_ttm","metric_ps_ttm","metric_eps","metric_eps_consolidated","metric_market_cap","metric_ttm_eps","metric_ttm_sales"]},
+    {"nodeId":"domain-market-data","titleEn":"Market Data","titleFa":"داده‌های بازار","description":"Provider-specific instrument trades and index observations.","concepts":["intraday price","daily close","index","trading day","قیمت درون‌روزی","قیمت پایانی","حجم روزانه","شاخص درون‌روزی","شاخص روزانه","شاخص کل"],"tables":["IntradayTradeSnapshots","DailyInstrumentTrades","IntradayIndexSnapshots","DailyIndexSnapshots"],"metricIds":["metric_latest_price","metric_daily_change_pct"]}
+  ],
+  "tableTitles": {
+    "Companies":{"en":"Companies","fa":"شرکت‌ها"},"Markets":{"en":"Markets","fa":"بازارها"},"Industries":{"en":"Industries","fa":"صنایع"},"IndustryGroups":{"en":"Industry Groups","fa":"گروه‌های صنعتی"},"TradingInstruments":{"en":"Trading Instruments","fa":"ابزارهای معاملاتی"},
+    "MonthlyReports":{"en":"Monthly Reports","fa":"گزارش‌های ماهانه"},"MonthlyReportLineItems":{"en":"Monthly Product and Service Lines","fa":"اقلام محصول و خدمت ماهانه"},"CompanyMonthlyActivityTrendSnapshots":{"en":"Monthly Activity Trends","fa":"روند فعالیت ماهانه شرکت"},
+    "FinancialStatements":{"en":"Financial Statement Headers","fa":"سرآیند صورت‌های مالی"},"FinancialStatementLineItems":{"en":"Financial Statement Lines","fa":"اقلام صورت‌های مالی"},"FinancialStatementSourceItems":{"en":"Provider Statement Items","fa":"اقلام صورت مالی ارائه‌دهنده"},"FinancialStatementSourceItemMetricMappings":{"en":"Statement Item to Metric Mappings","fa":"نگاشت قلم صورت مالی به سنجه"},
+    "DerivedMetrics":{"en":"Derived Financial Metrics","fa":"سنجه‌های مالی مشتق‌شده"},"CompanyIndustryRelativeValuations":{"en":"Industry Relative Valuations","fa":"ارزش‌گذاری نسبی صنعت"},
+    "IntradayTradeSnapshots":{"en":"Intraday Trade Snapshots","fa":"نماهای معاملات درون‌روزی"},"DailyInstrumentTrades":{"en":"Daily Instrument Trades","fa":"معاملات روزانه ابزار"},"IntradayIndexSnapshots":{"en":"Intraday Index Snapshots","fa":"نماهای درون‌روزی شاخص"},"DailyIndexSnapshots":{"en":"Daily Index Snapshots","fa":"نماهای روزانه شاخص"}
+  },
+  "tableConcepts": {
+    "Companies":["company","issuer","شرکت","ناشر"],"Markets":["market","بازار"],"Industries":["industry","sector","صنعت","گروه صنعتی"],"IndustryGroups":["industry group","گروه صنعت"],"TradingInstruments":["instrument","security","نماد","ابزار معاملاتی"],
+    "MonthlyReports":["monthly report","گزارش ماهانه","دوره ماهانه"],"MonthlyReportLineItems":["product","production","sales","محصول","تولید","فروش"],"CompanyMonthlyActivityTrendSnapshots":["monthly trend","روند ماهانه","رشد فروش","رشد تولید"],
+    "FinancialStatements":["financial statement","صورت مالی","اصلی","تلفیقی","حسابرسی","تجدید ارائه"],"FinancialStatementLineItems":["statement line","net profit","revenue","سود خالص","درآمد","دارایی","بدهی"],"FinancialStatementSourceItems":["source item","قلم صورت مالی"],"FinancialStatementSourceItemMetricMappings":["metric mapping","نگاشت قلم به شاخص"],
+    "DerivedMetrics":["financial metric","P/E","EPS","نسبت مالی","شاخص مالی"],"CompanyIndustryRelativeValuations":["relative valuation","رتبه ارزندگی","ارزش‌گذاری نسبی صنعت"],
+    "IntradayTradeSnapshots":["intraday price","قیمت درون‌روزی","معامله لحظه‌ای"],"DailyInstrumentTrades":["daily close","قیمت پایانی","حجم روزانه"],"IntradayIndexSnapshots":["intraday index","شاخص درون‌روزی"],"DailyIndexSnapshots":["daily index","شاخص روزانه","شاخص کل"]
+  },
+  "tableMetricIds": {
+    "MonthlyReportLineItems":["metric_monthly_production_quantity","metric_monthly_sales","metric_monthly_sales_quantity","metric_monthly_sales_rate"],"CompanyMonthlyActivityTrendSnapshots":["metric_monthly_production_growth_yoy","metric_monthly_sales_growth_mom","metric_monthly_sales_growth_yoy","metric_monthly_sales_ytd","metric_monthly_sales_ytd_previous_month","metric_avg_12m_monthly_sales"],
+    "FinancialStatementLineItems":["metric_net_profit","metric_gross_profit","metric_operating_profit","metric_operating_cash_flow","metric_income_tax","metric_eps","metric_ebit"],"FinancialStatementSourceItemMetricMappings":["metric_net_profit","metric_gross_profit","metric_operating_profit","metric_operating_cash_flow","metric_income_tax","metric_eps","metric_ebit"],
+    "DerivedMetrics":["metric_pe_ttm","metric_ps_ttm","metric_eps","metric_eps_consolidated","metric_market_cap","metric_ttm_eps","metric_ttm_sales"],"CompanyIndustryRelativeValuations":["metric_pe_ttm","metric_ps_ttm"],
+    "IntradayTradeSnapshots":["metric_latest_price","metric_daily_change_pct"],"DailyInstrumentTrades":["metric_latest_price","metric_daily_change_pct"],"IntradayIndexSnapshots":["metric_daily_change_pct"],"DailyIndexSnapshots":["metric_daily_change_pct"]
+  },
+  "dimensionPresentation": {
+    "dim_company":{"titleEn":"Company Identity","titleFa":"هویت شرکت","description":"Canonical company UUID and provider-scoped aliases.","concepts":["company","issuer","شرکت","ناشر"]},
+    "dim_industry":{"titleEn":"Industry","titleFa":"صنعت","description":"Source-scoped company industry classification.","concepts":["industry","sector","صنعت"]},
+    "dim_monthly_period":{"titleEn":"Monthly Reporting Period","titleFa":"دوره گزارش ماهانه","description":"Provider-reported monthly period; do not infer fiscal dates from report month.","concepts":["month","monthly period","ماه","دوره ماهانه"]},
+    "dim_product_identity":{"titleEn":"Company Scoped Product Identity","titleFa":"هویت محصول وابسته به شرکت","description":"Provider/product identifiers and labels scoped to company and source.","concepts":["product","service","محصول","خدمت"]}
+  },
+  "sharedDimensions": {
+    "nodeId":"shared-dimensions","titleEn":"Shared Dimensions & Sources","titleFa":"ابعاد و منابع مشترک","description":"Reusable canonical dimensions and external provider source metadata.","concepts":["shared dimensions","identity","period","provider","unit","هویت","دوره","ارائه‌دهنده","واحد"]
+  },
+  "externalSources": [
+    {"nodeId":"external-source-noavaran-fundamental-index","catalogId":"src_nadpco_company_fundamental_index_values","titleEn":"Noavaran Fundamental Index","titleFa":"شاخص بنیادی نوآوران","description":"External Noavaran API source; not an independently queryable PostgreSQL table.","concepts":["fundamental index","Noavaran","شاخص بنیادی","نوآوران"],"providerRestriction":"External API source metadata only; no generic SQL table access."}
+  ]
+}

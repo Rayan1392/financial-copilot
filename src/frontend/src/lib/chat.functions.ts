@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+  FinancialCopilotApiError,
   financialCopilotServerApi,
   requireFinancialCopilotAuth,
 } from "@/integrations/financial-copilot/api-client.server";
+import { classifyApiFailure, type ChatFailure } from "@/lib/chat/chat-errors";
 
 export interface ChatThread {
   id: string;
@@ -34,8 +36,12 @@ export interface AssistantChatBlock {
   table?: ScannerTable;
   tableMetadataLabel?: string;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
+  monthlyProductComparisonResult?: MonthlyProductComparisonResult;
+  monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
+  financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
+  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -121,6 +127,56 @@ export interface MonthlyActivityTrendResult {
   missingDataPoints: MonthlyActivityTrendMissingDataPoint[];
   sourceProviderName: string;
   calculatedAtUtc: string;
+}
+
+export interface MonthlyProductComparisonResult {
+  state: string;
+  companyText: string;
+  currentPeriod?: string;
+  comparisonPeriod?: string;
+  currentTotalSales?: number;
+  comparisonTotalSales?: number;
+  salesChange?: number;
+  salesChangePercent?: number;
+  primaryDriver?: string;
+  products: Array<{ title: string; unit?: string; lifecycle: string; currentSales?: number; comparisonSales?: number; salesChange?: number; contributionPercent?: number; quantityEffect?: number; priceEffect?: number; residual?: number; driver: string; warnings: string[] }>;
+  warnings: string[];
+  evidence: Array<{ reportId: string; rowId: string; providerName: string; externalReportId: string; period: string }>;
+  blockingReason?: string;
+  clarificationMessage?: string;
+}
+
+export interface MonthlyProductTrendResult {
+  resultDiscriminator: "monthly_product_trend" | string;
+  resultVersion: number;
+  resolutionState: "Resolved" | "NotFound" | "Ambiguous" | string;
+  companyText: string;
+  externalCompanyId?: string;
+  companyName?: string;
+  companySymbol?: string;
+  productKey?: string;
+  providerProductCode?: string;
+  providerProductId?: number;
+  productTitle?: string;
+  productUnit?: string;
+  points: Array<{
+    period: string;
+    fiscalLabel: string;
+    productKey: string;
+    productTitle: string;
+    productUnit?: string;
+    productionQuantity?: number;
+    saleQuantity?: number;
+    salesValueMillionRial?: number;
+    salesValueBillionToman?: number;
+    calculatedSaleRateToman?: number;
+    rateStatus: string;
+    isGap: boolean;
+  }>;
+  candidates: Array<{ displayTitle: string; unit?: string; productKey: string; providerProductCode?: string; providerProductId?: number }>;
+  evidence: Array<{ reportId: string; rowId: string; providerName: string; externalReportId: string; period: string }>;
+  blockingReason?: string;
+  message?: string;
 }
 
 export interface MonthlyActivityTrendChartPoint {
@@ -245,8 +301,12 @@ interface AssistantContentResponse {
   scannerTable?: ScannerTable;
   symbolLookupTable?: ScannerTable;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
+  monthlyProductComparisonResult?: MonthlyProductComparisonResult;
+  monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
+  financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
+  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
@@ -268,12 +328,81 @@ interface AssistantContentResponse {
   suggestedActions?: SuggestedAction[];
 }
 
+export interface QuarterlyFinancialReportTableResult {
+  templateId: string;
+  companySymbol: string;
+  companyName?: string;
+  status: string;
+  periodsNewestFirst: Array<{ fiscalYear: number; quarter: number; start: string; end: string; label: string }>;
+  rows: Array<{
+    rowId: string;
+    order: number;
+    labelFa: string;
+    sourceItemId?: number | null;
+    sourceCatalogTitleFa?: string | null;
+    policy: string | number;
+    unit: string;
+    cells: Record<string, { value: number | null; state: string | number; reason?: string | null; unit: string; renderZeroAsDash: boolean; sourceReportIds?: string[]; sourceLineItemIds?: string[]; normalizationPolicy?: string; operandValues?: Array<number | null>; comparableEvidence?: { standaloneAttributableProfitMillionRials?: number | null; shareBasisThousand?: number | null; referenceFiscalYear?: number | null; referenceQuarter?: number | null; referenceExternalReportId?: string | null; method?: string | null } }>;
+  }>;
+  comparisons: Array<{
+    rowId: string;
+    targetPeriod: { label: string };
+    relativeChangePercent: number | null;
+    percentagePointChange: number | null;
+    absoluteChange: number | null;
+    state: string;
+  }>;
+  selectedReports?: Array<{ periodEnd: string; periodType?: string | null }>;
+}
+
+export interface FinancialStatementAnalysisResult {
+  companySymbol: string;
+  companyName?: string;
+  selectedPeriodMonths: number;
+  selectedPeriodType: string;
+  jalaliPeriodEnd?: string;
+  jalaliFiscalYearEnd?: string;
+  selectedVariant: string;
+  selectedAuditedStatus?: boolean | null;
+  summaryBullets: string[];
+  sections: Array<{
+    titleFa: string;
+    summaryBullets: string[];
+    metrics: Array<{
+      metricCode: string;
+      labelFa: string;
+      currentFormattedValue?: string | null;
+      previousFormattedValue?: string | null;
+      changePercent?: number | null;
+      changeDirectionFa?: string | null;
+      indicator?: string | null;
+      isUnavailable: boolean;
+      warning?: string | null;
+    }>;
+  }>;
+  sourceReferences: Array<{
+    statementType: string;
+    providerName: string;
+    periodMonths: number;
+    jalaliPeriodEnd?: string | null;
+    jalaliAnnouncementDate?: string | null;
+    isAudited: boolean;
+    isComposing: boolean;
+  }>;
+  warnings: string[];
+}
+
+/** The API accepts 1–100; omitting the limit keeps the API default (20) that desktop has always used. */
+export const listThreadsInput = z.object({ limit: z.number().int().min(1).max(100).optional() }).optional();
+
 export const listThreads = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => listThreadsInput.parse(d))
+  .handler(async ({ context, data }) => {
+    const query = data?.limit === undefined ? "" : `?limit=${data.limit}`;
     const rows = await financialCopilotServerApi<ConversationSummaryResponse[]>(
       context,
-      "/api/ai/v1/conversations",
+      `/api/ai/v1/conversations${query}`,
     );
     return rows.map(mapThread);
   });
@@ -311,49 +440,82 @@ export const deleteThread = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const sendChatMessageInput = z.object({
+  threadId: z.string().uuid().optional(),
+  message: z.string().trim().min(1).max(2000),
+  scannerPage: z.number().int().min(1).default(1),
+  scannerPageSize: z.number().int().min(1).max(100).default(20),
+  disclosurePage: z.number().int().min(1).default(1),
+  suggestedActionId: z.string().max(160).optional(),
+  idempotencyKey: z.string().uuid().optional(),
+});
+
+export type ChatSendResult = Awaited<ReturnType<typeof runChatQuery>>;
+
+/**
+ * Sends a question and returns a discriminated result instead of throwing (Feature 153 T02). TanStack serializes
+ * only an error's message to the browser, so the stable failure code travels in the result instead.
+ */
 export const sendChatMessage = createServerFn({ method: "POST" })
   .middleware([requireFinancialCopilotAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        threadId: z.string().uuid().optional(),
-        message: z.string().trim().min(1).max(2000),
-        scannerPage: z.number().int().min(1).default(1),
-        scannerPageSize: z.number().int().min(1).max(100).default(20),
-        disclosurePage: z.number().int().min(1).default(1),
-        suggestedActionId: z.string().max(160).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    const result = await financialCopilotServerApi<QueryResponse>(context, "/api/ai/v1/query", {
-      method: "POST",
-      body: JSON.stringify({
-        conversationId: data.threadId,
-        message: data.message,
-        scannerPage: data.scannerPage,
-        scannerPageSize: data.scannerPageSize,
-        disclosurePage: data.disclosurePage,
-        suggestedActionId: data.suggestedActionId,
-      }),
-    });
-    const createdAt = new Date().toISOString();
-    return {
-      threadId: result.conversationId,
-      userMsg: {
-        id: result.messageId,
-        role: "user",
-        content: { text: data.message },
-        created_at: createdAt,
-      } satisfies ChatMessage,
-      aiMsg: {
-        id: result.assistantMessageId,
-        role: "assistant",
-        content: mapAssistantBlock(result, result.textAnswer ?? ""),
-        created_at: createdAt,
-      } satisfies ChatMessage,
-    };
+  .inputValidator((d) => sendChatMessageInput.parse(d))
+  .handler(async ({ context, data }): Promise<
+    { ok: true; result: ChatSendResult } | { ok: false; failure: ChatFailure }
+  > => {
+    try {
+      return { ok: true, result: await runChatQuery(context, data) };
+    } catch (error) {
+      if (error instanceof FinancialCopilotApiError) {
+        return {
+          ok: false,
+          failure: {
+            code: classifyApiFailure(error.status, error.problemCode, error.message),
+            message: error.message,
+          },
+        };
+      }
+      // The API could not be reached from the server, so the request's outcome is unknown.
+      return {
+        ok: false,
+        failure: { code: "server", message: error instanceof Error ? error.message : "Unknown failure." },
+      };
+    }
   });
+
+async function runChatQuery(
+  context: Parameters<typeof financialCopilotServerApi>[0],
+  data: z.infer<typeof sendChatMessageInput>,
+) {
+  const idempotencyKey = data.idempotencyKey ?? crypto.randomUUID();
+  const result = await financialCopilotServerApi<QueryResponse>(context, "/api/ai/v1/query", {
+    method: "POST",
+    body: JSON.stringify({
+      conversationId: data.threadId,
+      message: data.message,
+      scannerPage: data.scannerPage,
+      scannerPageSize: data.scannerPageSize,
+      disclosurePage: data.disclosurePage,
+      suggestedActionId: data.suggestedActionId,
+      idempotencyKey,
+    }),
+  });
+  const createdAt = new Date().toISOString();
+  return {
+    threadId: result.conversationId,
+    userMsg: {
+      id: result.messageId,
+      role: "user",
+      content: { text: data.message },
+      created_at: createdAt,
+    } satisfies ChatMessage,
+    aiMsg: {
+      id: result.assistantMessageId,
+      role: "assistant",
+      content: mapAssistantBlock(result, result.textAnswer ?? ""),
+      created_at: createdAt,
+    } satisfies ChatMessage,
+  };
+}
 
 export const getCapabilityStarterPrompts = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
@@ -392,13 +554,15 @@ function mapAssistantBlock(
   fallbackMessage: string,
 ): AssistantChatBlock {
   const explanation = content?.explainableAnswer;
+  const financialStatementAnalysisResult = content?.financialStatementAnalysisResult;
   // Prefer symbolLookupTable over scannerTable; both render via ScannerResultTable.
   const table = normalizeRenderableTable(content?.symbolLookupTable ?? content?.scannerTable);
-  const rawMessage =
-    explanation?.explanationText ??
-    content?.clarificationMessage ??
-    content?.textAnswer ??
-    fallbackMessage;
+  const rawMessage = financialStatementAnalysisResult
+    ? ""
+    : explanation?.explanationText ??
+      content?.clarificationMessage ??
+      content?.textAnswer ??
+      fallbackMessage;
   const tableMetadataLabel = isMonthlySalesTechnicalUnitNote(rawMessage, table)
     ? "واحد: میلیون ریال"
     : undefined;
@@ -421,8 +585,12 @@ function mapAssistantBlock(
     table,
     tableMetadataLabel,
     monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
+    monthlyProductComparisonResult: content?.monthlyProductComparisonResult,
+    monthlyProductTrendResult: content?.monthlyProductTrendResult,
     disclosureListingResult: content?.disclosureListingResult,
     psVisualizationResult: content?.psVisualizationResult,
+    financialStatementAnalysisResult,
+    financialStatementTableResult: content?.financialStatementTableResult,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
       ? {

@@ -1,0 +1,29 @@
+{
+  "feature": "feature126",
+  "seq": {
+    "endpointEnvironmentVariable": "Feature126__Observability__SeqEndpoint",
+    "apiKeyEnvironmentVariable": "Feature126__Observability__SeqApiKey",
+    "stream": "feature126",
+    "retentionDays": 730
+  },
+  "alerts": [
+    { "name": "worker-not-ready", "query": "Feature = 'feature126' and State not in ['ready','disabled']", "for": "5m" },
+    { "name": "heartbeat-missing", "query": "Feature = 'feature126' and EventType = 'Heartbeat' and HeartbeatAgeMs > HeartbeatTimeoutMs", "for": "2m" },
+    { "name": "durable-evidence-unavailable", "query": "Feature = 'feature126' and EventType = 'TelemetryUnavailable'", "for": "1m" },
+    { "name": "run-stuck", "query": "Feature = 'feature126' and LifecycleState in ['Running','Handoff'] and RunAgeMs > RunDeadlineMs", "for": "5m" },
+    { "name": "run-failure", "query": "Feature = 'feature126' and Outcome in ['failure','timeout','lease_lost','handoff_failed']", "for": "0m" },
+    { "name": "partial-success", "query": "Feature = 'feature126' and Outcome = 'partial_success' and FailedCompanies > PartialFailureTolerance", "for": "0m" },
+    { "name": "lease-contention", "query": "Feature = 'feature126' and (LeaseStatus = 'Contended' or EventType = 'StaleOwner')", "for": "5m" }
+  ],
+  "dashboard": {
+    "name": "Feature 126 production",
+    "eventTimelineQuery": "Feature = 'feature126' and RunId = @runId | order by EventSequence",
+    "latestRunsQuery": "Feature = 'feature126' and is not null(RunId) | group by RunId | latest(1)",
+    "metrics": [
+      "feature126_readiness", "feature126_health", "feature126_heartbeat_age_ms",
+      "feature126_runs_started_total", "feature126_runs_terminal_total",
+      "feature126_endpoint_attempts_total", "feature126_failure_code_total",
+      "feature126_handoff_total", "feature126_telemetry_export_failures_total"
+    ]
+  }
+}

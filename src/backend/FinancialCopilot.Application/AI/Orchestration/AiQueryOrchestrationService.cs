@@ -1,11 +1,13 @@
 using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Globalization;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
@@ -35,6 +37,7 @@ public sealed class AiQueryOrchestrationService(
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IPsVisualizationExperienceUseCase psVisualizationExperienceUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
@@ -63,7 +66,34 @@ public sealed class AiQueryOrchestrationService(
         {
             throw new ConversationNotFoundException(conversationId);
         }
-        request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+
+        BillingReservationHandle? billingReservation = await billingHook.TryReserveAsync(
+            new BillingReservationRequest(
+                request.CorrelationId,
+                request.TenantId,
+                request.ActorId,
+                "AiQuery.Scanner",
+                request.UserId,
+                request.ApiClientId,
+                request.ExternalUserId,
+                BillingOperationId: request.BillingOperationId,
+                RequestFingerprint: AiQueryRequestFingerprint.Compute(request)),
+            cancellationToken);
+        try
+        {
+            request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+            if (billingReservation is not null)
+                billingReservation = await billingHook.EnsureCurrentUsageCapacityAsync(billingReservation, cancellationToken);
+        }
+        catch
+        {
+            if (billingReservation is not null)
+                await billingHook.FinalizeAsync(
+                    billingReservation,
+                    new BillingFinalizationRequest("ProviderFailed", ExecutionRoute: "v1_dialogue_routing"),
+                    CancellationToken.None);
+            throw;
+        }
 
         // Retrieve authorized memory context before AI execution.
         var subjectId = request.UserId ?? request.ActorId;
@@ -78,19 +108,6 @@ public sealed class AiQueryOrchestrationService(
 
         var enrichedMessage = BuildEnrichedMessage(request.Message, memoryContext);
 
-        BillingReservationHandle? billingReservation = request.SemanticFrame is null
-            ? await billingHook.TryReserveAsync(
-            new BillingReservationRequest(
-                request.CorrelationId,
-                request.TenantId,
-                request.ActorId,
-                "AiQuery.Scanner",
-                request.UserId,
-                request.ApiClientId,
-                request.ExternalUserId),
-            cancellationToken)
-            : null;
-
         ScannerQueryPlan? scannerPlan = null;
         ScannerTableResult? scannerTable = null;
         SymbolLookupTableResult? symbolLookupTable = null;
@@ -99,9 +116,11 @@ public sealed class AiQueryOrchestrationService(
         FinancialStatementTableResult? financialStatementTableResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
         DisclosureListingResult? disclosureListingResult = null;
         PsVisualizationResult? psVisualizationResult = null;
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null;
         ExplainableAnswer? explainableAnswer = null;
         ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
@@ -132,9 +151,19 @@ public sealed class AiQueryOrchestrationService(
                 clarificationRequired = false;
                 clarificationMessage = null;
             }
+            else if (MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message))
+            {
+                var comparisonQuery = MonthlyProductComparisonIntentRules.BuildQuery(request.Message);
+                monthlyProductComparisonResult = await monthlyProductComparisonUseCase.ExecuteAsync(comparisonQuery, cancellationToken);
+                clarificationRequired = monthlyProductComparisonResult.BlockingReason is not null;
+                clarificationMessage = monthlyProductComparisonResult.ClarificationMessage;
+                completionStatus = clarificationRequired ? "ClarificationRequired" : monthlyProductComparisonResult.State.ToString();
+                textAnswer = BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
+                detectedIntent = DetectedIntent.MonthlyProductComparison;
+            }
             else if (request.SemanticFrame is { } semanticFrame)
             {
-                var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+                var semantic = await semanticExecutionCoordinator.ExecuteWithReservationAsync(
                     semanticFrame,
                     new QueryExecutionContext(
                         request.TenantId,
@@ -149,8 +178,12 @@ public sealed class AiQueryOrchestrationService(
                         request.ActorType,
                         request.AuthenticationMode,
                         request.UserId,
-                        request.ApiClientId),
+                        request.ApiClientId,
+                        request.Context?.MonthlyActivityTrendReportYear,
+                        request.Context?.MonthlyActivityTrendReportMonth),
                     request,
+                    billingReservation,
+                    deferSettlementForFallback: false,
                     cancellationToken);
                 usage = semantic.Usage;
                 semanticExecution = semantic.Execution;
@@ -180,16 +213,23 @@ public sealed class AiQueryOrchestrationService(
                         break;
                     case FinancialStatementAnalysisResponse analysis: financialStatementAnalysisResult = analysis; break;
                     case FinancialStatementTableResult table: financialStatementTableResult = table; break;
+                    case FinancialStatementValueSearchResult valueSearch: financialStatementValueSearchResult = valueSearch; break;
                     case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
                     case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
+                    case MonthlyProductComparisonResponse comparison: monthlyProductComparisonResult = comparison; break;
                     case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
                     case DisclosureListingResult disclosures: disclosureListingResult = disclosures; break;
                     case PsVisualizationResult gauge: psVisualizationResult = gauge; break;
+                    case IndustryRelativeValuationPayload relative:
+                        textAnswer = relative.PresentationText;
+                        break;
                     case string explanation: textAnswer = explanation; break;
                 }
             }
             else
             {
+            if (billingReservation is not null)
+                billingReservation = await billingHook.EnsureReservedCapacityAsync(billingReservation, cancellationToken);
             var intentResult = await intentDetector.DetectAsync(
                 new IntentDetectionInput(
                     request.Message,
@@ -206,7 +246,17 @@ public sealed class AiQueryOrchestrationService(
                     shadowFrame.CapabilityCode,
                     request.CorrelationId);
 
-            if (intentResult.Intent == DetectedIntent.Scanner)
+            if (MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message))
+            {
+                var comparisonQuery = MonthlyProductComparisonIntentRules.BuildQuery(request.Message);
+                monthlyProductComparisonResult = await monthlyProductComparisonUseCase.ExecuteAsync(comparisonQuery, cancellationToken);
+                clarificationRequired = monthlyProductComparisonResult.BlockingReason is not null;
+                clarificationMessage = monthlyProductComparisonResult.ClarificationMessage;
+                completionStatus = clarificationRequired ? "ClarificationRequired" : monthlyProductComparisonResult.State.ToString();
+                textAnswer = BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
+                detectedIntent = DetectedIntent.MonthlyProductComparison;
+            }
+            else if (intentResult.Intent == DetectedIntent.Scanner)
             {
                 var cacheScope = new ScannerCacheScope(
                     request.TenantId,
@@ -450,7 +500,8 @@ public sealed class AiQueryOrchestrationService(
                     textAnswer = "اطلاعات صورت مالی برای نماد یا شرکت درخواستی با فیلترهای اعمال شده در پایگاه داده یافت نشد.";
                 }
             }
-            else if (intentResult.Intent == DetectedIntent.ProductRevenueMix)
+            else if (!MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
+                     && intentResult.Intent == DetectedIntent.ProductRevenueMix)
             {
                 // Extract company symbol from query using a simple heuristic:
                 // take the last Persian word or any 2-5-char uppercase token as the symbol.
@@ -493,7 +544,8 @@ public sealed class AiQueryOrchestrationService(
                     }
                 }
             }
-            else if (intentResult.Intent == DetectedIntent.MonthlyActivityTrend)
+            else if (!MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
+                     && intentResult.Intent == DetectedIntent.MonthlyActivityTrend)
             {
                 var symbol = MonthlyActivityTrendIntentRules.ExtractCompanySymbol(request.Message);
                 if (symbol is null)
@@ -505,7 +557,11 @@ public sealed class AiQueryOrchestrationService(
                 else
                 {
                     monthlyActivityTrendResult = await monthlyActivityTrendUseCase.ExecuteAsync(
-                        new MonthlyActivityTrendQuery(request.Message, symbol),
+                        new MonthlyActivityTrendQuery(
+                            request.Message,
+                            symbol,
+                            request.Context?.MonthlyActivityTrendReportYear,
+                            request.Context?.MonthlyActivityTrendReportMonth),
                         cancellationToken);
 
                     if (monthlyActivityTrendResult is not null)
@@ -559,11 +615,11 @@ public sealed class AiQueryOrchestrationService(
             }
             }
 
-            if (billingReservation is not null)
+            if (billingReservation is not null && semanticExecution is null)
             {
                 usage = await billingHook.FinalizeAsync(
                     billingReservation,
-                    new BillingFinalizationRequest(completionStatus, fromCache),
+                    new BillingFinalizationRequest(completionStatus, fromCache, ExecutionRoute: "v1_orchestration"),
                     cancellationToken);
             }
 
@@ -648,7 +704,9 @@ public sealed class AiQueryOrchestrationService(
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
             consistencyContext, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult,
             monthlyActivityTrendResult,
-            financialStatementTableResult);
+            financialStatementTableResult,
+            monthlyProductComparisonResult,
+            financialStatementValueSearchResult);
 
         var hasStructuredResult =
             scannerTable is not null ||
@@ -656,8 +714,10 @@ public sealed class AiQueryOrchestrationService(
             comprehensiveAnalysisResult is not null ||
             financialStatementAnalysisResult is not null ||
             financialStatementTableResult is not null ||
+            financialStatementValueSearchResult is not null ||
             productRevenueMixResult is not null ||
             monthlyActivityTrendResult is not null ||
+            monthlyProductComparisonResult is not null ||
             monthlySalesQualityRankingResult is not null ||
             disclosureListingResult is not null ||
             psVisualizationResult is not null ||
@@ -669,8 +729,10 @@ public sealed class AiQueryOrchestrationService(
             comprehensiveAnalysisResult?.HasResults == true ||
             financialStatementAnalysisResult is not null ||
             financialStatementTableResult is not null ||
+            financialStatementValueSearchResult?.Matches.Count > 0 ||
             productRevenueMixResult is not null ||
             monthlyActivityTrendResult is not null ||
+            monthlyProductComparisonResult?.Products.Count > 0 ||
             disclosureListingResult?.Items.Count > 0 ||
             detectedIntent == DetectedIntent.PersonalizedInsightExplanation;
 
@@ -728,8 +790,10 @@ public sealed class AiQueryOrchestrationService(
             or DetectedIntent.FinancialStatementTableLookup
             or DetectedIntent.ProductRevenueMix
             or DetectedIntent.MonthlyActivityTrend
+            or DetectedIntent.MonthlyProductComparison
             or DetectedIntent.DisclosureListing
             or DetectedIntent.PersonalizedInsightExplanation
+            or DetectedIntent.FinancialStatementValueSearch
             ? assistantContent
             : textAnswer;
         if (outcome.Outcome != DialogueOutcome.Answered && outcome.Outcome != DialogueOutcome.PartialAnswer)
@@ -737,6 +801,7 @@ public sealed class AiQueryOrchestrationService(
 
         await dialogueGate.RecordOutcomeAsync(
             request, conversationId, clarificationRequired, outcome.ReasonCode, cancellationToken);
+        var guidanceSubject = CapabilityGuidanceSubject.From(request.SemanticFrame, detectedIntent, request.Message);
         var suggestedActions = guidanceService.Suggest(new CapabilityGuidanceRequest(
             request.OriginalUserMessage ?? request.Message,
             outcome.ReplyLanguage,
@@ -744,7 +809,9 @@ public sealed class AiQueryOrchestrationService(
             outcome.ReasonCode,
             request.SemanticFrame?.Interpretation,
             CorrelationId: request.CorrelationId,
-            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
+            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+            Symbol: guidanceSubject.Symbol,
+            AttemptedCapability: guidanceSubject.AttemptedCapability));
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
@@ -775,6 +842,7 @@ public sealed class AiQueryOrchestrationService(
                     productRevenueMixResult,
                     monthlyActivityTrendResult,
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
+                    MonthlyProductComparisonResult: monthlyProductComparisonResult,
                     DisclosureListingResult: disclosureListingResult,
                     PsVisualizationResult: psVisualizationResult,
                     Outcome: outcome.Outcome,
@@ -783,7 +851,8 @@ public sealed class AiQueryOrchestrationService(
                     LanguageGuardApplied: outcome.LanguageGuardApplied,
                     SuggestedActions: suggestedActions,
                     SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
-                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
+                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion,
+                    FinancialStatementValueSearchResult: financialStatementValueSearchResult)),
             createConversation,
             cancellationToken);
 
@@ -811,6 +880,7 @@ public sealed class AiQueryOrchestrationService(
             ProductRevenueMixResult: productRevenueMixResult,
             MonthlyActivityTrendResult: monthlyActivityTrendResult,
             MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
+            MonthlyProductComparisonResult: monthlyProductComparisonResult,
             DisclosureListingResult: disclosureListingResult,
             PsVisualizationResult: psVisualizationResult,
             Outcome: outcome.Outcome,
@@ -819,7 +889,8 @@ public sealed class AiQueryOrchestrationService(
             LanguageGuardApplied: outcome.LanguageGuardApplied,
             SuggestedActions: suggestedActions,
             SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
-            SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion);
+            SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion,
+            FinancialStatementValueSearchResult: financialStatementValueSearchResult);
     }
 
     private static DetectedIntent SemanticIntent(string capabilityCode) => capabilityCode switch
@@ -828,6 +899,7 @@ public sealed class AiQueryOrchestrationService(
         "symbol_metric_lookup" => DetectedIntent.SymbolLookup,
         "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
         "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
+        "monthly_product_comparison" => DetectedIntent.MonthlyProductComparison,
         "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
         "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
         "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
@@ -835,6 +907,8 @@ public sealed class AiQueryOrchestrationService(
         "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        "financial_statement_value_search" => DetectedIntent.FinancialStatementValueSearch,
+        "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown
     };
 
@@ -1002,7 +1076,9 @@ public sealed class AiQueryOrchestrationService(
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
-        FinancialStatementTableResult? financialStatementTableResult = null)
+        FinancialStatementTableResult? financialStatementTableResult = null,
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
@@ -1010,11 +1086,20 @@ public sealed class AiQueryOrchestrationService(
         if (monthlyActivityTrendResult is not null)
             return BuildMonthlyActivityTrendContent(monthlyActivityTrendResult);
 
+        if (monthlyProductComparisonResult is not null)
+            return BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
+
         if (financialStatementAnalysisResult?.RenderedAnswer is { Length: > 0 } rendered)
             return rendered;
 
         if (financialStatementTableResult?.RenderedAnswer is { Length: > 0 } renderedTable)
             return renderedTable;
+
+        if (financialStatementValueSearchResult is not null)
+            return financialStatementValueSearchResult.Outcome == FinancialStatementValueSearchOutcome.NoMatch
+                ? "No matching latest income statement was found."
+                : string.Join("\n", financialStatementValueSearchResult.Matches.Select(match =>
+                    $"{match.Symbol ?? "Unresolved"}: {string.Join(", ", match.Items.Select(item => item.Value.ToString(CultureInfo.InvariantCulture)))}"));
 
         if (productRevenueMixResult is not null)
             return BuildProductRevenueMixContent(productRevenueMixResult);
@@ -1076,17 +1161,40 @@ public sealed class AiQueryOrchestrationService(
             ? $"{result.CompanyName} ({result.CompanySymbol})"
             : result.CompanySymbol;
         sb.AppendLine($"### ترکیب درآمد محصولات — {companyLabel}");
-        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2} | کل فروش: {result.TotalSalesAmount:N0} ریال");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2}");
         sb.AppendLine();
-        sb.AppendLine("| ردیف | محصول | فروش (ریال) | سهم (٪) | غالب |");
+        sb.AppendLine("| ردیف | محصول | فروش (تومان) | سهم (٪) | غالب |");
         sb.AppendLine("|------|-------|------------|---------|------|");
         foreach (var p in result.Products)
         {
             var dominant = p.IsDominantProduct ? "✓" : "";
-            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {p.SalesAmount:N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
+            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {ToToman(p.SalesAmount):N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
         }
         return sb.ToString().TrimEnd();
     }
+
+    // Persisted product sales are in million rials; display them as tomans.
+    private static decimal ToToman(decimal millionRial) => millionRial * 100_000m;
+
+    private static string BuildMonthlyProductComparisonContent(MonthlyProductComparisonResponse result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"### مقایسه فروش محصولات - {result.CompanyText}");
+        sb.AppendLine($"دوره جاری: {FormatJalaliPeriod(result.CurrentPeriod)} | دوره مقایسه: {FormatJalaliPeriod(result.ComparisonPeriod)}");
+        if (result.Totals is not null)
+            sb.AppendLine($"فروش جاری: {FormatAmount(result.Totals.Current)} | فروش مقایسه: {FormatAmount(result.Totals.Comparison)} | تغییر: {FormatAmount(result.Totals.Change)} | درصد: {FormatAmount(result.Totals.ChangePercent)}٪");
+        var warnings = result.Warnings.Where(warning => warning != MonthlyProductComparisonWarning.PartialDecomposition).ToArray();
+        if (warnings.Length > 0) sb.AppendLine($"هشدار: {string.Join("، ", warnings)}");
+        return sb.ToString().TrimEnd();
+    }
+
+    private static string FormatJalaliPeriod(JalaliPeriod? period) => period is not { } value
+        ? "—"
+        : $"{new[] { "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند" }[value.Month - 1]} {ToPersianDigits(value.Year.ToString())}";
+
+    private static string FormatAmount(decimal? value) => value is null ? "—" : ToPersianDigits(value.Value.ToString("N2", System.Globalization.CultureInfo.InvariantCulture));
+
+    private static string ToPersianDigits(string value) => string.Concat(value.Select(character => character is >= '0' and <= '9' ? "۰۱۲۳۴۵۶۷۸۹"[character - '0'] : character));
 
     private static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)
     {
@@ -1133,36 +1241,6 @@ public sealed class AiQueryOrchestrationService(
             sb.AppendLine("**نکات تحلیلی:**");
             foreach (var insight in result.Insights)
                 sb.AppendLine($"- {insight.TextFa}");
-        }
-
-        // Chart table
-        if (result.ChartPoints.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("**داده نمودار ماهانه:**");
-            sb.AppendLine();
-
-            // Determine column headers from first point that has year values
-            var firstPoint = result.ChartPoints.First(p => p.PreviousFiscalYear.HasValue || p.CurrentFiscalYear.HasValue);
-            var prevYearLabel = firstPoint.PreviousFiscalYear.HasValue ? $"فروش {firstPoint.PreviousFiscalYear}" : "فروش سال قبل";
-            var currYearLabel = firstPoint.CurrentFiscalYear.HasValue ? $"فروش {firstPoint.CurrentFiscalYear}" : "فروش سال جاری";
-
-            sb.AppendLine($"| ماه | {prevYearLabel} | {currYearLabel} | میانگین ۱۲ ماهه |");
-            sb.AppendLine("|-----|------------:|-------------:|----------------:|");
-
-            foreach (var pt in result.ChartPoints)
-            {
-                var prevVal = pt.PreviousFiscalYearSalesAmount.HasValue
-                    ? pt.PreviousFiscalYearSalesAmount.Value.ToString("N0")
-                    : "—";
-                var currVal = pt.IsCurrentYearReported && pt.CurrentFiscalYearSalesAmount.HasValue
-                    ? pt.CurrentFiscalYearSalesAmount.Value.ToString("N0")
-                    : "—";
-                var avgVal = pt.Average12MonthSalesAmount.HasValue
-                    ? pt.Average12MonthSalesAmount.Value.ToString("N0")
-                    : "—";
-                sb.AppendLine($"| {pt.FiscalMonthNameFa} | {prevVal} | {currVal} | {avgVal} |");
-            }
         }
 
         // Missing data note

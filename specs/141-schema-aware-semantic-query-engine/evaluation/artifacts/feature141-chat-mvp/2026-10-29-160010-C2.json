@@ -1,0 +1,60 @@
+{
+  "testCase": {
+    "Id": "C2",
+    "Question": "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+    "Refusal": false,
+    "Contains": [
+      "۲۵ تن",
+      "در شهریور ۱۴۰۵"
+    ],
+    "Excludes": [
+      "۲۲ تن",
+      "۹۹۹"
+    ],
+    "SpecialistContains": null,
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+    "Enabled": true,
+    "Answer": "کگل گندله در شهریور ۱۴۰۵، مقدار تولید ماهانه: ۲۵ تن.\nمنبع: NoavaranCurrentApi، گزارش f141chat-kgol-1405-06.",
+    "PersistedUserMessage": "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+    "PersistedAssistantMessage": "کگل گندله در شهریور ۱۴۰۵، مقدار تولید ماهانه: ۲۵ تن.\nمنبع: NoavaranCurrentApi، گزارش f141chat-kgol-1405-06.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043 Fingerprint=3001e36552f80454f7df22a18348876a0dea5f029ff7bdd65b84a412a79d4774 Status=Succeeded Rows=1 ElapsedMs=146.5532",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043 | Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False | Chat Feature 141 fallback evaluated. PreviousRoute=direct_metric_lookup_without_answer Definitive=True CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043",
+    "SemanticCapability": null,
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 11015,
+      "CompletionTokens": 1545,
+      "TotalTokens": 12560,
+      "EstimatedCost": null,
+      "ExecutionRoute": null
+    },
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگل Products=گندله RequestedMeasures=productionQuantity PeriodKind=ExplicitMonth PeriodCount=1 ComparisonMode=None Presentation=Scalar",
+      "Feature141 statement shape classified. Shape=none Diagnostic=none Operation=Retrieve Ranking=none Constraints= RequestedFields= Filters=none CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043",
+      "Feature141 query completed. CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043 Fingerprint=3001e36552f80454f7df22a18348876a0dea5f029ff7bdd65b84a412a79d4774 Status=Succeeded Rows=1 ElapsedMs=146.5532"
+    ],
+    "ElapsedMs": 30021.5174,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043",
+      "Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=direct_metric_lookup_without_answer Definitive=True CorrelationId=feature141-chat-mvp-7adc46eb18364981b57eb674141c8043"
+    ]
+  }
+}

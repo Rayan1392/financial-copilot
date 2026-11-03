@@ -1,0 +1,28 @@
+{
+  "id": "rel_aac302fe605f7e41",
+  "from": {
+    "schema": "public",
+    "table": "UserAlertRecords",
+    "columns": [
+      "OutcomeHandoffId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "NotificationOutcomeHandoffs",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"OutcomeHandoffId\") REFERENCES \"NotificationOutcomeHandoffs\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -17,7 +17,8 @@ public sealed class CyclicalWavesPsVisualizationAdminController(
     IPsEligibleCompanyScopeReader scopeReader,
     ICyclicalWavesPsVisualizationSyncService syncService,
     ICompanyPsVisualizationReader reader,
-    IOptions<CyclicalWavesPsSyncOptions> options) : ControllerBase
+    IOptions<CyclicalWavesPsSyncOptions> options,
+    IOptions<FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves.CyclicalWavesLegacyOptions>? legacyOptions = null) : ControllerBase
 {
     [HttpPost("scope/dry-run")]
     public async Task<ActionResult<PsScopeResponse>> DryRun([FromBody] PsSyncCommand? command, CancellationToken cancellationToken)
@@ -44,6 +45,10 @@ public sealed class CyclicalWavesPsVisualizationAdminController(
 
     private async Task<ActionResult<PsSyncResponse>> ExecuteAsync(PsSyncCommand? command, bool snapshotOnly, bool historyOnly, CancellationToken cancellationToken)
     {
+        // Feature 148: sync, snapshot and history call the retired provider; dry-run and reads stay local.
+        if (legacyOptions?.Value.AllowCalls != true)
+            return LegacyCyclicalWavesRetirement.Gone(this);
+
         var settings = options.Value;
         if (!settings.Enabled && !settings.AllowManualSyncWhenWorkerDisabled)
             return Conflict(new { code = "ManualSyncDisabled" });

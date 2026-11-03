@@ -1,0 +1,151 @@
+{
+  "id": "tbl_f65991870a04efec",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_telegram_account_links",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramUserId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramChatId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "Username",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "LinkedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastVerifiedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RevokedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TenantId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_tenants",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "ActorId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_telegram_account_links_ActorId_TenantId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_telegram_account_links_ActorId_TenantId\" ON public.auth_telegram_account_links USING btree (\"ActorId\", \"TenantId\") WHERE (\"RevokedAtUtc\" IS NULL)",
+        "Columns": [
+          "ActorId",
+          "TenantId"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_account_links_TelegramUserId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_telegram_account_links_TelegramUserId\" ON public.auth_telegram_account_links USING btree (\"TelegramUserId\") WHERE (\"RevokedAtUtc\" IS NULL)",
+        "Columns": [
+          "TelegramUserId"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_account_links_TenantId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_account_links_TenantId\" ON public.auth_telegram_account_links USING btree (\"TenantId\")",
+        "Columns": [
+          "TenantId"
+        ]
+      },
+      {
+        "Name": "PK_auth_telegram_account_links",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_telegram_account_links\" ON public.auth_telegram_account_links USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_telegram_account_links_auth_tenants_TenantId",
+        "Type": "f",
+        "Columns": [
+          "TenantId"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_auth_telegram_account_links_auth_users_ActorId",
+        "Type": "f",
+        "Columns": [
+          "ActorId"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_telegram_account_links",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -5,6 +5,10 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Billing;
+using FinancialCopilot.Billing.Accounts;
+using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -40,6 +44,9 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var responseKey = Assert.Single(response.Headers.GetValues("Idempotency-Key"));
+        Assert.True(Guid.TryParse(responseKey, out var returnedKey));
+        Assert.NotEqual(Guid.Empty, returnedKey);
         Assert.NotEqual(Guid.Empty, document.RootElement.GetProperty("conversationId").GetGuid());
         Assert.Equal("Scanner", document.RootElement.GetProperty("intent").GetString());
         Assert.False(document.RootElement.GetProperty("clarificationRequired").GetBoolean());
@@ -54,6 +61,98 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
     }
 
     [Fact]
+    public async Task AiQuery_ReusedIdempotencyKeyWithDifferentPayload_ReturnsConflictWithoutSecondCharge()
+    {
+        var countBefore = _factory.ReadUsageEntries().Count;
+        var idempotencyKey = Guid.NewGuid();
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var first = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "P/E below 6",
+            idempotencyKey
+        });
+        using var replay = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "P/E below 6",
+            idempotencyKey
+        });
+        using var conflict = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "P/E below 5",
+            idempotencyKey
+        });
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(idempotencyKey.ToString("D"), Assert.Single(first.Headers.GetValues("Idempotency-Key")));
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.Equal(countBefore + 1, _factory.ReadUsageEntries().Count);
+    }
+
+    [Fact]
+    public async Task AiQuery_ProductComparison_ReturnsTypedResultAndPersistsIt()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            db.Database.EnsureCreated();
+            var companyId = "feature129-api-company";
+            db.Companies.Add(new NormalizedCompanyRow
+            {
+                Id = Guid.NewGuid(), ProviderName = "Feature129Test", ExternalCompanyId = companyId,
+                Name = "شغدیر", CompanySymbol = "شغدیر", LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+            AddProductReport(db, companyId, "2024-04-20", "2024-05-20", 100m);
+            AddProductReport(db, companyId, "2024-03-20", "2024-04-19", 120m);
+            db.SaveChanges();
+        }
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "فروش محصولات شغدیر در جاری 1403/02 و قبلی 1403/01 را مقایسه کن"
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, $"{response.StatusCode}: {body}");
+        using var document = JsonDocument.Parse(body);
+        Assert.True(document.RootElement.TryGetProperty("monthlyProductComparisonResult", out var result) && result.ValueKind != JsonValueKind.Null,
+            $"Feature 129 payload missing. Response: {body}");
+        Assert.Equal("Partial", result.GetProperty("state").GetString());
+        Assert.Equal(100m, result.GetProperty("currentTotalSales").GetDecimal());
+        Assert.Equal(120m, result.GetProperty("comparisonTotalSales").GetDecimal());
+        Assert.Equal(-20m, result.GetProperty("salesChange").GetDecimal());
+        Assert.True(result.GetProperty("salesChangePercent").ValueKind == JsonValueKind.Number);
+        Assert.NotEmpty(result.GetProperty("evidence").EnumerateArray());
+
+        using var history = await client.GetAsync($"/api/ai/v1/conversations/{document.RootElement.GetProperty("conversationId").GetGuid()}/messages");
+        using var historyDocument = await ReadJsonAsync(history);
+        var historyMessages = historyDocument.RootElement.GetProperty("messages");
+        var replayed = historyMessages[historyMessages.GetArrayLength() - 1]
+            .GetProperty("assistantContent").GetProperty("monthlyProductComparisonResult");
+        Assert.Equal(-20m, replayed.GetProperty("salesChange").GetDecimal());
+        Assert.Equal(result.GetProperty("evidence").GetArrayLength(), replayed.GetProperty("evidence").GetArrayLength());
+    }
+
+    private static void AddProductReport(FinancialIngestionDbContext db, string companyId, string start, string end, decimal amount)
+    {
+        var reportId = Guid.NewGuid();
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = reportId, ProviderName = "Feature129Test", ExternalCompanyId = companyId,
+            ExternalReportId = $"feature129-api-{reportId:N}", ReportType = "ProductSales", OutputType = 0,
+            PeriodStart = DateOnly.Parse(start), PeriodEnd = DateOnly.Parse(end),
+            SourcePayloadChecksum = reportId.ToString("N"), LastSynchronizedAt = DateTimeOffset.UtcNow
+        });
+        db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+        {
+            Id = Guid.NewGuid(), MonthlyReportId = reportId, ProductCode = "A", Title = "Alpha", Unit = "ton", SalesAmount = amount
+        });
+    }
+
+    [Fact]
     public async Task AiQuery_WithMissingMessage_ReturnsBadRequest()
     {
         using var client = _factory.CreateClient();
@@ -65,6 +164,26 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
             CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AiQuery_BillingCooldownDenial_ReturnsTyped402()
+    {
+        var cooldownUntil = DateTimeOffset.UtcNow.AddDays(1);
+        using var client = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ICreditReservationService>();
+            services.AddSingleton<ICreditReservationService>(new CooldownDenialReservationService(cooldownUntil));
+        })).CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message = "P/E below 6" });
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.PaymentRequired, response.StatusCode);
+        Assert.Equal("SUBSCRIPTION_COOLDOWN_ACTIVE", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(cooldownUntil, document.RootElement.GetProperty("cooldownUntilUtc").GetDateTimeOffset());
+        Assert.Equal(25m, document.RootElement.GetProperty("freePlanCredits").GetDecimal());
     }
 
     [Fact]
@@ -366,6 +485,23 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
     }
 }
 
+internal sealed class CooldownDenialReservationService(DateTimeOffset cooldownUntilUtc) : ICreditReservationService
+{
+    public Task<UsageReservation> ReserveAsync(
+        CustomerAccount account,
+        WalletSnapshot wallet,
+        string operationCode,
+        decimal maximumCredits,
+        string idempotencyKey,
+        CancellationToken cancellationToken) =>
+        throw new InsufficientCreditException(
+            InsufficientCreditException.SubscriptionCooldownActiveCode,
+            cooldownUntilUtc,
+            25m);
+
+    public Task<int> ExpireAbandonedAsync(int maximumCount, CancellationToken cancellationToken) => Task.FromResult(0);
+}
+
 public class AiFacadeApiFactory : AuthenticationApiFactory
 {
     public static readonly Guid OrganizationAccountId = Guid.Parse("fa52a16d-4eea-462e-be0c-8964a9dcc05c");
@@ -486,6 +622,13 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
         return db.UsageLedgerEntries.AsNoTracking().ToList();
+    }
+
+    public IReadOnlyCollection<UsageReservationRow> ReadBillingReservations()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        return db.UsageReservations.AsNoTracking().ToList();
     }
 
     public HttpClient CreateUnknownTermClient()

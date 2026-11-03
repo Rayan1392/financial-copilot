@@ -1,0 +1,100 @@
+{
+  "id": "tbl_15787b93472ef448",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_telegram_link_audits",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramUserId",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "Action",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(250)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_auth_telegram_link_audits_ActorId_OccurredAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_link_audits_ActorId_OccurredAtUtc\" ON public.auth_telegram_link_audits USING btree (\"ActorId\", \"OccurredAtUtc\")",
+        "Columns": [
+          "ActorId",
+          "OccurredAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_link_audits_TenantId_OccurredAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_link_audits_TenantId_OccurredAtUtc\" ON public.auth_telegram_link_audits USING btree (\"TenantId\", \"OccurredAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "OccurredAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_auth_telegram_link_audits",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_telegram_link_audits\" ON public.auth_telegram_link_audits USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_auth_telegram_link_audits",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "rel_e632198d030be7c8",
+  "from": {
+    "schema": "public",
+    "table": "Companies",
+    "columns": [
+      "MarketId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "Markets",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"MarketId\") REFERENCES \"Markets\"(\"Id\") ON DELETE SET NULL",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

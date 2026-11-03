@@ -1,0 +1,90 @@
+{
+  "id": "tbl_93598e7242488002",
+  "physical": {
+    "Schema": "public",
+    "Name": "ComprehensiveAnalysisSyncLogs",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "JobName",
+        "Type": "character varying(100)",
+        "Nullable": false
+      },
+      {
+        "Name": "StartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "FinishedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(20)",
+        "Nullable": false
+      },
+      {
+        "Name": "PagesTotal",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ItemsSynced",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ErrorMessage",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_ComprehensiveAnalysisSyncLogs_StartedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ComprehensiveAnalysisSyncLogs_StartedAt\" ON public.\"ComprehensiveAnalysisSyncLogs\" USING btree (\"StartedAt\")",
+        "Columns": [
+          "StartedAt"
+        ]
+      },
+      {
+        "Name": "PK_ComprehensiveAnalysisSyncLogs",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ComprehensiveAnalysisSyncLogs\" ON public.\"ComprehensiveAnalysisSyncLogs\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_ComprehensiveAnalysisSyncLogs",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

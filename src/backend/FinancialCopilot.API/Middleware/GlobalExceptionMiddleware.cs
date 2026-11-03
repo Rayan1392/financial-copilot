@@ -17,7 +17,14 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Unhandled exception processing request.");
+            if (exception is InsufficientCreditException creditDenial)
+            {
+                logger.LogInformation("AI request denied by Billing. ErrorCode: {ErrorCode}", creditDenial.ErrorCode);
+            }
+            else
+            {
+                logger.LogError(exception, "Unhandled exception processing request.");
+            }
 
             var problemDetails = CreateProblemDetails(exception);
 
@@ -48,13 +55,7 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
                 Status = admin.StatusCode,
                 Detail = admin.Message
             },
-            InsufficientCreditException => new ProblemDetails
-            {
-                Type = "https://financialcopilot/errors/insufficient-credit",
-                Title = "insufficient-credit",
-                Status = StatusCodes.Status402PaymentRequired,
-                Detail = "Available spending capacity is insufficient."
-            },
+            InsufficientCreditException credit => CreateInsufficientCreditProblem(credit),
             Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => new ProblemDetails
             {
                 Type = "https://financialcopilot/errors/concurrency-conflict",
@@ -98,4 +99,29 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
                 Detail = "The request could not be completed."
             }
         };
+
+    private static ProblemDetails CreateInsufficientCreditProblem(InsufficientCreditException exception)
+    {
+        var problem = new ProblemDetails
+        {
+            Type = exception.ErrorCode == InsufficientCreditException.SubscriptionCooldownActiveCode
+                ? "https://financialcopilot/errors/SUBSCRIPTION_COOLDOWN_ACTIVE"
+                : "https://financialcopilot/errors/insufficient-credit",
+            Title = exception.ErrorCode == InsufficientCreditException.SubscriptionCooldownActiveCode
+                ? InsufficientCreditException.SubscriptionCooldownActiveCode
+                : "insufficient-credit",
+            Status = StatusCodes.Status402PaymentRequired,
+            Detail = exception.Message
+        };
+        problem.Extensions["code"] = exception.ErrorCode;
+        if (exception.CooldownUntilUtc is { } cooldownEnd)
+        {
+            problem.Extensions["cooldownUntilUtc"] = cooldownEnd.ToUniversalTime();
+        }
+        if (exception.FreePlanCredits is { } freePlanCredits)
+        {
+            problem.Extensions["freePlanCredits"] = freePlanCredits;
+        }
+        return problem;
+    }
 }

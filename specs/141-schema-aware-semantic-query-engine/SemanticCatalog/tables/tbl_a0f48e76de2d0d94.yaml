@@ -1,0 +1,146 @@
+{
+  "id": "tbl_a0f48e76de2d0d94",
+  "physical": {
+    "Schema": "public",
+    "Name": "UserAlertReactionSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "UserAlertRecordId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "HorizonCode",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "AnchorPrice",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "AnchorAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ReactionPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "InputRevision",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "UserAlertRecordId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "UserAlertRecords",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserAlertRecordId\") REFERENCES \"UserAlertRecords\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_UserAlertReactionSnapshots_Status_Updated",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertReactionSnapshots_Status_Updated\" ON public.\"UserAlertReactionSnapshots\" USING btree (\"Status\", \"UpdatedAtUtc\")",
+        "Columns": [
+          "Status",
+          "UpdatedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_UserAlertReactionSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_UserAlertReactionSnapshots\" ON public.\"UserAlertReactionSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_UserAlertReactionSnapshots_Record_Horizon_Input",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_UserAlertReactionSnapshots_Record_Horizon_Input\" ON public.\"UserAlertReactionSnapshots\" USING btree (\"UserAlertRecordId\", \"HorizonCode\", \"InputRevision\")",
+        "Columns": [
+          "UserAlertRecordId",
+          "HorizonCode",
+          "InputRevision"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_UserAlertReactionSnapshots_UserAlertRecords_UserAlertRecord~",
+        "Type": "f",
+        "Columns": [
+          "UserAlertRecordId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserAlertRecordId\") REFERENCES \"UserAlertRecords\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_UserAlertReactionSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

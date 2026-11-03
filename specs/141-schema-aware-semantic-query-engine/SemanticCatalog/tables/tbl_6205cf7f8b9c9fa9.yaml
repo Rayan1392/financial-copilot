@@ -1,0 +1,143 @@
+{
+  "id": "tbl_6205cf7f8b9c9fa9",
+  "physical": {
+    "Schema": "public",
+    "Name": "MetricAliasCandidates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Expression",
+        "Type": "character varying(300)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedExpression",
+        "Type": "character varying(300)",
+        "Nullable": false
+      },
+      {
+        "Name": "Language",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "SuggestedMetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SuggestedMetricVersion",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ConfidenceScore",
+        "Type": "numeric(5,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "FrequencyCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "DistinctActorCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "FirstSeenAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSeenAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceExamplesJson",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      },
+      {
+        "Name": "RejectionReason",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "PromotedAliasId",
+        "Type": "uuid",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MetricAliasCandidates_LastSeenAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MetricAliasCandidates_LastSeenAt\" ON public.\"MetricAliasCandidates\" USING btree (\"LastSeenAt\")",
+        "Columns": [
+          "LastSeenAt"
+        ]
+      },
+      {
+        "Name": "IX_MetricAliasCandidates_NormalizedExpression_Language_Suggest~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MetricAliasCandidates_NormalizedExpression_Language_Suggest~\" ON public.\"MetricAliasCandidates\" USING btree (\"NormalizedExpression\", \"Language\", \"SuggestedMetricCode\")",
+        "Columns": [
+          "NormalizedExpression",
+          "Language",
+          "SuggestedMetricCode"
+        ]
+      },
+      {
+        "Name": "IX_MetricAliasCandidates_Status",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MetricAliasCandidates_Status\" ON public.\"MetricAliasCandidates\" USING btree (\"Status\")",
+        "Columns": [
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_MetricAliasCandidates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MetricAliasCandidates\" ON public.\"MetricAliasCandidates\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MetricAliasCandidates",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

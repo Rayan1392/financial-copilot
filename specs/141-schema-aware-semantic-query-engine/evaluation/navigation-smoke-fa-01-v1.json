@@ -1,0 +1,56 @@
+{
+  "datasetVersion": 1,
+  "cases": [
+    {
+      "id": "fa-01",
+      "question": "کدام شرکت‌ها گندله تولید می‌کنند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ]
+    }
+  ]
+}

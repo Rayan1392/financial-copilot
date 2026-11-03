@@ -1,0 +1,124 @@
+{
+  "id": "metric_monthly_sales_ytd_previous_month",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Sales Year To Previous Month",
+    "Description": "Governed semantic definition for Monthly Sales Year To Previous Month.",
+    "Category": 3,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      0
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly sales ytd previous month",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "sales from fiscal year start to previous month",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش YTD تا ماه قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش YTD تا ماه گذشته",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش از ابتدای سال مالی تا ماه گذشته",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "جمع فروش از ابتدای دوره تا ماه قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش تا ماه گذشته",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_YTD_PREVIOUS_MONTH"
+        },
+        "PeriodType": 0,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

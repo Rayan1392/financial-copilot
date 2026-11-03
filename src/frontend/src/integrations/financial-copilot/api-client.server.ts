@@ -1,11 +1,28 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { buildFinancialCopilotApiUrl } from "./api-url";
+import { formatSubscriptionCooldownDeniedMessage } from "@/lib/subscription-cooldown";
 
 type FinancialCopilotServerContext = {
   authorization: string;
   correlationId: string;
 };
+
+/**
+ * A non-success API response. The message is unchanged from earlier releases, so callers that only read
+ * `message` behave as before. Server functions that need a stable failure code read `status` and `problemCode`
+ * here, because TanStack serializes only an error's message to the browser.
+ */
+export class FinancialCopilotApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly problemCode: string | null,
+  ) {
+    super(message);
+    this.name = "FinancialCopilotApiError";
+  }
+}
 
 export const requireFinancialCopilotAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
@@ -28,6 +45,7 @@ export async function financialCopilotServerApi<T>(
   context: FinancialCopilotServerContext,
   path: string,
   init: RequestInit = {},
+  allowNotFound = false,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Authorization", context.authorization);
@@ -35,12 +53,27 @@ export async function financialCopilotServerApi<T>(
   if (init.body) headers.set("Content-Type", "application/json");
 
   const response = await fetch(apiUrl(path), { ...init, headers });
+  if (response.status === 404 && allowNotFound) return null as T;
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
-    throw new Error(
+    const code = typeof problem?.code === "string" ? problem.code : problem?.title;
+    const problemCode = typeof code === "string" ? code : null;
+    if (code === "SUBSCRIPTION_COOLDOWN_ACTIVE") {
+      throw new FinancialCopilotApiError(
+        formatSubscriptionCooldownDeniedMessage(
+          typeof problem?.cooldownUntilUtc === "string" ? problem.cooldownUntilUtc : null,
+          typeof problem?.freePlanCredits === "number" ? problem.freePlanCredits : null,
+        ),
+        response.status,
+        problemCode,
+      );
+    }
+    throw new FinancialCopilotApiError(
       problem?.detail ??
         problem?.title ??
         `FinancialCopilot API request failed (${response.status}).`,
+      response.status,
+      problemCode,
     );
   }
 

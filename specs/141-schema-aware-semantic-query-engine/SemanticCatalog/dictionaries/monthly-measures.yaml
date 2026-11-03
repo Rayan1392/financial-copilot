@@ -1,0 +1,149 @@
+{
+  "id": "monthly-measures",
+  "version": 1,
+  "entries": [
+    {
+      "catalogId": "metric_monthly_production_quantity",
+      "metricCode": "MONTHLY_PRODUCTION_QUANTITY",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "ProductionQuantity",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "quantity",
+        "code": "source-quantity-unit",
+        "compatibleOnlyWithinSameUnit": true,
+        "verified": true,
+        "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29 (policy item 5: row unit preserved verbatim, never converted)"
+      },
+      "review": {
+        "semanticApproved": true,
+        "queryable": true,
+        "status": "owner-approved",
+        "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+        "decisionRecord": "evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json",
+        "approvedOperations": [
+          "DirectValueRetrieval"
+        ],
+        "approvedScope": "one named company, one company-scoped product, one Persian report month; accepted revisions only; row unit preserved verbatim"
+      }
+    },
+    {
+      "catalogId": "metric_monthly_sales_quantity",
+      "metricCode": "MONTHLY_SALES_QUANTITY",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "SalesQuantity",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "quantity",
+        "code": "source-quantity-unit",
+        "compatibleOnlyWithinSameUnit": true,
+        "verified": true,
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)"
+      },
+      "review": {
+        "semanticApproved": true,
+        "queryable": true,
+        "status": "capability-directive-approved",
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "approvedOperations": [
+          "DirectValueRetrieval",
+          "ApprovedPeriodComparison"
+        ],
+        "approvedScope": "one named company, one company-scoped product, explicit Persian month or latest accepted month; row unit preserved for quantities, MillionIRR for amounts"
+      }
+    },
+    {
+      "catalogId": "metric_monthly_sales",
+      "metricCode": "MONTHLY_SALES",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "SalesAmount",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "monetary",
+        "code": "MillionIRR",
+        "verified": true,
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)"
+      },
+      "review": {
+        "semanticApproved": true,
+        "queryable": true,
+        "status": "capability-directive-approved",
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "approvedOperations": [
+          "DirectValueRetrieval",
+          "ApprovedPeriodComparison"
+        ],
+        "approvedScope": "one named company, one company-scoped product, explicit Persian month or latest accepted month; row unit preserved for quantities, MillionIRR for amounts"
+      }
+    },
+    {
+      "catalogId": "metric_monthly_sales_rate",
+      "metricCode": "MONTHLY_SALES_RATE",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "SalesRate",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "providerPolicy": {
+        "providerName": "NoavaranCurrentApi",
+        "reportType": "ProductSales",
+        "outputType": 0
+      },
+      "revisionPolicy": {
+        "isAccepted": true,
+        "revisionStatus": "Accepted"
+      },
+      "unitPolicy": {
+        "kind": "provider-reported",
+        "code": null,
+        "sourceUnitColumn": "Unit",
+        "verified": false,
+        "recomputeAllowed": false
+      },
+      "review": {
+        "semanticApproved": false,
+        "queryable": false,
+        "status": "pending-rate-unit-verification"
+      }
+    }
+  ],
+  "runtimeQueryable": false,
+  "provenance": "Feature 015 metric definitions, Noavaran monthly activity normalization, and Feature 136 accepted revision/output-type behavior. Physical mapping is proposed for offline plan/compiler validation only."
+}

@@ -14,7 +14,8 @@ public sealed class FinancialIngestionDbContextDesignTimeFactory
     public FinancialIngestionDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<FinancialIngestionDbContext>()
-            .UseNpgsql("Server=localhost;Port=5432;Database=financial_copilot;User Id=maahfit;Password=Rayan1392!")
+            .UseNpgsql(Environment.GetEnvironmentVariable("FINANCIAL_COPILOT_CONNECTION_STRING")
+                ?? throw new InvalidOperationException("FINANCIAL_COPILOT_CONNECTION_STRING must be set for EF design-time operations."))
             .Options;
         return new FinancialIngestionDbContext(options);
     }

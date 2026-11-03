@@ -1,0 +1,72 @@
+# Read-only check of the production server: can GitHub Actions reach it over SSH with the deploy key,
+# and what state is its checkout in. Run it by hand before enabling or changing the prod deploy.
+# The repository is public, so its logs are public: print no secret values, no .env contents and no remote URLs.
+name: Prod server check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-server
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Configure SSH (pinned host key, deploy key only)
+        env:
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Connect and inspect (read-only)
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$PROD_SSH_PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+            "$PROD_SSH_USER@$PROD_SSH_HOST" 'bash -s' <<'REMOTE'
+          set -u
+          echo "== connection"; echo "user: $(whoami)"; uptime
+          echo "== tools"; docker --version; docker compose version; git --version
+          echo "== disk"; df -h / /var/lib/docker 2>/dev/null | sort -u
+          cd /opt/sapio/financial-copilot || { echo "project directory missing"; exit 1; }
+          echo "== checkout"
+          echo "branch: $(git branch --show-current)"; echo "HEAD: $(git rev-parse --short HEAD)"
+          echo "tracked local changes (names only):"; git status --porcelain --untracked-files=no
+          echo "stashes: $(git stash list | wc -l)"
+          if timeout 60 git ls-remote --exit-code origin prod >/dev/null 2>&1; then echo "GitHub reachable from server: yes"; else echo "GitHub reachable from server: NO"; fi
+          echo "== compose files"; ls -1 docker-compose*.yml
+          echo "== .env (selected non-secret keys only)"
+          grep -E '^(IMAGE_TAG|API_IMAGE|WORKER_IMAGE|FRONTEND_IMAGE|TELEGRAM_GATEWAY_IMAGE|VITE_MOBILE_AUTO_REDIRECT|FRONTEND_MOBILE_AUTO_REDIRECT|FRONTEND_API_BASE_URL|COMPOSE_FILE|COMPOSE_PROJECT_NAME)=' .env || echo "(none of the selected keys set)"
+          if [ -f docker-compose.override.yml ]; then
+            echo "== override: tracked=$(git ls-files --error-unmatch docker-compose.override.yml >/dev/null 2>&1 && echo yes || echo no); service and image lines only"
+            grep -nE '^  [A-Za-z0-9_-]+:\s*$|^\s+(image|build|dockerfile|pull_policy):' docker-compose.override.yml || true
+          fi
+          echo "== images compose resolves (runtime files, current IMAGE_TAG)"
+          docker compose config --images 2>&1 | sort
+          echo "== images compose resolves with IMAGE_TAG=probe (which services follow IMAGE_TAG)"
+          IMAGE_TAG=probe docker compose config --images 2>&1 | sort
+          echo "== build file set resolves with IMAGE_TAG=probe"
+          IMAGE_TAG=probe docker compose -f docker-compose.yml -f docker-compose.local-build.yml config --images 2>&1 | sort
+          echo "== running services"
+          docker compose ps --format '{{.Service}} {{.Image}} {{.Status}}'
+          echo "== recent local images"
+          docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedSince}}' | grep financial-copilot | head -15
+          echo "== health"
+          curl -fsS --max-time 10 http://127.0.0.1:5074/health; echo
+          curl -s -o /dev/null -w 'frontend HTTP %{http_code}\n' --max-time 10 http://127.0.0.1:8080/
+          REMOTE

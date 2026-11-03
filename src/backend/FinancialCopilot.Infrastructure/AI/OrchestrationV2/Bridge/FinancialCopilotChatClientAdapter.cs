@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
 
@@ -18,7 +19,8 @@ internal sealed class FinancialCopilotChatClientAdapter(
     IAiExecutionUsageAccumulator usageAccumulator,
     string correlationId,
     Guid tenantId,
-    AiWorkloadKind workload) : IChatClient
+    AiWorkloadKind workload,
+    ILogger<FinancialCopilotChatClientAdapter>? logger = null) : IChatClient
 {
     // Mutable per-instance state — safe because one adapter is created per RunAsync call.
     private string? _lastResponseId;
@@ -58,7 +60,7 @@ internal sealed class FinancialCopilotChatClientAdapter(
                 PreviousResponseId: _lastResponseId);
 
             var continuationResult = await modelClient.CompleteAsync(continuationRequest, cancellationToken);
-            usageAccumulator.Record(continuationResult.Usage);
+            RecordUsageSafely(continuationResult.Usage);
             _lastResponseId = continuationResult.ResponseId;
             _pendingToolCallIds = continuationResult.ToolCalls.Count > 0
                 ? continuationResult.ToolCalls.Select(tc => tc.Id).ToHashSet()
@@ -77,7 +79,7 @@ internal sealed class FinancialCopilotChatClientAdapter(
             Tools: tools is { Count: > 0 } ? tools : null);
 
         var result = await modelClient.CompleteAsync(request, cancellationToken);
-        usageAccumulator.Record(result.Usage);
+        RecordUsageSafely(result.Usage);
         _lastResponseId = result.ResponseId;
         _pendingToolCallIds = result.ToolCalls.Count > 0
             ? result.ToolCalls.Select(tc => tc.Id).ToHashSet()
@@ -94,6 +96,29 @@ internal sealed class FinancialCopilotChatClientAdapter(
     public object? GetService(Type serviceType, object? key = null) => null;
 
     public void Dispose() { }
+
+    private void RecordUsageSafely(AiExecutionUsageFacts facts)
+    {
+        try
+        {
+            usageAccumulator.Record(facts);
+        }
+        catch (Exception exception)
+        {
+            try
+            {
+                logger?.LogWarning(
+                    "AI usage observation could not be recorded; continuing the chat response. " +
+                    "CorrelationId={CorrelationId} FailureType={FailureType}",
+                    correlationId,
+                    exception.GetType().Name);
+            }
+            catch
+            {
+                // The failure reporter is telemetry too; it must not block the model response.
+            }
+        }
+    }
 
     // Throws before we would send an orphan function_call_output to the provider.
     private void GuardToolOutputsHaveMatchingCalls(List<ChatMessage> messages)

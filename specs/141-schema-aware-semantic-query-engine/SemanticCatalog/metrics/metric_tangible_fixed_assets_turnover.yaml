@@ -1,0 +1,59 @@
+{
+  "id": "metric_tangible_fixed_assets_turnover",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "TANGIBLE_FIXED_ASSETS_TURNOVER"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Tangible Fixed Assets Turnover",
+    "Description": "Governed semantic definition for Tangible Fixed Assets Turnover.",
+    "Category": 5,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "tangible fixed assets turnover",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "TANGIBLE_FIXED_ASSETS_TURNOVER"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "گردش دارایی‌های ثابت مشهود",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "TANGIBLE_FIXED_ASSETS_TURNOVER"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

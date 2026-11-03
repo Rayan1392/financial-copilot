@@ -1,0 +1,149 @@
+{
+  "id": "tbl_d37e6db1d6fc7776",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundDepositIncomeDetails",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawBankName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "GrossIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "DiscountCost",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "NetIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundDepositIncomeDetails_FundId_PeriodContext",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDepositIncomeDetails_FundId_PeriodContext\" ON public.\"FundDepositIncomeDetails\" USING btree (\"FundId\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundDepositIncomeDetails_ReportId_PeriodContext_SourceLogic~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundDepositIncomeDetails_ReportId_PeriodContext_SourceLogic~\" ON public.\"FundDepositIncomeDetails\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow"
+        ]
+      },
+      {
+        "Name": "IX_FundDepositIncomeDetails_ResolutionStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDepositIncomeDetails_ResolutionStatus\" ON public.\"FundDepositIncomeDetails\" USING btree (\"ResolutionStatus\")",
+        "Columns": [
+          "ResolutionStatus"
+        ]
+      },
+      {
+        "Name": "PK_FundDepositIncomeDetails",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundDepositIncomeDetails\" ON public.\"FundDepositIncomeDetails\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundDepositIncomeDetails",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

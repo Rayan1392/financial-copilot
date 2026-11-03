@@ -1,0 +1,59 @@
+{
+  "id": "metric_operating_cash_flow",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "OPERATING_CASH_FLOW"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Operating Cash Flow",
+    "Description": "Governed semantic definition for Operating Cash Flow.",
+    "Category": 5,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "operating cash flow",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "OPERATING_CASH_FLOW"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "cash flow from operations",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "OPERATING_CASH_FLOW"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

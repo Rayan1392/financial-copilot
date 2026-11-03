@@ -24,6 +24,25 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
+    public async Task FaultedExecutor_ReturnsTypedFailureAndReportsTheCause()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var fault = new ArgumentException("An item with the same key has already been added. Key: 1404 Q4");
+        var observer = new RecordingFailureObserver();
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [new ThrowingExecutor("monthly_activity_trend", fault)], observer);
+        var context = Context();
+
+        var result = await dispatcher.DispatchAsync(Frame("monthly_activity_trend"), context, default);
+
+        Assert.Equal(CapabilityExecutionStatus.Failed, result.Status);
+        Assert.Equal(DialogueOutcomeReasonCodes.ProviderOrToolFailure, result.ReasonCode);
+        var reported = Assert.Single(observer.Faults);
+        Assert.Equal("monthly_activity_trend", reported.CapabilityCode);
+        Assert.Same(context, reported.Context);
+        Assert.Same(fault, reported.Exception);
+    }
+
+    [Fact]
     public void UndeclaredOrDuplicateSlots_CannotReachExecutor()
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
@@ -46,7 +65,20 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
-    public void ShadowMode_IsObservationalAndRecordsOneBoundedComparison()
+    public void CompleteLowConfidenceFrame_IsValidatedBySlotsAndCanReachExecutor()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var executor = new Executor("monthly_activity_trend");
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [executor]);
+
+        var result = dispatcher.Validate(Frame("monthly_activity_trend") with { SemanticStatus = "LowConfidence" });
+
+        Assert.Null(result);
+        Assert.Equal(0, executor.Calls);
+    }
+
+    [Fact]
+    public void ShadowMode_RunsSemanticRouteAndRecordsOneBoundedComparison()
     {
         var telemetry = new RecordingTelemetry();
         var coordinator = new SemanticRoutingRolloutCoordinator(
@@ -55,7 +87,7 @@ public sealed class SemanticCapabilityDispatcherTests
         var decision = coordinator.Decide("monthly_activity_trend");
         coordinator.RecordShadowComparison("monthly_activity_trend", "legacy_trend", "semantic_trend", "correlation");
 
-        Assert.False(decision.ExecuteSemanticRoute);
+        Assert.True(decision.ExecuteSemanticRoute);
         Assert.True(decision.RunShadowComparison);
         var comparison = Assert.Single(telemetry.Items);
         Assert.False(comparison.Agreement);
@@ -88,6 +120,27 @@ public sealed class SemanticCapabilityDispatcherTests
             new(new Dictionary<string, SemanticRoutingMode> { ["symbol_metric_lookup"] = SemanticRoutingMode.Rollback }),
             new RecordingTelemetry());
         Assert.False(rollback.Decide("symbol_metric_lookup", "actor-1").ExecuteSemanticRoute);
+    }
+
+    [Fact]
+    public void CanaryNonCohort_RemainsShadowObservableAndStillExecutesSemanticRoute()
+    {
+        var telemetry = new RecordingTelemetry();
+        var canary = new SemanticRoutingRolloutCoordinator(
+            new(new Dictionary<string, SemanticRoutingMode> { ["symbol_metric_lookup"] = SemanticRoutingMode.Canary }, CanaryPercentage: 10),
+            telemetry);
+        var actor = Enumerable.Range(0, 1000)
+            .Select(index => $"canary-test-actor-{index}")
+            .First(key => canary.Decide("symbol_metric_lookup", key).RunShadowComparison);
+
+        var decision = canary.Decide("symbol_metric_lookup", actor);
+        canary.RecordShadowComparison("symbol_metric_lookup", "legacy_metric", "symbol_metric_lookup", "canary-shadow", cohortKey: actor);
+
+        Assert.True(decision.ExecuteSemanticRoute);
+        Assert.True(decision.RunShadowComparison);
+        var comparison = Assert.Single(telemetry.Items);
+        Assert.Equal(SemanticRoutingMode.Canary, comparison.Mode);
+        Assert.Equal("canary-shadow", comparison.CorrelationId);
     }
 
     [Fact]
@@ -147,6 +200,52 @@ public sealed class SemanticCapabilityDispatcherTests
         Assert.Equal(1, feedback.Calls);
     }
 
+    [Fact]
+    public async Task InvalidFrameThatFallsBack_DefersItsOneSettlementToTheFallback()
+    {
+        // A two-company comparison has no single symbol, so the registered source frame is invalid before any executor runs.
+        // The Feature 141 fallback answers it and must settle the turn's own reservation exactly once.
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var billing = new RecordingBilling();
+        var executor = new Executor("monthly_activity_trend");
+        var coordinator = new SemanticExecutionCoordinator(new SemanticCapabilityDispatcher(registry, [executor]), billing,
+            new RecordingFeedback(), new RecordingEventSink());
+        var invalid = Frame("monthly_activity_trend") with { Slots = [] };
+        var request = new AiQueryRequest("compare", Guid.NewGuid(), Guid.NewGuid(), "invalid-then-fallback");
+        var reservation = await billing.TryReserveAsync(new BillingReservationRequest(
+            request.CorrelationId, request.TenantId, request.ActorId, "AiQuery.Scanner", request.UserId, request.ApiClientId,
+            request.ExternalUserId, BillingOperationId: request.BillingOperationId), default);
+
+        var operation = await coordinator.ExecuteWithReservationAsync(invalid, Context(), request, reservation,
+            deferSettlementForFallback: true, default);
+
+        Assert.Equal(CapabilityExecutionStatus.ClarificationRequired, operation.Execution.Status);
+        Assert.Same(reservation, operation.DeferredReservation);
+        Assert.Equal(0, billing.Finalizations);
+        Assert.Equal(0, executor.Calls);
+    }
+
+    [Fact]
+    public async Task InvalidFrameWithoutFallback_SettlesItsReservationImmediately()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var billing = new RecordingBilling();
+        var coordinator = new SemanticExecutionCoordinator(new SemanticCapabilityDispatcher(registry, [new Executor("monthly_activity_trend")]),
+            billing, new RecordingFeedback(), new RecordingEventSink());
+        var invalid = Frame("monthly_activity_trend") with { Slots = [] };
+        var request = new AiQueryRequest("trend", Guid.NewGuid(), Guid.NewGuid(), "invalid-no-fallback");
+        var reservation = await billing.TryReserveAsync(new BillingReservationRequest(
+            request.CorrelationId, request.TenantId, request.ActorId, "AiQuery.Scanner", request.UserId, request.ApiClientId,
+            request.ExternalUserId, BillingOperationId: request.BillingOperationId), default);
+
+        var operation = await coordinator.ExecuteWithReservationAsync(invalid, Context(), request, reservation,
+            deferSettlementForFallback: false, default);
+
+        Assert.Null(operation.DeferredReservation);
+        Assert.Equal(1, billing.Finalizations);
+        Assert.Equal("ValidationFailed", billing.LastCompletionStatus);
+    }
+
     [Theory]
     [InlineData(QuerySlotValidationState.Ambiguous, null, DialogueOutcomeReasonCodes.EntityAmbiguous)]
     [InlineData(QuerySlotValidationState.Invalid, DialogueOutcomeReasonCodes.EntityNotFound, DialogueOutcomeReasonCodes.EntityNotFound)]
@@ -161,8 +260,57 @@ public sealed class SemanticCapabilityDispatcherTests
 
         var result = dispatcher.Validate(frame);
 
-        Assert.Equal(CapabilityExecutionStatus.DisambiguationRequired, result?.Status);
+        Assert.Equal(
+            state == QuerySlotValidationState.Ambiguous
+                ? CapabilityExecutionStatus.DisambiguationRequired
+                : CapabilityExecutionStatus.ClarificationRequired,
+            result?.Status);
         Assert.Equal(reason, result?.ReasonCode);
+    }
+
+    // Feature 148: the provider policy decides before any executor (and therefore any data read) runs.
+    [Theory]
+    [InlineData(FinancialDataChatProvider.NoavaranAmin, "comprehensive_analysis", ChatCapabilityAvailability.ComprehensiveAnalysisUnavailableReasonCode)]
+    [InlineData(FinancialDataChatProvider.NoavaranAmin, "ps_gauge_visualization", ChatCapabilityAvailability.RetiredReasonCode)]
+    [InlineData(FinancialDataChatProvider.CyclicalWaves, "ps_gauge_visualization", ChatCapabilityAvailability.RetiredReasonCode)]
+    [InlineData(FinancialDataChatProvider.CyclicalWaves, "monthly_activity_trend", ChatCapabilityAvailability.UnavailableForProviderReasonCode)]
+    public async Task Feature148_PolicyBlockedCapabilityNeverReachesItsExecutor(
+        FinancialDataChatProvider provider, string capability, string reasonCode)
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var executor = new Executor(capability);
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [executor], availability: new ChatCapabilityAvailability(provider));
+        var frame = Frame(capability) with { RegistryVersion = registry.Find(capability)!.Version };
+
+        var result = await dispatcher.DispatchAsync(frame, Context(), default);
+
+        Assert.Equal(CapabilityExecutionStatus.Unsupported, result.Status);
+        Assert.Equal(reasonCode, result.ReasonCode);
+        Assert.Equal(0, executor.Calls);
+    }
+
+    [Fact]
+    public async Task Feature148_CyclicalWavesModeStillRunsComprehensiveAnalysis()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var executor = new Executor("comprehensive_analysis");
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [executor],
+            availability: new ChatCapabilityAvailability(FinancialDataChatProvider.CyclicalWaves));
+        var frame = Frame("comprehensive_analysis") with { RegistryVersion = registry.Find("comprehensive_analysis")!.Version };
+
+        var result = await dispatcher.DispatchAsync(frame, Context(), default);
+
+        Assert.NotEqual(ChatCapabilityAvailability.ComprehensiveAnalysisUnavailableReasonCode, result.ReasonCode);
+    }
+
+    [Fact]
+    public async Task Feature148_C2UnavailableAnalysisReadsNothing()
+    {
+        var response = await new FinancialCopilot.Application.FinancialData.Ingestion.UnavailableComprehensiveAnalysisQueryUseCase()
+            .ExecuteAsync(new(["فولاد"], [], null, 5), default);
+
+        Assert.Empty(response.Items);
+        Assert.Equal(["فولاد"], response.UnresolvedSymbols);
     }
 
     private static ValidatedQueryFrame Frame(string capability) => new(
@@ -180,6 +328,18 @@ public sealed class SemanticCapabilityDispatcherTests
             Calls++;
             return Task.FromResult(new CapabilityExecutionResult(code, 1, status, "none"));
         }
+    }
+    private sealed class ThrowingExecutor(string code, Exception exception) : IConversationalCapabilityExecutor
+    {
+        public string CapabilityCode => code;
+        public Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken) =>
+            throw exception;
+    }
+    private sealed class RecordingFailureObserver : ISemanticCapabilityFailureObserver
+    {
+        public List<(string CapabilityCode, QueryExecutionContext Context, Exception Exception)> Faults { get; } = [];
+        public void ExecutionFaulted(string capabilityCode, QueryExecutionContext context, Exception exception) =>
+            Faults.Add((capabilityCode, context, exception));
     }
     private sealed class RecordingTelemetry : ISemanticRoutingTelemetrySink
     {

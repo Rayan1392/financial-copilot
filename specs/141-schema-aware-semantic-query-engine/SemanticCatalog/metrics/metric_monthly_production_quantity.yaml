@@ -1,0 +1,114 @@
+{
+  "id": "metric_monthly_production_quantity",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_PRODUCTION_QUANTITY"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Production Quantity",
+    "Description": "Actual monthly ProductionQuantity for a product in an accepted Noavaran ProductSales report. Dimensional unit is the source row quantity unit. This is production volume, never sales quantity or monetary amount.",
+    "Category": 3,
+    "Unit": {
+      "Code": "quantity",
+      "DisplayLabel": "Quantity"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      0
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly production quantity",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "production quantity",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "تولید",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مقدار تولید",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "تولید ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "آخرین تولید ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "PeriodType": 0,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

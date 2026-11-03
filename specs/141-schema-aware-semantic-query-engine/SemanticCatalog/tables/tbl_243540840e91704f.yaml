@@ -1,0 +1,62 @@
+{
+  "id": "tbl_243540840e91704f",
+  "physical": {
+    "Schema": "public",
+    "Name": "CodalDbSyncStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Dataset",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSyncedModifiedDateTime",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastRunStartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastRunCompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Dataset"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_CodalDbSyncStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CodalDbSyncStates\" ON public.\"CodalDbSyncStates\" USING btree (\"Dataset\")",
+        "Columns": [
+          "Dataset"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_CodalDbSyncStates",
+        "Type": "p",
+        "Columns": [
+          "Dataset"
+        ],
+        "Definition": "PRIMARY KEY (\"Dataset\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

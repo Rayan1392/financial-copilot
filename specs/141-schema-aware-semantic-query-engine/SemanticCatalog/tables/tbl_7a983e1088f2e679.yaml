@@ -1,0 +1,88 @@
+{
+  "id": "tbl_7a983e1088f2e679",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_user_tokens",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "UserId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "LoginProvider",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Value",
+        "Type": "text",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "UserId",
+      "LoginProvider",
+      "Name"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "UserId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "PK_auth_user_tokens",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_user_tokens\" ON public.auth_user_tokens USING btree (\"UserId\", \"LoginProvider\", \"Name\")",
+        "Columns": [
+          "UserId",
+          "LoginProvider",
+          "Name"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_user_tokens_auth_users_UserId",
+        "Type": "f",
+        "Columns": [
+          "UserId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_user_tokens",
+        "Type": "p",
+        "Columns": [
+          "UserId",
+          "LoginProvider",
+          "Name"
+        ],
+        "Definition": "PRIMARY KEY (\"UserId\", \"LoginProvider\", \"Name\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

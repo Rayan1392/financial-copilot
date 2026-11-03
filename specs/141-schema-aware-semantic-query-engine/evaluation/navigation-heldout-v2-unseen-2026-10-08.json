@@ -1,0 +1,43 @@
+{
+  "datasetVersion": 2,
+  "purpose": "Fresh, independent post-freeze generalization set. These question structures and financial metric compositions do not occur in navigation-golden-v1; the set is separate from development cases and is not included in runtime prompts.",
+  "cases": [
+    {
+      "id": "holdout-v2-consolidated-eps-margin",
+      "question": "For each listed issuer, put the latest consolidated EPS beside its net profit margin in a two-column comparison table.",
+      "domains": ["financial-analytics", "financial-statements"],
+      "tables": ["table-tbl_83be994ebc1a8627"],
+      "metrics": ["EPS_CONSOLIDATED", "NET_PROFIT_MARGIN"],
+      "metricIds": ["metric_eps_consolidated", "metric_net_profit_margin"],
+      "dimensions": ["dim_company"],
+      "entities": ["company"],
+      "relationships": [],
+      "statementScope": "consolidated",
+      "nodeIds": ["domain-financial-analytics", "domain-financial-statements", "dimension-dim_company", "table-tbl_83be994ebc1a8627"]
+    },
+    {
+      "id": "holdout-v2-monthly-rate-ytd",
+      "question": "Show a company's product sales rate next to year-to-date sales for the latest monthly report, keeping the product and reporting month visible.",
+      "domains": ["monthly-activity"],
+      "tables": ["table-tbl_4f3dd93b63d1766f", "table-tbl_8ecd0432a4292998"],
+      "metrics": ["MONTHLY_SALES_RATE", "MONTHLY_SALES_YTD"],
+      "metricIds": ["metric_monthly_sales_rate", "metric_monthly_sales_ytd"],
+      "dimensions": ["dim_company", "dim_product_identity", "dim_monthly_period"],
+      "entities": ["company", "company-scoped product"],
+      "relationships": ["report-to-line-item association"],
+      "nodeIds": ["domain-monthly-activity", "dimension-dim_company", "dimension-dim_product_identity", "dimension-dim_monthly_period", "table-tbl_4f3dd93b63d1766f", "table-tbl_8ecd0432a4292998"]
+    },
+    {
+      "id": "holdout-v2-collection-debt-rank",
+      "question": "Rank companies with the most recent statements by shortest average collection period, and show each company's debt-to-equity ratio alongside it.",
+      "domains": ["financial-statements"],
+      "tables": [],
+      "metrics": ["AVERAGE_COLLECTION_PERIOD", "DEBT_TO_EQUITY"],
+      "metricIds": ["metric_average_collection_period", "metric_debt_to_equity"],
+      "dimensions": ["dim_company"],
+      "entities": ["company"],
+      "relationships": [],
+      "nodeIds": ["domain-financial-statements", "dimension-dim_company"]
+    }
+  ]
+}

@@ -1,0 +1,178 @@
+{
+  "id": "tbl_244838cf19fa3839",
+  "physical": {
+    "Schema": "public",
+    "Name": "NadpcoFundamentalIndexObservations",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyTitle",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "ExternalStatementId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyIndexId",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyIndexTitle",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyIndexGroupId",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyIndexGroupTitle",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyIndexValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyIndexUnit",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "PeriodType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodStart",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEnd",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "JalaliFiscalYearEnd",
+        "Type": "character varying(16)",
+        "Nullable": true
+      },
+      {
+        "Name": "JalaliPeriodEnd",
+        "Type": "character varying(16)",
+        "Nullable": true
+      },
+      {
+        "Name": "JalaliAnnouncementDate",
+        "Type": "character varying(16)",
+        "Nullable": true
+      },
+      {
+        "Name": "IsAudited",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsRepresented",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsComposing",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsGovernedCandidate",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "SourcePayloadChecksum",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_NadpcoFundamentalIndexObservations_CompanyIndexId_IsGoverne~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NadpcoFundamentalIndexObservations_CompanyIndexId_IsGoverne~\" ON public.\"NadpcoFundamentalIndexObservations\" USING btree (\"CompanyIndexId\", \"IsGovernedCandidate\")",
+        "Columns": [
+          "CompanyIndexId",
+          "IsGovernedCandidate"
+        ]
+      },
+      {
+        "Name": "IX_NadpcoFundamentalIndexObservations_ProviderName_ExternalCom~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_NadpcoFundamentalIndexObservations_ProviderName_ExternalCom~\" ON public.\"NadpcoFundamentalIndexObservations\" USING btree (\"ProviderName\", \"ExternalCompanyId\", \"CompanyIndexId\", \"PeriodType\", \"PeriodEnd\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalCompanyId",
+          "CompanyIndexId",
+          "PeriodType",
+          "PeriodEnd"
+        ]
+      },
+      {
+        "Name": "PK_NadpcoFundamentalIndexObservations",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NadpcoFundamentalIndexObservations\" ON public.\"NadpcoFundamentalIndexObservations\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_NadpcoFundamentalIndexObservations",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

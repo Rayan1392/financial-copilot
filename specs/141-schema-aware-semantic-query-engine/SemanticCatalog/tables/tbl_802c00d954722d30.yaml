@@ -1,0 +1,186 @@
+{
+  "id": "tbl_802c00d954722d30",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryRelativeValuationOutbox",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "EventIdentity",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Payload",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "PublishedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "GroupId",
+        "Type": "uuid",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "IndustryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Industries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "GroupId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryGroups",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "CalculationId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryRelativeValuationCalculations",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryRelativeValuationOutbox_CalculationId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryRelativeValuationOutbox_CalculationId\" ON public.\"IndustryRelativeValuationOutbox\" USING btree (\"CalculationId\")",
+        "Columns": [
+          "CalculationId"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationOutbox_EventIdentity",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationOutbox_EventIdentity\" ON public.\"IndustryRelativeValuationOutbox\" USING btree (\"EventIdentity\")",
+        "Columns": [
+          "EventIdentity"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationOutbox_GroupId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryRelativeValuationOutbox_GroupId\" ON public.\"IndustryRelativeValuationOutbox\" USING btree (\"GroupId\")",
+        "Columns": [
+          "GroupId"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationOutbox_IndustryId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryRelativeValuationOutbox_IndustryId\" ON public.\"IndustryRelativeValuationOutbox\" USING btree (\"IndustryId\")",
+        "Columns": [
+          "IndustryId"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationOutbox_PublishedAtUtc_CreatedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryRelativeValuationOutbox_PublishedAtUtc_CreatedAtUtc\" ON public.\"IndustryRelativeValuationOutbox\" USING btree (\"PublishedAtUtc\", \"CreatedAtUtc\")",
+        "Columns": [
+          "PublishedAtUtc",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationOutbox",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryRelativeValuationOutbox\" ON public.\"IndustryRelativeValuationOutbox\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IndustryRelativeValuationOutbox_Industries_IndustryId",
+        "Type": "f",
+        "Columns": [
+          "IndustryId"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryRelativeValuationOutbox_IndustryGroups_GroupId",
+        "Type": "f",
+        "Columns": [
+          "GroupId"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryRelativeValuationOutbox_IndustryRelativeValuationCa~",
+        "Type": "f",
+        "Columns": [
+          "CalculationId"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationOutbox",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

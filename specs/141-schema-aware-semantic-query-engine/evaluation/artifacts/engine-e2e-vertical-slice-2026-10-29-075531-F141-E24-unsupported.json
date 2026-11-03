@@ -1,0 +1,203 @@
+{
+  "runAt": "2026-10-29T07:55:31.8306748+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E24",
+    "Question": "سود خالص کگل و کگهر را به میلیارد ریال مقایسه کن",
+    "Fixture": {
+      "DatabaseName": "feature131_02837160e9194aaf89b46d779b1e37a6",
+      "RestrictedRole": "feature141_vs_cmp_reader_77e4881f114d4cc6a443430f5f2a83b2",
+      "CompanyId": "c863547e-2312-4a81-985f-aa700d142540",
+      "DecoyCompanyId": "00000000-0000-0000-0000-000000000000",
+      "StatementId": "00000000-0000-0000-0000-000000000000",
+      "OlderStatementId": "00000000-0000-0000-0000-000000000000",
+      "SeededLineItemCount": 12,
+      "MonthlyReportId": null,
+      "ProductKey": null,
+      "ReviewedCompanyUniverse": null,
+      "UnauthorizedProducerId": null,
+      "CompaniesBySymbol": {
+        "کگل": "c863547e-2312-4a81-985f-aa700d142540",
+        "کگهر": "e9dba427-7567-45c8-b066-02fa1b77c9a1",
+        "فملی": "5e67da7a-6733-4ff1-8b89-abf86230e6b8"
+      },
+      "MonthlyValueColumn": "ProductionQuantity",
+      "SeededSourceItemCatalogId": "bd36909d-abf8-44c2-b7db-5e53dd678b53"
+    },
+    "ExpectedOutcome": "Unsupported",
+    "TypedOutcome": "Unsupported",
+    "TypedOutcomeReason": "canonical_semantics_not_representable_in_current_planner_handoff|statement_query_shape_not_supported",
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "IntentFailureDiagnostic": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "سود خالص",
+          "ConceptId": "netProfit",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "netProfit"
+          ],
+          "Kind": "FinancialStatementItem",
+          "Dimension": "CurrencyAmount",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "Unspecified"
+          },
+          "RequestedUnit": "BillionIRR",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "Compare",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "MultiCompany",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "Unspecified",
+        "Granularity": "Unspecified",
+        "UserPeriodLabel": null,
+        "NumberOfPeriods": null,
+        "StartLabel": null,
+        "EndLabel": null
+      },
+      "EntityScope": {
+        "Kind": "NamedCompanies",
+        "CompanyLabels": [
+          "کگل",
+          "کگهر"
+        ]
+      },
+      "Products": [],
+      "Categories": [],
+      "Filters": null,
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Comparison",
+        "RequestedFields": []
+      },
+      "Constraints": [
+        {
+          "Name": "displayUnit",
+          "Value": "billionIRR",
+          "Provenance": "Explicit"
+        }
+      ],
+      "Ambiguity": {
+        "RequiresClarification": false,
+        "Questions": [],
+        "UnresolvedPoints": []
+      }
+    },
+    "TypedBindingStatus": "Unsupported",
+    "TypedBindingDiagnostics": [
+      "canonical_semantics_not_representable_in_current_planner_handoff",
+      "statement_query_shape_not_supported"
+    ],
+    "BoundSourceCatalogId": "source_item_66fdf1090cbf96d3",
+    "ChatPathBindingStatus": null,
+    "ChatPathBindingDiagnostic": null,
+    "HandoffStatus": null,
+    "HandoffDiagnosticCode": null,
+    "PlannerRequirements": null,
+    "Navigation": null,
+    "Plan": null,
+    "PlanStructurallyValid": false,
+    "PlanExecutionEligible": false,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [],
+    "CompanyBindingStatus": null,
+    "BoundCompanyId": null,
+    "CompilationSucceeded": false,
+    "CompilationDiagnostics": [],
+    "Sql": null,
+    "SqlParameters": {},
+    "QueryFingerprint": null,
+    "CompiledEffectiveUnit": null,
+    "CompiledOperation": null,
+    "CompiledCompanyIds": [],
+    "CompiledSemanticReviewApproved": false,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": false,
+    "GrantIssued": false,
+    "GrantDatabase": null,
+    "GrantRole": null,
+    "GrantProvenance": null,
+    "ExecutionStatus": null,
+    "ExecutionDiagnostic": null,
+    "ExecutionRowCount": 0,
+    "ExecutionRows": [],
+    "ActualValue": null,
+    "ActualPeriodStart": null,
+    "ActualPeriodEnd": null,
+    "ActualPersianPeriodStart": null,
+    "ActualPersianPeriodEnd": null,
+    "ActualRowCompanyId": null,
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": null,
+    "ExecutionAuthorizationProvenance": null,
+    "ExecutionElapsedMs": null,
+    "IndependentDatabaseValue": null,
+    "IndependentLineItemCount": 0,
+    "PersianAnswerStatus": null,
+    "PersianAnswer": null,
+    "PersianAnswerUnit": null,
+    "PersianEvidence": [],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadOtherDomainTable": false,
+    "RequirementsMeasureIds": [],
+    "RequirementsNormalizationDiagnostics": [],
+    "ModelPeriodStart": null,
+    "ModelPeriodEnd": null,
+    "NormalizedPersianMonth": null,
+    "NormalizedPeriodStart": null,
+    "NormalizedPeriodEnd": null,
+    "ProductBindingStatus": null,
+    "ProductKey": null,
+    "ActualProductCode": null,
+    "ActualSourceUnit": null,
+    "ProductConceptCatalogId": null,
+    "ProductConceptAliases": [],
+    "ProductMappingCoverageStatus": null,
+    "CompanyDiscoveryScopeId": null,
+    "CompanyDiscoveryCoverageComplete": null,
+    "GrantAllowedCompanyIds": [],
+    "ActualCompanySymbols": [],
+    "ActualCompanyIds": [],
+    "StatementQueryShape": null,
+    "ComparisonRows": [],
+    "ExecutionWarnings": [],
+    "IndependentComparisonValues": {},
+    "CompiledWithFixtureOnlyColumnApproval": false,
+    "FixtureOnlyApprovedColumns": [],
+    "WritablePrincipalExecutionStatus": null,
+    "WritablePrincipalDiagnostic": null,
+    "LlmCalls": 1,
+    "ObservedModelCalls": 1,
+    "ObservedExecutorCalls": 0,
+    "LlmInputTokens": 2594,
+    "LlmOutputTokens": 420,
+    "IntentLatencyMs": 5071.4138,
+    "NavigatorLatencyMs": 0,
+    "TotalElapsedMs": 5586.8363,
+    "SecretValuesLogged": false
+  }
+}

@@ -1,0 +1,243 @@
+{
+  "id": "tbl_2bb52d485c7ebf57",
+  "physical": {
+    "Schema": "public",
+    "Name": "CyclicalWavesAcquisitionChecks",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CycleDateUtc",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SymbolIsin",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricType",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "CheckedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompletedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ResponseHash",
+        "Type": "character(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "Result",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "SnapshotId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceEndpoint",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "HttpStatusCode",
+        "Type": "smallint",
+        "Nullable": true
+      },
+      {
+        "Name": "AttemptCount",
+        "Type": "smallint",
+        "Nullable": false
+      },
+      {
+        "Name": "FailureCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "FailureMessage",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "SnapshotId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "CyclicalWavesMetricSnapshots",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"SnapshotId\") REFERENCES \"CyclicalWavesMetricSnapshots\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_CyclicalWavesAcquisitionChecks_Diagnostics",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CyclicalWavesAcquisitionChecks_Diagnostics\" ON public.\"CyclicalWavesAcquisitionChecks\" USING btree (\"CompanyId\", \"MetricType\", \"CheckedAtUtc\" DESC)",
+        "Columns": [
+          "CompanyId",
+          "MetricType",
+          "CheckedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_CyclicalWavesAcquisitionChecks_Restart",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CyclicalWavesAcquisitionChecks_Restart\" ON public.\"CyclicalWavesAcquisitionChecks\" USING btree (\"CycleDateUtc\", \"CompanyId\", \"MetricType\", \"Result\")",
+        "Columns": [
+          "CycleDateUtc",
+          "CompanyId",
+          "MetricType",
+          "Result"
+        ]
+      },
+      {
+        "Name": "IX_CyclicalWavesAcquisitionChecks_SnapshotId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CyclicalWavesAcquisitionChecks_SnapshotId\" ON public.\"CyclicalWavesAcquisitionChecks\" USING btree (\"SnapshotId\")",
+        "Columns": [
+          "SnapshotId"
+        ]
+      },
+      {
+        "Name": "PK_CyclicalWavesAcquisitionChecks",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CyclicalWavesAcquisitionChecks\" ON public.\"CyclicalWavesAcquisitionChecks\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "CK_CyclicalWavesAcquisitionChecks_AttemptCount",
+        "Type": "c",
+        "Columns": [
+          "AttemptCount"
+        ],
+        "Definition": "CHECK ((\"AttemptCount\" >= 0))"
+      },
+      {
+        "Name": "CK_CyclicalWavesAcquisitionChecks_Consistency",
+        "Type": "c",
+        "Columns": [
+          "Result",
+          "ResponseHash",
+          "SnapshotId",
+          "FailureCode"
+        ],
+        "Definition": "CHECK (((((\"Result\")::text = ANY ((ARRAY['Changed'::character varying, 'NoChange'::character varying])::text[])) AND (\"ResponseHash\" IS NOT NULL) AND (\"SnapshotId\" IS NOT NULL) AND (\"FailureCode\" IS NULL)) OR (((\"Result\")::text = 'Failed'::text) AND (\"ResponseHash\" IS NULL) AND (\"SnapshotId\" IS NULL) AND (\"FailureCode\" IS NOT NULL))))"
+      },
+      {
+        "Name": "CK_CyclicalWavesAcquisitionChecks_MetricType",
+        "Type": "c",
+        "Columns": [
+          "MetricType"
+        ],
+        "Definition": "CHECK (((\"MetricType\")::text = ANY ((ARRAY['PS'::character varying, 'LastPS'::character varying, 'PE'::character varying, 'LastPE'::character varying, 'Equilibrium'::character varying])::text[])))"
+      },
+      {
+        "Name": "CK_CyclicalWavesAcquisitionChecks_ProviderName",
+        "Type": "c",
+        "Columns": [
+          "ProviderName"
+        ],
+        "Definition": "CHECK (((\"ProviderName\")::text = 'CyclicalWaves'::text))"
+      },
+      {
+        "Name": "CK_CyclicalWavesAcquisitionChecks_Result",
+        "Type": "c",
+        "Columns": [
+          "Result"
+        ],
+        "Definition": "CHECK (((\"Result\")::text = ANY ((ARRAY['Changed'::character varying, 'NoChange'::character varying, 'Failed'::character varying])::text[])))"
+      },
+      {
+        "Name": "FK_CyclicalWavesAcquisitionChecks_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_CyclicalWavesAcquisitionChecks_CyclicalWavesMetricSnapshots~",
+        "Type": "f",
+        "Columns": [
+          "SnapshotId"
+        ],
+        "Definition": "FOREIGN KEY (\"SnapshotId\") REFERENCES \"CyclicalWavesMetricSnapshots\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_CyclicalWavesAcquisitionChecks",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "id": "metric_ps_ttm",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "PS_TTM"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "P/S (TTM)",
+    "Description": "Governed semantic definition for P/S (TTM).",
+    "Category": 2,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "p/s",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "ps",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "price-to-sales",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "price to sales",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "p/s",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "ps",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت قیمت به فروش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی به اس",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی بر اس",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی‌اس",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی اس",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PS_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "PS_RATIO"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "PS_RATIO"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

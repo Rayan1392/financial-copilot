@@ -61,7 +61,21 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         {
             throw new ConversationNotFoundException(conversationId);
         }
-        request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+        var reservation = await billingFunctions.TryReserveAsync(request, cancellationToken);
+        try
+        {
+            request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+            if (reservation is not null)
+                reservation = await billingFunctions.EnsureCurrentUsageCapacityAsync(reservation, cancellationToken);
+        }
+        catch
+        {
+            if (reservation is not null)
+                await billingFunctions.FinalizeAsync(
+                    reservation, "ProviderFailed", false, CancellationToken.None,
+                    executionRoute: "v2_fallback_dialogue_routing");
+            throw;
+        }
 
         // Step 2: Memory retrieval
         var memoryContext = await memoryAdapter.GetContextAsync(
@@ -69,11 +83,6 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             conversationId, request.CorrelationId, cancellationToken);
 
         var enrichedMessage = BuildEnrichedMessage(request.Message, memoryContext);
-
-        // Step 3: Billing reservation — before agent executes
-        var reservation = request.SemanticFrame is null
-            ? await billingFunctions.TryReserveAsync(request, cancellationToken)
-            : null;
 
         // Step 4: Build tools with request-scoped closures
         var state = new OrchestrationState();
@@ -84,14 +93,18 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
 
         if (request.SemanticFrame is { } semanticFrame)
         {
-            var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+            var semantic = await semanticExecutionCoordinator.ExecuteWithReservationAsync(
                 semanticFrame,
                 new QueryExecutionContext(request.TenantId, request.ActorId, conversationId,
                     request.CorrelationId, semanticFrame.Interpretation.ReplyLanguage, now,
                     request.ScannerPage, request.ScannerPageSize,
                     request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
-                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId),
+                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId,
+                    request.Context?.MonthlyActivityTrendReportYear,
+                    request.Context?.MonthlyActivityTrendReportMonth),
                 request,
+                reservation,
+                deferSettlementForFallback: false,
                 cancellationToken);
             var scannerPayload = semantic.Execution.Payload as SemanticScannerPayload;
             var lookupTable = semantic.Execution.Payload as SymbolLookupTableResult;
@@ -101,10 +114,12 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             var semanticText = semantic.Execution.Payload switch
             {
                 string text => text,
+                Workflow.Feature141ChatAnswer feature141 => feature141.Text,
                 ComprehensiveAnalysisQueryResponse analysis => ComprehensiveAnalysisToolResult.Success(analysis).AgentSummary,
                 SemanticComprehensiveAnalysisPayload combined when combined.Lookup.Rows.Count > 0 =>
                     $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary}",
                 SemanticComprehensiveAnalysisPayload combined => ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary,
+                IndustryRelativeValuationPayload relative => relative.PresentationText,
                 _ => null
             };
             state.ScannerResult = scannerPayload is null ? null : ScannerToolResult.Success(scannerPayload.Plan, scannerPayload.Table, scannerPayload.Table.ExecutionFacts.FromCache);
@@ -258,6 +273,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var fromCache = false;
 
         // Step 5: Run the agent — billing finalization in all paths
+        if (reservation is not null)
+            reservation = await billingFunctions.EnsureReservedCapacityAsync(reservation, cancellationToken);
+
         try
         {
             var session = await agent.CreateSessionAsync(request.CorrelationId, cancellationToken);
@@ -329,11 +347,22 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         // Step 6: Determine intent and derive structured results
         var detectedIntent = DetermineIntent(state);
         if (request.SemanticShadowFrame is { } shadowFrame)
+        {
+            var legacyRoute = SemanticRouteMapping.FromIntent(detectedIntent);
+            var rollout = semanticRolloutCoordinator.Decide(shadowFrame.CapabilityCode, request.ActorId.ToString("N"));
             semanticRolloutCoordinator.RecordShadowComparison(
                 shadowFrame.CapabilityCode,
-                SemanticRouteMapping.FromIntent(detectedIntent),
+                legacyRoute,
                 shadowFrame.CapabilityCode,
-                request.CorrelationId);
+                request.CorrelationId,
+                SemanticRoutingTelemetryFactory.FromFrame(
+                    request,
+                    shadowFrame,
+                    legacyRoute,
+                    legacyRoute,
+                    rollout.Mode),
+                cohortKey: request.ActorId.ToString("N"));
+        }
         var clarificationRequired =
             state.ScannerResult?.ClarificationRequired ?? state.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -380,6 +409,15 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             clarificationMessage,
             state.ScannerResult is not null || state.LookupResult is not null || detectedIntent != DetectedIntent.Unknown,
             state.ScannerResult?.Table is not null || state.LookupResult?.Table?.Rows.Count > 0);
+        if (state.LookupResult?.UnsupportedMessage is { } unsupportedMessage)
+        {
+            outcome = new DialogueOutcomeResult(
+                DialogueOutcome.Unsupported,
+                ChatCapabilityAvailability.UnavailableForProviderReasonCode,
+                AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message),
+                unsupportedMessage,
+                LanguageGuardApplied: false);
+        }
         outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
             outcome,
             outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : groundedAnswer));
@@ -470,12 +508,16 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
         "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
         "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
+        "product_sales_value" => DetectedIntent.MonthlyProductTrend,
+        "product_sales_trend" => DetectedIntent.MonthlyProductTrend,
         "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
         "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
         "disclosure_listing" => DetectedIntent.DisclosureListing,
         "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or
+            "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown
     };
 
@@ -584,6 +626,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         string? candidateProse,
         AnswerConsistencyContext context)
     {
+        if (state.LookupResult?.UnsupportedMessage is { } unsupportedMessage)
+            return unsupportedMessage;
+
         if (intent == DetectedIntent.SymbolLookup && state.LookupResult?.Table is not null)
             return consistencyValidator
                 .ValidateSymbolLookup(state.LookupResult.Table, candidateProse, context)

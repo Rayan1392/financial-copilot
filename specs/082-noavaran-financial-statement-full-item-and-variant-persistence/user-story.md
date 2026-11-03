@@ -105,6 +105,23 @@ That behavior creates two product gaps:
 - This feature may require additive schema changes if the current `FinancialStatementLineItems`
   table shape cannot represent all vendor-item facts.
 
+## Completeness audit (2026-10-08)
+
+The current ingestion path satisfies the full-item rule for items in a successfully normalized
+Noavaran current-API payload: `NadpcoApiFinancialStatementNormalizer.NormalizeAsync` reads all
+three statement arrays, `UpsertSourceItemCatalogAsync` keys the catalog by provider/type/source
+ID, and `UpsertLineItemsAsync` stores mapped and unmapped values with the catalog FK. Null amounts
+are retained as null observations and now appear in the statement's `WarningsJson` under
+`InvalidObservations`.
+
+A bounded read-only check of the configured development database found 78,677 Noavaran
+current-API line-item rows without `SourceItemCatalogId`; their parent checksums all
+matched a retained financial-statement raw payload. Those rows retain their stored MetricCode and
+value, but do not currently expose the original source item identity through the normalized
+observation relationship. A replay/backfill is a separate, resumable, dry-run-capable task and was
+not run as part of this audit. Detailed counts and limits are recorded in Feature 141's
+[`NoavaranFinancialStatementIngestionAudit.md`](../../141-schema-aware-semantic-query-engine/NoavaranFinancialStatementIngestionAudit.md).
+
 ## Out Of Scope
 
 - Automatically promoting every vendor item into the governed semantic metric registry.

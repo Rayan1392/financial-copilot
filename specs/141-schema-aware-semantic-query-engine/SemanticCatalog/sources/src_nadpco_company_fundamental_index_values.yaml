@@ -1,0 +1,21 @@
+{
+  "id": "src_nadpco_company_fundamental_index_values",
+  "kind": "external-provider-endpoint",
+  "semanticApproval": {
+    "state": "candidate-pending-review",
+    "approved": false
+  },
+  "queryAuthorization": {
+    "state": "not-approved",
+    "runtimeQueryable": false,
+    "reason": "External endpoint is not a PostgreSQL table."
+  },
+  "provider": "NoavaranCurrentApi",
+  "physicalIdentity": "POST api/v2/CompanyFundamentalIndex/Values",
+  "sourceDataset": "FundamentalIndexes",
+  "rawPersistence": "ProviderRawPayloads (FinancialProviderDbContext), keyed idempotently by ProviderName + Checksum; stores endpoint, ExternalReference, payload, checksum, ReceivedAt.",
+  "normalizedPersistence": "NadpcoApiFundamentalIndexNormalizer -> DerivedMetrics for scale-verified mapped indexes; it selects canonical variants, prefers audited then non-represented then composing and latest announcement/source ID, and preserves VendorPrecomputed source evidence.",
+  "notACompanyTable": true,
+  "queryable": false,
+  "status": "candidate-pending-review"
+}

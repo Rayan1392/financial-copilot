@@ -1,0 +1,181 @@
+{
+  "id": "tbl_0922683ffda7f9c3",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundAssetAllocationSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "AssetClass",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawAssetClassLabel",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedAssetClassCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "CostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketOrNetSaleValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "WeightOfTotalAssetsPercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "IsSectionTotal",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "HasSourceFormulaError",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MonetaryUnit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PercentageScale",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundAssetAllocationSnapshots_AssetClass",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundAssetAllocationSnapshots_AssetClass\" ON public.\"FundAssetAllocationSnapshots\" USING btree (\"AssetClass\")",
+        "Columns": [
+          "AssetClass"
+        ]
+      },
+      {
+        "Name": "IX_FundAssetAllocationSnapshots_FundId_PeriodEndDate_PeriodCon~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundAssetAllocationSnapshots_FundId_PeriodEndDate_PeriodCon~\" ON public.\"FundAssetAllocationSnapshots\" USING btree (\"FundId\", \"PeriodEndDate\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodEndDate",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundAssetAllocationSnapshots_ReportId_PeriodContext_SourceL~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundAssetAllocationSnapshots_ReportId_PeriodContext_SourceL~\" ON public.\"FundAssetAllocationSnapshots\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\", \"NormalizedAssetClassCode\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow",
+          "NormalizedAssetClassCode"
+        ]
+      },
+      {
+        "Name": "PK_FundAssetAllocationSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundAssetAllocationSnapshots\" ON public.\"FundAssetAllocationSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundAssetAllocationSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

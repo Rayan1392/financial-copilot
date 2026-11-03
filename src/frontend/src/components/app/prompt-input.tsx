@@ -5,9 +5,16 @@ import { AssistedQueryDialog } from "@/components/app/assisted-query-dialog";
 interface Props {
   onSubmit: (text: string) => void;
   loading?: boolean;
+  showAssistedQuery?: boolean;
+  assistedQueryDisabled?: boolean;
 }
 
-export function PromptInput({ onSubmit, loading }: Props) {
+export function PromptInput({
+  onSubmit,
+  loading,
+  showAssistedQuery = true,
+  assistedQueryDisabled = true,
+}: Props) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -33,14 +40,16 @@ export function PromptInput({ onSubmit, loading }: Props) {
                 submit();
               }
             }}
-            placeholder="از من درباره نمادها، شاخص یا فیلترهای بازار بپرس..."
+            placeholder="مثلاً: روند فروش ماهانه شاراک را نشان بده"
             rows={2}
             className="w-full bg-transparent border-none resize-none p-4 text-sm focus:outline-none placeholder:text-muted-foreground/60"
           />
           <div className="flex items-center justify-end px-3 pb-3">
-            <div className="ml-auto">
-              <AssistedQueryDialog onCompose={setValue} />
-            </div>
+            {showAssistedQuery && (
+              <div className="ml-auto">
+                <AssistedQueryDialog onCompose={setValue} disabled={assistedQueryDisabled} />
+              </div>
+            )}
             <button
               onClick={submit}
               disabled={!value.trim() || loading}

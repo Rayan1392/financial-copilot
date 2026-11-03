@@ -1,9 +1,38 @@
 using System.Text;
+using System.Globalization;
+using System.Text.RegularExpressions;
+using FinancialCopilot.Application.FinancialData;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
 public static class QueryNormalization
 {
+    private static readonly Regex NumericToken = new(@"(?<![\p{L}\p{N}])[0-9۰-۹٠-٩]+(?:[,.٬٫][0-9۰-۹٠-٩]+)*(?![\p{L}\p{N}])", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    public static bool TryParseFinancialStatementClues(string? value, out IReadOnlyList<FinancialStatementValueClue> clues, out string? error)
+    {
+        var result = new List<FinancialStatementValueClue>();
+        error = null;
+        foreach (Match match in NumericToken.Matches(value ?? string.Empty))
+        {
+            var token = new string(match.Value.Select(c => c switch
+            {
+                >= '۰' and <= '۹' => (char)('0' + c - '۰'),
+                >= '٠' and <= '٩' => (char)('0' + c - '٠'),
+                '٬' => ',', '٫' => '.', _ => c
+            }).ToArray());
+            var parts = token.Split(',', '.');
+            if (parts.Length > 1 && parts.Skip(1).All(part => part.Length == 3)) token = string.Concat(parts);
+            else if (parts.Length == 2) token = string.Join('.', parts);
+            else if (parts.Length > 2) { error = "malformed_numeric_clue"; clues = []; return false; }
+            if (!decimal.TryParse(token, NumberStyles.Number, CultureInfo.InvariantCulture, out var number))
+            { error = "malformed_numeric_clue"; clues = []; return false; }
+            result.Add(new FinancialStatementValueClue(number));
+        }
+        if (result.Count == 0) { error = "numeric_clue_required"; clues = []; return false; }
+        if (result.Count > 20) { error = "too_many_numeric_clues"; clues = []; return false; }
+        clues = result; return true;
+    }
     public static string Normalize(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -77,6 +106,7 @@ public static class QueryNormalization
             "چارت" or "نمودار" or "روند" or "جدول" or "گیج" or "فهرست" or "خلاصه" or
             "ماهانه" or "فروش" or "درآمد" or "سود" or "قیمت" or "محصول" or "محصولات" or "ترکیب" or "رکیب" or "بنیادی" or "تکنیکال" or "نشان" or "بده" or "لطفا" or "لطفاً" or
             "را" or "کن" or "کنید" or "است" or "چقدر" or "سال" or "ماه" or "فصل" or "هفته" or
+            "خود" or "خودش" or "همان" or "مقایسه" or "بررسی" or "تحلیل" or
             "قبل" or "قبلی" or "گذشته" or "آخرین" or "اخیر" or "مشابه" or "جاری" or "امسال" or "پارسال" or
             "و" or "یا" or "برای" or "از" or "به" or "این" or "آن" or "نماد" or "شرکت" or "سهم" => true,
             _ => false

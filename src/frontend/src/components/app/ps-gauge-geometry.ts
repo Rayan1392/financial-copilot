@@ -56,7 +56,7 @@ export function getPsGaugeMarkerAngles(
   >,
 ) {
   return {
-    ttm: mapPsGaugeValueToAngle(data.ttmPs.value ?? data.needle?.sourceValue, data),
+    ttm: mapPsGaugeValueToAngle(data.ttmPs.value, data),
     forward: mapPsGaugeValueToAngle(data.forwardPs.value, data),
   };
 }

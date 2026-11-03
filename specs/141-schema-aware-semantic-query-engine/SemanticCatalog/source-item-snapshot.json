@@ -1,0 +1,2966 @@
+{
+  "formatVersion": 1,
+  "source": "public.FinancialStatementSourceItems; optional MetricCode from FinancialStatementSourceItemMetricMappings",
+  "items": [
+    {
+      "sourceItemCatalogId": "c7fff58f-d0f7-4120-8e11-dc50ec890a93",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 1,
+      "titleFa": "موجودی نقد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "dc779c52-efb3-4149-bfda-0c6af4f944a5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 2,
+      "titleFa": "مطالبات از بانک مرکزی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "bcd4ce7a-8a05-49b9-a691-28e3d94812ff",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 4,
+      "titleFa": "مطالبات از بانک‌ها و موسسات اعتباری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "fee76297-44e0-4339-8de8-0fbdfde7c00a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 5,
+      "titleFa": "حصه جاری خالص تسهیلات اعطایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "97be42a7-46d8-4a31-941c-36342df1d7ee",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 7,
+      "titleFa": "سرمایه‌گذاری کوتاه مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7449f6a1-a85a-4ee5-8f25-ed7d921cad48",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 8,
+      "titleFa": "حساب‌ها و اسناد دریافتنی تجاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c64d617d-0987-4ff2-bc95-e09cffa7b682",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 9,
+      "titleFa": "سایر حساب‌ها و اسناد دریافتنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c322d060-66be-41d9-a1e9-1dff8d06a18d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 10,
+      "titleFa": "طلب از شرکت‌های تابعه و وابسته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a64c474b-81f8-4068-ad81-82e83d0b38ba",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 18,
+      "titleFa": "موجودی مواد و کالا",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c97c7529-da27-4871-93e0-5d92b99e3d6c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 19,
+      "titleFa": "سفارشات و پیش پرداخت‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c76ad806-cef3-4dcb-ba5c-48f13c0864d9",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 20,
+      "titleFa": "دارایی‌های زیستی غیر مولد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "5d03d3d3-7620-4c79-8c69-c8787f6cd042",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 21,
+      "titleFa": "دارایی‌های ثابت مشهود",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "52c78f1e-b84a-4e79-b047-a6f96427a75c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 22,
+      "titleFa": "دارایی‌های نامشهود",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "fcb09738-60bf-4b32-95d0-f002fd4d22d0",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 25,
+      "titleFa": "سرمایه‌گذاری‌های بلندمدت در اوراق بهادار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d1aa9706-55cf-47de-9c40-4feb5498753e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 27,
+      "titleFa": "سرمایه‌گذاری در پروژه‌های ساختمانی بلندمدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "3625a2f1-b49b-4b7a-836b-717b712bd9d0",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 30,
+      "titleFa": "دارایی‌های زیستی مولد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "17628b0d-376d-4deb-a40e-70dca640461b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 31,
+      "titleFa": "سرقفلی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a450631b-20c6-4479-bb61-fdbbfdcf7da3",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 33,
+      "titleFa": "سایر دارایی‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "00eb45b4-ec20-4de5-9a27-d0c4f91d2d3f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 35,
+      "titleFa": "حساب‌ها و اسناد پرداختنی تجاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d39196ec-d2c1-43c3-bd24-4a5cdea3e8b5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 36,
+      "titleFa": "سایرحساب‌ها و اسناد پرداختنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a1f53581-d0a7-4307-b1df-6a6f7be6e25d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 39,
+      "titleFa": "بدهی به بانک‌ها و موسسات اعتباری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "ee0aec5e-eab4-406f-8a1c-72c5c20bd3f6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 40,
+      "titleFa": "سپرده قرض الحسنه پس انداز و مشابه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a8b38608-f7e3-4fe0-a79d-8c5009fe4338",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 43,
+      "titleFa": "سایر سپرده‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1fd2308f-4f6a-44fb-ab7f-efcec625fc23",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 45,
+      "titleFa": "پیش دریافت‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7f04e0a9-c9c9-47cb-ac0f-e1012d056316",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 46,
+      "titleFa": "ذخیره مالیات",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "76e64d9a-de55-47ba-a787-52afe6417536",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 47,
+      "titleFa": "تسهیلات مالی دریافتی کوتاه مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "669e17ff-2e47-4a69-9321-9cac50a2e94d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 48,
+      "titleFa": "سود سهام پیشنهادی و پرداختنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "091ab818-808e-4f06-8d7f-26efa14fa22d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 50,
+      "titleFa": "حساب‌ها و اسناد پرداختنی بلندمدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "bcf89b19-212d-43bc-b5b6-7b079ea8d5c2",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 51,
+      "titleFa": "تسهیلات مالی دریافتی بلند مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0b22e17b-848f-4469-b32f-46d59d107901",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 52,
+      "titleFa": "ذخیره مزایای پایان خدمت کارکنان",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "83d26d68-33a4-4231-9581-1ad5bb1da607",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 53,
+      "titleFa": "سپرده‌های سرمایه‌گذاری مدت دار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f512dab6-9edd-4d18-b557-e1fa63021450",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 57,
+      "titleFa": "سرمایه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7b914752-16f7-4b56-b406-1867338b7239",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 58,
+      "titleFa": "وجوه ناشی از افزایش سرمایه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "21f542cb-bd2e-4a89-89a6-bdc2bf22bb45",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 59,
+      "titleFa": "سهام شرکت اصلی در مالکیت شرکت‌های فرعی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "28546354-f4e9-4268-850d-cab072b09c2d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 60,
+      "titleFa": "صرف سهام",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d47b5820-3eb8-4eea-b3dd-c5b6c34e35d6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 61,
+      "titleFa": "اندوخته قانونی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "93bef32b-e737-4376-a57f-7aae8716bb5a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 63,
+      "titleFa": "سایر اندوخته‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "ee866952-6ea7-4d5f-9bcf-6f06544af290",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 64,
+      "titleFa": "مازاد تجدید ارزیابی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8226ccb7-6c8b-4880-8811-95f31d28cae0",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 65,
+      "titleFa": "سهم اقلیت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a5c98df9-24e9-46df-9f1c-5a593cecf05d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 71,
+      "titleFa": "سود (زیان) انباشته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8495ceb5-f5d9-4d90-a5cd-cb8b0efcbc1b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 74,
+      "titleFa": "حسابها و اسناد دریافتنی بلند مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "9c3b897e-4588-469f-9ed0-b867b56a4744",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 76,
+      "titleFa": "سپرده‌های دیداری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e527c9fb-e3b1-4af4-ae90-1f2779e011b4",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 77,
+      "titleFa": "اوراق مشارکت بلندمدت پرداختنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "50fdf077-8776-4727-a50b-80401e7e4819",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 79,
+      "titleFa": "حصه بلندمدت پیش دریافت از مشتریان",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "feca0a49-30d0-4191-91d7-8e8ab4a6af8a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 90,
+      "titleFa": "سپرده قانونی نزد بانک مرکزی (دارایی غیر جاری)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8007f60d-69fc-4ae6-8d2a-489d9a066e01",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 97,
+      "titleFa": "مطالبات از دولت (دارایی غیرجاری)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "5e03f84d-b77d-4549-8c2e-caadbe2c9f1f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 99,
+      "titleFa": "نتیجه برابری نرخ ارز (اندوخته تسعیر ارز)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "589ef078-054d-4a9f-99ce-52744765ce49",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 109,
+      "titleFa": "مطالبات از بیمه‌گذاران و نمایندگان",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f7841596-1f50-4f9b-a1c1-83c8545e5e21",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 119,
+      "titleFa": "مطالبات از بیمه‌گران اتکایی افشایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0ffd513a-a047-4988-84fd-6cef935f1130",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 123,
+      "titleFa": "بدهی به بیمه‌گذاران، نمایندگان و کارگزاران",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "edb8607f-340a-4c40-9f1e-91717b9eec88",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 124,
+      "titleFa": "بدهی به بیمه‌گران اتکایی افشایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "5cc52b24-7bc9-40cb-8bc2-fb633375a96a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 135,
+      "titleFa": "جمع دارایی‌های جاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c2d48d6d-8320-4080-8bdd-7132ddadf0ca",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 136,
+      "titleFa": "جمع دارایی‌های سریع ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "6d7df9e0-49b4-4c2e-b154-756bf228e08b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 137,
+      "titleFa": "جمع دارایی‌های غیر جاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "60030f53-a936-433e-b5ee-a97fbf6fb45b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 138,
+      "titleFa": "جمع کل دارایی‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "ab83a0d1-8f70-4087-a0c4-841728da4efa",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 139,
+      "titleFa": "جمع بدهی‌های جاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7666d1fc-f513-4ddb-b90a-35d515cbfc4b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 140,
+      "titleFa": "جمع بدهی‌های غیر جاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f4d790bc-40b6-45b0-8d36-699dc374051c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 141,
+      "titleFa": "جمع بدهی‌های کوتاه مدت بهره دار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "78714439-a96e-4468-8513-6ec32d74851f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 142,
+      "titleFa": "جمع بدهی‌های بلندمدت بهره‌دار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d85f30ee-7685-413d-9cc5-aba0d82a81ba",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 143,
+      "titleFa": "جمع کل بدهی‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "23bc65c7-e01c-40b4-a527-ab8997c3cccd",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 144,
+      "titleFa": "جمع کل بدهی‌های بهره‌دار ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0df136ac-2b08-454b-b819-a680f63d80da",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 145,
+      "titleFa": "خالص سرمایه در گردش ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a14c17d9-3094-4740-b77b-c3d3a7d6c6d2",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 146,
+      "titleFa": "جمع اندوخته‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d12671d0-db84-4ad4-ae60-c33ea286930d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 147,
+      "titleFa": "جمع حقوق صاحبان سهام",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "TOTAL_EQUITY"
+    },
+    {
+      "sourceItemCatalogId": "74458ec6-1423-4bbe-9fc2-27893629e836",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 148,
+      "titleFa": "جمع بدهی‌ها و حقوق صاحبان سهام ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "43d9cfa9-8b67-4517-a6d4-89c3cf0d3c90",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 149,
+      "titleFa": "جمع دارایی‌های آنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "769f0fe8-3130-4dcd-9b2b-89b054012c73",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 160,
+      "titleFa": "جمع حقوق صاحبان سهام شرکت اصلی ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "48ffed80-8452-4af0-9149-105f3ab26134",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 170,
+      "titleFa": "سهام خزانه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "34818089-a375-48bf-a574-716ce866afb2",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 180,
+      "titleFa": "سایر ذخایر ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "cce46554-1401-4f38-bf4c-301642680173",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 188,
+      "titleFa": "سرمایه پرداخت شده ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "CAPITAL"
+    },
+    {
+      "sourceItemCatalogId": "8512f9b2-5f10-4f14-a248-73bec66b1987",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 203,
+      "titleFa": "سهم بیمه‌گران اتکایی از ذخایر",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e17182ea-05ec-4ef4-9498-ae76b990929c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 204,
+      "titleFa": "ناخالص ذخایر فنی ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "44355b7d-137f-4460-8e0c-9dbad5f0ec49",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 205,
+      "titleFa": "مطالبات از بیمه‌گران اتکایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "ee6e2acb-d3f0-46db-93ad-6196c62cb256",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 206,
+      "titleFa": "بدهی به بیمه‌گران اتکایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "6b29cd1e-8611-4ce5-8f11-aa6665cc01bf",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 207,
+      "titleFa": "خالص ذخایر فنی بیمه‌ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "06557532-d6d6-49eb-83ef-5d6c0d81ace9",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 208,
+      "titleFa": "مجموع سرمایه گذاری های صورت پذیرفته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f015722e-baef-46db-81fa-9a9fd6fcf5b0",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 223,
+      "titleFa": "مجموع سپرده های جذب شده",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "efc2a976-ec69-4e8a-9f59-17e623b95a25",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 255,
+      "titleFa": "تسهیلات اعطایی به بانکها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "71f0b702-19c4-422e-862c-eefb2c18d6c8",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 261,
+      "titleFa": "مجموع دارایی های درآمد زا",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "305cb6bf-aa7f-4868-b1af-4c58256d5699",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 262,
+      "titleFa": "دارایی های غیر جاری نگهداری شده برای فروش",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "040160f1-ef85-4d6f-b5c5-0442e308f255",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 270,
+      "titleFa": "مجموع دارایی های عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e51d1dde-6a7b-48d6-9d79-8f417a088e1f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 271,
+      "titleFa": "ارزش دفتری هر سهم",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "67731fc6-cc77-42aa-a78e-2b2fd284778f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 286,
+      "titleFa": "نوع دوره مالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7081519d-dbca-40ae-aaa2-c42c0a3a333e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 287,
+      "titleFa": "بدهیهای مرتبط با داراییهای غیر جاری نگهداری شده برای فروش",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "74d2033d-fbbd-47ba-9b4e-ce07bb7e920f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 291,
+      "titleFa": "مجموع تسهیلات اعطایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "cdf6bfb0-ae1a-43bc-9dad-1485279f8568",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 293,
+      "titleFa": "مجموع دریافتنی های تجاری و غیر تجاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e25658fc-d118-41dd-b65e-70a1ce0f7750",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 294,
+      "titleFa": "مجموع بدهی های کوتاه مدت غیر بهره دار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "3a645eea-2b70-4f7a-b815-9a3c0c1e383d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 295,
+      "titleFa": "مجموع بدهی های بلند مدت غیر بهره دار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "3d180f25-2119-46f0-afd1-787c3eb666e1",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 296,
+      "titleFa": "جمع کل بدهی های غیر بهره دار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b9c2b04d-c7f1-490c-a626-8a61dd1ce3b6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 297,
+      "titleFa": "صرف سهام خزانه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d09354ed-2407-449c-9419-bf952a11d390",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 298,
+      "titleFa": "جمع دارایی‌های جاری - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c9232641-a09e-4335-9879-d3163ec1f0fc",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 299,
+      "titleFa": "جمع دارایی‌های غیر جاری - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b40e6262-fe86-4caa-a963-94f8e9f8247f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 300,
+      "titleFa": "جمع کل دارایی‌ها - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "be681aff-adb2-48ef-9b6d-df39617728bf",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 301,
+      "titleFa": "جمع بدهی‌های جاری - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d88ae510-39b2-4908-80f3-2d6226c9a460",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 302,
+      "titleFa": "جمع بدهی‌های غیر جاری - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "34e7c9eb-a9e4-491d-878d-82db42e472f9",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 303,
+      "titleFa": "جمع کل بدهی‌ها - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7aedf1a3-601c-4153-bd35-c38509f57d9e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 304,
+      "titleFa": "جمع حقوق صاحبان سهام - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c07c433a-ef2e-4249-bd2b-aac3d2dd5840",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 305,
+      "titleFa": "جمع بدهی‌ها و حقوق صاحبان سهام - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2892878a-6660-44af-ae0f-de18960954f1",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 306,
+      "titleFa": "دریافتنی های تجاری و سایر دریافتنی ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "42faaf5a-c01b-4037-95c6-d63948f9232a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 307,
+      "titleFa": "پرداختنی های تجاری و سایر پرداختنی ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7c5da3b2-b824-436f-b40d-422144da771d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 308,
+      "titleFa": "مجموع پرداختنی های تجاری و غیر تجاری ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "6de366b6-e5b6-41e7-8324-9e4540786058",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 309,
+      "titleFa": "جمع دارایی عملیاتی جاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2cbbdf59-372b-4c05-8f03-3d5c072b52de",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 310,
+      "titleFa": "جمع دارایی عملیاتی غیر جاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "efda0b57-2678-4746-89ab-12869cf8ae68",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 311,
+      "titleFa": "آثار معاملات با منافع فاقد حق کنترل",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "3160cdfb-b12f-4293-86cd-6fde35b7a8ed",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 312,
+      "titleFa": "دارایی مالیات انتقالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7ea3c02d-a237-4c2f-9330-6eeedbeb29a6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 315,
+      "titleFa": "بدهی مالیات انتقالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "54e45a3b-64ae-41cc-a648-5aec08774208",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 316,
+      "titleFa": "آثار معاملات سهام خزانه شرکت فرعی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "63bc974c-2a01-47cb-9cc7-eb46651c5f11",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 1,
+      "titleFa": "جریان وجه نقد عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "OPERATING_CASH_FLOW"
+    },
+    {
+      "sourceItemCatalogId": "ef4022d1-6ddf-45c1-8b4b-b273119acb3d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 3,
+      "titleFa": "سود دریافتی بابت سپرده های سرمایه گذاری و اوراق مشارکت بلند مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "ec49df52-5371-4ab9-b585-42de08a97cb8",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 4,
+      "titleFa": "سود سهام دریافتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "6b2d264c-cdcb-4908-9225-b0adf5d82fcd",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 5,
+      "titleFa": "سود پرداختی بابت تسهیلات مالی/ پیش دریافت ها و سایر حساب های پرداختنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0701e25d-e479-49ad-b519-9acde487f0e2",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 6,
+      "titleFa": "سود سهام پرداختی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2b3bbdfd-c19e-4507-b075-de288d8f7f7e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 9,
+      "titleFa": "مالیات بر درآمد پرداختی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "adb8b40d-121f-4384-8243-a3b4cc20c281",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 10,
+      "titleFa": "وجوه پرداختی بابت خرید دارایی‌های ثابت مشهود",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "adf4512f-f50d-432b-9876-38dfc6bee2ba",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 11,
+      "titleFa": "وجوه پرداختی جهت خرید سرمایه‌گذاری‌های بلندمدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "28e51b8b-fb25-450a-8f1c-cbe8a236270a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 12,
+      "titleFa": "وجوه پرداختی بابت تحصیل سرمایه‌گذاری‌های کوتاه مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f4290d0e-9852-4d94-b219-9d3590ba2710",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 13,
+      "titleFa": "وجوه پرداختی جهت خرید سایر دارایی‌ها و موجودی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e29cf9c7-011f-49dd-aa43-c94521a5ac11",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 14,
+      "titleFa": "وجوه حاصل از فروش دارایی های ثابت مشهود",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "9260d145-81d0-4374-9848-c80ab39779c8",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 15,
+      "titleFa": "وجوه حاصل از فروش سرمایه گذاری بلند مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a9bb700f-0ab7-4c29-883e-75d29477c302",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 17,
+      "titleFa": "وجوه حاصل از فروش سرمایه گذاری های کوتاه مدت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c84c5a0e-f158-40cd-822e-bd8055858824",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 21,
+      "titleFa": "وجوه دریافتی حاصل از افزایش سرمایه/حق تقدم",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "5c6d3b38-8433-4a9f-bfbc-e2f1f911f720",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 22,
+      "titleFa": "وجوه حاصل از افزایش سرمایه شرکت های فرعی - سهم اقلیت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2b0f540d-48d1-4e46-a77c-fc061fa4b0af",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 23,
+      "titleFa": "دریافت تسهیلات مالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0b569665-eadc-4faf-ae73-6b31d63f6275",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 24,
+      "titleFa": "بازپرداخت اصل تسهیلات مالی دریافتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "66da68fc-bbcb-413b-92ad-6d4c9b33a136",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 33,
+      "titleFa": "مانده وجه نقد در آغاز سال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f0a6922b-ac3f-4166-b313-656377568843",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 35,
+      "titleFa": "تاثیر تغییرات نرخ ارز",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f8bfbcdc-30cc-44a0-8ac3-6f98fd9948f4",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 37,
+      "titleFa": "سود پرداختی بابت اوراق مشارکت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "198c210a-aa21-45ef-9833-5c6c45ed8599",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 40,
+      "titleFa": "وجوه دریافت شده بابت انتشار اوراق مشارکت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "36985ea2-623a-430a-b09c-1e06d5128ac9",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 41,
+      "titleFa": "باز پرداخت اصل اوراق مشارکت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "42fd72f8-3fd8-4bb7-9cff-67484df254a3",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 42,
+      "titleFa": "سود دریافتی بابت تسهیلات مالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "014f0bf2-5064-4174-a48d-c14b85c677c8",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 46,
+      "titleFa": "وجوه پرداختی جهت خرید دارایی زیستی مولد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c56aa131-322f-4fac-a40a-e67e04ec7b1b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 47,
+      "titleFa": "وجوه حاصل از فروش دارایی زیستی مولد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "841a4cf2-0a7d-4a24-b1f0-2d6862ea2106",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 48,
+      "titleFa": "وجوه پرداختی بابت تحصیل دارایی های نامشهود",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "37a5077b-676d-4ca0-8058-626522a5870c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 58,
+      "titleFa": "جریان وجه نقد بازده سرمایه گذاریها و سود پرداختی بابت تامین مالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "5f50e0c4-53ec-42f8-973b-cf084e5d276c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 59,
+      "titleFa": "جریان وجه نقد سرمایه گذاری - قدیم",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c35755bf-eabd-43f9-bf25-506315233107",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 60,
+      "titleFa": "جریان وجه نقد قبل از فعالیت های تامین مالی ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "6ef5c241-8a78-4a80-8de2-1e15206356a1",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 61,
+      "titleFa": "جریان وجه نقد تامین مالی - قدیم",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "bb35d570-1d77-4608-86bc-0432e7178e68",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 62,
+      "titleFa": "خالص افزایش (کاهش) در وجه نقد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b55cddc2-6e99-46e8-88d9-c3a6e5af8fbd",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 63,
+      "titleFa": "مانده وجه نقد در پایان سال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "809895dd-61f8-4246-b365-d11a417a2241",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 70,
+      "titleFa": "وجوه پرداختی جهت تحصیل شرکتهای فرعی و وابسته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "cee810f9-56d3-40e4-b622-f69ceaf38b37",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 71,
+      "titleFa": "وجوه دریافتی بابت فروش شرکتهای فرعی و وابسته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "fcd10f76-b00e-4029-9f7b-6df109129719",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 83,
+      "titleFa": "وجوه دریافتی بابت فروش دارایی های نامشهود",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "95e8b4b7-34db-4a3c-a06b-6d1cd4c3ad29",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 95,
+      "titleFa": "وام نقدی پرداختی به سایر اشخاص",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "88583f11-0e66-418f-991a-9f9535f0038b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 96,
+      "titleFa": "وصول (اقساط / اصل) وام نقدی پرداختی به سایر اشخاص",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1eb3a0d8-dedd-4df3-88b5-17b20f56ed61",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 103,
+      "titleFa": "وجوه پرداختی بابت خرید دارایی های غیر جاری نگهداری شده برای فروش",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "820805b7-7821-4efa-bcfc-ce71ccebeb48",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 104,
+      "titleFa": "وجوه دریافتی حاصل از فروش دارایی های غیر جاری نگهداری شده برای فروش",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "baabf110-3fc5-4584-893f-dd725a267820",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 106,
+      "titleFa": "مجموع منابع بازده سرمایه گذاری ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "58df872f-0028-494f-81e0-5fb62fc1c646",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 107,
+      "titleFa": "مجموع مصارف بازده سرمایه گذاری ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "aa492045-a3ae-41b6-928d-6bb4ed4d98e5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 108,
+      "titleFa": "مجموع منابع سرمایه گذاری ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "9e842873-44fd-454c-9b23-ebebf11d7b45",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 109,
+      "titleFa": "مجموع مصارف سرمایه گذاری ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d9882e69-1f4c-4bc5-b10f-172490ced051",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 110,
+      "titleFa": "مجموع منابع تامین مالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "02f323b0-f909-448a-8145-ab7785424cc3",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 111,
+      "titleFa": "مجموع مصارف تامین مالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b8290c10-171d-4dc8-aa85-e27bce502215",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 112,
+      "titleFa": "مجموع جریانات نقد ورودی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "def13524-a620-4f27-8d67-5d156eee6ed8",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 113,
+      "titleFa": "مجموع جریانات نقد خروجی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "bb1712b8-044e-4d05-b5e8-f61b6461399a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 114,
+      "titleFa": "بازپرداخت اوراق اجاره (صکوک) / اجاره سرمایه ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "ae667e41-1aee-484c-9d6f-9d1454065626",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 117,
+      "titleFa": "وجوه پرداختی بابت خرید سهام خزانه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2b1c9e7f-827b-4376-9b47-e8cd6dc8b05f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 119,
+      "titleFa": "وجوه دریافتی حاصل از فروش سهام خزانه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "509b6d40-b877-4cf7-b731-990117cde8cc",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 120,
+      "titleFa": "جریان وجه نقد بازده سرمایه گذاریها و سود پرداختی بابت تامین مالی - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "3bc7a1c2-9374-4d6a-80f1-025c4e3d4ab0",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 121,
+      "titleFa": "جریان وجه نقد سرمایه گذاری - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d6489669-95e4-45f1-929c-cdf9ab9f55e1",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 122,
+      "titleFa": "جریان وجه نقد قبل از فعالیت های تامین مالی - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a517201c-589a-42d0-9a64-f314c6db1901",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 123,
+      "titleFa": "جریان وجه نقد تامین مالی - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c910d8dd-6c73-44c2-8815-ca7937226299",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 124,
+      "titleFa": "خالص افزایش (کاهش) در وجه نقد - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "52b82381-c8f9-4a17-8e3d-ab6a3b287087",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 125,
+      "titleFa": "مانده وجه نقد در پایان سال - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f46f0e87-5750-49e7-9825-96782c81c137",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 126,
+      "titleFa": "جریان وجه نقد سرمایه گذاری - جدید",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "01612a26-8560-4ef2-bf04-a7a578ddb75a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 127,
+      "titleFa": "جریان وجه نقد تامین مالی - جدید",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7f59f02f-e1be-42c6-8a89-4034f473d25f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 128,
+      "titleFa": "جریان وجه نقد عملیاتی - جدید",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f712783d-41ae-4681-a371-ab355a334ad3",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 129,
+      "titleFa": "دریافت های نقدی حاصل از فروش سرمایه گذاری در املاک",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "673a6b1e-baca-44dc-8680-0a8ab16bdd7f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 130,
+      "titleFa": "پرداخت های نقدی برای تحصیل سرمایه گذاری در املاک",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f818ada0-3da4-4b3d-9e06-3c2d8de06b7d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 131,
+      "titleFa": "دریافت های نقدی حاصل از صرف سهام",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "90b0f763-25a9-4a90-91a4-1bcc3e00ec71",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 132,
+      "titleFa": "دریافت های نقدی حاصل از انتشار اوراق خرید دین",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "33df0f9e-a806-4993-a011-9312f63e5169",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 133,
+      "titleFa": "پرداخت های نقدی بابت اصل اوراق خرید دین",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "04f2c739-c2ab-4cc4-b98d-27ae003cf2ef",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 134,
+      "titleFa": "پرداخت های نقدی بابت سود اوراق خرید دین",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a7293d5c-86db-49a2-a642-77c3258a2e4b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 135,
+      "titleFa": "پرداخت های نقدی بابت سود اجاره سرمایه‌ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "18533577-d92d-4c81-ba4f-f434e06fdd62",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 136,
+      "titleFa": "پرداخت‌های نقدی ناشی از تحصیل منافع فاقد حق کنترل",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7e0bf47f-1fb3-4862-b884-fb78ecf25b40",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 137,
+      "titleFa": "دریافت‌های نقدی ناشی از واگذاری بخشی از شرکت فرعی - با حفظ کنترل",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "fb43dc29-fc63-4e20-b26e-66a8b126fe01",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 138,
+      "titleFa": "دریافت‌های نقدی ناشی از فروش سهام خزانه توسط شرکت فرعی- سهم منافع فاقد حق کنترل",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d5c65531-c19f-47c6-8e73-a4c46281a444",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 139,
+      "titleFa": "پرداخت‌های نقدی برای خرید سهام خزانه توسط شرکت فرعی- سهم منافع فاقد حق کنترل",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 1,
+      "titleFa": "بهای تمام شده کالای فروش رفته و خدمات ارائه شده",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 5,
+      "titleFa": "هزینه های فروش، اداری و عمومی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "cac8221d-c594-41b7-bdea-bf7f1a490bf6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 6,
+      "titleFa": "هزینه مطالبات مشکوک الوصول",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0df90c91-1951-4871-9e73-94841f3203d6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 7,
+      "titleFa": "کارمزد پرداختی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "693cafce-bf83-4b39-9816-cfba9ddf4c3d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 8,
+      "titleFa": "هزینه استهلاک",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 12,
+      "titleFa": "هزینه‌های مالی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "FINANCE_COSTS"
+    },
+    {
+      "sourceItemCatalogId": "e9f18829-223a-4891-9383-b8e6ab46cb8c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 13,
+      "titleFa": "مالیات بر درآمد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 15,
+      "titleFa": "فروش خالص و درآمد ارایه خدمات",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "REVENUE"
+    },
+    {
+      "sourceItemCatalogId": "68da6fd7-7bad-4bec-9195-93e143b7d499",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 24,
+      "titleFa": "درآمد حاصل از سپرده گذاری‌ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a8edfd7a-a2bb-4cd8-bdd8-5ae79fc0de8b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 26,
+      "titleFa": "کارمزد دریافتی و درآمد حق عاملیت",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "62002a73-a8c3-4024-b1a5-baaa6663abc5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 27,
+      "titleFa": "نتیجه معاملات ارزی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e4663857-0f93-4dc0-854a-578d2219e85d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 29,
+      "titleFa": "سود (زیان) انباشته در ابتدای سال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "adc24186-226f-4b83-831b-f347dd85ed2c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 30,
+      "titleFa": "تعدیلات سنواتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8bdc13d4-d080-4913-b33c-4898b64a3194",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 32,
+      "titleFa": "سود سهام مصوب سال قبل-قبل از تخصیص",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a28e4fb1-0d84-4825-8856-ad60057bdf7c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 34,
+      "titleFa": "اندوخته قانونی-تخصیص داده شده ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f2760e5c-be40-4b7e-82d8-7acf8cb4383b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 36,
+      "titleFa": "سایر اندوخته‌ها-تخصیص داده شده",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 39,
+      "titleFa": "خالص سایر درآمدها و هزینه های عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 40,
+      "titleFa": "خالص سایر درآمدها و هزینه‌های غیر عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "84f586b7-9125-4fe2-af15-8fdabad9f9bf",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 46,
+      "titleFa": "سود دریافتی بابت تسهیلات عقود اسلامی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "5b88c83a-dfa8-4617-9c4c-2043d11258a2",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 60,
+      "titleFa": "سهم اقلیت افشایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a8c8cd77-be0d-47c6-ad4d-1477216893c4",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 61,
+      "titleFa": "سود(زیان) /درآمد حاصل از سرمایه گذاری ها-غیر عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "87408819-415c-4eee-865b-a71fd794d510",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 62,
+      "titleFa": "انتقال به حساب سرمایه قبل از تخصیص سود",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "035e64ba-ba85-44c2-a685-d93e930ae5d5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 84,
+      "titleFa": "خالص سود (زیان) حاصل از فروش سرمایه گذاری ها ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0132445a-713a-4c7c-97d7-d9dda4e30cea",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 94,
+      "titleFa": "جایزه سپرده قانونی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "133907f4-5e78-43a2-adb0-11f6ebfcc6f5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 108,
+      "titleFa": "سهم گروه از سود (زیان) شرکت های وابسته - غیر عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "64f3b8e4-01e1-4bac-8a29-ba8b41808ecc",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 115,
+      "titleFa": "حق بیمه صادره",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a1d70910-f0fb-48dd-a535-fb38966bcfd6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 117,
+      "titleFa": "خسارت سهم بیمه گران اتکایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a49546a7-b2b9-4566-9044-24344791a7ab",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 119,
+      "titleFa": "هزینه کارمزد و تمبر",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b4b78ac4-e6fb-435c-ad5b-7180637b6153",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 120,
+      "titleFa": "خسارت پرداختی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e510251e-df7f-4167-aa02-f2888f316f9c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 123,
+      "titleFa": "سایر درآمد (هزینه) ‌های بیمه‌ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1125c133-af0c-4d76-8f5a-f12fedf7bc83",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 126,
+      "titleFa": "سهم اقلیت محاسباتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7be60af2-c245-4804-a16e-b0233f658893",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 133,
+      "titleFa": "تعدیلات تلفیق",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 139,
+      "titleFa": "سود ناخالص",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "GROSS_PROFIT"
+    },
+    {
+      "sourceItemCatalogId": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 140,
+      "titleFa": "سود عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "OPERATING_PROFIT"
+    },
+    {
+      "sourceItemCatalogId": "2875784c-495a-40fe-b206-59baa71f844f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 141,
+      "titleFa": "سود قبل از احتساب سهم گروه از سود (زیان) شرکت های وابسته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 142,
+      "titleFa": "سود ناشی از فعالیت های عادی قبل از مالیات",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 143,
+      "titleFa": "سود خالص",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "NET_PROFIT"
+    },
+    {
+      "sourceItemCatalogId": "52a19de6-4a0a-4be9-8dbc-3b487a05c08d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 144,
+      "titleFa": "سود خالص قابل انتساب به صاحبان سهام شرکت اصلی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8d8a2c1f-1877-4f68-99b0-8422978bbd83",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 145,
+      "titleFa": "سود (زیان) انباشته در ابتدای سال- تعدیل شده",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "85f31da2-edd0-47a5-a23b-8f8adca72685",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 146,
+      "titleFa": "سود (زیان) انباشته ابتدای دوره تخصیص نیافته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "95f8343a-ed35-4f94-89d8-a346252ca01c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 147,
+      "titleFa": "سود تخصیص داده شده طی سال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f2244560-53b9-4e1d-a2fb-d2fcb74e1e0f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 148,
+      "titleFa": "سود (زیان) انباشته در پایان سال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8829a6ea-5665-444d-912c-656df707a0e6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 149,
+      "titleFa": "سود قبل از کسر اقلام غیر مترقبه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "696fe4b1-e49e-4ace-bccc-0af9128e8687",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 150,
+      "titleFa": "جمع درآمد های مشاع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "7571c831-a248-448c-8519-02826f9d2c74",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 151,
+      "titleFa": "جمع درآمد های غیر مشاع ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "525c25d7-18ac-4088-92c8-b56deb54297f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 152,
+      "titleFa": "سهم سود بانک از درآمد های مشاع (شامل حق الوکاله)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 153,
+      "titleFa": "تعداد سهام شرکت - به هزار سهم ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 160,
+      "titleFa": "سود خالص هر سهم ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "EPS"
+    },
+    {
+      "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 161,
+      "titleFa": "سود عملیاتی هر سهم ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 162,
+      "titleFa": "سود هر سهم قبل از کسر مالیات ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 163,
+      "titleFa": "حصه هر سهم از جمع درآمدها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "acf7fad9-5752-4c5c-9647-0f5e4e303348",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 167,
+      "titleFa": "سود (زیان) فروش دارایی‌های زیستی مولد ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "515f20cd-549b-4163-a821-2e52f0bead86",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 168,
+      "titleFa": "سود خالص تلفیقی هر سهم",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "EPS_CONSOLIDATED"
+    },
+    {
+      "sourceItemCatalogId": "9ee137e1-96ec-4e9f-97a9-45049d96cdf1",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 182,
+      "titleFa": "جمع درآمدهای بیمه ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "471569fd-5092-423f-baa8-d39db96259ca",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 183,
+      "titleFa": "جمع هزینه های بیمه ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0d2f9d03-ee50-4955-baeb-556932564c77",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 184,
+      "titleFa": "سود ناخالص بیمه ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "76692e64-3afe-440d-8606-26d2a0cfbcc6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 185,
+      "titleFa": "تغییر در ذخایر ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1e6af349-f446-4e29-af7f-4bd20a48d537",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 187,
+      "titleFa": "حق بیمه اتکائی واگذاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "081df587-7e6c-4e21-b498-36b78f83d390",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 191,
+      "titleFa": "سود علی الحساب سپرده‌های سرمایه‌گذاری مدت دار",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "16c03d27-e595-4059-9d2e-ce6f74646601",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 193,
+      "titleFa": "سود و وجه التزام دریافتی غیر مشاع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e8981ac5-d5c7-4eed-ad15-751b52ddef19",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 194,
+      "titleFa": "خالص سایر درآمدهای غیر مشاع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "45053c82-f72f-4883-8d5e-cd31627db72e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 196,
+      "titleFa": "بهای تمام شده خدمات ارائه شده شرکت‌های وابسته و فرعی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "d5cf52c3-7f6a-4e76-8b12-4967ac548b44",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 197,
+      "titleFa": "درآمد حاصل از خدمات ارائه شده شرکت‌های وابسته و فرعی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "3ec18832-2461-4785-9ac6-67ae79a49c5a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 198,
+      "titleFa": "سود (زیان) حاصل از خدمات ارائه شده",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b63cc22b-9358-4211-99f5-98c3b9b608db",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 199,
+      "titleFa": "جمع درآمدهای بانک و درآمد عملیاتی شرکت ها",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1a3886c1-eb58-4bb6-b20a-0922e38aedca",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 200,
+      "titleFa": "جمع هزینه های عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "dc53f4fe-fd63-4783-8af7-092c1cd1cf41",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 202,
+      "titleFa": "حصه هر سهم از جمع درآمدهای مشاع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "51b39c9d-ed7e-40a6-b7b4-26e220e9b279",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 207,
+      "titleFa": "سود (زیان) سرمایه گذاریها از محل ذخائر فنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a66c8797-bc1d-453b-bc9b-2a7ac66eabac",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 208,
+      "titleFa": "سود (زیان) سرمایه گذاریها از محل سایر منابع ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1edae980-7454-4c8e-b945-5f7dc428bdf8",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 211,
+      "titleFa": "درآمد حق بیمه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f49d7ef0-4d88-4707-ae26-d28f56f141b0",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 212,
+      "titleFa": "هزینه حق بیمه واگذاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "fb2e035b-6d17-428e-935b-ccb2a1f106d4",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 213,
+      "titleFa": "درآمد حق بیمه سهم نگهداری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "fcf99de9-de8f-4674-931d-d0a06adee7cb",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 214,
+      "titleFa": "هزینه خسارت ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c14f7523-639e-4ff8-9ee8-c004f2da99d5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 215,
+      "titleFa": "خالص خسارت سهم بیمه گران اتکایی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8829136a-de35-45bd-a5d4-82244f4a8a9a",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 216,
+      "titleFa": "هزینه خسارت سهم نگهداری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "32ea4124-13a5-44e4-b50b-dc70f511d85e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 217,
+      "titleFa": "هزینه کارمزد و کارمزد منافع سهم نگهداری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "14f2cce7-29ee-4b43-85d4-8e338d95f3a9",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 218,
+      "titleFa": "سود عملیات بیمه ای",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b2d87e73-9e8d-450e-9202-75db82d1450d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 219,
+      "titleFa": "درآمد سرمایه گذاریها از محل ذخائر فنی و سایر منابع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "112cc52c-d73b-4607-8009-1265a88a658b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 220,
+      "titleFa": "ذخیره کاهش ارزش سرمایه گذاریها از محل ذخائر فنی و سایر منابع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "c2cf156c-ff98-4693-ae37-8f8a3b085f44",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 224,
+      "titleFa": "سود حاصل از سپرده گذاریها و سرمایه گذاریها و اوراق مشارکت غیر مشاع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "f2767848-cd54-420e-a72f-f67dbe8fc1b7",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 225,
+      "titleFa": "افزایش(کاهش) سایر ذخایر فنی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8cb31a7c-39f7-4db8-b909-b840355654cd",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 232,
+      "titleFa": "سود (زیان) عملیاتی قبل از اقلام استثنائی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b6560f64-80b9-4103-b9a0-f80a351bfe95",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 237,
+      "titleFa": "سود (زیان) / درآمد حاصل از سرمایه گذاری ها ",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8f17c58c-465f-4655-b1fe-2aa41cde6e41",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 244,
+      "titleFa": "جمع هزینه های بانک",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "996de859-a858-44f0-bc0e-6fcb8ea32e25",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 245,
+      "titleFa": "جمع درآمدهای مشاع و غیر مشاع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "49c8d66c-d0d6-42a1-9c66-4b5d4827bde7",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 248,
+      "titleFa": "درآمدهای عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "21f218a4-da94-4a6b-93fe-eec387698be2",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 249,
+      "titleFa": "هزینه های عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "573f236a-5ebe-4f9c-be51-62ba797174d5",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 251,
+      "titleFa": "سود خالص عملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "140b45a6-11f3-4b85-b542-384c37e020e1",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 259,
+      "titleFa": "اندوخته قانونی محاسباتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0446655c-ac46-4a05-8275-4d702373fa7f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 260,
+      "titleFa": "مجموع اندوخته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 278,
+      "titleFa": "سود (زیان) عملیات متوقف شده",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 279,
+      "titleFa": "سود (زیان) عملیات در حال تداوم",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a3121d6b-107c-4f39-91a0-543cb8622524",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 300,
+      "titleFa": "درآمد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "TOTAL_REVENUE"
+    },
+    {
+      "sourceItemCatalogId": "ae239a2c-3674-43b7-b158-0a04cb60a91f",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 304,
+      "titleFa": "درآمد تسهیلات اعطایی و سپرده گذاری (بانک مرکزی)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "4c7de27e-5071-4bc5-9f83-c06ab92520d1",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 305,
+      "titleFa": "هزینه سود سپرده ها (بانک مرکزی)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "0ad5ab2a-b72f-4e45-8cee-e9523b9d15ea",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 306,
+      "titleFa": "خالص درآمد تسهیلات و سپرده گذاری (بانک مرکزی)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1cb2af63-f373-44b7-aed8-faddacbf7b85",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 307,
+      "titleFa": "خالص درآمد کارمزد (بانک مرکزی)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "cac51697-4ebf-4abd-9338-7322b2e0e0da",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 309,
+      "titleFa": "جمع سایر درآمدهای عملیاتی (بانک مرکزی)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "b63f0700-49cf-47c6-a014-9412ead39c18",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 310,
+      "titleFa": "سود ناخالص - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2c19bd69-aa98-45b1-a0c4-ccbf88d25506",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 311,
+      "titleFa": "سود عملیاتی - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "8b5f9ffb-ee8e-41c8-a300-5883ea53753b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 312,
+      "titleFa": "سود ناشی از فعالیت های عادی قبل از مالیات - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "6c445213-defd-44ed-abcd-e8da12ce3203",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 313,
+      "titleFa": "سود خالص - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "5e626ac2-4910-49f1-b458-7f11f3b63b85",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 314,
+      "titleFa": "سود (زیان) انباشته در ابتدای سال- تعدیل شده - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e8b81414-0e84-4196-9977-ef0af752012e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 315,
+      "titleFa": "سود قابل تخصیص - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "678fefbd-0883-407c-9333-817f3d49230e",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 316,
+      "titleFa": "سود (زیان) انباشته در پایان سال - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 317,
+      "titleFa": "سود خالص هر سهم - کدال",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "85221549-c05e-46aa-9f8f-cc207a0923a3",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 330,
+      "titleFa": "سود قبل از بهره و مالیات (EBIT)",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "38d24718-0972-4117-8b98-3c5cadfa0b11",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 331,
+      "titleFa": "سود قابل تخصیص",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "dd4960e6-87c3-4b99-b3cd-a336b2dfbfcb",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 332,
+      "titleFa": "سود (زیان) انباشته قابل انتساب به صاحبان سهام شرکت اصلی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "443cd6ca-fc73-418e-a805-0507ce64b277",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 333,
+      "titleFa": "انتقال از سایر اقلام حقوق صاحبان سهام",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 334,
+      "titleFa": "مالیات سال جاری",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "3ac8706d-2889-4161-9b48-22c93f1b5df4",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 335,
+      "titleFa": "مالیات سال های قبل",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "6c4c1ac3-8578-44d9-bcc3-8556be73ed84",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 336,
+      "titleFa": "مجموع مالیات بر درآمد",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": "INCOME_TAX"
+    },
+    {
+      "sourceItemCatalogId": "85980220-c385-47b4-92b2-493a3c40b7d8",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 337,
+      "titleFa": "مغایرت گردش سود و زیان انباشته",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "a6865656-da79-430c-8168-73f821542486",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 338,
+      "titleFa": "فروش سهام خزانه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "e1868b14-59cd-4cf3-85e0-c8cf93483f74",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 339,
+      "titleFa": "هزینه مشارکت در منافع",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "2ce59b0e-e9f9-40c1-94f9-10598aea342b",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 340,
+      "titleFa": "خرید سهام خزانه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "63df05ea-4c57-4576-8d2c-da0c866c5957",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 346,
+      "titleFa": "سهم گروه از سود مشارکت های خاص - غیرعملیاتی",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    },
+    {
+      "sourceItemCatalogId": "560ac83a-449e-44a1-b29d-4c23405715cf",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 348,
+      "titleFa": "سود (زیان) حاصل از فروش سهام خزانه",
+      "titleEn": null,
+      "unit": "N/A",
+      "metricCode": null
+    }
+  ]
+}

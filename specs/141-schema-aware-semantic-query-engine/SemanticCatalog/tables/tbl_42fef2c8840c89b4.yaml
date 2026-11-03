@@ -1,0 +1,62 @@
+{
+  "id": "tbl_42fef2c8840c89b4",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_subscription_plans",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Code",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "IncludedCredits",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "PricingPolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Code"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_billing_subscription_plans",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_subscription_plans\" ON public.billing_subscription_plans USING btree (\"Code\")",
+        "Columns": [
+          "Code"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_billing_subscription_plans",
+        "Type": "p",
+        "Columns": [
+          "Code"
+        ],
+        "Definition": "PRIMARY KEY (\"Code\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

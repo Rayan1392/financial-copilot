@@ -76,6 +76,11 @@ public sealed record NadpcoApiMonthlyActivityRequest(
     [property: JsonPropertyName("toDate")] string? ToDate,
     [property: JsonPropertyName("outputType")] int? OutputType);
 
+// ServiceSales has a separate vendor contract from ProductSales: its plural-named
+// companyIds field is a scalar company id, not the ProductSales array shape.
+public sealed record NadpcoApiServiceSalesRequest(
+    [property: JsonPropertyName("companyIds")] int CompanyIds);
+
 public sealed record NadpcoApiStatementRequest(
     [property: JsonPropertyName("companyIds")] IReadOnlyCollection<int> CompanyIds,
     [property: JsonPropertyName("items")] IReadOnlyCollection<int> Items);
@@ -204,6 +209,9 @@ public sealed class NadpcoApiProductSalesRecord
     [JsonPropertyName("publishDate")]
     public string? PublishDate { get; init; }
 
+    [JsonPropertyName("publishDateTime")]
+    public string? PublishDateTime { get; init; }
+
     [JsonPropertyName("jalaliPublishDate")]
     public string? JalaliPublishDate { get; init; }
 
@@ -309,6 +317,19 @@ public sealed class NadpcoApiProductSalesRecord
 
     public string? GetProductCode() => FirstNonEmpty(ProductCode, GetProductId()?.ToString());
 
+    /// <summary>Provider row identity, when the live contract exposes one.</summary>
+    public string? GetSourceRowId() => FirstNonEmpty(
+        TryGetString("providerRowId"),
+        TryGetString("sourceRowId"),
+        TryGetString("lineItemId"),
+        TryGetString("productSalesId"),
+        TryGetString("detailId")) ??
+        TryGetInt64("providerRowId")?.ToString() ??
+        TryGetInt64("sourceRowId")?.ToString() ??
+        TryGetInt64("lineItemId")?.ToString() ??
+        TryGetInt64("productSalesId")?.ToString() ??
+        TryGetInt64("detailId")?.ToString();
+
     private string? TryGetString(string propertyName) =>
         ExtensionData.TryGetValue(propertyName, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
@@ -386,6 +407,9 @@ public sealed class NadpcoApiServiceSalesRecord
     [JsonPropertyName("publishDate")]
     public string? PublishDate { get; init; }
 
+    [JsonPropertyName("publishDateTime")]
+    public string? PublishDateTime { get; init; }
+
     [JsonPropertyName("jalaliPublishDate")]
     public string? JalaliPublishDate { get; init; }
 
@@ -429,6 +453,12 @@ public sealed class NadpcoApiServiceSalesRecord
     [JsonPropertyName("revenueDuringThePeriod")]
     public decimal? RevenueDuringThePeriod { get; init; }
 
+    [JsonPropertyName("revenueFromTheBeginning")]
+    public decimal? RevenueFromBeginning { get; init; }
+
+    [JsonPropertyName("revenueEndOfLastPeriod")]
+    public decimal? RevenueEndOfLastPeriod { get; init; }
+
     /// <summary>Live v3 field name for the company TSE ticker.</summary>
     [JsonPropertyName("companyTSESymbol")]
     public string? CompanyTSESymbol { get; init; }
@@ -457,10 +487,16 @@ public sealed class NadpcoApiServiceSalesRecord
     public decimal? GetSalesRate() => SalesRate ?? ServiceSaleRate ?? TryGetDecimal("rate") ?? TryGetDecimal("saleRate");
 
     public decimal? GetSalesValue() =>
-        SalesValue ?? ServiceSaleValue ?? RevenueDuringThePeriod ??
-        TryGetDecimal("value") ?? TryGetDecimal("saleValue") ?? TryGetDecimal("amount");
+        RevenueDuringThePeriod ?? TryGetDecimal("revenueDuringThePeriod");
 
     public string? GetServiceCode() => FirstNonEmpty(ServiceCode, GetServiceId()?.ToString());
+
+    public string? GetSourceRowId() => FirstNonEmpty(
+        TryGetString("providerRowId"), TryGetString("sourceRowId"), TryGetString("lineItemId"),
+        TryGetString("serviceSalesId"), TryGetString("detailId")) ??
+        TryGetInt64("providerRowId")?.ToString() ?? TryGetInt64("sourceRowId")?.ToString() ??
+        TryGetInt64("lineItemId")?.ToString() ?? TryGetInt64("serviceSalesId")?.ToString() ??
+        TryGetInt64("detailId")?.ToString();
 
     private string? TryGetString(string propertyName) =>
         ExtensionData.TryGetValue(propertyName, out var value) && value.ValueKind == JsonValueKind.String
@@ -526,4 +562,9 @@ public sealed record NadpcoApiCompanyRecord(
     [property: JsonPropertyName("registrationNumber")] string? RegistrationNumber,
     [property: JsonPropertyName("registrationProvince")] string? RegistrationProvince,
     [property: JsonPropertyName("registrationCity")] string? RegistrationCity,
-    [property: JsonPropertyName("marketBoard")] string? MarketBoard);
+    [property: JsonPropertyName("marketBoard")] string? MarketBoard,
+    [property: JsonPropertyName("reportingType")] int? ReportingType,
+    [property: JsonPropertyName("marketBoardID")] int? MarketBoardID,
+    [property: JsonPropertyName("marketBoardTitle")] string? MarketBoardTitle,
+    [property: JsonPropertyName("activityTypeID")] int? ActivityTypeID,
+    [property: JsonPropertyName("activityTypeTitle")] string? ActivityTypeTitle);

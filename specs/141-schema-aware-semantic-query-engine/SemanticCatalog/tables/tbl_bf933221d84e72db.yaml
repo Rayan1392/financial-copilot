@@ -1,0 +1,102 @@
+{
+  "id": "tbl_bf933221d84e72db",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_user_roles",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "UserId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "RoleId",
+        "Type": "uuid",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "UserId",
+      "RoleId"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "RoleId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_roles",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"RoleId\") REFERENCES auth_roles(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "UserId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_user_roles_RoleId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_user_roles_RoleId\" ON public.auth_user_roles USING btree (\"RoleId\")",
+        "Columns": [
+          "RoleId"
+        ]
+      },
+      {
+        "Name": "PK_auth_user_roles",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_user_roles\" ON public.auth_user_roles USING btree (\"UserId\", \"RoleId\")",
+        "Columns": [
+          "UserId",
+          "RoleId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_user_roles_auth_roles_RoleId",
+        "Type": "f",
+        "Columns": [
+          "RoleId"
+        ],
+        "Definition": "FOREIGN KEY (\"RoleId\") REFERENCES auth_roles(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_auth_user_roles_auth_users_UserId",
+        "Type": "f",
+        "Columns": [
+          "UserId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_user_roles",
+        "Type": "p",
+        "Columns": [
+          "UserId",
+          "RoleId"
+        ],
+        "Definition": "PRIMARY KEY (\"UserId\", \"RoleId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

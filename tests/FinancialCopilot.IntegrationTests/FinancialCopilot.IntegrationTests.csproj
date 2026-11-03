@@ -5,14 +5,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <UserSecretsId>644b18bc-2435-4b56-b041-cac7987bff32</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="Xunit.SkippableFact" Version="1.5.61" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 
@@ -24,6 +31,8 @@
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.API\FinancialCopilot.API.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Billing\FinancialCopilot.Billing.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Infrastructure\FinancialCopilot.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\backend\FinancialCopilot.TelegramGateway\FinancialCopilot.TelegramGateway.csproj" Aliases="TelegramGateway" />
+    <Compile Include="..\..\tools\SemanticCatalog\EvaluationConfigurationLoader.cs" Link="TestSupport\EvaluationConfigurationLoader.cs" />
   </ItemGroup>
 
 </Project>

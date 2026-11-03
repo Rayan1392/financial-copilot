@@ -1,0 +1,366 @@
+using System.Net;
+using System.Text;
+using FinancialCopilot.Application.Authentication.TahlilApp;
+using FinancialCopilot.Domain.Identity.TahlilApp;
+using FinancialCopilot.Infrastructure.Administration;
+using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+
+namespace FinancialCopilot.UnitTests;
+
+public sealed class TahlilAppExchangeParserTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 20, 12, 0, 0, TimeSpan.Zero);
+    private static readonly IReadOnlyDictionary<string, string> Plans = new Dictionary<string, string>
+    {
+        ["sapio_plus"] = "Plus",
+        ["sapio_pro"] = "Pro"
+    };
+
+    [Fact]
+    public void OfficialResponse_ParsesSnakeCaseAndNullableName()
+    {
+        var result = Parse("""{"user_id":"u-1","name":null,"subscription":{"active":true,"expires_at":"2026-12-16T08:06:31.000Z","plans":[{"slug":"sapio_plus","starts_at":"2026-11-16T08:06:31.000Z","expires_at":"2026-12-16T08:06:31.000Z"}]}}""");
+        Assert.NotNull(result);
+        Assert.Equal(IncomingProfileField.Null, result!.DisplayName);
+        Assert.Equal("Plus", result.ExternalPlan);
+        var item = result.PlanSubscriptions![0];
+        Assert.Equal($"sapio_plus:{item.StartsAt.ToUnixTimeMilliseconds()}:{item.ExpiresAt.ToUnixTimeMilliseconds()}", item.IdentityKey);
+    }
+
+    [Fact]
+    public void OfficialProResponseSample_ParsesUserAndActivePlan()
+    {
+        var result = Parse("""{"user_id":"d647420371eb1270418f59c20d6c7d02","name":"Test User","subscription":{"active":true,"expires_at":"2026-11-27T08:22:04.000Z","plans":[{"slug":"sapio_pro","starts_at":"2026-10-28T08:22:04.000Z","expires_at":"2026-11-27T08:22:04.000Z"}]}}""");
+
+        Assert.NotNull(result);
+        Assert.Equal("d647420371eb1270418f59c20d6c7d02", result!.ExternalUserId);
+        Assert.Equal(IncomingProfileField.Valid("Test User"), result.DisplayName);
+        Assert.Equal("Pro", result.ExternalPlan);
+        Assert.True(result.IsSubscriptionActive);
+        Assert.Equal(DateTimeOffset.Parse("2026-11-27T08:22:04.000Z"), result.SubscriptionExpiresAt);
+    }
+
+    [Fact]
+    public void OfficialPersianResponse_ParsesTheFullNameAsDisplayName_WithoutSplittingIt()
+    {
+        var result = Parse(OfficialJson("\"name\":\"کامران عبدی\","));
+
+        Assert.NotNull(result);
+        Assert.Equal("d647420371eb1270418f59c20d6c7d02", result!.ExternalUserId);
+        Assert.Equal(IncomingProfileField.Valid("کامران عبدی"), result.DisplayName);
+        Assert.Equal(IncomingProfileField.Absent, result.FirstName);
+        Assert.Equal(IncomingProfileField.Absent, result.LastName);
+        Assert.Equal("Pro", result.ExternalPlan);
+    }
+
+    [Fact]
+    public void Name_IsTrimmed()
+    {
+        var result = Parse(OfficialJson("\"name\":\"  کامران عبدی \","));
+
+        Assert.Equal(IncomingProfileField.Valid("کامران عبدی"), result!.DisplayName);
+    }
+
+    [Fact]
+    public void MissingName_IsAbsent()
+    {
+        Assert.Equal(IncomingProfileField.Absent, Parse(OfficialJson(string.Empty))!.DisplayName);
+    }
+
+    [Theory]
+    [InlineData("\"name\":123,")]
+    [InlineData("\"name\":true,")]
+    [InlineData("\"name\":{\"first\":\"x\"},")]
+    [InlineData("\"name\":[\"x\"],")]
+    [InlineData("\"name\":\"\",")]
+    [InlineData("\"name\":\"   \",")]
+    [InlineData("\"name\":\"bad\\u0007name\",")]
+    [InlineData("\"name\":\"line\\nbreak\",")]
+    public void InvalidName_IsInvalid_AndNeverRejectsTheExchange(string nameProperty)
+    {
+        var result = Parse(OfficialJson(nameProperty));
+
+        Assert.NotNull(result);
+        Assert.Equal(IncomingProfileField.Invalid, result!.DisplayName);
+        Assert.Equal("d647420371eb1270418f59c20d6c7d02", result.ExternalUserId);
+        Assert.Equal("Pro", result.ExternalPlan);
+    }
+
+    [Fact]
+    public void NameLongerThanTheColumn_IsInvalid_AndTheBoundaryLengthIsValid()
+    {
+        var atLimit = new string('ن', PersonName.MaximumLength);
+        var overLimit = new string('ن', PersonName.MaximumLength + 1);
+
+        Assert.Equal(IncomingProfileField.Valid(atLimit), Parse(OfficialJson($"\"name\":\"{atLimit}\","))!.DisplayName);
+        Assert.Equal(IncomingProfileField.Invalid, Parse(OfficialJson($"\"name\":\"{overLimit}\","))!.DisplayName);
+    }
+
+    [Fact]
+    public void ParsedDisplayName_IsRedactedInToString()
+    {
+        var result = Parse(OfficialJson("\"name\":\"کامران عبدی\","));
+
+        Assert.DoesNotContain("کامران", result!.ToString());
+        Assert.DoesNotContain("کامران", result.DisplayName!.ToString());
+    }
+
+    /// <summary>The official exchange sample (Feature 139 contract) with a replaceable <c>name</c> property.</summary>
+    internal static string OfficialJson(string nameProperty) =>
+        $$$"""{"user_id":"d647420371eb1270418f59c20d6c7d02",{{{nameProperty}}}"subscription":{"active":true,"expires_at":"2026-11-27T08:22:04.000Z","plans":[{"slug":"sapio_pro","starts_at":"2026-10-28T08:22:04.000Z","expires_at":"2026-11-27T08:22:04.000Z"}]}}""";
+
+    [Fact]
+    public void ConcurrentPlusAndPro_SelectsLatestExpiryAndPreservesBothWindows()
+    {
+        var result = Parse("""{"user_id":"u-2","subscription":{"plans":[{"slug":"sapio_plus","starts_at":"2026-11-01T00:00:00Z","expires_at":"2026-12-20T00:00:00Z"},{"slug":"sapio_pro","starts_at":"2026-11-15T00:00:00Z","expires_at":"2026-12-01T00:00:00Z"}]}}""");
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.PlanSubscriptions!.Count);
+        var decision = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            result.PlanSubscriptions.Select(item => (item.Slug, item.StartsAt, item.ExpiresAt)).ToArray(), Now, Plans);
+        Assert.Equal("Plus", decision.PlanCode);
+        Assert.Equal(DateTimeOffset.Parse("2026-12-20T00:00:00Z"), decision.EffectiveTo);
+    }
+
+    [Fact]
+    public void ConcurrentPlusAndProWithExactExpiryTie_PreservesExistingProTieBreak()
+    {
+        var now = DateTimeOffset.Parse("2026-11-20T00:00:00Z");
+        var expiresAt = now.AddDays(10);
+        var decision = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            new[]
+            {
+                ("sapio_plus", now.AddDays(-1), expiresAt),
+                ("sapio_pro", now.AddDays(-2), expiresAt)
+            }, now, Plans);
+
+        Assert.Equal("Pro", decision.PlanCode);
+        Assert.Equal(expiresAt, decision.EffectiveTo);
+    }
+
+    [Fact]
+    public void ConfiguredMaxSlugParsesAuthoritativeWindowAndMaxIsUnlimitedUntilItsExpiry()
+    {
+        var now = DateTimeOffset.Parse("2026-11-20T00:00:00Z");
+        var json = Encoding.UTF8.GetBytes("""{"user_id":"u-max","subscription":{"plans":[{"slug":"sapio_max","starts_at":"2026-11-01T00:00:00Z","expires_at":"2027-01-01T00:00:00Z"}]}}""");
+        var defaultSnapshot = TahlilAppExchangeParser.TryParse(json, now);
+        Assert.NotNull(defaultSnapshot);
+        Assert.Equal("Max", Assert.Single(defaultSnapshot!.PlanSubscriptions!).PlanCode);
+        Assert.Equal(DateTimeOffset.Parse("2027-01-01T00:00:00Z"), defaultSnapshot.SubscriptionExpiresAt);
+
+        var map = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["sapio_plus"] = "Plus", ["sapio_pro"] = "Pro", ["sapio_max"] = "Max"
+        };
+        var snapshot = TahlilAppExchangeParser.TryParse(json, now, map);
+        Assert.NotNull(snapshot);
+        var parsedPlans = snapshot!.PlanSubscriptions;
+        Assert.NotNull(parsedPlans);
+        Assert.Equal("Max", parsedPlans.Single().PlanCode);
+        Assert.Equal(DateTimeOffset.Parse("2027-01-01T00:00:00Z"), parsedPlans.Single().ExpiresAt);
+
+        var overlap = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            new[]
+            {
+                ("sapio_max", now.AddDays(-1), now.AddDays(20)),
+                ("sapio_pro", now.AddDays(-1), now.AddDays(30))
+            }, now, map);
+        Assert.Equal("Max", overlap.PlanCode);
+        Assert.Equal(now.AddDays(20), overlap.EffectiveTo);
+
+        var afterMaxExpiry = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            new[]
+            {
+                ("sapio_max", now.AddDays(-1), now.AddDays(20)),
+                ("sapio_pro", now.AddDays(-1), now.AddDays(30)),
+                ("sapio_plus", now.AddDays(-1), now.AddDays(40))
+            }, now.AddDays(21), map);
+        Assert.Equal("Plus", afterMaxExpiry.PlanCode);
+        Assert.Equal(now.AddDays(40), afterMaxExpiry.EffectiveTo);
+    }
+
+    [Fact]
+    public void InvalidTimestampOrUnknownUserShapeIsRejected()
+    {
+        Assert.Null(Parse("""{"user_id":"u-3","subscription":{"plans":[{"slug":"sapio_pro","starts_at":"2026-11-01T00:00:00+03:30","expires_at":"2026-12-01T00:00:00Z"}]}}"""));
+        Assert.Null(Parse("""{"user":{"user_id":"u-3"},"subscription":{"plans":[]}}"""));
+    }
+
+    private static FinancialCopilot.Application.Authentication.TahlilApp.TahlilAppExchangeSnapshot? Parse(string json) =>
+        TahlilAppExchangeParser.TryParse(Encoding.UTF8.GetBytes(json), Now);
+}
+
+public sealed class TahlilAppStatusParserTests
+{
+    [Fact]
+    public void StatusResponseMatchesStableUserIdAndReturnsPlanSet()
+    {
+        var json = Encoding.UTF8.GetBytes("""{"user_id":"u-status","subscription":{"plans":[{"slug":"sapio_pro","starts_at":"2026-11-01T00:00:00Z","expires_at":"2026-12-01T00:00:00Z"}]}}""");
+        var result = TahlilAppStatusParser.TryParse(json, "u-status", DateTimeOffset.Parse("2026-11-20T00:00:00Z"), out var rejected);
+        Assert.NotNull(result);
+        Assert.Null(rejected);
+        Assert.Equal("Pro", result!.PlanSubscriptions![0].PlanCode);
+        Assert.Null(TahlilAppStatusParser.TryParse(json, "other", DateTimeOffset.UtcNow, out _));
+    }
+
+    [Fact]
+    public void StatusResponseMapsConfirmedMaxSlugAndAuthoritativeExpiryByDefault()
+    {
+        var expiresAt = DateTimeOffset.Parse("2027-01-01T00:00:00Z");
+        var json = Encoding.UTF8.GetBytes("""{"user_id":"u-status-max","subscription":{"plans":[{"slug":"sapio_max","starts_at":"2026-11-01T00:00:00Z","expires_at":"2027-01-01T00:00:00Z"}]}}""");
+        var result = TahlilAppStatusParser.TryParse(json, "u-status-max", DateTimeOffset.Parse("2026-11-20T00:00:00Z"), out var rejected);
+
+        Assert.NotNull(result);
+        Assert.Null(rejected);
+        var plan = Assert.Single(result!.PlanSubscriptions!);
+        Assert.Equal("Max", plan.PlanCode);
+        Assert.Equal(expiresAt, plan.ExpiresAt);
+    }
+}
+
+public sealed class TahlilAppIdentityGatewayTests
+{
+    private const string Code = "AbCdEfGhIjKlMnOpQrStUvWx";
+
+    [Fact]
+    public async Task ExchangeUsesOfficialPathAndBasicAuthentication()
+    {
+        var variable = UniqueVariable();
+        Environment.SetEnvironmentVariable(variable, "test-secret");
+        try
+        {
+            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, """{"user_id":"u-1","name":null,"subscription":{"plans":[]}}"""));
+            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "corr-9", CancellationToken.None);
+            Assert.Equal(TahlilAppExchangeOutcome.Succeeded, result.Outcome);
+            Assert.Equal("https://api.tahlilapp.example.test/api/partners/exchange", handler.LastRequestUri);
+            Assert.Equal("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("financial-copilot:test-secret")), handler.LastRequestHeaders!["Authorization"]);
+            Assert.DoesNotContain("X-Api-Key", handler.LastRequestHeaders.Keys);
+            Assert.DoesNotContain("X-SapioAI-Contract-Version", handler.LastRequestHeaders.Keys);
+            Assert.Contains(Code, handler.LastRequestBody);
+        }
+        finally { Environment.SetEnvironmentVariable(variable, null); }
+    }
+
+    [Fact]
+    public async Task StatusUsesOfficialPathAndBasicAuthentication()
+    {
+        var variable = UniqueVariable();
+        Environment.SetEnvironmentVariable(variable, "test-secret");
+        try
+        {
+            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, """{"user_id":"user:1","subscription":{"plans":[]}}"""));
+            var result = await CreateGateway(handler, variable).GetStatusAsync("user:1", "corr", CancellationToken.None);
+            Assert.Equal(TahlilAppStatusOutcome.Succeeded, result.Outcome);
+            Assert.Equal("https://api.tahlilapp.example.test/api/partners/users/user%3A1/status", handler.LastRequestUri);
+            Assert.StartsWith("Basic ", handler.LastRequestHeaders!["Authorization"]);
+        }
+        finally { Environment.SetEnvironmentVariable(variable, null); }
+    }
+
+    [Fact]
+    public async Task MissingSecretDoesNotSendRequest()
+    {
+        var handler = new StubHandler(_ => Json(HttpStatusCode.OK, "{}"));
+        var result = await CreateGateway(handler, UniqueVariable()).ExchangeAsync(Code, "c", CancellationToken.None);
+        Assert.Equal(TahlilAppExchangeOutcome.Unavailable, result.Outcome);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
+    public async Task PartnerBadRequestForExpiredOrConsumedCodeMapsToInvalidCode()
+    {
+        var variable = UniqueVariable();
+        Environment.SetEnvironmentVariable(variable, "test-secret");
+        try
+        {
+            var handler = new StubHandler(_ => Json(
+                HttpStatusCode.BadRequest,
+                """{"statusCode":400,"message":"کد ورود نامعتبر یا منقضی است"}"""));
+
+            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "corr-invalid", CancellationToken.None);
+
+            Assert.Equal(TahlilAppExchangeOutcome.InvalidCode, result.Outcome);
+            Assert.Equal(1, handler.Requests);
+            Assert.Contains(Code, handler.LastRequestBody);
+        }
+        finally { Environment.SetEnvironmentVariable(variable, null); }
+    }
+
+    private static string UniqueVariable() => $"TAHLILAPP_TEST_{Guid.NewGuid():N}";
+    private static TahlilAppIdentityGateway CreateGateway(StubHandler handler, string variable) => new(
+        new HttpClient(handler),
+        Options.Create(new TahlilAppOptions
+        {
+            Enabled = true,
+            BaseUrl = "https://api.tahlilapp.example.test/api/",
+            ClientSecretEnvironmentVariable = variable,
+            ExchangeTimeoutSeconds = 2
+        }),
+        TimeProvider.System,
+        NullLogger<TahlilAppIdentityGateway>.Instance);
+
+    private static HttpResponseMessage Json(HttpStatusCode status, string body) =>
+        new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
+    private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+        public Dictionary<string, string>? LastRequestHeaders { get; private set; }
+        public string LastRequestBody { get; private set; } = string.Empty;
+        public string? LastRequestUri { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests++;
+            LastRequestUri = request.RequestUri?.ToString();
+            LastRequestHeaders = request.Headers.ToDictionary(header => header.Key,
+                header => string.Join(",", header.Value), StringComparer.OrdinalIgnoreCase);
+            LastRequestBody = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+            return respond(request);
+        }
+    }
+}
+
+public sealed class AdminDirectoryDisplayNameTests
+{
+    [Theory]
+    [InlineData("کامران عبدی", "Ali", "Rezaei", "کامران عبدی")]
+    [InlineData(" کامران عبدی ", null, null, "کامران عبدی")]
+    [InlineData(null, "Ali", "Rezaei", "Ali Rezaei")]
+    [InlineData("   ", "Ali", null, "Ali")]
+    [InlineData(null, null, "Rezaei", "Rezaei")]
+    [InlineData(null, null, null, null)]
+    [InlineData("", " ", " ", null)]
+    public void DisplayName_WinsOverFirstAndLastName_ForOlderRecordsTheJoinRemains(
+        string? displayName, string? firstName, string? lastName, string? expected)
+    {
+        Assert.Equal(expected, EfCoreAdminUserQueries.ResolveDisplayName(displayName, firstName, lastName));
+    }
+}
+
+public sealed class TahlilAppOptionsValidatorTests
+{
+    private static readonly TahlilAppOptionsValidator Validator = new();
+
+    [Fact]
+    public void DisabledConfigurationIsValid() => Assert.True(Validator.Validate(null, new TahlilAppOptions()).Succeeded);
+
+    [Fact]
+    public void EnabledRequiresHttpsAndWritableKeyRing()
+    {
+        var result = Validator.Validate(null, new TahlilAppOptions { Enabled = true, BaseUrl = "http://tahlilapp.example.test" });
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Failures!, failure => failure.Contains("HTTPS"));
+        Assert.Contains(result.Failures!, failure => failure.Contains("KeyRingPath"));
+    }
+
+    [Fact]
+    public void PlanMapTargetMustBeCanonical()
+    {
+        var options = new TahlilAppOptions { PlanMap = new Dictionary<string, string> { ["sapio_plus"] = "Enterprise" } };
+        var result = Validator.Validate(null, options);
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Failures!, failure => failure.Contains("canonical"));
+    }
+}

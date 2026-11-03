@@ -5,6 +5,8 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence;
 public sealed class FinancialCopilotUser : IdentityUser<Guid>
 {
     public bool IsEnabled { get; set; } = true;
+    // False by default preserves the existing login policy for users created before email verification.
+    public bool EmailVerificationRequired { get; set; }
 }
 
 public sealed class FinancialCopilotRole : IdentityRole<Guid>
@@ -37,6 +39,24 @@ public sealed class UserTenantRow
     public bool IsDefault { get; set; }
 }
 
+/// <summary>Operational attribution and successful-authentication metadata for one local Identity user.</summary>
+public sealed class UserOperationalMetadataRow
+{
+    public Guid UserId { get; set; }
+    public DateTimeOffset? RegisteredAtUtc { get; set; }
+    public string AcquisitionSourceCode { get; set; } = "unknown";
+    public DateTimeOffset? LastSuccessfulLoginAtUtc { get; set; }
+    public string? LastLoginProviderCode { get; set; }
+    public long ConcurrencyVersion { get; set; } = 1;
+}
+
+public static class UserOperationalMetadataCodes
+{
+    public const string Native = "native";
+    public const string TahlilApp = "tahlilapp";
+    public const string Unknown = "unknown";
+}
+
 public sealed class RefreshTokenRow
 {
     public Guid Id { get; set; }
@@ -48,6 +68,24 @@ public sealed class RefreshTokenRow
     public DateTimeOffset? RevokedAt { get; set; }
     public Guid? ReplacedByTokenId { get; set; }
     public string? RevocationReason { get; set; }
+
+    /// <summary>Authentication method (<c>amr</c>) of the originating session; null for legacy rows (treated as password).</summary>
+    public string? AuthenticationMethod { get; set; }
+}
+
+public sealed class AuthEmailActionTokenRow
+{
+    public Guid Id { get; set; }
+    public Guid? UserId { get; set; }
+    public string Purpose { get; set; } = string.Empty;
+    public string TokenHash { get; set; } = string.Empty;
+    public string EmailKeyHash { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime? ConsumedAtUtc { get; set; }
+
+    /// <summary>Normalised target address of an <c>email_enrollment</c> token; null for every other purpose.</summary>
+    public string? PendingEmail { get; set; }
 }
 
 public sealed class SecurityAdminAuditRow

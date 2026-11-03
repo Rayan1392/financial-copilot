@@ -1,0 +1,28 @@
+{
+  "id": "rel_30dcd9bff83876c8",
+  "from": {
+    "schema": "public",
+    "table": "NotificationDeliveryAttempts",
+    "columns": [
+      "NotificationIntentId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "NotificationIntents",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

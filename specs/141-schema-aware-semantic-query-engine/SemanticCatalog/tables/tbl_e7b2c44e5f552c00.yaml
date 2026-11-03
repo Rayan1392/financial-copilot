@@ -1,0 +1,205 @@
+{
+  "id": "tbl_e7b2c44e5f552c00",
+  "physical": {
+    "Schema": "public",
+    "Name": "AlertRules",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "RuleType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricOrEventCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Operator",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Threshold",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "Unit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "BaselineWindow",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "Recurrence",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "CooldownMinutes",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ResetPolicy",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "SessionPolicy",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Hysteresis",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "State",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "OriginalText",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "ParserVersion",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "ConfirmationNonce",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RemovedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ConfirmationExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false,
+        "DefaultValue": "'-infinity'::timestamp with time zone"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_AlertRules_Actor_State",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_AlertRules_Actor_State\" ON public.\"AlertRules\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"State\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "State"
+        ]
+      },
+      {
+        "Name": "IX_AlertRules_Company_State_Type",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_AlertRules_Company_State_Type\" ON public.\"AlertRules\" USING btree (\"ExternalCompanyId\", \"State\", \"RuleType\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "State",
+          "RuleType"
+        ]
+      },
+      {
+        "Name": "PK_AlertRules",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_AlertRules\" ON public.\"AlertRules\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_AlertRules_Actor_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_AlertRules_Actor_IdempotencyKey\" ON public.\"AlertRules\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"IdempotencyKey\") WHERE (\"IdempotencyKey\" IS NOT NULL)",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "IdempotencyKey"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_AlertRules",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

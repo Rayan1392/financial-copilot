@@ -1,0 +1,92 @@
+﻿Test run for D:\Source\TahlilApp-AI\tests\FinancialCopilot.IntegrationTests\bin\Debug\net10.0\FinancialCopilot.IntegrationTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)
+[xUnit.net 00:00:00.54]   Discovering: FinancialCopilot.IntegrationTests
+[xUnit.net 00:00:00.64]   Discovered:  FinancialCopilot.IntegrationTests
+[xUnit.net 00:00:00.67]   Starting:    FinancialCopilot.IntegrationTests
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E22") [15 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E06") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E25") [11 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E27") [11 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E23") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E26") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E05") [13 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E14") [11 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E24") [6 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E21") [14 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E28") [13 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E08") [19 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E01") [9 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E09") [17 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E02") [13 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E03") [10 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.MonthlyProductionQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer [20 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E30") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E17") [14 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E32") [7 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E33") [15 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E29") [15 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E31") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E15") [17 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E34") [9 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CompanyDiscoveryQuestionRunsLiveLlmToIsolatedPostgreSqlAndReturnsTheProducerSet [24 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.TypedRejectionsStopBeforeSqlAndRecordTheirOutcome(caseId: "F141-E20") [2 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.TypedRejectionsStopBeforeSqlAndRecordTheirOutcome(caseId: "F141-E18") [8 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.TypedRejectionsStopBeforeSqlAndRecordTheirOutcome(caseId: "F141-E19") [7 s]
+dotnet : [xUnit.net 00:06:26.63]     FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.OperatingProf
+itPerShareQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer [FAIL]
+At line:1 char:777
++ ... GRES = "1"; dotnet test tests/FinancialCopilot.IntegrationTests --no- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([xUnit.net 00:0...anAnswer [FAIL]:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[xUnit.net 00:06:26.63]       Assert.Contains() Failure: Sub-string not found
+[xUnit.net 00:06:26.63]       String:    "کگهر در دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴"···
+[xUnit.net 00:06:26.63]       Not found: "۲۰۲۶-۰۶-۲۱"
+[xUnit.net 00:06:26.63]       Stack Trace:
+[xUnit.net 00:06:26.63]         D:\Source\TahlilApp-AI\tests\FinancialCopilot.IntegrationTests\Feature141EngineVerticalSliceTests.cs(122,0): at FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.OperatingProfitPerShareQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer()
+[xUnit.net 00:06:26.63]         D:\Source\TahlilApp-AI\tests\FinancialCopilot.IntegrationTests\Feature141EngineVerticalSliceTests.cs(135,0): at FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.OperatingProfitPerShareQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer()
+[xUnit.net 00:06:26.63]         --- End of stack trace from previous location ---
+[xUnit.net 00:06:26.63]       Output:
+[xUnit.net 00:06:26.63]         Intent: succeeded=True category= diagnostic= calls=1 latencyMs=5234
+[xUnit.net 00:06:26.63]         Plan: valid=True eligible=True diagnostics= company=Found/daecd0ed-48ed-4858-8ab8-efda8ee98f4b
+[xUnit.net 00:06:26.63]         Execution: status=Succeeded diagnostic= rows=1 unit=IRRPerShare
+[xUnit.net 00:06:26.63]         Persian answer: کگهر در دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵، مقدار مالی گزارش‌شده: ۳٬۷۵۳ IRRPerShare.
+منبع: NoavaranCurrentApi.
+[xUnit.net 00:06:26.63]         Trace artifact: D:\Source\TahlilApp-AI\specs\141-schema-aware-semantic-query-engine\evaluation\artifacts\engine-e2e-vertical-slice-2026-10-29-103855-F141-E04-answered.json
+  Failed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.OperatingProfitPerShareQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer [13 s]
+  Error Message:
+   Assert.Contains() Failure: Sub-string not found
+String:    "کگهر در دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴"···
+Not found: "۲۰۲۶-۰۶-۲۱"
+  Stack Trace:
+     at FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.OperatingProfitPerShareQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer() in D:\Source\TahlilApp-AI\tests\FinancialCopilot.IntegrationTests\Feature141EngineVerticalSliceTests.cs:line 122
+   at FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.OperatingProfitPerShareQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer() in D:\Source\TahlilApp-AI\tests\FinancialCopilot.IntegrationTests\Feature141EngineVerticalSliceTests.cs:line 135
+--- End of stack trace from previous location ---
+  Standard Output Messages:
+ Intent: succeeded=True category= diagnostic= calls=1 latencyMs=5234
+ Plan: valid=True eligible=True diagnostics= company=Found/daecd0ed-48ed-4858-8ab8-efda8ee98f4b
+ Execution: status=Succeeded diagnostic= rows=1 unit=IRRPerShare
+ Persian answer: کگهر در دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵، مقدار مالی گزارش‌شده: ۳٬۷۵۳ IRRPerShare.
+منبع: NoavaranCurrentApi.
+ Trace artifact: D:\Source\TahlilApp-AI\specs\141-schema-aware-semantic-query-engine\evaluation\artifacts\engine-e2e-vertical-slice-2026-10-29-103855-F141-E04-answered.json
+
+
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C9") [20 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C2") [28 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C6") [24 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C4") [20 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C3") [10 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C5") [22 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C1") [20 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C7") [30 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C8") [32 s]
+[xUnit.net 00:10:06.77]   Finished:    FinancialCopilot.IntegrationTests
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.DisablingTheFlagRestoresTheExistingChatRouting [10 s]
+
+Test Run Failed.
+Total tests: 40
+     Passed: 39
+     Failed: 1
+ Total time: 10.2128 Minutes

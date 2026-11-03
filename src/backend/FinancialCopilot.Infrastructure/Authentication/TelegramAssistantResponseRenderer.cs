@@ -15,6 +15,7 @@ public sealed class TelegramAssistantResponseRenderer(
 {
     private const int TelegramMessageLimit = 3900;
     private const int TelegramPhotoCaptionLimit = 1024;
+    private const int MonthlyProductComparisonRowLimit = 20;
 
     public string Version => "telegram-render-v3";
 
@@ -27,9 +28,24 @@ public sealed class TelegramAssistantResponseRenderer(
             return RenderDisclosureListing(response, response.DisclosureListingResult);
         }
 
+        if (response.MonthlyProductTrendResult is not null)
+        {
+            return RenderMonthlyProductTrend(response.MonthlyProductTrendResult);
+        }
+
         if (response.MonthlyActivityTrendResult is not null)
         {
             return RenderMonthlyTrend(response, response.MonthlyActivityTrendResult);
+        }
+
+        if (response.ProductRevenueMixResult is not null)
+        {
+            return RenderProductRevenueMix(response, response.ProductRevenueMixResult);
+        }
+
+        if (response.MonthlyProductComparisonResult is not null)
+        {
+            return RenderMonthlyProductComparison(response.MonthlyProductComparisonResult);
         }
 
         if (response.ScannerTable?.SalesGrowthMetadata is not null)
@@ -47,7 +63,55 @@ public sealed class TelegramAssistantResponseRenderer(
         }
         else if (!isSingleSymbolLookup && !string.IsNullOrWhiteSpace(response.TextAnswer))
         {
-            builder.AppendLine(response.TextAnswer);
+            if (TryFormatIndustryComparison(response.TextAnswer, out var comparison))
+            {
+                TelegramAssistantMediaAttachment? media = null;
+                try
+                {
+                    media = monthlyTrendChartRenderer.RenderIndustryComparison(response.TextAnswer);
+                }
+                catch (Exception exception)
+                {
+                    logger.LogWarning(exception, "Telegram industry comparison image rendering failed; returning the text fallback.");
+                }
+
+                if (media is not null)
+                {
+                    var imageCaption = string.Join(Environment.NewLine,
+                        comparison.Split(Environment.NewLine).Take(2));
+                    return [new TelegramAssistantRenderedMessage(
+                        1, 1, EscapeMarkdownV2(imageCaption.Trim()), Media: media)];
+
+                    #if false
+                    var captionBuilder = new StringBuilder(comparison);
+                    AppendUsage(captionBuilder, response);
+                    var caption = EscapeMarkdownV2(captionBuilder.ToString().Trim());
+                    if (caption.Length <= TelegramPhotoCaptionLimit)
+                        return [new TelegramAssistantRenderedMessage(1, 1, caption, Media: media)];
+
+                    var conciseCaption = new StringBuilder(comparison.Split(Environment.NewLine)[0]);
+                    var groupSize = comparison.Split(Environment.NewLine)
+                        .FirstOrDefault(line => line.StartsWith("اندازه گروه:", StringComparison.Ordinal));
+                    if (!string.IsNullOrWhiteSpace(groupSize))
+                        conciseCaption.AppendLine().Append(groupSize);
+                    AppendUsage(conciseCaption, response);
+                    var overflow = Split(EscapeMarkdownV2(comparison));
+                    var messages = new List<TelegramAssistantRenderedMessage>
+                    {
+                        new(1, overflow.Count + 1, EscapeMarkdownV2(conciseCaption.ToString().Trim()), Media: media)
+                    };
+                    messages.AddRange(overflow.Select((part, index) =>
+                        part with { PartNumber = index + 2, TotalParts = overflow.Count + 1 }));
+                    return messages;
+                    #endif
+                }
+
+                builder.AppendLine(comparison);
+            }
+            else
+            {
+                builder.AppendLine(response.TextAnswer);
+            }
         }
 
         if (isSingleSymbolLookup)
@@ -74,6 +138,215 @@ public sealed class TelegramAssistantResponseRenderer(
 
         return Split(EscapeMarkdownV2(text));
     }
+
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyProductComparison(MonthlyProductComparisonResponse result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"مقایسه فروش محصولات: {result.CompanyText}");
+        sb.AppendLine($"دوره جاری: {result.CurrentPeriod?.ToString() ?? "—"} | دوره مقایسه: {result.ComparisonPeriod?.ToString() ?? "—"}");
+        if (!string.IsNullOrWhiteSpace(result.ClarificationMessage)) sb.AppendLine(result.ClarificationMessage);
+        if (result.Totals is not null)
+        {
+            sb.AppendLine($"فروش جاری: {result.Totals.Current:N2} | مقایسه: {result.Totals.Comparison:N2}");
+            sb.AppendLine($"تغییر: {result.Totals.Change:N2} | درصد: {(result.Totals.ChangePercent.HasValue ? result.Totals.ChangePercent.Value.ToString("N2") + "٪" : "—")}");
+        }
+        if (result.Products.Count > 0)
+        {
+            sb.AppendLine("محصولات:");
+            foreach (var product in result.Products.Take(MonthlyProductComparisonRowLimit))
+            {
+                sb.AppendLine(
+                    $"- {product.DisplayTitle} | جاری: {FormatProductComparisonDecimal(product.Current?.SalesAmount)} | " +
+                    $"مقایسه: {FormatProductComparisonDecimal(product.Comparison?.SalesAmount)} | " +
+                    $"تغییر: {FormatProductComparisonDecimal(product.SalesChange)} | واحد: {product.RawUnit ?? product.Current?.Unit ?? product.Comparison?.Unit ?? "—"}");
+
+                if (product.Warnings.Count > 0)
+                    sb.AppendLine($"  هشدار محصول: {string.Join("، ", product.Warnings)}");
+
+                if (product.ProductionSalesDifference.HasValue)
+                    sb.AppendLine($"  اختلاف استنباطی تولید و فروش: {FormatProductComparisonDecimal(product.ProductionSalesDifference)}");
+            }
+        }
+        if (result.Warnings.Count > 0) sb.AppendLine($"هشدار: {string.Join("، ", result.Warnings)}");
+        if (result.Evidence.Count > 0) sb.AppendLine("منبع: نوآوران امین");
+        return Split(EscapeMarkdownV2(sb.ToString().Trim()));
+    }
+
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyProductTrend(MonthlyProductTrendResult result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"روند فروش {result.ProductTitle ?? "محصول"} {result.CompanySymbol ?? result.CompanyText}");
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
+        {
+            sb.AppendLine(result.Message ?? "محصول مبهم است.");
+            foreach (var candidate in result.Candidates.Take(8))
+                sb.AppendLine($"- {candidate.DisplayTitle} | واحد: {candidate.Unit ?? "—"} | کلید: {candidate.ProductKey}");
+            return Split(EscapeMarkdownV2(sb.ToString().Trim()));
+        }
+        if (result.ResolutionState != MonthlyProductTrendResolutionState.Resolved)
+            sb.AppendLine(result.Message ?? "داده‌ای برای محصول یافت نشد.");
+        else
+            sb.AppendLine($"واحد محصول: {result.ProductUnit ?? "—"} | نرخ فروش: تومان/{result.ProductUnit ?? "واحد محصول"} | مبلغ فروش: میلیارد تومان");
+        return Split(EscapeMarkdownV2(sb.ToString().Trim()));
+    }
+
+    private IReadOnlyList<TelegramAssistantRenderedMessage> RenderProductRevenueMix(
+        AiQueryResponse response,
+        ProductRevenueMixResponse result)
+    {
+        var company = string.IsNullOrWhiteSpace(result.CompanyName)
+            ? result.CompanySymbol
+            : $"{result.CompanyName} ({result.CompanySymbol})";
+        var captionBuilder = new StringBuilder()
+            .AppendLine($"ترکیب درآمد محصولات — {company}")
+            .AppendLine($"دوره: {ToPersianDigits($"{result.ReportYear}/{result.ReportMonth:00}")}");
+        AppendUsage(captionBuilder, response);
+
+        TelegramAssistantMediaAttachment? media = null;
+        try
+        {
+            media = monthlyTrendChartRenderer.Render(result);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Telegram product revenue mix image rendering failed for symbol {Symbol}; returning the table text fallback.",
+                result.CompanySymbol);
+        }
+
+        if (media is null)
+        {
+            var fallback = BuildProductRevenueMixFallback(response, result);
+            return Split(EscapeMarkdownV2(fallback));
+        }
+
+        var caption = EscapeMarkdownV2(captionBuilder.ToString().Trim());
+        return [new TelegramAssistantRenderedMessage(1, 1, caption, Media: media)];
+    }
+
+    private static string BuildProductRevenueMixFallback(
+        AiQueryResponse response,
+        ProductRevenueMixResponse result)
+    {
+        var sb = new StringBuilder();
+        var company = string.IsNullOrWhiteSpace(result.CompanyName)
+            ? result.CompanySymbol
+            : $"{result.CompanyName} ({result.CompanySymbol})";
+        sb.AppendLine($"ترکیب درآمد محصولات — {company}");
+        sb.AppendLine($"دوره: {ToPersianDigits($"{result.ReportYear}/{result.ReportMonth:00}")}");
+        sb.AppendLine();
+        sb.AppendLine("| ردیف | محصول | فروش (تومان) | سهم (٪) | غالب |");
+        sb.AppendLine("|------|-------|--------------:|--------:|------|");
+        foreach (var product in result.Products.Take(MonthlyProductComparisonRowLimit))
+        {
+            sb.AppendLine($"| {product.Rank} | {product.ProductName} | {(product.SalesAmount * 100_000m):N0} | {product.RevenueSharePercentage:F1}٪ | {(product.IsDominantProduct ? "✓" : string.Empty)} |");
+        }
+        AppendUsage(sb, response);
+        return sb.ToString().Trim();
+    }
+
+    private static string FormatProductComparisonDecimal(decimal? value) =>
+        value.HasValue ? value.Value.ToString("N2", CultureInfo.InvariantCulture) : "—";
+
+    private static bool TryFormatIndustryComparison(string text, out string formatted)
+    {
+        formatted = string.Empty;
+        if (!text.Contains("مقایسه نماد با صنعت", StringComparison.Ordinal) || !text.Contains('|'))
+            return false;
+
+        var lines = text.Split(["\r\n", "\n"], StringSplitOptions.None)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .ToList();
+        var tableStart = lines.FindIndex(line => line.StartsWith('|'));
+        if (tableStart < 0 || tableStart + 2 >= lines.Count)
+            return false;
+
+        var headers = SplitTableLine(lines[tableStart]);
+        if (headers.Length < 2 || !headers[0].Equals("نماد", StringComparison.Ordinal))
+            return false;
+
+        var rows = new List<(string Symbol, string[] Values)>();
+        for (var index = tableStart + 2; index < lines.Count; index++)
+        {
+            var cells = SplitTableLine(lines[index]);
+            if (cells.Length != headers.Length)
+                continue;
+            if (cells[0].Equals("میانگین صنعت", StringComparison.Ordinal))
+            {
+                var benchmark = cells.Skip(1).ToArray();
+                var cards = rows.Select(row => FormatIndustryCard(row.Symbol, row.Values, headers, benchmark));
+                var averageCard = FormatIndustryAverageCard(cells[0], benchmark, headers);
+                var prefix = lines.Take(tableStart)
+                    .Where(line => !line.StartsWith("###", StringComparison.Ordinal))
+                    .Select(line => line
+                        .Replace("**", string.Empty, StringComparison.Ordinal)
+                        .Replace("گروه صنعتی:", "گروه:", StringComparison.Ordinal));
+                formatted = string.Join(Environment.NewLine, prefix.Append(string.Empty).Concat(cards).Append(averageCard));
+                return true;
+            }
+
+            rows.Add((cells[0], cells.Skip(1).ToArray()));
+        }
+
+        return false;
+    }
+
+    private static string FormatIndustryCard(string symbol, string[] values, IReadOnlyList<string> headers, string[] benchmark)
+    {
+        var builder = new StringBuilder($"📌 {symbol}");
+        for (var index = 0; index < values.Length && index + 1 < headers.Count; index++)
+        {
+            var value = values[index];
+            var comparison = CompareIndustryValues(value, benchmark.ElementAtOrDefault(index));
+            builder.AppendLine();
+            builder.Append($"{TelegramIndustryMetricLabel(headers[index + 1])}: {value} {comparison}");
+        }
+        return builder.ToString();
+    }
+
+    private static string FormatIndustryAverageCard(string symbol, string[] values, IReadOnlyList<string> headers)
+    {
+        var builder = new StringBuilder($"📌 {symbol}");
+        for (var index = 0; index < values.Length && index + 1 < headers.Count; index++)
+        {
+            builder.AppendLine();
+            builder.Append($"{TelegramIndustryMetricLabel(headers[index + 1])}: {values[index]}");
+        }
+        return builder.ToString();
+    }
+
+    private static string CompareIndustryValues(string value, string? benchmark)
+    {
+        if (!TryParsePersianPercent(value, out var current) || !TryParsePersianPercent(benchmark, out var industry))
+            return "⚪ قابل مقایسه نیست";
+        if (current == industry)
+            return "⚪ برابر با میانگین صنعت";
+        return current < industry ? "🟢" : "🔴";
+    }
+
+    private static string TelegramIndustryMetricLabel(string header) => header switch
+    {
+        "P/E" => "نسبت قیمت به سود",
+        "P/S" => "نسبت قیمت به فروش",
+        "قیمت به تعادلی" => "نسبت قیمت به تعادلی",
+        _ => header
+    };
+
+    private static bool TryParsePersianPercent(string? value, out decimal result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var normalized = value.Trim().TrimEnd('٪', '%')
+            .Replace('۰', '0').Replace('۱', '1').Replace('۲', '2').Replace('۳', '3').Replace('۴', '4')
+            .Replace('۵', '5').Replace('۶', '6').Replace('۷', '7').Replace('۸', '8').Replace('۹', '9')
+            .Replace('٫', '.').Replace(',', '.');
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out result);
+    }
+
+    private static string[] SplitTableLine(string line) =>
+        line.Trim().Trim('|').Split('|', StringSplitOptions.None).Select(cell => cell.Trim()).ToArray();
 
     private IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyTrend(
         AiQueryResponse response,

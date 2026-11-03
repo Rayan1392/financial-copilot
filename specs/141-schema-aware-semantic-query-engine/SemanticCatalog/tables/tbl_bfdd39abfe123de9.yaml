@@ -1,0 +1,109 @@
+{
+  "id": "tbl_bfdd39abfe123de9",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioReportSheets",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "OriginalSheetName",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedSheetName",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "LogicalSheetType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SheetIndex",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "UsedRange",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ClassificationConfidence",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "HeaderFingerprint",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioReportSheets_LogicalSheetType",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioReportSheets_LogicalSheetType\" ON public.\"FundPortfolioReportSheets\" USING btree (\"LogicalSheetType\")",
+        "Columns": [
+          "LogicalSheetType"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioReportSheets_ReportId_SheetIndex",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioReportSheets_ReportId_SheetIndex\" ON public.\"FundPortfolioReportSheets\" USING btree (\"ReportId\", \"SheetIndex\")",
+        "Columns": [
+          "ReportId",
+          "SheetIndex"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioReportSheets",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioReportSheets\" ON public.\"FundPortfolioReportSheets\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioReportSheets",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

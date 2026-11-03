@@ -1,0 +1,59 @@
+{
+  "id": "metric_equity_growth_rate",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "EQUITY_GROWTH_RATE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Equity Growth Rate (Vendor)",
+    "Description": "Governed semantic definition for Equity Growth Rate (Vendor).",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "equity growth rate",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "EQUITY_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نرخ رشد حقوق صاحبان سهام",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EQUITY_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -5,6 +5,14 @@ public sealed record CanonicalQueryEntity(
     string DisplaySymbol,
     string CompanyName,
     string EntityType,
+    string IdentityProvenance,
+    string? ExternalCompanyId = null);
+
+public sealed record CanonicalQueryIndustry(
+    Guid CanonicalId,
+    string ExternalId,
+    string DisplayName,
+    string ProviderName,
     string IdentityProvenance);
 
 public sealed record EntityResolutionEvidence(
@@ -28,9 +36,24 @@ public abstract record EntityResolutionResult
     public sealed record Missing(string EntityType) : EntityResolutionResult;
 }
 
+public abstract record IndustryResolutionResult
+{
+    public sealed record Resolved(CanonicalQueryIndustry Industry, EntityResolutionEvidence Evidence) : IndustryResolutionResult;
+
+    public sealed record Ambiguous(IReadOnlyList<CanonicalQueryIndustry> Candidates) : IndustryResolutionResult;
+
+    public sealed record NotFound(string NormalizedMention) : IndustryResolutionResult;
+
+    public sealed record Missing(string EntityType) : IndustryResolutionResult;
+}
+
 public interface ICanonicalQueryEntityResolver
 {
     Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default);
+
+    Task<EntityResolutionResult> ResolveExactTickerFromTextAsync(
+        string? text,
+        CancellationToken cancellationToken = default);
 
     Task<EntityResolutionResult> ResolveFromInterpretationAsync(
         QueryInterpretation interpretation,
@@ -41,12 +64,20 @@ public interface ICanonicalQueryEntityResolver
         CancellationToken cancellationToken = default);
 }
 
+// Feature 119 remains the canonical authority for both company and industry identity.
+// Feature-specific routes may adapt these outcomes, but may not reimplement matching.
+public interface ICanonicalQueryIndustryResolver
+{
+    Task<IndustryResolutionResult> ResolveIndustryMentionAsync(string? mention, CancellationToken cancellationToken = default);
+}
+
 public enum QuerySlotType
 {
     Insight,
     Conditions,
     CompanyOrSymbol,
     CompaniesOrSymbols,
+    Product,
     Metric,
     Metrics,
     Period,
@@ -62,9 +93,13 @@ public enum QuerySlotType
     PublishedFrom,
     PublishedTo,
     Industry,
+    IndustryGroup,
     Presentation,
     ResultLimit,
-    Sort
+    Sort,
+    NumericClues,
+    SourceTitle,
+    GovernedAlias
 }
 
 public static class QuerySlotSchema
@@ -76,6 +111,7 @@ public static class QuerySlotSchema
             ["insight"] = QuerySlotType.Insight,
             ["symbol"] = QuerySlotType.CompanyOrSymbol,
             ["symbols"] = QuerySlotType.CompaniesOrSymbols,
+            ["product"] = QuerySlotType.Product,
             ["metric"] = QuerySlotType.Metric,
             ["metrics"] = QuerySlotType.Metrics,
             ["period"] = QuerySlotType.Period,
@@ -91,9 +127,13 @@ public static class QuerySlotSchema
             ["publishedFrom"] = QuerySlotType.PublishedFrom,
             ["publishedTo"] = QuerySlotType.PublishedTo,
             ["industry"] = QuerySlotType.Industry,
+            ["industryGroup"] = QuerySlotType.IndustryGroup,
             ["presentation"] = QuerySlotType.Presentation,
             ["limit"] = QuerySlotType.ResultLimit,
-            ["sort"] = QuerySlotType.Sort
+            ["sort"] = QuerySlotType.Sort,
+            ["numericClues"] = QuerySlotType.NumericClues,
+            ["sourceTitle"] = QuerySlotType.SourceTitle,
+            ["governedAlias"] = QuerySlotType.GovernedAlias
         };
 
     private static readonly IReadOnlyDictionary<QuerySlotType, string> NamesByType =
@@ -122,7 +162,9 @@ public sealed record ResolvedQuerySlot(
     decimal Confidence,
     QuerySlotValidationState ValidationState,
     string? CapabilityCode = null,
-    string? Detail = null);
+    string? Detail = null,
+    CanonicalQueryEntity? CanonicalEntity = null,
+    CanonicalQueryProduct? CanonicalProduct = null);
 
 public sealed record SlotValidationResult(
     IReadOnlyList<ResolvedQuerySlot> Slots,
@@ -131,12 +173,20 @@ public sealed record SlotValidationResult(
 
 public interface ICapabilitySlotValidator
 {
-    SlotValidationResult Validate(string capabilityCode, QueryInterpretation interpretation, EntityResolutionResult entityResolution);
+    SlotValidationResult Validate(
+        string capabilityCode,
+        QueryInterpretation interpretation,
+        EntityResolutionResult entityResolution,
+        ProductResolutionResult? productResolution = null);
 }
 
 public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry registry) : ICapabilitySlotValidator
 {
-    public SlotValidationResult Validate(string capabilityCode, QueryInterpretation interpretation, EntityResolutionResult entityResolution)
+    public SlotValidationResult Validate(
+        string capabilityCode,
+        QueryInterpretation interpretation,
+        EntityResolutionResult entityResolution,
+        ProductResolutionResult? productResolution = null)
     {
         var definition = registry.Find(capabilityCode)
             ?? throw new InvalidOperationException($"Unknown capability '{capabilityCode}'.");
@@ -147,7 +197,7 @@ public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry re
             if (!QuerySlotSchema.TryGetType(definitionSlot.Name, out var type))
                 continue;
 
-            slots.Add(ResolveSlot(type, definitionSlot.Required, capabilityCode, interpretation, entityResolution));
+            slots.Add(ResolveSlot(type, definitionSlot.Required, capabilityCode, interpretation, entityResolution, productResolution));
         }
 
         var priority = definition.RequiredSlots
@@ -168,21 +218,31 @@ public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry re
         bool required,
         string capabilityCode,
         QueryInterpretation interpretation,
-        EntityResolutionResult entityResolution) =>
+        EntityResolutionResult entityResolution,
+        ProductResolutionResult? productResolution) =>
         type switch
         {
             QuerySlotType.CompanyOrSymbol => entityResolution switch
             {
-                EntityResolutionResult.Resolved resolved => new(type, resolved.Entity.DisplaySymbol, QueryValueProvenance.UserExplicit, resolved.Evidence.Confidence, QuerySlotValidationState.Valid, capabilityCode),
+                EntityResolutionResult.Resolved resolved => new(type, resolved.Entity.DisplaySymbol, QueryValueProvenance.UserExplicit, resolved.Evidence.Confidence, QuerySlotValidationState.Valid, capabilityCode, CanonicalEntity: resolved.Entity),
                 EntityResolutionResult.Ambiguous => new(type, null, QueryValueProvenance.UserExplicit, 0m, QuerySlotValidationState.Ambiguous, capabilityCode),
                 EntityResolutionResult.NotFound notFound => new(type, notFound.NormalizedMention, QueryValueProvenance.UserExplicit, 0m, QuerySlotValidationState.Invalid, capabilityCode, "entity_not_found"),
+                _ => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode)
+            },
+            QuerySlotType.Product => productResolution switch
+            {
+                ProductResolutionResult.Resolved resolved => new(type, resolved.Product.DisplayTitle, QueryValueProvenance.UserExplicit, resolved.Evidence.Confidence, QuerySlotValidationState.Valid, capabilityCode, resolved.Product.ProductKey, CanonicalProduct: resolved.Product),
+                ProductResolutionResult.Ambiguous => new(type, null, QueryValueProvenance.UserExplicit, 0m, QuerySlotValidationState.Ambiguous, capabilityCode, "product_ambiguous"),
+                ProductResolutionResult.NotFound notFound => new(type, notFound.NormalizedMention, QueryValueProvenance.UserExplicit, 0m, QuerySlotValidationState.Invalid, capabilityCode, "product_not_found"),
                 _ => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode)
             },
             QuerySlotType.Conditions => new(type, interpretation.OriginalText, QueryValueProvenance.UserExplicit, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Insight => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Metric when interpretation.Metrics.FirstOrDefault() is { } metric => new(type, metric.MetricCode, metric.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Metric => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode),
-            QuerySlotType.Period when interpretation.Period is { } period => new(type, period.Value, period.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
+            QuerySlotType.Period when interpretation.Period is { } period => new(type,
+                period.Count.HasValue ? $"{period.Value}:{period.Count.Value}" : period.Value,
+                period.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.ComparisonBaseline when interpretation.Comparison is { } comparison => new(type, comparison.Value, comparison.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Presentation when interpretation.Presentation is { } presentation => new(type, presentation.Kind.ToString(), presentation.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             _ => new(type, null, QueryValueProvenance.PolicyDefaulted, 1m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode)
@@ -232,7 +292,7 @@ public static class EntityResolutionOutcomeMapper
                 DialogueOutcomeReasonCodes.EntityAmbiguous,
                 AiDialogueOutcomePolicy.DetectReplyLanguage(message), null, false),
             EntityResolutionResult.NotFound => new(
-                DialogueOutcome.DisambiguationNeeded,
+                DialogueOutcome.ClarificationNeeded,
                 DialogueOutcomeReasonCodes.EntityNotFound,
                 AiDialogueOutcomePolicy.DetectReplyLanguage(message), null, false),
             EntityResolutionResult.Resolved when !resolvedHasData => new(

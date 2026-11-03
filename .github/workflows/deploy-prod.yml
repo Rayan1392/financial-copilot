@@ -1,0 +1,51 @@
+# Continuous deployment of the prod branch: every push to prod builds and deploys that commit on the production
+# server (api, worker, frontend), waits for health, and rolls the containers back if the new version is unhealthy.
+# The server-side steps live in ops/deploy/prod-deploy.sh; this job only connects and streams that script.
+# The repository is public, so its logs are public: the script prints no secret values or container logs.
+name: Deploy prod
+
+on:
+  push:
+    branches: [prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, shared with the server check; a newer push waits instead of cancelling a running deploy.
+concurrency:
+  group: prod-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/prod'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://sapioai.ir
+    timeout-minutes: 90
+    steps:
+      - name: Check out the commit being deployed
+        uses: actions/checkout@v4
+
+      - name: Configure SSH (pinned host key, deploy key only)
+        env:
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Build and deploy on the server
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$PROD_SSH_PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+            "$PROD_SSH_USER@$PROD_SSH_HOST" "bash -s -- $GITHUB_SHA" < ops/deploy/prod-deploy.sh

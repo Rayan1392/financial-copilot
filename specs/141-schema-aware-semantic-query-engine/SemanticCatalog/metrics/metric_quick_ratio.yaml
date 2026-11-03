@@ -1,0 +1,69 @@
+{
+  "id": "metric_quick_ratio",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "QUICK_RATIO"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Quick Ratio",
+    "Description": "Governed semantic definition for Quick Ratio.",
+    "Category": 5,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "quick ratio",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "QUICK_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت آنی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "QUICK_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت سریع",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "QUICK_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

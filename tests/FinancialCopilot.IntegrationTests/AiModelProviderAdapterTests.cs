@@ -237,10 +237,89 @@ public sealed class AiModelProviderAdapterTests
         Assert.Equal("""{"intent":"Scanner","confidence":0.9}""", completion.StructuredJson);
         Assert.Equal(14, completion.InputTokens);
         Assert.Equal(6, completion.OutputTokens);
+        Assert.Null(completion.CacheWriteInputTokens);
+        Assert.Null(completion.CacheWrite30mInputTokens);
+        Assert.Null(completion.CacheWrite12hInputTokens);
         Assert.Equal("screen", Assert.Single(completion.ToolCalls).Name);
         Assert.True(available);
         Assert.Contains("\"text\":{\"format\":{\"type\":\"json_object\"}}", requestBody);
         Assert.Contains("\"tools\":[{\"type\":\"function\",\"name\":\"screen\"", requestBody);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_PreservesCacheWriteCountsAndRetentionDurations()
+    {
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ => Json(
+            """{"output":[{"id":"message-1","type":"message","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":12000,"output_tokens":100,"input_tokens_details":{"cached_tokens":4000,"cache_write_tokens":7000,"cache_write_tokens_details":{"ttl_30m_tokens":3000,"ttl_12h_tokens":4000}}}}""")));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+
+        var completion = await transport.CompleteAsync(
+            "gpt-5.6-luna",
+            CompletionRequest("openai-cache-write"),
+            CancellationToken.None);
+
+        Assert.Equal(12_000, completion.InputTokens);
+        Assert.Equal(4_000, completion.CachedInputTokens);
+        Assert.Equal(7_000, completion.CacheWriteInputTokens);
+        Assert.Equal(3_000, completion.CacheWrite30mInputTokens);
+        Assert.Equal(4_000, completion.CacheWrite12hInputTokens);
+        Assert.Equal(100, completion.OutputTokens);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_UsesStrictJsonSchemaWhenContractProvidesOne()
+    {
+        string? requestBody = null;
+        using var httpClient = new HttpClient(new RouteHandler(request =>
+        {
+            requestBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return Json("""{"output":[{"id":"message-1","type":"message","content":[{"type":"output_text","text":"{\"intent\":\"product_sales_value\"}"}]}],"usage":{"input_tokens":10,"output_tokens":8}}""");
+        }))
+        {
+            BaseAddress = new Uri("https://api.openai.com/v1/")
+        };
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-key");
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+        var schema = """{"type":"object","additionalProperties":false,"required":["intent"],"properties":{"intent":{"type":"string"}}}""";
+
+        var completion = await transport.CompleteAsync(
+            "gpt-5.6-luna",
+            new AiModelRequest(
+                "openai-schema-1",
+                TenantId,
+                AiWorkloadKind.ScannerParsing,
+                [new AiConversationMessage(AiMessageRole.User, "sales")],
+                new AiStructuredOutputContract("QueryInterpretationProposal_v2", ["intent"], schema)),
+            CancellationToken.None);
+
+        Assert.Equal("{\"intent\":\"product_sales_value\"}", completion.StructuredJson);
+        Assert.Contains("\"type\":\"json_schema\"", requestBody);
+        Assert.Contains("\"name\":\"QueryInterpretationProposal_v2\"", requestBody);
+        Assert.Contains("\"strict\":true", requestBody);
+        Assert.Contains("\"additionalProperties\":false", requestBody);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_ClassifiesTruncatedStructuredOutputAndPreservesUsageMetadata()
+    {
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ => Json(
+            """{"id":"resp_truncated_141","output":[],"usage":{"input_tokens":842,"output_tokens":700},"incomplete_details":{"reason":"max_output_tokens"}}""")));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+        var request = CompletionRequest("openai-truncated") with
+        {
+            StructuredOutput = new AiStructuredOutputContract("NavigationV1", ["schemaVersion"]),
+            MaxOutputTokens = 700
+        };
+
+        var exception = await Assert.ThrowsAsync<AiModelProviderException>(() =>
+            transport.CompleteAsync("gpt-5.6-luna", request, CancellationToken.None));
+
+        Assert.Equal("ModelOutputTruncated", exception.Code);
+        Assert.Equal((int)HttpStatusCode.OK, exception.HttpStatusCode);
+        Assert.Equal("resp_truncated_141", exception.ProviderResponseId);
+        Assert.Equal(842, exception.ProviderReportedInputTokens);
+        Assert.Equal(700, exception.ProviderReportedOutputTokens);
+        Assert.Equal("max_output_tokens", exception.ProviderCompletionReason);
     }
 
     [Fact]
@@ -399,9 +478,12 @@ public sealed class AiModelProviderAdapterTests
         using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ =>
         {
             requestCount++;
-            return Error(
+            var response = Error(
                 HttpStatusCode.TooManyRequests,
                 """{"error":{"message":"You exceeded your current quota.","type":"insufficient_quota","code":"insufficient_quota"}}""");
+            response.Headers.Add("x-request-id", "req_test_quota_001");
+            response.Headers.Add("x-ratelimit-remaining-requests", "0");
+            return response;
         }));
         var transport = new OpenAiHostedAiModelTransport(httpClient);
 
@@ -413,6 +495,34 @@ public sealed class AiModelProviderAdapterTests
 
         Assert.Equal("hosted_provider_quota_exceeded", exception.Code);
         Assert.Contains("You exceeded your current quota.", exception.Message);
+        Assert.Equal((int)HttpStatusCode.TooManyRequests, exception.HttpStatusCode);
+        Assert.Equal("insufficient_quota", exception.ProviderErrorCode);
+        Assert.Equal("req_test_quota_001", exception.ProviderRequestId);
+        Assert.Equal("api.openai.com", exception.RequestHost);
+        Assert.Equal("0", exception.ProviderQuotaMetadata!["x-ratelimit-remaining-requests"]);
+        Assert.Equal(1, requestCount);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_MapsCreditBalanceExhaustionToQuotaExceeded()
+    {
+        var requestCount = 0;
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ =>
+        {
+            requestCount++;
+            return Error(
+                HttpStatusCode.TooManyRequests,
+                """{"error":{"message":"You have no credits remaining.","type":"insufficient_quota","code":"credit_balance_exhausted"}}""");
+        }));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+
+        var exception = await Assert.ThrowsAsync<AiModelProviderException>(() =>
+            transport.CompleteAsync(
+                "gpt-5.6-luna",
+                CompletionRequest("openai-credit-balance"),
+                CancellationToken.None));
+
+        Assert.Equal("hosted_provider_quota_exceeded", exception.Code);
         Assert.Equal(1, requestCount);
     }
 

@@ -8,4 +8,5 @@ public sealed class OwnedIdentityOptions
     public string DefaultTenantName { get; init; } = "FinancialCopilot";
     public int AccessTokenMinutes { get; init; } = 15;
     public int RefreshTokenDays { get; init; } = 30;
+    public bool PublicRegistrationEnabled { get; init; }
 }

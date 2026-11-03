@@ -1,0 +1,70 @@
+{
+  "id": "tbl_074c5cefdce5866c",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioSourceWatermarks",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "LastModifiedUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSourceObjectId",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseUntilUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "ProviderName"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioSourceWatermarks_LeaseUntilUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioSourceWatermarks_LeaseUntilUtc\" ON public.\"FundPortfolioSourceWatermarks\" USING btree (\"LeaseUntilUtc\")",
+        "Columns": [
+          "LeaseUntilUtc"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioSourceWatermarks",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioSourceWatermarks\" ON public.\"FundPortfolioSourceWatermarks\" USING btree (\"ProviderName\")",
+        "Columns": [
+          "ProviderName"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioSourceWatermarks",
+        "Type": "p",
+        "Columns": [
+          "ProviderName"
+        ],
+        "Definition": "PRIMARY KEY (\"ProviderName\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

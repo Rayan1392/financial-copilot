@@ -1,0 +1,251 @@
+{
+  "id": "tbl_ff53c54d44eb8bea",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryRelativeValuationCalculations",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IndustryExternalId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "IndustryTitleSnapshot",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationVersion",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "AlgorithmVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "MembershipHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceBarrierHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceBarrierEvidenceJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "PublishedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "IsLatestEvaluation",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsSelectedCurrent",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "GroupExternalId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "GroupId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "GroupTitleSnapshot",
+        "Type": "character varying(512)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "IndustryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Industries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "GroupId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryGroups",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_CalculationDate_Group~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationCalculations_CalculationDate_Group~\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"CalculationDate\", \"GroupId\", \"CalculationVersion\") WHERE (\"GroupId\" IS NOT NULL)",
+        "Columns": [
+          "CalculationDate",
+          "GroupId",
+          "CalculationVersion"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_CalculationDate_Indus~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationCalculations_CalculationDate_Indus~\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"CalculationDate\", \"IndustryId\", \"CalculationVersion\") WHERE (\"GroupId\" IS NULL)",
+        "Columns": [
+          "CalculationDate",
+          "IndustryId",
+          "CalculationVersion"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_GroupId_CalculationDa~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationCalculations_GroupId_CalculationDa~\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"GroupId\", \"CalculationDate\", \"IsLatestEvaluation\") WHERE ((\"GroupId\" IS NOT NULL) AND (\"IsLatestEvaluation\" = true))",
+        "Columns": [
+          "GroupId",
+          "CalculationDate",
+          "IsLatestEvaluation"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_GroupId_CalculationD~1",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationCalculations_GroupId_CalculationD~1\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"GroupId\", \"CalculationDate\", \"IsSelectedCurrent\") WHERE ((\"GroupId\" IS NOT NULL) AND (\"IsSelectedCurrent\" = true))",
+        "Columns": [
+          "GroupId",
+          "CalculationDate",
+          "IsSelectedCurrent"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_GroupId_CalculationD~2",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryRelativeValuationCalculations_GroupId_CalculationD~2\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"GroupId\", \"CalculationDate\", \"Status\") WHERE (\"GroupId\" IS NOT NULL)",
+        "Columns": [
+          "GroupId",
+          "CalculationDate",
+          "Status"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_IndustryId_Calculatio~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationCalculations_IndustryId_Calculatio~\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"IndustryId\", \"CalculationDate\", \"IsLatestEvaluation\") WHERE ((\"GroupId\" IS NULL) AND (\"IsLatestEvaluation\" = true))",
+        "Columns": [
+          "IndustryId",
+          "CalculationDate",
+          "IsLatestEvaluation"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_IndustryId_Calculati~1",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationCalculations_IndustryId_Calculati~1\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"IndustryId\", \"CalculationDate\", \"IsSelectedCurrent\") WHERE ((\"GroupId\" IS NULL) AND (\"IsSelectedCurrent\" = true))",
+        "Columns": [
+          "IndustryId",
+          "CalculationDate",
+          "IsSelectedCurrent"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationCalculations_IndustryId_Calculati~2",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryRelativeValuationCalculations_IndustryId_Calculati~2\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"IndustryId\", \"CalculationDate\", \"Status\") WHERE (\"GroupId\" IS NULL)",
+        "Columns": [
+          "IndustryId",
+          "CalculationDate",
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationCalculations",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryRelativeValuationCalculations\" ON public.\"IndustryRelativeValuationCalculations\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IndustryRelativeValuationCalculations_Industries_IndustryId",
+        "Type": "f",
+        "Columns": [
+          "IndustryId"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryRelativeValuationCalculations_IndustryGroups_GroupId",
+        "Type": "f",
+        "Columns": [
+          "GroupId"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationCalculations",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

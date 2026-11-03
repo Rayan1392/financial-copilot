@@ -1,0 +1,12 @@
+# Feature 146 — Open Questions
+
+Only decisions that still need product, security, or legal input are listed. Recommended defaults keep the MVP useful without blocking the read-only directory and Customer 360 work.
+
+| ID | Question | Recommended default | Impact / severity | Blocks MVP? |
+|---|---|---|---|---|
+| Q1 | Should Customer 360 ever reveal TahlilApp profile fields (name, national ID, or mobile) or allow search on them? Feature 139 defers admin profile access/reveal and its legal-basis question remains open. | No reveal or profile search in MVP. Keep all TahlilApp profile values masked/omitted. If support requires access, approve a separate permission, actor/reason audit, retention purpose, and Data Protection key-ring recovery gate first. | High privacy/security impact. | No, if MVP keeps profile data masked/omitted. Yes for any full-value reveal or profile search. |
+| Q2 | What legal retention and deletion policy applies to TahlilApp-sourced profile data, Identity metadata, Billing ledger, and external-link tombstones when an account deletion/privacy request arrives? | Customer 360 stays read-only and adds no deletion operation. Preserve current Feature 139 provider-revocation behavior and immutable financial/audit retention until Legal defines the policy. | High compliance impact across several source owners. | No for directory/detail; yes for a deletion/privacy workflow. |
+| Q3 | May administrators correct an original acquisition source when a reliable first-party record is later found? | Treat source as immutable in ordinary admin UI. If a correction is required, add a narrowly permissioned audited command with before/after value and reason; never rewrite it during provider linking. | Medium attribution-integrity impact. | No. |
+| Q4 | Which user and Billing fields may be exported, and which operator permission/retention controls apply? | Defer export from MVP. Design an audited, masked, tenant-scoped export only after privacy review and a concrete operator need. | Medium privacy/performance impact. | No. |
+
+Feature 139's external TahlilApp service contract v2, production credentials, staging round trips, Data Protection key-ring restore, migrations, PostgreSQL concurrency, and legacy-wallet reconciliation are release dependencies, not additional Feature 146 design questions. They do not block the local read-only MVP, but they block claims that TahlilApp state or entitlement freshness has been live-verified.

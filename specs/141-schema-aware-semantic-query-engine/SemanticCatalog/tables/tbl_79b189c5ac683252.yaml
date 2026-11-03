@@ -1,0 +1,184 @@
+{
+  "id": "tbl_79b189c5ac683252",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_telegram_channel_membership_verifications",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramUserId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "ChannelId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsEligible",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderObservedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "VerifiedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "FailureCategory",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsLatest",
+        "Type": "boolean",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TenantId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_tenants",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "ActorId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_telegram_channel_membership_verifications_ActorId_Tena~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_telegram_channel_membership_verifications_ActorId_Tena~\" ON public.auth_telegram_channel_membership_verifications USING btree (\"ActorId\", \"TenantId\", \"ChannelId\", \"IsLatest\") WHERE (\"IsLatest\" = true)",
+        "Columns": [
+          "ActorId",
+          "TenantId",
+          "ChannelId",
+          "IsLatest"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_channel_membership_verifications_ExpiresAtUtc~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_channel_membership_verifications_ExpiresAtUtc~\" ON public.auth_telegram_channel_membership_verifications USING btree (\"ExpiresAtUtc\", \"Status\")",
+        "Columns": [
+          "ExpiresAtUtc",
+          "Status"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_channel_membership_verifications_TelegramUser~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_channel_membership_verifications_TelegramUser~\" ON public.auth_telegram_channel_membership_verifications USING btree (\"TelegramUserId\", \"ChannelId\", \"VerifiedAtUtc\")",
+        "Columns": [
+          "TelegramUserId",
+          "ChannelId",
+          "VerifiedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_channel_membership_verifications_TenantId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_channel_membership_verifications_TenantId\" ON public.auth_telegram_channel_membership_verifications USING btree (\"TenantId\")",
+        "Columns": [
+          "TenantId"
+        ]
+      },
+      {
+        "Name": "PK_auth_telegram_channel_membership_verifications",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_telegram_channel_membership_verifications\" ON public.auth_telegram_channel_membership_verifications USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_telegram_channel_membership_verifications_auth_tenants~",
+        "Type": "f",
+        "Columns": [
+          "TenantId"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_auth_telegram_channel_membership_verifications_auth_users_A~",
+        "Type": "f",
+        "Columns": [
+          "ActorId"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_telegram_channel_membership_verifications",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

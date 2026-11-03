@@ -1,0 +1,211 @@
+{
+  "id": "tbl_b3a6eed88ff0f8d6",
+  "physical": {
+    "Schema": "public",
+    "Name": "CompanyPsSeriesSyncStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceCompanyIsin",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeclaredFirstHistoryDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "DeclaredLastHistoryDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "DeclaredHistoryCount",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "ActualFirstHistoryDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "ActualLastHistoryDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "ActualHistoryCount",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "NormalizedLatestSuccessfulSeriesHash",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSuccessfulSnapshotId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSuccessfulSnapshotDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "LastGaugeSuccessAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastCurrentValuesSuccessAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastHistorySuccessAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastGaugeAttemptAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastCurrentValuesAttemptAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastHistoryAttemptAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastCompleteHistoryRefreshAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ConsecutiveGaugeFailures",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ConsecutiveCurrentValuesFailures",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ConsecutiveHistoryFailures",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastWarningCodesJson",
+        "Type": "character varying(4096)",
+        "Nullable": false
+      },
+      {
+        "Name": "LastErrorCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "BackfillCompleted",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "NextEligibleHistoryRefreshAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSuccessfulCorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_CompanyPsSeriesSyncStates_ProviderName_CompanyId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_CompanyPsSeriesSyncStates_ProviderName_CompanyId\" ON public.\"CompanyPsSeriesSyncStates\" USING btree (\"ProviderName\", \"CompanyId\")",
+        "Columns": [
+          "ProviderName",
+          "CompanyId"
+        ]
+      },
+      {
+        "Name": "PK_CompanyPsSeriesSyncStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CompanyPsSeriesSyncStates\" ON public.\"CompanyPsSeriesSyncStates\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_CompanyPsSeriesSyncStates_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_CompanyPsSeriesSyncStates",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

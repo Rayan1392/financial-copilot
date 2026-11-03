@@ -1,0 +1,145 @@
+{
+  "id": "tbl_b42f1ae6c0ee8a15",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_purchase_products",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Code",
+        "Type": "character varying(96)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "DisplayName",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "Currency",
+        "Type": "character varying(8)",
+        "Nullable": false
+      },
+      {
+        "Name": "Credits",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "PlanCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "DurationDays",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "Channel",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsActive",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "SortOrder",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Code"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "PlanCode"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_subscription_plans",
+        "PrincipalColumns": [
+          "Code"
+        ],
+        "Definition": "FOREIGN KEY (\"PlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_billing_purchase_products_Channel_IsActive_SortOrder",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_purchase_products_Channel_IsActive_SortOrder\" ON public.billing_purchase_products USING btree (\"Channel\", \"IsActive\", \"SortOrder\")",
+        "Columns": [
+          "Channel",
+          "IsActive",
+          "SortOrder"
+        ]
+      },
+      {
+        "Name": "IX_billing_purchase_products_PlanCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_purchase_products_PlanCode\" ON public.billing_purchase_products USING btree (\"PlanCode\")",
+        "Columns": [
+          "PlanCode"
+        ]
+      },
+      {
+        "Name": "PK_billing_purchase_products",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_purchase_products\" ON public.billing_purchase_products USING btree (\"Code\")",
+        "Columns": [
+          "Code"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_billing_purchase_products_billing_subscription_plans_PlanCo~",
+        "Type": "f",
+        "Columns": [
+          "PlanCode"
+        ],
+        "Definition": "FOREIGN KEY (\"PlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_billing_purchase_products",
+        "Type": "p",
+        "Columns": [
+          "Code"
+        ],
+        "Definition": "PRIMARY KEY (\"Code\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

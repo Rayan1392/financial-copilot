@@ -7,8 +7,48 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 
 public sealed class CanonicalQueryEntityResolver(
     FinancialIngestionDbContext dbContext,
-    IOptions<CanonicalEntityResolutionOptions> options) : ICanonicalQueryEntityResolver
+    IOptions<CanonicalEntityResolutionOptions> options) : ICanonicalQueryEntityResolver, ICanonicalQueryIndustryResolver
 {
+    public async Task<IndustryResolutionResult> ResolveIndustryMentionAsync(string? mention, CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeIdentity(mention);
+        if (string.IsNullOrWhiteSpace(normalized) || QueryNormalization.IsPresentationWord(normalized))
+            return new IndustryResolutionResult.Missing("Industry");
+
+        var industries = await dbContext.Industries.AsNoTracking()
+            .Where(row => row.ProviderName == "NoavaranCurrentApi")
+            .ToArrayAsync(cancellationToken);
+        var exact = industries.Where(row =>
+                string.Equals(NormalizeIdentity(row.ExternalId), normalized, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(NormalizeIdentity(row.Name), normalized, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (exact.Length == 1)
+            return new IndustryResolutionResult.Resolved(
+                new CanonicalQueryIndustry(exact[0].Id, exact[0].ExternalId, exact[0].Name, exact[0].ProviderName, "canonical_industry"),
+                new EntityResolutionEvidence("exact_industry", 1m));
+        if (exact.Length > 1)
+            return new IndustryResolutionResult.Ambiguous(exact
+                .Take(Math.Clamp(options.Value.MaxCandidates, 1, 10))
+                .Select(row => new CanonicalQueryIndustry(row.Id, row.ExternalId, row.Name, row.ProviderName, "canonical_industry"))
+                .ToArray());
+
+        var contained = industries.Where(row =>
+                NormalizeIdentity(row.Name).Contains(normalized, StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains(NormalizeIdentity(row.Name), StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (contained.Length == 1)
+            return new IndustryResolutionResult.Resolved(
+                new CanonicalQueryIndustry(contained[0].Id, contained[0].ExternalId, contained[0].Name, contained[0].ProviderName, "canonical_industry_variant"),
+                new EntityResolutionEvidence("canonical_industry_variant", 0.95m));
+        if (contained.Length > 1)
+            return new IndustryResolutionResult.Ambiguous(contained
+                .Take(Math.Clamp(options.Value.MaxCandidates, 1, 10))
+                .Select(row => new CanonicalQueryIndustry(row.Id, row.ExternalId, row.Name, row.ProviderName, "canonical_industry_variant"))
+                .ToArray());
+
+        return new IndustryResolutionResult.NotFound(normalized);
+    }
+
     public async Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeIdentity(mention);
@@ -18,19 +58,18 @@ public sealed class CanonicalQueryEntityResolver(
             return new EntityResolutionResult.Missing("CompanyOrSymbol");
 
         var companies = await dbContext.Companies.AsNoTracking().ToArrayAsync(cancellationToken);
-        var exactTicker = Match(companies, normalized, row => row.Ticker, "exact_ticker");
+        var exactTicker = PreferCanonical(Match(companies, normalized, row => row.Ticker, "exact_ticker"));
         var exactCompanyName = exactTicker.Length == 0
-            ? Match(companies, normalized, row => row.Name, "exact_company_name")
+            ? PreferCanonical(Match(companies, normalized, row => row.Name, "exact_company_name"))
             : [];
         var approvedAlias = exactTicker.Length == 0 && exactCompanyName.Length == 0
-            ? Match(companies, normalized, row => row.TseSymbol, "approved_alias")
-                .Concat(Match(companies, normalized, row => row.CompanySymbol, "approved_alias"))
-                .Concat(Match(companies, normalized, row => row.EnTicker, "approved_alias"))
-                .Concat(Match(companies, normalized, row => row.CompanySymbolEnglish, "approved_alias"))
-                .Concat(Match(companies, normalized, row => row.CompanySymbolPinglish, "approved_alias"))
-                .GroupBy(item => item.Row.Id)
-                .Select(group => group.First())
-                .ToArray()
+            ? PreferCanonical(Match(companies, normalized, row => row.TseSymbol, "approved_alias")
+                    .Concat(Match(companies, normalized, row => row.CompanySymbol, "approved_alias"))
+                    .Concat(Match(companies, normalized, row => row.EnTicker, "approved_alias"))
+                    .Concat(Match(companies, normalized, row => row.CompanySymbolEnglish, "approved_alias"))
+                    .Concat(Match(companies, normalized, row => row.CompanySymbolPinglish, "approved_alias"))
+                    .GroupBy(item => item.Row.Id)
+                    .Select(group => group.First()))
             : [];
         var exact = exactTicker.Length > 0 ? exactTicker
             : exactCompanyName.Length > 0 ? exactCompanyName
@@ -81,7 +120,9 @@ public sealed class CanonicalQueryEntityResolver(
         CancellationToken cancellationToken = default)
     {
         var mentions = interpretation.EntityMentions
-            .Where(mention => !QueryNormalization.IsPresentationWord(mention.Text))
+            .Where(mention => !QueryNormalization.IsPresentationWord(mention.Text) &&
+                !string.Equals(mention.EntityType, "product", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(mention.Scope, "product", StringComparison.OrdinalIgnoreCase))
             .OrderBy(mention => mention.Start)
             .ToArray();
         EntityResolutionResult.Ambiguous? bestAmbiguity = null;
@@ -110,12 +151,36 @@ public sealed class CanonicalQueryEntityResolver(
             : new EntityResolutionResult.NotFound(NormalizeIdentity(interpretation.EntityMentions[0].Text));
     }
 
+    public async Task<EntityResolutionResult> ResolveExactTickerFromTextAsync(
+        string? text,
+        CancellationToken cancellationToken = default)
+    {
+        var tokens = QueryNormalization.Normalize(text)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0)
+            return new EntityResolutionResult.Missing("CompanyOrSymbol");
+
+        var companies = await dbContext.Companies.AsNoTracking().ToArrayAsync(cancellationToken);
+        foreach (var token in tokens)
+        {
+            var exact = PreferCanonical(Match(companies, token, row => row.Ticker, "exact_ticker"));
+            if (exact.Length == 1)
+                return ToResolved(exact[0]);
+            if (exact.Length > 1)
+                return ToAmbiguous(exact, options.Value.MaxCandidates);
+        }
+
+        return new EntityResolutionResult.Missing("CompanyOrSymbol");
+    }
+
     public async Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(
         QueryInterpretation interpretation,
         CancellationToken cancellationToken = default)
     {
         var mentions = interpretation.EntityMentions
-            .Where(mention => !QueryNormalization.IsEntityDistractor(mention.Text))
+            .Where(mention => !QueryNormalization.IsEntityDistractor(mention.Text) &&
+                !string.Equals(mention.EntityType, "product", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(mention.Scope, "product", StringComparison.OrdinalIgnoreCase))
             .OrderBy(mention => mention.Start)
             .ToArray();
         var resolved = new List<(int Position, EntityResolutionResult.Resolved Result)>();
@@ -167,6 +232,15 @@ public sealed class CanonicalQueryEntityResolver(
             .Select(row => new MatchResult(row, kind))
             .ToArray();
 
+    private static MatchResult[] PreferCanonical(IEnumerable<MatchResult> matches)
+    {
+        var materialized = matches.ToArray();
+        var canonical = materialized
+            .Where(item => item.Row.ProviderName == "NoavaranCurrentApi")
+            .ToArray();
+        return canonical.Length > 0 ? canonical : materialized;
+    }
+
     private static EntityResolutionResult.Resolved ToResolved(MatchResult match) =>
         new(ToEntity(match.Row, match.Kind), new EntityResolutionEvidence(match.Kind, 1m));
 
@@ -177,7 +251,7 @@ public sealed class CanonicalQueryEntityResolver(
             .ToArray());
 
     private static CanonicalQueryEntity ToEntity(NormalizedCompanyRow row, string provenance) =>
-        new(row.Id, DisplaySymbol(row), row.Name, "Company", provenance);
+        new(row.Id, DisplaySymbol(row), row.Name, "Company", provenance, row.ExternalCompanyId);
 
     private static string DisplaySymbol(NormalizedCompanyRow row) =>
         FirstNonBlank(row.Ticker, row.TseSymbol, row.CompanySymbol, row.EnTicker, row.ExternalCompanyId);

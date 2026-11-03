@@ -8,7 +8,8 @@ internal sealed class BillingFunctions(IBillingFacadeHook billingHook)
 
     internal Task<BillingReservationHandle?> TryReserveAsync(
         AiQueryRequest request,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        string? usageCorrelationId = null) =>
         billingHook.TryReserveAsync(
             new BillingReservationRequest(
                 request.CorrelationId,
@@ -17,16 +18,30 @@ internal sealed class BillingFunctions(IBillingFacadeHook billingHook)
                 OperationCode,
                 request.UserId,
                 request.ApiClientId,
-                request.ExternalUserId),
+                request.ExternalUserId,
+                usageCorrelationId,
+                request.BillingOperationId,
+                AiQueryRequestFingerprint.Compute(request)),
             cancellationToken);
+
+    internal Task<BillingReservationHandle> EnsureReservedCapacityAsync(
+        BillingReservationHandle handle,
+        CancellationToken cancellationToken) =>
+        billingHook.EnsureReservedCapacityAsync(handle, cancellationToken);
+
+    internal Task<BillingReservationHandle> EnsureCurrentUsageCapacityAsync(
+        BillingReservationHandle handle,
+        CancellationToken cancellationToken) =>
+        billingHook.EnsureCurrentUsageCapacityAsync(handle, cancellationToken);
 
     internal Task<UsageAccountingResult?> FinalizeAsync(
         BillingReservationHandle handle,
         string completionStatus,
         bool fromCache,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        string? executionRoute = null) =>
         billingHook.FinalizeAsync(
             handle,
-            new BillingFinalizationRequest(completionStatus, fromCache),
+            new BillingFinalizationRequest(completionStatus, fromCache, ExecutionRoute: executionRoute),
             cancellationToken);
 }

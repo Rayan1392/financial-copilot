@@ -1,0 +1,76 @@
+{
+  "id": "metric_ebit_growth_yoy",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "EBIT_GROWTH_YOY"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "EBIT Growth YoY",
+    "Description": "Governed semantic definition for EBIT Growth YoY.",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "ebit growth yoy",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "EBIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد سود قبل از بهره و مالیات سالانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EBIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "EBIT"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "EBIT"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

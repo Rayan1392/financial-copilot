@@ -1,0 +1,72 @@
+{
+  "datasetVersion": 1,
+  "cases": [
+    {
+      "id": "fa-value-01",
+      "question": "آخرین سود عملیاتی هر سهم کگل چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_682beceadddc1458",
+          "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 161,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported per-share operating-profit source item 161; no EPS or OPERATING_PROFIT substitution",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_682beceadddc1458",
+          "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 161,
+          "unitStatus": "unknown",
+          "metricCode": null
+        }
+      ],
+      "expectedEntityReferences": [
+        "کگل"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ]
+    }
+  ]
+}

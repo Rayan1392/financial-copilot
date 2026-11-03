@@ -2,12 +2,18 @@ using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.API;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure;
-using Microsoft.AspNetCore.RateLimiting;
+using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Serilog;
+using System.Text;
+
+Console.OutputEncoding = Encoding.UTF8;
+Console.InputEncoding = Encoding.UTF8;
 
 //var apiKey = "dev-telegram-worker-key";
 
@@ -50,16 +56,57 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    // Preserve the tracked appsettings.Development.json while allowing local secrets.
+    // Insert before environment variables and command line so standard ASP.NET Core
+    // precedence remains: local JSON < environment variables < command line.
+    var environmentVariablesIndex = builder.Configuration.Sources
+        .ToList()
+        .FindIndex(source =>
+            source is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationSource environmentSource &&
+            string.IsNullOrEmpty(environmentSource.Prefix));
+    builder.Configuration.Sources.Insert(
+        environmentVariablesIndex >= 0 ? environmentVariablesIndex : builder.Configuration.Sources.Count,
+        new Microsoft.Extensions.Configuration.Json.JsonConfigurationSource
+        {
+            FileProvider = builder.Environment.ContentRootFileProvider,
+            Path = "appsettings.Development.Local.json",
+            Optional = true,
+            ReloadOnChange = true
+        });
+
+    // Keep the configured development key ring at the API content root even when
+    // the process is launched from a different working directory.
+    var keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+    if (!string.IsNullOrWhiteSpace(keyRingPath) && !Path.IsPathRooted(keyRingPath))
+    {
+        builder.Configuration["DataProtection:KeyRingPath"] =
+            Path.GetFullPath(keyRingPath, builder.Environment.ContentRootPath);
+    }
+}
+
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
 
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddCors(options =>
 {
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? ["http://localhost:5173"];
+    if (builder.Environment.IsDevelopment())
+    {
+        // Vite moves the app to 5174 when another project already occupies 5173.
+        allowedOrigins = allowedOrigins
+            .Append("http://localhost:5174")
+            .Append("http://127.0.0.1:5174")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     options.AddPolicy("Frontend", policy =>
         policy
-            .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? ["http://localhost:5173"])
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -97,7 +144,40 @@ builder.Services.AddOpenApi(options =>
     });
 });
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
+var bankingIndustryGroupId = builder.Configuration.GetValue<Guid>(BankingFinancialReportsConfiguration.ConfigurationKey);
+if (bankingIndustryGroupId == Guid.Empty)
+{
+    throw new InvalidOperationException($"{BankingFinancialReportsConfiguration.ConfigurationKey} must be configured with a non-empty GUID.");
+}
+builder.Services.AddSingleton(new BankingFinancialReportsConfiguration(bankingIndustryGroupId));
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<TelegramFinancialStatementReconciliationWorker>();
+builder.Services.AddTahlilAppIdentity(builder.Configuration);
+builder.Services
+    .AddOptions<ForwardedHeadersSecurityOptions>()
+    .BindConfiguration(ForwardedHeadersSecurityOptions.SectionName)
+    .Validate(options => options.IsValid(out _), "Forwarded header trust configuration is invalid.")
+    .ValidateOnStart();
+var forwardedHeadersSecurity = builder.Configuration
+    .GetSection(ForwardedHeadersSecurityOptions.SectionName)
+    .Get<ForwardedHeadersSecurityOptions>() ?? new ForwardedHeadersSecurityOptions();
+if (!forwardedHeadersSecurity.IsValid(out var forwardedHeadersError))
+{
+    throw new InvalidOperationException(forwardedHeadersError);
+}
+builder.Services.Configure<ForwardedHeadersOptions>(forwardedHeadersSecurity.ApplyTo);
+builder.Services
+    .AddOptions<PublicAuthenticationRateLimitOptions>()
+    .BindConfiguration(PublicAuthenticationRateLimitOptions.SectionName)
+    .Validate(options => options.PermitLimit is > 0 and <= 1000 && options.WindowSeconds is > 0 and <= 3600,
+        "Public authentication rate limits must be positive and bounded.")
+    .ValidateOnStart();
+builder.Services
+    .AddOptions<TahlilAppCreditBalanceRateLimitOptions>()
+    .BindConfiguration(TahlilAppCreditBalanceRateLimitOptions.SectionName)
+    .Validate(options => options.PermitLimit is > 0 and <= 1000 && options.WindowSeconds is > 0 and <= 3600,
+        "TahlilApp credit-balance rate limits must be positive and bounded.")
+    .ValidateOnStart();
 builder.Services
     .AddOptions<AuthenticatedActorRateLimitOptions>()
     .BindConfiguration(AuthenticatedActorRateLimitOptions.SectionName)
@@ -113,6 +193,23 @@ builder.Services.AddRateLimiter(options =>
         context => RateLimitPolicies.Partition(
             context,
             context.RequestServices.GetRequiredService<IOptionsSnapshot<AuthenticatedActorRateLimitOptions>>().Value));
+    options.AddPolicy(
+        RateLimitPolicies.PublicAuthentication,
+        context => RateLimitPolicies.PublicIp(
+            context,
+            context.RequestServices.GetRequiredService<IOptionsSnapshot<PublicAuthenticationRateLimitOptions>>().Value));
+    options.AddPolicy(
+        RateLimitPolicies.TahlilAppTopUpPartner,
+        context => RateLimitPolicies.PublicIp(
+            context,
+            new PublicAuthenticationRateLimitOptions { PermitLimit = 60, WindowSeconds = 60 }));
+    options.AddPolicy(
+        RateLimitPolicies.TahlilAppCreditBalance,
+        context =>
+        {
+            var limits = context.RequestServices.GetRequiredService<IOptionsSnapshot<TahlilAppCreditBalanceRateLimitOptions>>().Value;
+            return RateLimitPolicies.PublicIp(context, limits.PermitLimit, limits.WindowSeconds);
+        });
 });
 
 var app = builder.Build();
@@ -132,6 +229,10 @@ if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
     await app.ApplyPendingDatabaseMigrationsAsync();
 }
 
+if (forwardedHeadersSecurity.Enabled)
+{
+    app.UseForwardedHeaders();
+}
 app.UseSerilogRequestLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -148,6 +249,14 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
+app.MapGet("/api/ui/v1/config", (IConfiguration configuration) =>
+    Results.Ok(new
+    {
+        quarterlyFinancialTable = new
+        {
+            showChart = configuration.GetValue("QuarterlyFinancialTable:ShowChart", true)
+        }
+    }));
 app.MapControllers();
 
 app.Run();

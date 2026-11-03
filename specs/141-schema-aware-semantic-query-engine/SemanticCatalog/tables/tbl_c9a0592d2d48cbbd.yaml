@@ -1,0 +1,199 @@
+{
+  "id": "tbl_c9a0592d2d48cbbd",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundBankDepositPositions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "BankCode",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "RawBankName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedBankName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "BeginningBalance",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "IncreaseAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "DecreaseAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EndingBalance",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "WeightOfTotalAssetsPercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "BalanceReconciliationDifference",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ReconciliationStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "IsSectionTotal",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundBankDepositPositions_BankCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundBankDepositPositions_BankCode\" ON public.\"FundBankDepositPositions\" USING btree (\"BankCode\")",
+        "Columns": [
+          "BankCode"
+        ]
+      },
+      {
+        "Name": "IX_FundBankDepositPositions_FundId_PeriodEndDate_PeriodContext",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundBankDepositPositions_FundId_PeriodEndDate_PeriodContext\" ON public.\"FundBankDepositPositions\" USING btree (\"FundId\", \"PeriodEndDate\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodEndDate",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundBankDepositPositions_ReportId_PeriodContext_SourceLogic~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundBankDepositPositions_ReportId_PeriodContext_SourceLogic~\" ON public.\"FundBankDepositPositions\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\", \"NormalizedBankName\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow",
+          "NormalizedBankName"
+        ]
+      },
+      {
+        "Name": "IX_FundBankDepositPositions_ResolutionStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundBankDepositPositions_ResolutionStatus\" ON public.\"FundBankDepositPositions\" USING btree (\"ResolutionStatus\")",
+        "Columns": [
+          "ResolutionStatus"
+        ]
+      },
+      {
+        "Name": "PK_FundBankDepositPositions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundBankDepositPositions\" ON public.\"FundBankDepositPositions\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundBankDepositPositions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

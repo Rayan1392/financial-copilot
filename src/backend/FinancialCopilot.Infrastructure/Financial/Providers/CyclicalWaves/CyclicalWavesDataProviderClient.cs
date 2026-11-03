@@ -19,7 +19,8 @@ public sealed class CyclicalWavesDataProviderClient(
     IFinancialStatementProvider,
     IMonthlyProductionSalesProvider,
     IFinancialDataProviderHealthService,
-    ICyclicalWavesPsProviderClient
+    ICyclicalWavesPsProviderClient,
+    ICyclicalWavesRelativeValuationProviderClient
 {
     private readonly CyclicalWavesProviderOptions _settings = options.Value;
     private static readonly SemaphoreSlim _throttle = new(10, 10);
@@ -76,7 +77,7 @@ public sealed class CyclicalWavesDataProviderClient(
         var result = await GetPsAsync<CyclicalWavesPsGaugePayload>($"ps/circle-chart-data/{Uri.EscapeDataString(RequireTicker(symbolIsin))}", cancellationToken);
         return result.Value is null
             ? new PsProviderResult<PsGaugeDistribution>(null, result.ErrorCode, result.WarningCode)
-            : new PsProviderResult<PsGaugeDistribution>(new PsGaugeDistribution(result.Value.A, result.Value.B, result.Value.C, result.Value.D, result.Value.E, result.Value.F, result.Value.Close, result.Value.Start, result.Value.Min, result.Value.Average, result.Value.Max, result.Value.End), result.ErrorCode, result.WarningCode);
+            : new PsProviderResult<PsGaugeDistribution>(new PsGaugeDistribution(result.Value.A, result.Value.B, result.Value.C, result.Value.D, result.Value.E, result.Value.F, result.Value.Close, result.Value.Average, result.Value.Start, result.Value.Min, result.Value.Average, result.Value.Max, result.Value.End), result.ErrorCode, result.WarningCode);
     }
 
     public async Task<PsProviderResult<PsCurrentValues>> GetCurrentValuesAsync(string symbolIsin, CancellationToken cancellationToken)
@@ -115,18 +116,157 @@ public sealed class CyclicalWavesDataProviderClient(
         return new PsProviderResult<PsHistorySeries>(new PsHistorySeries(points, value.FirstDate, value.LastDate, value.DataCount), PsVisualizationSyncErrorCode.None);
     }
 
+    public Task<RelativeValuationProviderResult> GetPeGaugeAsync(string isin, CancellationToken cancellationToken) =>
+        GetRelativeValuationAsync<CyclicalWavesPeGaugePayload>(
+            RelativeValuationSourceKind.PEGauge,
+            $"pe/circle-chart-data/{Uri.EscapeDataString(RequireTicker(isin))}",
+            isin,
+            static (payload, _) => payload.Close is > 0m && payload.Average is > 0m
+                ? (payload.Close, payload.Average, RelativeValuationFactReadiness.Ready, "Valid", "endpoint-isin")
+                : (null, null, RelativeValuationFactReadiness.InvalidNumericValue, "InvalidNonPositiveInput", "endpoint-isin"),
+            cancellationToken);
+
+    public Task<RelativeValuationProviderResult> GetEquilibriumGaugeAsync(string isin, CancellationToken cancellationToken) =>
+        GetRelativeValuationAsync<CyclicalWavesEquilibriumGaugePayload>(
+            RelativeValuationSourceKind.EquilibriumGauge,
+            $"equilibrium/gauge/{Uri.EscapeDataString(RequireTicker(isin))}",
+            isin,
+            static (payload, requestedIsin) =>
+            {
+                var identity = payload.EnTicker ?? payload.Ticker;
+                if (string.IsNullOrWhiteSpace(identity) ||
+                    !string.Equals(identity.Trim(), requestedIsin.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return (null, null, RelativeValuationFactReadiness.IdentityMismatch, "IdentityMismatch", $"response-identity:{identity ?? "missing"}");
+                }
+
+                return payload.Close is > 0m && payload.Balance is > 0m
+                    ? (payload.Close, payload.Balance, RelativeValuationFactReadiness.Ready, "Valid", $"response-identity:{identity.Trim()}")
+                    : (null, null, RelativeValuationFactReadiness.InvalidNumericValue, "InvalidNonPositiveInput", $"response-identity:{identity.Trim()}");
+            },
+            cancellationToken);
+
+    private async Task<RelativeValuationProviderResult> GetRelativeValuationAsync<T>(
+        RelativeValuationSourceKind sourceKind,
+        string endpoint,
+        string requestedIsin,
+        Func<T, string, (decimal? Current, decimal? Reference, RelativeValuationFactReadiness Readiness, string QualityCode, string IdentityEvidence)> map,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Headers.Accept.ParseAdd("application/json, text/plain, */*");
+            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            request.Headers.Pragma.ParseAdd("no-cache");
+            request.Headers.TryAddWithoutValidation("Origin", "https://tahlilapp.com");
+            request.Headers.Referrer = new Uri("https://tahlilapp.com/");
+            request.Headers.UserAgent.ParseAdd("Mozilla/5.0");
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
+                return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.NotFoundOrNoData, "NotFoundOrNoData");
+            if (IsAuthenticationFailure(response.StatusCode))
+            {
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected. Endpoint={Endpoint} StatusCode={StatusCode} " +
+                    "ContentType={ContentType} RedirectLocation={RedirectLocation}",
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString());
+                return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.AuthenticationFailed, "AuthenticationFailed");
+            }
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.RateLimited, "RateLimited");
+            if ((int)response.StatusCode >= 500)
+                return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.RemoteServerFailure, "RemoteServerFailure");
+            if (!response.IsSuccessStatusCode)
+                return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.InvalidPayload, $"Http{(int)response.StatusCode}");
+
+            var raw = await ReadBoundedPayloadAsync(response, _settings.PsMaxResponseBytes, cancellationToken);
+            if (raw is null)
+                return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.InvalidPayload, "PayloadTooLarge");
+
+            var payload = JsonSerializer.Deserialize<T>(raw, JsonOptions);
+            if (payload is null)
+                return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.InvalidPayload, "EmptyJson", raw);
+
+            var mapped = map(payload, requestedIsin);
+            var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+            var observationId = $"{endpoint}:{requestedIsin.Trim().ToUpperInvariant()}:{payloadHash}";
+            return new RelativeValuationProviderResult(sourceKind, mapped.Current, mapped.Reference, observationId, endpoint,
+                mapped.IdentityEvidence, mapped.Readiness, mapped.QualityCode, payloadHash, raw, timeProvider.GetUtcNow());
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.Timeout, "Timeout");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException)
+        {
+            return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.NetworkFailure, "NetworkFailure");
+        }
+        catch (JsonException)
+        {
+            return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.InvalidPayload, "MalformedJson");
+        }
+        catch (OverflowException)
+        {
+            return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.InvalidPayload, "NumericOverflow");
+        }
+    }
+
+    private static async Task<string?> ReadBoundedPayloadAsync(HttpResponseMessage response, int maxBytes, CancellationToken cancellationToken)
+    {
+        if (response.Content.Headers.ContentLength is > 0 and var length && length > maxBytes) return null;
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var buffer = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
+        {
+            if (buffer.Length + read > maxBytes) return null;
+            await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
+        }
+        return Encoding.UTF8.GetString(buffer.GetBuffer(), 0, checked((int)buffer.Length));
+    }
+
+    private static RelativeValuationProviderResult Failure(
+        RelativeValuationSourceKind kind,
+        string endpoint,
+        RelativeValuationFactReadiness readiness,
+        string qualityCode,
+        string rawPayload = "") =>
+        new(kind, null, null, $"{endpoint}:{readiness}", endpoint, "", readiness, qualityCode, "", rawPayload);
+
     private async Task<PsProviderResult<T>> GetPsAsync<T>(string endpoint, CancellationToken cancellationToken)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
             request.Headers.Accept.ParseAdd("application/json, text/plain, */*");
+            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            request.Headers.Pragma.ParseAdd("no-cache");
             request.Headers.TryAddWithoutValidation("Origin", "https://tahlilapp.com");
             request.Headers.Referrer = new Uri("https://tahlilapp.com/");
             request.Headers.UserAgent.ParseAdd("Mozilla/5.0");
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
                 return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.NotFoundOrNoData);
+            if (IsAuthenticationFailure(response.StatusCode))
+            {
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected. Endpoint={Endpoint} StatusCode={StatusCode} " +
+                    "ContentType={ContentType} RedirectLocation={RedirectLocation}",
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString());
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.AuthenticationFailed);
+            }
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.RateLimited, response.Headers.RetryAfter?.Delta is { } retry ? $"RetryAfterSeconds:{(int)retry.TotalSeconds}" : null);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -178,6 +318,20 @@ public sealed class CyclicalWavesDataProviderClient(
         {
             using var response = await httpClient.GetAsync(endpoint, cancellationToken);
 
+            if (IsAuthenticationFailure(response.StatusCode))
+            {
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected. Endpoint={Endpoint} StatusCode={StatusCode} " +
+                    "ContentType={ContentType} RedirectLocation={RedirectLocation}",
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString());
+                throw new FinancialProviderException(
+                    FinancialProviderErrorCode.Unauthorized,
+                    $"CyclicalWaves authentication failed for '{endpoint}' with status {(int)response.StatusCode}.");
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 throw new FinancialProviderException(
@@ -221,6 +375,10 @@ public sealed class CyclicalWavesDataProviderClient(
         string.IsNullOrWhiteSpace(ticker)
             ? throw new ArgumentException("Ticker is required.", nameof(ticker))
             : ticker.Trim();
+
+    private static bool IsAuthenticationFailure(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
+        (int)statusCode is >= 300 and <= 399;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

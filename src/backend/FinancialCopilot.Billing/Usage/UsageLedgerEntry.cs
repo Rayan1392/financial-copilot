@@ -23,7 +23,10 @@ public sealed record UsageLedgerEntry(
     int? TotalTokens = null,
     decimal? EstimatedCost = null,
     string? AllocationSource = null,
-    string? AllowanceDateKey = null)
+    string? AllowanceDateKey = null,
+    Accounts.CreditQuotaMode QuotaMode = Accounts.CreditQuotaMode.Finite,
+    Guid? SourceSubscriptionId = null,
+    DateTimeOffset? SourceSubscriptionExpiresAtUtc = null)
 {
     public decimal BalanceImpact => EntryType switch
     {

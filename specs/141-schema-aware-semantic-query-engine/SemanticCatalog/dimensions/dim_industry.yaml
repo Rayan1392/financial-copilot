@@ -1,0 +1,11 @@
+{
+  "id": "dim_industry",
+  "physicalTableId": "tbl_0092e8a0b8fd0d23",
+  "columns": [
+    "Id",
+    "Name",
+    "ParentId"
+  ],
+  "status": "unapproved",
+  "runtimeQueryable": false
+}

@@ -1,0 +1,100 @@
+{
+  "id": "tbl_6e663ef22a071a7a",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioSignals",
+    "ObjectType": "ef_table",
+    "Columns": [
+      {
+        "Name": "ConfidenceScore",
+        "Type": "numeric",
+        "Nullable": false,
+        "DefaultValue": "0"
+      },
+      {
+        "Name": "DeduplicationKey",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false,
+        "DefaultValue": "00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "Name": "ImportanceScore",
+        "Type": "numeric",
+        "Nullable": false,
+        "DefaultValue": "0"
+      },
+      {
+        "Name": "IndustryCode",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "Magnitude",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(4000)",
+        "Nullable": false
+      },
+      {
+        "Name": "SignalType",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "NewPosition"
+      },
+      {
+        "Name": "SnapshotId",
+        "Type": "uuid",
+        "Nullable": false,
+        "DefaultValue": "00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "Name": "Title",
+        "Type": "character varying(512)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "",
+        "Unique": true,
+        "Definition": "DeduplicationKey"
+      },
+      {
+        "Name": "",
+        "Unique": false,
+        "Definition": "SnapshotId,SignalType"
+      }
+    ],
+    "Constraints": []
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

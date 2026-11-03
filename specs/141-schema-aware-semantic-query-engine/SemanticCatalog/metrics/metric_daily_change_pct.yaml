@@ -1,0 +1,136 @@
+{
+  "id": "metric_daily_change_pct",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "DAILY_CHANGE_PCT"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Daily Change Percent",
+    "Description": "Governed semantic definition for Daily Change Percent.",
+    "Category": 2,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      7
+    ],
+    "Aliases": [
+      {
+        "Expression": "daily change",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "daily change percent",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "daily change pct",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "change percent",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "درصد تغییر قیمت",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "درصد تغییر روزانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "تغییر روزانه درصدی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "درصد تغییر",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "تغییر قیمت",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "تغییر روزانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "DAILY_CHANGE_PCT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

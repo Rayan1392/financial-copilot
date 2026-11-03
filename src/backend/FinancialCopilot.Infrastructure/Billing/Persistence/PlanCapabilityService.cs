@@ -1,20 +1,18 @@
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Domain.Identity.TahlilApp;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.Infrastructure.Billing.Persistence;
 
-public sealed class PlanCapabilityService(BillingDbContext dbContext) : IPlanCapabilityService
+public sealed class PlanCapabilityService(BillingDbContext dbContext, TimeProvider? timeProvider = null) : IPlanCapabilityService
 {
     public async Task ValidateCanExecuteAsync(
         CustomerAccount account,
         string operationCode,
         CancellationToken cancellationToken)
     {
-        var planCode = await dbContext.CustomerAccounts
-            .Where(row => row.Id == account.Id)
-            .Select(row => row.SubscriptionPlanCode)
-            .SingleOrDefaultAsync(cancellationToken);
+        var planCode = await ReadEffectivePlanCodeAsync(account.Id, cancellationToken);
 
         // Existing organization integrations without commercial plan assignment retain their
         // current policy until subscription administration assigns a plan.
@@ -54,15 +52,46 @@ public sealed class PlanCapabilityService(BillingDbContext dbContext) : IPlanCap
         }
     }
 
+    /// <summary>
+    /// Stored plan code after the expiry guard (Design §11, AC-35). A lapsed paid window reads as Free.
+    /// </summary>
+    private async Task<string?> ReadEffectivePlanCodeAsync(Guid customerAccountId, CancellationToken cancellationToken)
+    {
+        var external = await dbContext.CustomerAccounts.AsNoTracking()
+            .Where(row => row.Id == customerAccountId)
+            .Select(row => row.ExternalSubscriptionManaged)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (external)
+        {
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+            var active = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
+                .Where(row => row.CustomerAccountId == customerAccountId && !row.IsRevoked && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+                .Select(row => new { row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc })
+                .ToListAsync(cancellationToken);
+            return TahlilAppSubscriptionPolicy.ResolveActivePlanSet(
+                active.Select(row => new TahlilAppPlanSubscription(
+                    row.IdentityKey, row.PlanCode, row.StartsAtUtc, row.ExpiresAtUtc, row.IdentityKey)).ToArray(),
+                now).PlanCode;
+        }
+
+        var subscription = await dbContext.CustomerAccounts
+            .Where(row => row.Id == customerAccountId)
+            .Select(row => new { row.SubscriptionPlanCode, row.SubscriptionEffectiveTo })
+            .SingleOrDefaultAsync(cancellationToken);
+        return subscription is null
+            ? null
+            : SubscriptionEffectiveness.ResolveEffectivePlanCode(
+                subscription.SubscriptionPlanCode,
+                subscription.SubscriptionEffectiveTo,
+            (timeProvider ?? TimeProvider.System).GetUtcNow());
+    }
+
     public async Task<decimal?> GetLimitAsync(
         CustomerAccount account,
         string capabilityCode,
         CancellationToken cancellationToken)
     {
-        var planCode = await dbContext.CustomerAccounts
-            .Where(row => row.Id == account.Id)
-            .Select(row => row.SubscriptionPlanCode)
-            .SingleOrDefaultAsync(cancellationToken);
+        var planCode = await ReadEffectivePlanCodeAsync(account.Id, cancellationToken);
         if (string.IsNullOrWhiteSpace(planCode))
         {
             return null;

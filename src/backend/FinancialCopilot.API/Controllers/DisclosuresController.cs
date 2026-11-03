@@ -1,5 +1,7 @@
 using FinancialCopilot.API.Security;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Billing.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,8 +12,14 @@ namespace FinancialCopilot.API.Controllers;
 [Route("api/v1/disclosures")]
 [Authorize(Policy = AuthorizationPolicies.MarketSummaryRead)]
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
-public sealed class DisclosuresController(IDisclosureListingUseCase disclosureListing) : ControllerBase
+public sealed class DisclosuresController(
+    IDisclosureListingUseCase disclosureListing,
+    ICurrentActorContext actorContext,
+    IBillableAccountResolver accountResolver,
+    IPlanCapabilityService planCapabilities) : ControllerBase
 {
+    private const string PageAccessCapability = "Page.Disclosures";
+
     [HttpGet]
     public async Task<ActionResult<DisclosureListingResult>> Get(
         [FromQuery] CompanyDisclosureType[]? types,
@@ -28,6 +36,19 @@ public sealed class DisclosuresController(IDisclosureListingUseCase disclosureLi
     {
         try
         {
+            var actor = actorContext.Actor;
+            var account = await accountResolver.ResolveAsync(
+                new BillableActorContext(actor.ActorId, actor.TenantId, actor.UserId, actor.ApiClientId,
+                    ExternalUserId: null), cancellationToken);
+            try
+            {
+                await planCapabilities.ValidateCanExecuteAsync(account, PageAccessCapability, cancellationToken);
+            }
+            catch (InvalidOperationException)
+            {
+                return Forbid();
+            }
+
             return Ok(await disclosureListing.ExecuteAsync(new DisclosureListingQuery(
                 types, symbolOrCompany, providerNames, publishedFrom, publishedTo, receivedFrom, receivedTo,
                 consolidationScope, page, pageSize), cancellationToken));

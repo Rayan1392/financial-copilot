@@ -1,0 +1,28 @@
+{
+  "id": "rel_99dda63b5dc55e19",
+  "from": {
+    "schema": "public",
+    "table": "IndustryWatchStates",
+    "columns": [
+      "GroupId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "IndustryGroups",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "one-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

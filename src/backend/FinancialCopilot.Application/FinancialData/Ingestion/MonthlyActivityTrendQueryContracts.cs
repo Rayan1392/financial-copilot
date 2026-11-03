@@ -1,3 +1,5 @@
+using FinancialCopilot.Application.AI.Orchestration;
+
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 // ---------------------------------------------------------------------------
@@ -17,7 +19,10 @@ public sealed record MonthlyActivityTrendQuery(
     int? LatestReportYear = null,
     int? LatestReportMonth = null,
     MonthlyActivityTrendMeasure Measure = MonthlyActivityTrendMeasure.SalesAmount,
-    bool IncludeChartPayload = true);
+    bool IncludeChartPayload = true,
+    int? LastAvailableMonths = null,
+    IReadOnlyCollection<string>? RequestedOperations = null,
+    IReadOnlyCollection<string>? UnsupportedParts = null);
 
 // ---------------------------------------------------------------------------
 // Chart point — one fiscal month across both years
@@ -81,7 +86,13 @@ public sealed record MonthlyActivityTrendResponse(
     IReadOnlyList<MonthlyActivityTrendInsight> Insights,
     IReadOnlyList<MonthlyActivityTrendMissingDataPoint> MissingDataPoints,
     string SourceProviderName,
-    DateTimeOffset CalculatedAtUtc);
+    DateTimeOffset CalculatedAtUtc)
+{
+    public decimal? SalesAmountMomGrowthPercent { get; init; }
+    public string? RequestedPeriod { get; init; }
+    public IReadOnlyCollection<string> RequestedOperations { get; init; } = [];
+    public IReadOnlyCollection<string> UnsupportedParts { get; init; } = [];
+}
 
 // ---------------------------------------------------------------------------
 // Use-case interface (Application owns it; Infrastructure implements)
@@ -91,5 +102,12 @@ public interface IMonthlyActivityTrendQueryUseCase
 {
     Task<MonthlyActivityTrendResponse?> ExecuteAsync(
         MonthlyActivityTrendQuery query,
+        CancellationToken ct = default);
+}
+
+public interface IMonthlySalesProductFollowUpSuggestionService
+{
+    Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(
+        MonthlyActivityTrendResponse trend,
         CancellationToken ct = default);
 }

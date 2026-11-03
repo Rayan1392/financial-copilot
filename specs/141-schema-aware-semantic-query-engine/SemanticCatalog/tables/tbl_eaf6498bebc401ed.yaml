@@ -1,0 +1,100 @@
+{
+  "id": "tbl_eaf6498bebc401ed",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_usage_reservations",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CustomerAccountId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "OperationCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "ReservedCredits",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "CommittedCredits",
+        "Type": "numeric(18,4)",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "FinalizationReason",
+        "Type": "character varying(500)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_billing_usage_reservations_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_usage_reservations_IdempotencyKey\" ON public.billing_usage_reservations USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "PK_billing_usage_reservations",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_usage_reservations\" ON public.billing_usage_reservations USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_billing_usage_reservations",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

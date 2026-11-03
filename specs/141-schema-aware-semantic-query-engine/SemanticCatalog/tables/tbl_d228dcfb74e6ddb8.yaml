@@ -1,0 +1,198 @@
+{
+  "id": "tbl_d228dcfb74e6ddb8",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioImportItems",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportRunId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceObjectId",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "OriginalFileName",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "ObservedFundName",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ObservedPeriodEnd",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "DownloadToken",
+        "Type": "character varying(2048)",
+        "Nullable": false
+      },
+      {
+        "Name": "FileSha256",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "Status",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "AttemptCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastErrorCode",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "LastErrorSummary",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "StartedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompletedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseUntilUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "NextAttemptAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      },
+      {
+        "Name": "QueuedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false,
+        "DefaultValue": "CURRENT_TIMESTAMP"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioImportItems_ImportRunId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioImportItems_ImportRunId\" ON public.\"FundPortfolioImportItems\" USING btree (\"ImportRunId\")",
+        "Columns": [
+          "ImportRunId"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioImportItems_ProviderName_FileSha256",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioImportItems_ProviderName_FileSha256\" ON public.\"FundPortfolioImportItems\" USING btree (\"ProviderName\", \"FileSha256\") WHERE (\"FileSha256\" IS NOT NULL)",
+        "Columns": [
+          "ProviderName",
+          "FileSha256"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioImportItems_ProviderName_SourceObjectId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioImportItems_ProviderName_SourceObjectId\" ON public.\"FundPortfolioImportItems\" USING btree (\"ProviderName\", \"SourceObjectId\") WHERE (\"SourceObjectId\" IS NOT NULL)",
+        "Columns": [
+          "ProviderName",
+          "SourceObjectId"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioImportItems_QueuedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioImportItems_QueuedAtUtc\" ON public.\"FundPortfolioImportItems\" USING btree (\"QueuedAtUtc\")",
+        "Columns": [
+          "QueuedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioImportItems_Status_AttemptCount_StartedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioImportItems_Status_AttemptCount_StartedAtUtc\" ON public.\"FundPortfolioImportItems\" USING btree (\"Status\", \"AttemptCount\", \"StartedAtUtc\")",
+        "Columns": [
+          "Status",
+          "AttemptCount",
+          "StartedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioImportItems_Status_NextAttemptAtUtc_LeaseUntilU",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioImportItems_Status_NextAttemptAtUtc_LeaseUntilU\" ON public.\"FundPortfolioImportItems\" USING btree (\"Status\", \"NextAttemptAtUtc\", \"LeaseUntilUtc\")",
+        "Columns": [
+          "Status",
+          "NextAttemptAtUtc",
+          "LeaseUntilUtc"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioImportItems",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioImportItems\" ON public.\"FundPortfolioImportItems\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioImportItems",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

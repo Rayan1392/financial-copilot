@@ -3,11 +3,13 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 internal sealed class MonthlySalesQualityRankingQueryUseCase(
-    IMonthlySalesQualityRankingRepository repository)
+    IMonthlySalesQualityRankingRepository repository,
+    IOptions<MonthlySalesQualityRankingOptions> options)
     : IMonthlySalesQualityRankingQueryUseCase
 {
     public Task<MonthlySalesQualityRankingResponse> ExecuteAsync(
@@ -15,7 +17,10 @@ internal sealed class MonthlySalesQualityRankingQueryUseCase(
         CancellationToken ct = default) =>
         repository.GetRankingAsync(query with
         {
-            Limit = Math.Clamp(query.Limit <= 0 ? 10 : query.Limit, 1, 50)
+            Limit = Math.Clamp(
+                query.Limit <= 0 ? options.Value.DefaultLimit : query.Limit,
+                1,
+                options.Value.MaximumLimit)
         }, ct);
 }
 
@@ -36,8 +41,7 @@ internal sealed class RecalculateMonthlySalesQualityRankingUseCase(
         var started = timeProvider.GetUtcNow();
         var period = request.ReportYear.HasValue && request.ReportMonth.HasValue
             ? (request.ReportYear.Value, request.ReportMonth.Value)
-            : await ResolveLatestTrendPeriodAsync(ct)
-                ?? throw new InvalidOperationException("No monthly activity trend snapshots are available for ranking recalculation.");
+            : await ResolveLatestRankablePeriodAsync(ct);
 
         logger.LogInformation(
             "Recalculating monthly sales quality ranking for {ReportYear}/{ReportMonth:00}.",
@@ -155,16 +159,11 @@ internal sealed class RecalculateMonthlySalesQualityRankingUseCase(
             calculatedAt);
     }
 
-    private async Task<(int, byte)?> ResolveLatestTrendPeriodAsync(CancellationToken ct)
+    private Task<(int, byte)> ResolveLatestRankablePeriodAsync(CancellationToken ct)
     {
-        var period = await dbContext.CompanyMonthlyActivityTrendSnapshots
-            .AsNoTracking()
-            .OrderByDescending(r => r.ReportYear)
-            .ThenByDescending(r => r.ReportMonth)
-            .Select(r => new { r.ReportYear, r.ReportMonth })
-            .FirstOrDefaultAsync(ct);
-
-        return period is null ? null : (period.ReportYear, period.ReportMonth);
+        var period = ShamsiMonthCalculator.LatestCompletedCalendarMonth(timeProvider.GetUtcNow());
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult((period.Year, (byte)period.Month));
     }
 
     private async Task<List<RankingSourceRow>> LoadCurrentRowsAsync(int reportYear, byte reportMonth, CancellationToken ct)

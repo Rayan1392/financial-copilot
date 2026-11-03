@@ -88,6 +88,52 @@ public sealed class CompanyMonthlyActivityTrendSnapshot076Tests
         Assert.Equal(500m, repo.Upserted!.MonthlySalesAmount);
     }
 
+    [Fact]
+    public async Task Calculator_UsesServiceSalesWhenProductSalesType0IsMissing()
+    {
+        var db = CreateDb();
+        var repo = new InMemoryTrendRepository();
+        var (start, end) = JalaliDateResolver.ResolveMonth(1403, 8);
+        var serviceReportId = AddReport(
+            db,
+            ExternalId,
+            start,
+            end,
+            outputType: null,
+            reportType: "ServiceSales");
+        AddLineItem(db, serviceReportId, "Ù„ÛŒÙ† Ø®Ø¯Ù…Øª", salesAmount: 700m);
+        await db.SaveChangesAsync();
+
+        await new CompanyMonthlyActivityTrendSnapshotCalculator(db, repo)
+            .RecalculateAsync(ExternalId, 1403, 8, Symbol, null, null);
+
+        Assert.NotNull(repo.Upserted);
+        Assert.Equal(700m, repo.Upserted!.MonthlySalesAmount);
+        Assert.Null(repo.Upserted.CurrentMonthOutputType);
+        Assert.Null(repo.Upserted.MonthlySalesQuantity);
+        Assert.Null(repo.Upserted.MonthlyProductionQuantity);
+    }
+
+    [Fact]
+    public async Task Calculator_ProductSalesType0TakesPrecedenceOverPersistedServiceSales()
+    {
+        var db = CreateDb();
+        var repo = new InMemoryTrendRepository();
+        var (start, end) = JalaliDateResolver.ResolveMonth(1403, 9);
+        var serviceReportId = AddReport(db, ExternalId, start, end, outputType: null, reportType: "ServiceSales");
+        AddLineItem(db, serviceReportId, "Ø®Ø¯Ù…Øª", salesAmount: 700m);
+        var productReportId = AddReport(db, ExternalId, start, end, outputType: 0);
+        AddLineItem(db, productReportId, "Ù…Ø­ØµÙˆÙ„", salesAmount: 100m, unit: "ØªÙ†");
+        await db.SaveChangesAsync();
+
+        await new CompanyMonthlyActivityTrendSnapshotCalculator(db, repo)
+            .RecalculateAsync(ExternalId, 1403, 9, Symbol, null, null);
+
+        Assert.NotNull(repo.Upserted);
+        Assert.Equal(100m, repo.Upserted!.MonthlySalesAmount);
+        Assert.Equal(0, repo.Upserted.CurrentMonthOutputType);
+    }
+
     // -----------------------------------------------------------------------
     // Mixed units detection
     // -----------------------------------------------------------------------
@@ -351,7 +397,8 @@ public sealed class CompanyMonthlyActivityTrendSnapshot076Tests
         string externalCompanyId,
         DateOnly periodStart,
         DateOnly periodEnd,
-        int outputType)
+        int? outputType,
+        string reportType = "ProductSales")
     {
         var id = Guid.NewGuid();
         db.MonthlyReports.Add(new NormalizedMonthlyReportRow
@@ -360,7 +407,7 @@ public sealed class CompanyMonthlyActivityTrendSnapshot076Tests
             ProviderName = Provider,
             ExternalCompanyId = externalCompanyId,
             ExternalReportId = Guid.NewGuid().ToString(),
-            ReportType = "ProductSales",
+            ReportType = reportType,
             OutputType = outputType,
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,

@@ -1,0 +1,49 @@
+{
+  "id": "L6-flag-on",
+  "run": {
+    "Question": "فروش ماهانه کگهر را نشان بده",
+    "Enabled": true,
+    "Answer": "واحد: میلیون ریال\r\nبرای نماد کگهر مقدار قابل اتکایی برای فروش ماهانه در داده‌های فعلی موجود نیست.",
+    "PersistedUserMessage": "فروش ماهانه کگهر را نشان بده",
+    "PersistedAssistantMessage": "واحد: میلیون ریال\r\nبرای نماد کگهر مقدار قابل اتکایی برای فروش ماهانه در داده‌های فعلی موجود نیست.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=DeterministicFallback CorrelationId=feature141-pilot-44977a6caed54bf28f5b6510a27a45a2 | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:کگهر RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=Executed ReasonCode=none PayloadType=SymbolLookupTableResult",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "SymbolLookup",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:symbol_metric_lookup"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 49.0000,
+    "WalletBalanceAfter": 48.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 8280.5142,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=DeterministicFallback CorrelationId=feature141-pilot-44977a6caed54bf28f5b6510a27a45a2",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:کگهر RequestedMetrics=فروش RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=Executed ReasonCode=none PayloadType=SymbolLookupTableResult",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-44977a6caed54bf28f5b6510a27a45a2 RolloutMode=Shadow LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.88 ExtractedCompany=کگهر ExtractedProduct=(null) ExtractedMetric=فروش ExtractedPeriod=(null) ResolvedCompany="
+    ],
+    "ExecutedQueries": []
+  }
+}

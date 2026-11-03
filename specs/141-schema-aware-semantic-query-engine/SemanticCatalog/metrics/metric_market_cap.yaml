@@ -1,0 +1,35 @@
+{
+  "id": "metric_market_cap",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MARKET_CAP"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Market Capitalization",
+    "Description": "Governed semantic definition for Market Capitalization.",
+    "Category": 2,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      7
+    ],
+    "Aliases": [],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

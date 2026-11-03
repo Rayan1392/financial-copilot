@@ -30,6 +30,12 @@ As a commercial administrator, I want to inspect and manage versioned subscripti
 their capabilities, quotas, and limits so product packaging changes are persisted Billing
 policy rather than controller logic.
 
+The active owned-web subscription catalog is intentionally limited to exactly three canonical
+plans: `Free`, `Plus`, and `Pro`. `Premium` and arbitrary additional plan codes are not part of
+the supported catalog. Administrators may change a canonical plan's included-credit allowance;
+the change must be validated and audited, and it affects future entitlement/provisioning policy
+without rewriting immutable usage-ledger history or directly changing existing wallet balances.
+
 ### Customer Subscription Management
 
 As a commercial administrator, I want to assign an active subscription plan to an eligible
@@ -191,6 +197,7 @@ DELETE /api/v1/admin/tenants/{tenantId}/members/{userId}
 
 GET    /api/v1/admin/plans
 POST   /api/v1/admin/plans
+PATCH  /api/v1/admin/plans/{planCode}/included-credits
 GET    /api/v1/admin/plans/{planCode}/capabilities
 PUT    /api/v1/admin/plans/{planCode}/capabilities
 GET    /api/v1/admin/customers/{customerAccountId}/subscription
@@ -225,6 +232,9 @@ filtering. The API is designed for a future React Admin UI, but no UI is deliver
    access through a browser-supplied tenant identifier.
 8. Plan and `PlanCapabilities` management publishes versioned Billing-owned policy. Historical
    usage records retain the policy version used when they were created.
+   The active plan catalog contains only `Free`, `Plus`, and `Pro`; included credit can be
+   updated for those plans through an audited admin command without mutating existing wallets
+   or historical ledger entries.
 9. Subscription assignment supports direct-consumer and SaaS organization customer accounts
    according to Billing policy and records effective dates plus audit evidence.
 10. Manual credit adjustments use Billing services, require an audit reason and idempotency

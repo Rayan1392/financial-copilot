@@ -1,0 +1,162 @@
+{
+  "id": "tbl_d512447a19cff471",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryRelativeValuationSourceFacts",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceKind",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceObservationId",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "CurrentValue",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReferenceValue",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "FetchedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "PersistedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEndpoint",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceWatermark",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "PayloadHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Readiness",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "QualityCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "IdentityEvidence",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "RawPayload",
+        "Type": "text",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryRelativeValuationSourceFacts_CompanyId_SourceKind_F~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryRelativeValuationSourceFacts_CompanyId_SourceKind_F~\" ON public.\"IndustryRelativeValuationSourceFacts\" USING btree (\"CompanyId\", \"SourceKind\", \"FetchedAtUtc\")",
+        "Columns": [
+          "CompanyId",
+          "SourceKind",
+          "FetchedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_IndustryRelativeValuationSourceFacts_ProviderName_SourceKin~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationSourceFacts_ProviderName_SourceKin~\" ON public.\"IndustryRelativeValuationSourceFacts\" USING btree (\"ProviderName\", \"SourceKind\", \"SourceObservationId\")",
+        "Columns": [
+          "ProviderName",
+          "SourceKind",
+          "SourceObservationId"
+        ]
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationSourceFacts",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryRelativeValuationSourceFacts\" ON public.\"IndustryRelativeValuationSourceFacts\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IndustryRelativeValuationSourceFacts_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationSourceFacts",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

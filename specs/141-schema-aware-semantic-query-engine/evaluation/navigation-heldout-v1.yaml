@@ -1,0 +1,138 @@
+{
+  "datasetVersion": 1,
+  "purpose": "Separate scoring fixture for cases marked held-out in navigation-golden-v1. These IDs currently overlap the 21-case baseline; treat results as a separate reporting slice, not an independent unseen sample.",
+  "cases": [
+    {
+      "id": "fa-11-heldout",
+      "question": "فروش ماهانه شرکت‌های هر صنعت را بر اساس رشد سالانه رتبه‌بندی کن.",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_company"
+      ],
+      "entities": [
+        "company cohort",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "provider-scoped monthly report relation"
+      ],
+      "providerPeriodPolicies": [
+        "same month year-over-year baseline",
+        "same provider and unit policy"
+      ],
+      "statementScope": null,
+      "completeness": "requires grouping, rank order, comparison period, unit and identity context",
+      "existingCapability": "recognized screening/analytics capability first refusal",
+      "genericSupport": "held-out compositional context case; authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ]
+    },
+    {
+      "id": "fa-12-heldout",
+      "question": "تولید و مبلغ فروش محصولات هر شرکت را برای دو ماه متوالی مقایسه کن.",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY",
+        "MONTHLY_SALES"
+      ],
+      "dimensions": [
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product"
+      ],
+      "relationships": [
+        "report-to-line-item association"
+      ],
+      "providerPeriodPolicies": [
+        "two explicit consecutive Shamsi months",
+        "provider output type and unit comparability"
+      ],
+      "statementScope": null,
+      "completeness": "requires two periods, both measures, company/product identity, and unit compatibility",
+      "existingCapability": "monthly activity capability first refusal",
+      "genericSupport": "held-out multi-measure context case; authorization pending",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-monthly-activity",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales"
+      ]
+    },
+    {
+      "id": "fa-13-heldout-unsupported",
+      "question": "شاخص بنیادی نوآوران را مستقیماً از پایگاه داده جستجو کن.",
+      "domains": [
+        "shared-dimensions"
+      ],
+      "tables": [
+        "src_nadpco_company_fundamental_index_values"
+      ],
+      "metrics": [
+        "provider-defined fundamental index observation"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "provider-scoped company"
+      ],
+      "relationships": [
+        "provider-scoped external company key; never join by ticker/name"
+      ],
+      "providerPeriodPolicies": [
+        "external endpoint is not a PostgreSQL table"
+      ],
+      "statementScope": null,
+      "completeness": "unsupported for generic SQL; source node must disclose no table exists",
+      "existingCapability": "provider-owned capability if available; otherwise unsupported",
+      "genericSupport": "unsupported",
+      "nodeIds": [
+        "dimension-dim_company",
+        "external-source-noavaran-fundamental-index",
+        "shared-dimensions"
+      ],
+      "metricIds": []
+    }
+  ]
+}

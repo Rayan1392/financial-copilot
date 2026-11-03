@@ -12,9 +12,99 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 internal sealed class EfCoreFinancialStatementTableRepository(
     FinancialIngestionDbContext dbContext,
-    IOptions<NadpcoApiProviderOptions> providerOptions) : IFinancialStatementTableRepository
+    IOptions<NadpcoApiProviderOptions> providerOptions) : IFinancialStatementTableRepository, IQuarterlyFinancialReportsRepository
 {
     private readonly string _providerName = providerOptions.Value.ProviderName;
+
+    public async Task<IReadOnlyList<Guid?>> GetEligibleCompanyGroupsAsync(Guid canonicalCompanyId,
+        string providerName, string externalCompanyId, CancellationToken ct = default) =>
+        await dbContext.NoavaranEligibleCompanies.AsNoTracking()
+            .Where(row => row.Id == canonicalCompanyId && row.ProviderName == providerName &&
+                          row.ExternalCompanyId == externalCompanyId)
+            .Select(row => row.GroupId)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<QuarterlyReportObservation>> GetQuarterlyIncomeStatementReportsAsync(
+        QuarterlyFinancialReportSelection selection,
+        CancellationToken ct = default)
+    {
+        var ids = QuarterlyFinancialReportsNormalizer.RequiredSourceItemIds
+            .Concat([310, 311, 312, 313, 317]).Distinct().ToArray();
+        var catalog = await dbContext.FinancialStatementSourceItems.AsNoTracking()
+            .Where(item => item.ProviderName == "NoavaranCurrentApi" &&
+                           item.StatementType == "IncomeStatement" && ids.Contains(item.SourceItemId))
+            .ToListAsync(ct);
+        // The source catalog's primary key is a database surrogate. It is generated when a
+        // provider item is first ingested, so it can differ across environments and for items
+        // introduced after the original catalog. Resolve identity by the provider tuple above
+        // (provider, statement type, source item id), then carry the actual catalog id through.
+        var catalogIds = catalog.ToDictionary(item => item.Id);
+        var statementsQuery = dbContext.FinancialStatements.AsNoTracking()
+            .Where(item => item.ProviderName == "NoavaranCurrentApi" &&
+                           item.ExternalCompanyId == selection.ExternalCompanyId &&
+                           item.StatementType == "IncomeStatement" &&
+                           (item.PeriodType == "ThreeMonths" || item.PeriodType == "SixMonths" ||
+                            item.PeriodType == "NineMonths" || item.PeriodType == "TwelveMonths"));
+        if (selection.IsComposing.HasValue) statementsQuery = statementsQuery.Where(item => item.IsComposing == selection.IsComposing.Value);
+        if (selection.IsAudited.HasValue) statementsQuery = statementsQuery.Where(item => item.IsAudited == selection.IsAudited.Value);
+        if (selection.IsRepresented.HasValue) statementsQuery = statementsQuery.Where(item => item.IsRepresented == selection.IsRepresented.Value);
+        // Legacy rows can have a separate-statement flag while their source evidence
+        // identifies a consolidated statement. Exclude them before limiting periods.
+        var orderedQuery = statementsQuery.OrderByDescending(item => item.PeriodEnd)
+            .ThenByDescending(item => item.LastSynchronizedAt);
+        List<NormalizedFinancialStatementRow> statements;
+        if (selection.EndingPeriod is { } endingPeriod)
+        {
+            var comparisonWindowEnd = endingPeriod.AddMonths(12);
+            var visible = await orderedQuery.Where(item => item.PeriodEnd <= endingPeriod).Take(48).ToListAsync(ct);
+            var references = await orderedQuery.Where(item => item.PeriodEnd > endingPeriod &&
+                    item.PeriodEnd <= comparisonWindowEnd).Take(48).ToListAsync(ct);
+            statements = visible.Concat(references).DistinctBy(item => item.Id).ToList();
+        }
+        else
+        {
+            statements = await orderedQuery.Take(48).ToListAsync(ct);
+        }
+        statements = statements
+            .Where(item => StatementMetadata.Parse(item.WarningsJson).SourceIsComposing is not { } sourceScope ||
+                           sourceScope == item.IsComposing)
+            .ToList();
+        if (statements.Count == 0) return [];
+        var statementIds = statements.Select(item => item.Id).ToArray();
+        var catalogItemIds = catalogIds.Keys.ToArray();
+        var lines = await dbContext.FinancialStatementLineItems.AsNoTracking()
+            .Where(item => statementIds.Contains(item.FinancialStatementId) &&
+                           item.SourceItemCatalogId.HasValue && catalogItemIds.Contains(item.SourceItemCatalogId.Value))
+            .ToListAsync(ct);
+        var linesByStatement = lines.GroupBy(item => item.FinancialStatementId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+
+        return statements.Select(statement =>
+        {
+            var items = linesByStatement.GetValueOrDefault(statement.Id, []);
+            var observations = items.Select(line =>
+            {
+                var source = catalogIds[line.SourceItemCatalogId!.Value];
+                return new QuarterlySourceObservation(line.Id, source.Id, source.SourceItemId,
+                    source.TitleFa, source.Unit, line.Value);
+            }).ToArray();
+            var metadata = StatementMetadata.Parse(statement.WarningsJson);
+            return new QuarterlyReportObservation(statement.Id, statement.ExternalStatementId,
+                statement.ProviderName, statement.ExternalCompanyId, statement.StatementType,
+                ResolvePeriodMonths(statement.PeriodType), statement.PeriodStart, statement.PeriodEnd,
+                statement.IsAudited, statement.IsRepresented, statement.IsComposing,
+                statement.SourcePayloadChecksum, statement.LastSynchronizedAt,
+                metadata.JalaliAnnouncementDate ?? metadata.AnnouncementDate?.ToString("O", CultureInfo.InvariantCulture),
+                metadata.JalaliFiscalYearEnd, observations, metadata.AssumedScale, metadata.SourceAmountUnit,
+                metadata.CurrencyCode, metadata.AccountingBasis, metadata.ReportRevisionLineage,
+                statement.PeriodType);
+        }).ToArray();
+    }
+
+    public Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
+        QuarterlyFinancialReportSelection selection,
+        CancellationToken cancellationToken = default) =>
+        GetQuarterlyIncomeStatementReportsAsync(selection, cancellationToken);
 
     public async Task<FinancialStatementTableSource?> FindLatestStatementAsync(
         FinancialStatementTableSelection selection,
@@ -32,9 +122,6 @@ internal sealed class EfCoreFinancialStatementTableRepository(
             .Where(row => !selection.IsRepresented.HasValue || row.IsRepresented == selection.IsRepresented.Value)
             .ToListAsync(ct);
 
-        if (rows.Count == 0)
-            return null;
-
         var company = await dbContext.Companies
             .AsNoTracking()
             .Where(row => row.ExternalCompanyId == selection.ExternalCompanyId)
@@ -44,12 +131,16 @@ internal sealed class EfCoreFinancialStatementTableRepository(
 
         var selected = rows
             .Select(row => new { Row = row, Metadata = StatementMetadata.Parse(row.WarningsJson) })
+            .Where(item => item.Metadata.SourceIsComposing is not { } sourceScope ||
+                           sourceScope == item.Row.IsComposing)
             .OrderByDescending(item => item.Metadata.AnnouncementDate ?? DateTimeOffset.MinValue)
             .ThenByDescending(item => item.Row.PeriodEnd)
             .ThenByDescending(item => ResolvePeriodMonths(item.Row.PeriodType))
             .ThenByDescending(item => item.Row.ExternalStatementId, StringComparer.Ordinal)
             .ThenByDescending(item => item.Row.Id)
-            .First();
+            .FirstOrDefault();
+        if (selected is null)
+            return null;
 
         var unit = await dbContext.FinancialStatementLineItems
             .AsNoTracking()
@@ -237,26 +328,46 @@ internal sealed class EfCoreFinancialStatementTableRepository(
         string? JalaliPeriodEnd,
         string? JalaliFiscalYearEnd,
         string? JalaliAnnouncementDate,
-        DateTimeOffset? AnnouncementDate)
+        DateTimeOffset? AnnouncementDate,
+        string? AssumedScale,
+        string? SourceAmountUnit,
+        string? CurrencyCode,
+        string? AccountingBasis,
+        string? ReportRevisionLineage,
+        bool? SourceIsComposing)
     {
         public static StatementMetadata Parse(string? warningsJson)
         {
             if (string.IsNullOrWhiteSpace(warningsJson))
-                return new StatementMetadata(null, null, null, null);
+                return new StatementMetadata(null, null, null, null, null, null, null, null, null, null);
 
             try
             {
                 using var document = JsonDocument.Parse(warningsJson);
                 if (document.RootElement.ValueKind != JsonValueKind.Array)
-                    return new StatementMetadata(null, null, null, null);
+                    return new StatementMetadata(null, null, null, null, null, null, null, null, null, null);
 
                 string? jalaliPeriodEnd = null;
                 string? jalaliFiscalYearEnd = null;
                 string? jalaliAnnouncementDate = null;
                 DateTimeOffset? announcementDate = null;
+                string? assumedScale = null;
+                string? sourceAmountUnit = null;
+                string? currencyCode = null;
+                string? accountingBasis = null;
+                string? reportRevisionLineage = null;
+                bool? sourceIsComposing = null;
 
                 foreach (var item in document.RootElement.EnumerateArray())
                 {
+                    if (item.TryGetProperty("code", out var sourceCode) &&
+                        sourceCode.ValueKind == JsonValueKind.String &&
+                        sourceCode.GetString() == "NadpcoApiStatementSelection" &&
+                        item.TryGetProperty("isComposing", out var sourceScope) &&
+                        sourceScope.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    {
+                        sourceIsComposing = sourceScope.GetBoolean();
+                    }
                     if (item.TryGetProperty("code", out var code) &&
                         item.TryGetProperty("evidence", out var evidence))
                     {
@@ -287,6 +398,11 @@ internal sealed class EfCoreFinancialStatementTableRepository(
                     jalaliPeriodEnd ??= TryGetString(item, "jalaliPeriodEnd", "JalaliPeriodEnd");
                     jalaliFiscalYearEnd ??= TryGetString(item, "jalaliFiscalYearEnd", "JalaliFiscalYearEnd");
                     jalaliAnnouncementDate ??= TryGetString(item, "jalaliAnouncementDate", "JalaliAnouncementDate", "jalaliAnnouncementDate", "JalaliAnnouncementDate");
+                    assumedScale ??= TryGetString(item, "assumedScale", "AssumedScale");
+                    sourceAmountUnit ??= TryGetString(item, "sourceAmountUnit", "SourceAmountUnit");
+                    currencyCode ??= TryGetString(item, "currencyCode", "CurrencyCode");
+                    accountingBasis ??= TryGetString(item, "accountingBasis", "AccountingBasis");
+                    reportRevisionLineage ??= TryGetString(item, "reportRevisionLineage", "ReportRevisionLineage", "revisionLineage", "RevisionLineage");
 
                     var announcementText = TryGetString(item, "anouncementDate", "AnouncementDate", "announcementDate", "AnnouncementDate");
                     if (announcementDate is null &&
@@ -300,11 +416,17 @@ internal sealed class EfCoreFinancialStatementTableRepository(
                     jalaliPeriodEnd,
                     jalaliFiscalYearEnd,
                     jalaliAnnouncementDate,
-                    announcementDate);
+                    announcementDate,
+                    assumedScale,
+                    sourceAmountUnit,
+                    currencyCode,
+                    accountingBasis,
+                    reportRevisionLineage,
+                    sourceIsComposing);
             }
             catch (JsonException)
             {
-                return new StatementMetadata(null, null, null, null);
+                return new StatementMetadata(null, null, null, null, null, null, null, null, null, null);
             }
         }
 
@@ -327,6 +449,7 @@ internal sealed class EfCoreFinancialStatementTableRepository(
 internal sealed class FinancialStatementTableQueryUseCase(
     ICompanyResolverService companyResolver,
     IFinancialStatementTableRepository repository,
+    IQuarterlyFinancialReportsQueryUseCase quarterlyReportsUseCase,
     IFinancialStatementTableRenderer renderer,
     IOptions<NadpcoApiProviderOptions> providerOptions,
     TimeProvider timeProvider) : IFinancialStatementTableQueryUseCase
@@ -337,6 +460,17 @@ internal sealed class FinancialStatementTableQueryUseCase(
     {
         if (string.IsNullOrWhiteSpace(query.CompanyQuery) || query.StatementType is null)
             return null;
+
+        if (query.UseQuarterlyReportTable && query.StatementType == FinancialStatementType.IncomeStatement)
+        {
+            var quarterlyResult = await quarterlyReportsUseCase.ExecuteAsync(
+                new QuarterlyFinancialReportTableQuery(
+                    string.Empty,
+                    query.CompanyQuery,
+                    query.QuarterCount, query.EndingPeriod, query.IsComposing, query.IsAudited, query.IsRepresented), ct);
+            return new FinancialStatementTableResult(null, [], [], [],
+                RenderQuarterly(quarterlyResult), timeProvider.GetUtcNow(), quarterlyResult);
+        }
 
         var company = await companyResolver.ResolveBySymbolAsync(query.CompanyQuery, ct);
         if (company is null)
@@ -408,12 +542,149 @@ internal sealed class FinancialStatementTableQueryUseCase(
 
     private static string FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+
+    internal static string RenderQuarterly(QuarterlyFinancialReportTableResult result)
+    {
+        if (result.Status == "Unavailable")
+            return $"گزارش فصلی برای {result.CompanySymbol} در دسترس نیست. وضعیت: {result.Reason ?? result.Status}";
+
+        var culture = CultureInfo.GetCultureInfo("fa-IR");
+        var builder = new StringBuilder();
+        var symbol = result.CompanySymbol.Trim();
+        var companyName = result.CompanyName?.Trim();
+        var title = string.IsNullOrWhiteSpace(companyName) ||
+                    string.Equals(companyName, symbol, StringComparison.OrdinalIgnoreCase)
+            ? symbol
+            : $"{companyName} ({symbol})";
+        builder.AppendLine($"### جدول گزارش فصلی {title}");
+        if (result.Status == "Partial") builder.AppendLine($"پوشش ناقص: {result.Reason}");
+        builder.AppendLine("واحد مبالغ: میلیون ریال؛ EPS مقایسه‌ای: ریال به‌ازای هر سهم؛ مبنای سهام: هزار سهم");
+        builder.AppendLine();
+        builder.Append("| شرح | ");
+        builder.Append(string.Join(" | ", result.PeriodsNewestFirst.Select(period => FormatQuarterHeader(result, period))));
+        builder.AppendLine(" | تغییر فصل‌به‌فصل | ");
+        builder.Append("|---| ");
+        builder.Append(string.Join(" | ", result.PeriodsNewestFirst.Select(_ => "---:")));
+        builder.AppendLine(" | ---: | ");
+        foreach (var row in result.Rows)
+        {
+            builder.Append($"| {row.LabelFa} | ");
+            builder.Append(string.Join(" | ", result.PeriodsNewestFirst.Select(period => FormatQuarterlyCell(row, row.Cells[period.Label], culture))));
+            var latest = result.PeriodsNewestFirst.FirstOrDefault();
+            var comparison = latest is null ? null : result.Comparisons.FirstOrDefault(item => item.RowId == row.RowId && item.TargetPeriod == latest);
+            if (row.Policy == QuarterlyRowPolicy.DerivedBankingMargin)
+            {
+                var pointChange = comparison?.PercentagePointChange;
+                builder.AppendLine($" | {(pointChange is decimal change ? ToPersianDigits(change.ToString("#,##0.0", culture)) + " واحد درصد" : "-")} | ");
+            }
+            else
+            {
+                builder.AppendLine($" | {(comparison?.RelativeChangePercent is decimal change ? change.ToString("#,##0.##", culture) + "%" : comparison?.AbsoluteChange?.ToString("#,##0.##", culture) ?? "-")} | ");
+            }
+        }
+        foreach (var period in result.PeriodsNewestFirst)
+        {
+            var eps = result.Rows.FirstOrDefault(row => row.RowId == "source_160")?.Cells.GetValueOrDefault(period.Label);
+            var evidence = eps?.ComparableEvidence;
+            if (evidence is null) continue;
+            var reference = evidence.ReferenceExternalReportId is null
+                ? "گزارش مرجع نامشخص"
+                : $"FY{evidence.ReferenceFiscalYear} Q{evidence.ReferenceQuarter}، گزارش {evidence.ReferenceExternalReportId}";
+            var profit = evidence.StandaloneAttributableProfitMillionRials is decimal numerator
+                ? numerator.ToString("#,##0.##", culture)
+                : "ناموجود";
+            var shares = evidence.ShareBasisThousand is decimal denominator
+                ? denominator.ToString("#,##0.##", culture)
+                : "ناموجود";
+            var value = eps?.Value is decimal epsValue ? epsValue.ToString("#,##0.##", culture) : "ناموجود";
+            var raw = evidence.RawCurrentValue is decimal rawCurrent
+                ? $"؛ EPS تجمعی منبع {rawCurrent.ToString("#,##0.##", culture)}" +
+                  (evidence.RawPreviousValue is decimal rawPrevious ? $" منهای {rawPrevious.ToString("#,##0.##", culture)}" : "")
+                : "";
+            builder.AppendLine($"مبنای EPS مقایسه‌ای: {period.Label}: سود قابل انتساب {profit} میلیون ریال ÷ {shares} هزار سهم؛ {reference}؛ مقدار مشتق‌شده {value} ریال با گردکردن به نزدیک‌ترین ریال و نیم‌به‌بالا؛ سهام گزارش‌شده پایان دوره است و میانگین وزنی محسوب نمی‌شود{raw}.");
+        }
+        return builder.ToString().TrimEnd();
+    }
+
+    internal static string FormatQuarterHeader(QuarterlyFinancialReportTableResult result, QuarterlyFiscalPeriod period)
+    {
+        // Match the current cumulative report (3M/6M/9M/12M), never the predecessor
+        // used to derive the quarter's financial values.
+        var selectedReports = result.SelectedReports ?? [];
+        var selected = selectedReports.FirstOrDefault(report =>
+                report.PeriodEnd == period.End && QuarterForPeriodType(report.PeriodType) == period.Quarter)
+            ?? selectedReports.FirstOrDefault(report =>
+                report.PeriodEnd == period.End && QuarterForPeriodType(report.PeriodType) is null);
+        if (selected is null || selected.PeriodEnd == default)
+            return FiscalQuarterFallback(period.FiscalYear, period.Quarter);
+
+        var date = selected.PeriodEnd.ToDateTime(TimeOnly.MinValue);
+        var calendar = new PersianCalendar();
+        if (date < calendar.MinSupportedDateTime || date > calendar.MaxSupportedDateTime)
+            return FiscalQuarterFallback(period.FiscalYear, period.Quarter);
+        string[] months = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+            "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+        var day = ToPersianDigits(calendar.GetDayOfMonth(date).ToString(CultureInfo.InvariantCulture));
+        var year = ToPersianDigits(calendar.GetYear(date).ToString(CultureInfo.InvariantCulture));
+        var fiscalQuarter = QuarterForPeriodType(selected.PeriodType) ?? period.Quarter;
+        var quarterName = QuarterName(fiscalQuarter);
+        return quarterName is null
+            ? $"سال مالی {ToPersianDigits(period.FiscalYear.ToString(CultureInfo.InvariantCulture))}، فصل {ToPersianDigits(fiscalQuarter.ToString(CultureInfo.InvariantCulture))}"
+            : $"{quarterName}<br>منتهی به<br>{day} {months[calendar.GetMonth(date) - 1]} {year}";
+    }
+
+    private static int? QuarterForPeriodType(string? periodType) => periodType switch
+    {
+        "ThreeMonths" => 1,
+        "SixMonths" => 2,
+        "NineMonths" => 3,
+        "TwelveMonths" => 4,
+        _ => null
+    };
+
+    private static string? QuarterName(int quarter) => quarter switch
+    {
+        1 => "فصل اول",
+        2 => "فصل دوم",
+        3 => "فصل سوم",
+        4 => "فصل چهارم",
+        _ => null
+    };
+
+    private static string FiscalQuarterFallback(int fiscalYear, int quarter) =>
+        $"سال مالی {ToPersianDigits(fiscalYear.ToString(CultureInfo.InvariantCulture))}، فصل {ToPersianDigits(quarter.ToString(CultureInfo.InvariantCulture))}";
+
+    private static string ToPersianDigits(string value) =>
+        string.Concat(value.Select(character => character is >= '0' and <= '9'
+            ? (char)('۰' + character - '0')
+            : character));
+
+    private static string FormatCell(QuarterlyFinancialCell cell, CultureInfo culture)
+    {
+        if (cell.State != QuarterlyCellState.Available || !cell.Value.HasValue) return "—";
+        if (cell.Value.Value == 0 && cell.RenderZeroAsDash) return "-";
+        var formatted = cell.Value.Value.ToString("#,##0.##", culture);
+        return cell.Value.Value < 0 ? $"({formatted.TrimStart('-')})" : formatted;
+    }
+
+    private static string FormatQuarterlyCell(QuarterlyFinancialRow row, QuarterlyFinancialCell cell, CultureInfo culture)
+    {
+        if (row.Policy != QuarterlyRowPolicy.DerivedBankingMargin) return FormatCell(cell, culture);
+        if (cell.State != QuarterlyCellState.Available || !cell.Value.HasValue) return "—";
+        if (cell.Value.Value == 0m) return "۰٫۰٪";
+        var formatted = ToPersianDigits(cell.Value.Value.ToString("#,##0.0", culture));
+        return $"{formatted}٪";
+    }
 }
 
 internal sealed class FinancialStatementTableRenderer : IFinancialStatementTableRenderer
 {
     public string Render(FinancialStatementTableResult result)
     {
+        if (result.QuarterlyResult is not null)
+            return result.RenderedAnswer ?? string.Empty;
+        if (result.Source is null)
+            throw new InvalidOperationException("A persisted source is required for a non-quarterly statement table.");
         var sb = new StringBuilder();
         var source = result.Source;
         var company = string.IsNullOrWhiteSpace(source.CompanyName)

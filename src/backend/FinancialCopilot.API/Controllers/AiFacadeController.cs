@@ -2,6 +2,7 @@ using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Billing;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
@@ -49,8 +50,18 @@ public sealed class AiFacadeController(
             return ValidationProblem(ModelState);
         }
 
+        if (httpRequest.IdempotencyKey == Guid.Empty)
+        {
+            ModelState.AddModelError(nameof(httpRequest.IdempotencyKey), "IdempotencyKey must be a non-empty GUID.");
+            return ValidationProblem(ModelState);
+        }
+
         var actor = actorContext.Actor;
         var correlationId = HttpContext.TraceIdentifier;
+        // Keep the legacy optional field usable while returning the generated key so clients can
+        // persist it for future retries. First-party chat clients send their stable key directly.
+        var billingOperationId = httpRequest.IdempotencyKey ?? Guid.NewGuid();
+        Response.Headers["Idempotency-Key"] = billingOperationId.ToString("D");
 
         var message = httpRequest.Message;
         if (httpRequest.Context?.AlertId is Guid alertId)
@@ -80,8 +91,19 @@ public sealed class AiFacadeController(
                     Context: httpRequest.Context is null
                         ? null
                         : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId),
-                    SuggestedActionId: httpRequest.SuggestedActionId),
+                    OriginalUserMessage: httpRequest.Message,
+                    SuggestedActionId: httpRequest.SuggestedActionId,
+                    BillingOperationId: billingOperationId),
                 cancellationToken);
+        }
+        catch (BillingIdempotencyConflictException)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Idempotency key conflict",
+                Detail = "This idempotency key has already been used with a different request payload."
+            });
         }
         catch (ConversationNotFoundException)
         {
@@ -251,7 +273,10 @@ public sealed class AiFacadeController(
              result.LanguageGuardApplied,
              MapSuggestedActions(result.SuggestedActions),
              result.SemanticCapabilityCode,
-             result.SemanticRegistryVersion);
+             result.SemanticRegistryVersion,
+             MapMonthlyProductComparisonResult(result.MonthlyProductComparisonResult),
+             FinancialStatementValueSearchResult: result.FinancialStatementValueSearchResult,
+             MonthlyProductTrendResult: MapMonthlyProductTrendResult(result.MonthlyProductTrendResult));
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -495,7 +520,58 @@ public sealed class AiFacadeController(
                 payload.LanguageGuardApplied,
                 MapSuggestedActions(payload.SuggestedActions),
                 payload.SemanticCapabilityCode,
-                payload.SemanticRegistryVersion);
+                payload.SemanticRegistryVersion,
+                MapMonthlyProductComparisonResult(payload.MonthlyProductComparisonResult),
+                FinancialStatementValueSearchResult: payload.FinancialStatementValueSearchResult,
+                MonthlyProductTrendResult: MapMonthlyProductTrendResult(payload.MonthlyProductTrendResult));
+
+    private static MonthlyProductComparisonHttpResponse? MapMonthlyProductComparisonResult(MonthlyProductComparisonResponse? result)
+    {
+        if (result is null) return null;
+        return new(
+            result.State.ToString(), result.CompanyText, result.ExternalCompanyId,
+            result.CurrentPeriod?.ToString(), result.ComparisonPeriod?.ToString(),
+            result.Totals?.Current, result.Totals?.Comparison, result.Totals?.Change, result.Totals?.ChangePercent,
+            result.PrimaryDriver?.ToString(),
+            result.Products.Take(20).Select(item => new MonthlyProductComparisonHttpItem(
+                item.DisplayTitle, item.RawUnit, item.Lifecycle.ToString(), item.Current?.SalesAmount,
+                item.Comparison?.SalesAmount, item.SalesChange, item.ContributionPercent,
+                item.QuantityEffect, item.PriceEffect, item.Residual, item.Driver.ToString(),
+                item.Warnings.Select(w => w.ToString()).ToArray())).ToArray(),
+            result.Warnings.Select(w => w.ToString()).ToArray(),
+            result.Evidence.Select(e => new MonthlyProductComparisonHttpEvidence(e.ReportId, e.RowId, e.ProviderName, e.ExternalReportId, e.Period.ToString())).ToArray(),
+            result.BlockingReason?.ToString(), result.ClarificationMessage);
+    }
+
+    private static MonthlyProductTrendHttpResponse? MapMonthlyProductTrendResult(MonthlyProductTrendResult? result)
+    {
+        if (result is null) return null;
+        return new(
+            result.ResultDiscriminator,
+            result.ResultVersion,
+            result.ResolutionState.ToString(),
+            result.CompanyText,
+            result.ExternalCompanyId,
+            result.CompanyName,
+            result.CompanySymbol,
+            result.ProductKey,
+            result.ProviderProductCode,
+            result.ProviderProductId,
+            result.ProductTitle,
+            result.ProductUnit,
+            result.Points.Select(point => new MonthlyProductTrendHttpPoint(
+                point.Period.ToString(), point.FiscalLabel, point.ProductKey, point.ProductTitle,
+                point.ProductUnit, point.ProductionQuantity, point.SaleQuantity,
+                point.SalesValueMillionRial, point.SalesValueBillionToman,
+                point.CalculatedSaleRateToman, point.RateStatus.ToString(), point.IsGap)).ToArray(),
+            result.Candidates.Select(candidate => new MonthlyProductTrendHttpCandidate(
+                candidate.DisplayTitle, candidate.Unit, candidate.ProductKey,
+                candidate.ProviderProductCode, candidate.ProviderProductId)).ToArray(),
+            result.Evidence.Select(e => new MonthlyProductComparisonHttpEvidence(
+                e.ReportId, e.RowId, e.ProviderName, e.ExternalReportId, e.Period.ToString())).ToArray(),
+            result.BlockingReason,
+            result.Message);
+    }
 
     private static IReadOnlyCollection<SuggestedActionHttpResponse>? MapSuggestedActions(
         IReadOnlyCollection<SuggestedAction>? actions) =>
@@ -581,7 +657,7 @@ public sealed class AiFacadeController(
         if (result is null) return null;
 
         return new FinancialStatementTableHttpResponse(
-            new FinancialStatementTableSourceHttpResponse(
+            result.Source is null ? null : new FinancialStatementTableSourceHttpResponse(
                 result.Source.StatementId,
                 result.Source.ExternalStatementId,
                 ProviderSources.GetDisplayName(result.Source.ProviderName),
@@ -606,7 +682,8 @@ public sealed class AiFacadeController(
                 row.Asset is null ? null : MapFinancialStatementTableLineItem(row.Asset),
                 row.LiabilityOrEquity is null ? null : MapFinancialStatementTableLineItem(row.LiabilityOrEquity))).ToList(),
             result.Warnings,
-            result.GeneratedAtUtc);
+            result.GeneratedAtUtc,
+            result.QuarterlyResult);
     }
 
     private static FinancialStatementTableLineItemHttpResponse MapFinancialStatementTableLineItem(

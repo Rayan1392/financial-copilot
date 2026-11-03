@@ -1,0 +1,109 @@
+{
+  "id": "metric_monthly_production_growth_yoy",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_PRODUCTION_GROWTH_YOY"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Production Growth YoY",
+    "Description": "Year-over-year percentage change in product ProductionQuantity across comparable accepted monthly periods. The underlying quantity unit must match; it is a derived percentage, not a reported quantity.",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly production growth yoy",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "production growth yoy",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد تولید نسبت به سال قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد تولید ماهانه سالانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "میزان رشد تولید",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_PRODUCTION_QUANTITY"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

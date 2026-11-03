@@ -1,0 +1,145 @@
+{
+  "id": "tbl_671b8044976f60ed",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationOutcomeHandoffs",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationIntentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Sequence",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "TerminalStatus",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceReference",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ProcessedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationIntents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationOutcomeHandoffs_NotificationIntentId_Sequence",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_NotificationOutcomeHandoffs_NotificationIntentId_Sequence\" ON public.\"NotificationOutcomeHandoffs\" USING btree (\"NotificationIntentId\", \"Sequence\")",
+        "Columns": [
+          "NotificationIntentId",
+          "Sequence"
+        ]
+      },
+      {
+        "Name": "IX_NotificationOutcomeHandoffs_Status_CreatedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationOutcomeHandoffs_Status_CreatedAtUtc\" ON public.\"NotificationOutcomeHandoffs\" USING btree (\"Status\", \"CreatedAtUtc\")",
+        "Columns": [
+          "Status",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_NotificationOutcomeHandoffs",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationOutcomeHandoffs\" ON public.\"NotificationOutcomeHandoffs\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_NotificationOutcomeHandoffs_NotificationIntents_Notificatio~",
+        "Type": "f",
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_NotificationOutcomeHandoffs",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

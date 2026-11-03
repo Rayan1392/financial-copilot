@@ -18,12 +18,15 @@ using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.FinancialData.Metrics;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Features;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Insights.Microstructure;
+using FinancialCopilot.Domain.Financial.RelativeValuation;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Billing;
@@ -38,6 +41,7 @@ using FinancialCopilot.Infrastructure.Memory.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
+using FinancialCopilot.Infrastructure.Financial.Semantics;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
@@ -64,7 +68,6 @@ using FinancialCopilot.Infrastructure.Financial.ProfessionalScanners;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
-using FinancialCopilot.Infrastructure.Financial.Semantics;
 using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
@@ -81,8 +84,10 @@ using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace FinancialCopilot.Infrastructure;
 
@@ -230,6 +235,8 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
         services.AddHostedService<FundPortfolioImportProcessingWorker>();
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddScoped<IFinancialStatementValueSearchService, FinancialStatementValueSearchService>();
+        services.AddSingleton<IFinancialStatementValueSearchProvider, ConfiguredFinancialStatementValueSearchProvider>();
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<MemoryDbContext>(options => options.UseNpgsql(connectionString));
 
@@ -247,11 +254,36 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection(OwnedIdentityOptions.SectionName))
             .Validate(options =>
                 Guid.TryParse(options.DefaultTenantId, out _) &&
-                options.AccessTokenMinutes > 0 &&
+                options.AccessTokenMinutes is > 0 and <= 60 &&
                 options.RefreshTokenDays > 0,
-                "Owned Identity tenant and token lifetime settings must be valid.")
+                "Owned Identity tenant and token lifetime settings must be valid; access tokens must be 1-60 minutes.")
             .ValidateOnStart();
         services.AddScoped<IOwnedIdentityService, OwnedIdentityService>();
+        services
+            .AddOptions<AuthEmailOptions>()
+            .Bind(configuration.GetSection(AuthEmailOptions.SectionName))
+            .Validate<IHostEnvironment>((options, environment) =>
+                options.VerificationTokenHours is >= 1 and <= 48 &&
+                options.PasswordResetTokenMinutes is >= 5 and <= 60 &&
+                options.EmailCooldownSeconds is >= 30 and <= 3600 &&
+                options.EmailMaximumRequestsPerHour is >= 1 and <= 20 &&
+                (!options.Enabled ||
+                    Uri.TryCreate(options.FrontendBaseUrl, UriKind.Absolute, out var frontendUri) &&
+                    (frontendUri.Scheme == Uri.UriSchemeHttps ||
+                        environment.IsDevelopment() && frontendUri.IsLoopback && frontendUri.Scheme == Uri.UriSchemeHttp) &&
+                    string.IsNullOrEmpty(frontendUri.UserInfo) && string.IsNullOrEmpty(frontendUri.Query) &&
+                    string.IsNullOrEmpty(frontendUri.Fragment) && frontendUri.AbsolutePath == "/" &&
+                    options.TokenHashSecret.Length >= 32),
+                "Authentication email token settings and trusted frontend URL are invalid.")
+            .ValidateOnStart();
+        services
+            .AddOptions<SmtpEmailOptions>()
+            .Bind(configuration.GetSection(SmtpEmailOptions.SectionName))
+            .Validate(options =>
+                options.IsValid(configuration.GetValue<bool>($"{AuthEmailOptions.SectionName}:Enabled")),
+                "Authentication SMTP settings are invalid.")
+            .ValidateOnStart();
+        services.AddTransient<IEmailSender, SmtpEmailSender>();
         services
             .AddOptions<TelegramLinkOptions>()
             .Bind(configuration.GetSection(TelegramLinkOptions.SectionName))
@@ -274,11 +306,19 @@ public static class ServiceCollectionExtensions
                 !string.IsNullOrWhiteSpace(options.PolicyVersion),
                 "Telegram membership options must define a positive allowance, cache lifetime, and policy version.")
             .ValidateOnStart();
-        services.AddHttpClient<ITelegramChannelMembershipProvider, TelegramBotMembershipProvider>(client =>
-        {
-            client.BaseAddress = new Uri("https://api.telegram.org/");
-            client.Timeout = TimeSpan.FromSeconds(10);
-        });
+        services.AddOptions<TelegramGatewayOptions>()
+            .BindConfiguration(TelegramGatewayOptions.SectionName)
+            .Validate(options =>
+                !options.Enabled ||
+                Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri) &&
+                uri.Scheme == Uri.UriSchemeHttps &&
+                !string.IsNullOrWhiteSpace(options.ServiceId) &&
+                !string.IsNullOrWhiteSpace(options.ServiceSecret) &&
+                options.RequestTimeoutSeconds is > 0 and <= 120,
+                "Telegram Gateway settings must define an HTTPS URL, service identity, secret, and bounded timeout when enabled.")
+            .ValidateOnStart();
+        services.AddHttpClient<ITelegramGatewayClient, TelegramGatewayClient>();
+        services.AddScoped<ITelegramChannelMembershipProvider, TelegramBotMembershipProvider>();
         services.AddScoped<TelegramMembershipService>();
         services.AddScoped<ITelegramMembershipService>(provider => provider.GetRequiredService<TelegramMembershipService>());
         services.AddScoped<IDailyFreeAllowanceService>(provider => provider.GetRequiredService<TelegramMembershipService>());
@@ -287,8 +327,29 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITelegramAssistantResponseRenderer, TelegramAssistantResponseRenderer>();
         services.AddSingleton<ITelegramDisclosurePaginationStateStore, TelegramDisclosurePaginationStateStore>();
         services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
+        services.AddOptions<TelegramChannelFinancialStatementOptions>()
+            .BindConfiguration(TelegramChannelFinancialStatementOptions.SectionName)
+            .Validate(options => options.InitialDelayMinutes is > 0 and <= 1440,
+                "ChannelFinancialStatements:InitialDelayMinutes must be between 1 and 1440.")
+            .ValidateOnStart();
+        services.AddSingleton<ITelegramFinancialStatementRecognizer, TelegramFinancialStatementRecognizer>();
+        services.AddScoped<TelegramChannelFinancialStatementHandler>();
+        services.AddScoped<ITelegramChannelFinancialStatementHandler>(provider =>
+            provider.GetRequiredService<TelegramChannelFinancialStatementHandler>());
+        services.AddOptions<TelegramChannelMonthlyReportOptions>()
+            .BindConfiguration(TelegramChannelMonthlyReportOptions.SectionName)
+            .Validate(options => options.MaximumTextLength is > 0 and <= 4096 && options.ProcessingTimeoutSeconds is > 0 and <= 120 &&
+                (string.IsNullOrWhiteSpace(options.AuthorizedApiClientId) || Guid.TryParse(options.AuthorizedApiClientId, out _)) &&
+                (string.IsNullOrWhiteSpace(options.AuthorizedTenantId) || Guid.TryParse(options.AuthorizedTenantId, out _)) &&
+                options.AllowedChannelIds.All(id => long.TryParse(id, out var channelId) && channelId != 0),
+                "Channel monthly report limits must be bounded.")
+            .ValidateOnStart();
+        services.AddSingleton<ITelegramMonthlyReportRecognizer, TelegramMonthlyReportRecognizer>();
+        services.AddScoped<ITelegramChannelMonthlyReportHandler, TelegramChannelMonthlyReportHandler>();
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
+        services.AddScoped<IAdminUserQueries, EfCoreAdminUserQueries>();
+        services.AddScoped<IAdminChatHistoryQueries, EfCoreAdminChatHistoryQueries>();
 
         services.AddOptions<SalesGrowthScannerOptions>()
             .BindConfiguration(SalesGrowthScannerOptions.SectionName)
@@ -304,12 +365,35 @@ public static class ServiceCollectionExtensions
         var scannerCacheSettings = configuration
             .GetSection(ScannerCacheOptions.SectionName)
             .Get<ScannerCacheOptions>() ?? new ScannerCacheOptions();
-        if (scannerCacheSettings.UseRedis)
+        var cyclicalWavesAcquisitionSettings = configuration
+            .GetSection(CyclicalWavesDataAcquisitionOptions.SectionName)
+            .Get<CyclicalWavesDataAcquisitionOptions>() ?? new CyclicalWavesDataAcquisitionOptions();
+        services
+            .AddOptions<CyclicalWavesDataAcquisitionOptions>()
+            .BindConfiguration(CyclicalWavesDataAcquisitionOptions.SectionName)
+            .Validate(
+                options =>
+                    !options.Enabled ||
+                    (CyclicalWavesUtcCronSchedule.IsValid(options.Schedule) &&
+                     options.RequestDelayMilliseconds is >= 0 and <= 60_000 &&
+                     options.TimeoutSeconds is > 0 and <= 300 &&
+                     options.RetryCount is >= 0 and <= 5),
+                "Enabled CyclicalWaves acquisition settings must define a valid five-field UTC " +
+                "schedule and bounded pacing, timeout, and retry values.")
+            .ValidateOnStart();
+
+        if (scannerCacheSettings.UseRedis || cyclicalWavesAcquisitionSettings.Enabled)
         {
             var redisConfiguration = configuration.GetConnectionString("Redis");
             if (string.IsNullOrWhiteSpace(redisConfiguration))
             {
                 redisConfiguration = scannerCacheSettings.RedisConfiguration;
+            }
+
+            if (cyclicalWavesAcquisitionSettings.Enabled && string.IsNullOrWhiteSpace(redisConfiguration))
+            {
+                throw new InvalidOperationException(
+                    "Redis configuration is required when CyclicalWaves data acquisition is enabled.");
             }
 
             services.AddStackExchangeRedisCache(options =>
@@ -327,6 +411,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
+        services.AddScoped<IExpiryAwareWalletReadService>(provider =>
+            (IExpiryAwareWalletReadService)provider.GetRequiredService<IWalletProjectionRepository>());
         services.AddScoped<IWalletService>(provider =>
             provider.GetRequiredService<IWalletProjectionRepository>());
         services.AddScoped<IUsageReservationRepository, UsageReservationRepository>();
@@ -338,7 +424,11 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IBillableAccountResolver, BillableAccountResolver>();
         services.AddScoped<ICreditLinePolicyService, CreditLinePolicyService>();
+        services.AddScoped<SubscriptionCreditLifecycleService>();
         services.AddScoped<ICreditReservationService, UsageReservationAuthorizationService>();
+        services.AddScoped<IUsageReservationUpgradeService>(sp =>
+            sp.GetRequiredService<ICreditReservationService>() as IUsageReservationUpgradeService ??
+            new UnsupportedUsageReservationUpgradeService());
         services.AddScoped<IUsageChargeCalculator, OperationUsageChargeCalculator>();
         services.AddScoped<IUsageAccountingService, UsageAccountingService>();
         services.AddScoped<IFinancialAccountingService, FinancialTransactionAccountingService>();
@@ -365,6 +455,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApiUsageReportService, ApiUsageReportService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IBillingPurchaseUseCases, BillingPurchaseUseCases>();
+        services.AddScoped<TahlilAppTopUpService>();
+        services.AddHostedService<SubscriptionCreditAllocationWorker>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(new PricingPolicy(
@@ -398,6 +490,17 @@ public static class ServiceCollectionExtensions
                 ["PartiallyCompleted"] = 0.5m
             }));
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
+        services
+            .AddOptions<UsageBasedCreditBillingOptions>()
+            .Bind(configuration.GetSection(UsageBasedCreditBillingOptions.SectionName))
+            .Validate(
+                options => options.IsValid(),
+                "Billing:UsageBasedCredits in Shadow or Enforced mode requires a policy version of at most 64 characters, " +
+                "at least one operation code, positive CostPerCredit and PricingMultiplier, " +
+                "1 <= MinimumCredits <= MissingUsageFallbackCredits <= MaximumCreditsPerQuestion, " +
+                "and non-negative per-million token prices with provider and model keys.")
+            .ValidateOnStart();
+        services.AddSingleton<UsageBasedCreditCalculator>();
 
         services
             .AddOptions<AiProviderOptions>()
@@ -648,11 +751,21 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICapabilityInterpreter, DeterministicCapabilityInterpreter>();
         services.AddSingleton<ICapabilityGuidanceService, CapabilityGuidanceService>();
         services.Configure<SemanticRoutingOptions>(configuration.GetSection(SemanticRoutingOptions.SectionName));
-        services.AddScoped<SemanticRoutingOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SemanticRoutingOptions>>().Value);
-        services.AddSingleton<ISemanticRoutingTelemetrySink, SemanticRoutingEventTelemetrySink>();
+        services.AddSingleton<SemanticRoutingOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SemanticRoutingOptions>>().Value);
+        services.AddSingleton<SemanticRoutingEventTelemetrySink>();
+        services.AddSingleton<ISemanticRoutingTelemetrySink>(provider =>
+            provider.GetRequiredService<SemanticRoutingEventTelemetrySink>());
+        services.AddSingleton<ISemanticRoutingComparisonQuery>(provider =>
+            provider.GetRequiredService<SemanticRoutingEventTelemetrySink>());
+        services.AddSingleton<ISemanticRoutingCanaryTelemetrySink, BoundedSemanticRoutingCanaryTelemetrySink>();
+        services.AddSingleton<ISemanticRoutingLatencySink, BoundedSemanticRoutingLatencySink>();
+        services.AddSingleton<ISemanticRoutingDiagnosticSink, LoggingSemanticRoutingDiagnosticSink>();
+        services.AddSingleton<ISemanticRoutingOperationalTelemetryQuery, SemanticRoutingOperationalTelemetryQuery>();
         services.AddScoped<ISemanticRoutingRolloutCoordinator, SemanticRoutingRolloutCoordinator>();
         services.AddScoped<ISemanticCapabilityDispatcher, SemanticCapabilityDispatcher>();
+        services.AddSingleton<ISemanticCapabilityFailureObserver, LoggingSemanticCapabilityFailureObserver>();
         services.AddScoped<ISemanticExecutionCoordinator, SemanticExecutionCoordinator>();
+        services.AddSingleton<ISemanticCapabilityExecutionObserver, NullSemanticCapabilityExecutionObserver>();
         services.AddScoped<ISemanticOutcomeFeedbackCollector, SemanticOutcomeFeedbackCollector>();
         services.AddSingleton<ISemanticDialogueEventSink, BoundedSemanticDialogueEventSink>();
         services.AddSingleton<ISemanticDialogueMetricsQuery, SemanticDialogueMetricsQuery>();
@@ -660,17 +773,41 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISemanticOfflineRegressionRunner, SemanticOfflineRegressionRunner>();
         services.AddSingleton<ISemanticPhraseCandidatePolicy, SemanticPhraseCandidatePolicy>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, MonthlyProductComparisonCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, ProductRevenueMixCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ProductSalesValueCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ProductSalesTrendCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementTableCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementAnalysisCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementValueSearchCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, DisclosureListingCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlySalesQualityCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, PsGaugeCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, ComprehensiveAnalysisCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, StockScreeningCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, PersonalizedInsightExplanationCapabilityExecutor>();
-        services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
+        services.AddOptions<IndustryRelativeValuationOptions>()
+            .BindConfiguration(IndustryRelativeValuationOptions.SectionName)
+            .Validate(options => options.IsValid(out _), "IndustryRelativeValuation options are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IIndustryRelativeValuationReadRepository, IndustryRelativeValuationReadRepository>();
+        services.AddOptions<IndustryRelativeValuationReadOptions>()
+            .BindConfiguration(IndustryRelativeValuationReadOptions.SectionName)
+            .Validate(options =>
+                options.DefaultResultLimit is >= 1 and <= 100 &&
+                options.MaximumResultLimit is >= 1 and <= 1000 &&
+                options.DefaultResultLimit <= options.MaximumResultLimit,
+                "Industry relative valuation read limits are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IndustryRelativeValuationReadOptions>(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<IndustryRelativeValuationReadOptions>>().Value);
+        services.AddScoped<IIndustryRelativeValuationSemanticResolver, IndustryRelativeValuationSemanticAdapter>();
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "symbol_vs_industry_relative_valuation"));
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "industry_relative_valuation_ranking"));
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "industry_relative_valuation_summary"));
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "symbol_pair_within_industry"));
+        services.AddSingleton<IQueryInterpretationProposalProvider, LlmQueryInterpretationProposalProvider>();
         services.AddSingleton<HybridCapabilityInterpreter>();
         services.AddSingleton<CapabilityRegistryProjection>();
         services.AddOptions<CanonicalEntityResolutionOptions>();
@@ -679,10 +816,120 @@ public static class ServiceCollectionExtensions
         services.Configure<ConversationTaskStateOptions>(configuration.GetSection(ConversationTaskStateOptions.SectionName));
         services.AddSingleton<IConversationTaskStateTelemetrySink, LoggingConversationTaskStateTelemetrySink>();
         services.AddScoped<ICanonicalQueryEntityResolver, CanonicalQueryEntityResolver>();
+        services.AddScoped<ICanonicalQueryProductResolver, CompanyScopedProductResolver>();
+        services.AddScoped<ICanonicalQueryIndustryResolver>(provider =>
+            (ICanonicalQueryIndustryResolver)provider.GetRequiredService<ICanonicalQueryEntityResolver>());
         services.AddScoped<ICapabilitySlotValidator, CapabilitySlotValidator>();
         services.AddSingleton<ISemanticQueryFrameEnricher, SemanticQueryFrameEnricher>();
         services.AddScoped<ICanonicalCompanyRouteAdapter, CanonicalCompanyRouteAdapter>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
+
+        // Feature 141 uses the packaged, integrity-checked catalog for both navigation and SQL compilation.
+        // Some hosts (such as the background Worker) share this infrastructure registration but do
+        // not activate Feature 141. Only require its packaged catalog paths when it is enabled.
+        if (configuration.GetValue<bool>("Feature141:Enabled"))
+        {
+            services.AddSingleton(_ =>
+            {
+                var defaults = new SchemaNavigatorBudgets();
+                int ReadInt(string key, int fallback) => int.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
+                TimeSpan? ReadDuration(string key, TimeSpan? fallback) =>
+                    TimeSpan.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
+                decimal? ReadCost() => decimal.TryParse(configuration["Feature141:SchemaNavigator:Budgets:MaximumProviderCost"], out var value) ? value : null;
+                return defaults with
+                {
+                    MaximumModelCalls = ReadInt(nameof(defaults.MaximumModelCalls), defaults.MaximumModelCalls),
+                    MaximumNavigationCalls = ReadInt(nameof(defaults.MaximumNavigationCalls), defaults.MaximumNavigationCalls),
+                    MaximumExpansionDepth = ReadInt(nameof(defaults.MaximumExpansionDepth), defaults.MaximumExpansionDepth),
+                    MaximumCatalogContextTokens = ReadInt(nameof(defaults.MaximumCatalogContextTokens), defaults.MaximumCatalogContextTokens),
+                    MaximumInputTokens = ReadInt(nameof(defaults.MaximumInputTokens), defaults.MaximumInputTokens),
+                    MaximumHierarchyContextCharacters = ReadInt(nameof(defaults.MaximumHierarchyContextCharacters), defaults.MaximumHierarchyContextCharacters),
+                    MaximumInputCharacters = ReadInt(nameof(defaults.MaximumInputCharacters), defaults.MaximumInputCharacters),
+                    InitialOutputTokens = ReadInt(nameof(defaults.InitialOutputTokens), defaults.InitialOutputTokens),
+                    MaximumOutputTokens = ReadInt(nameof(defaults.MaximumOutputTokens), defaults.MaximumOutputTokens),
+                    MaximumTotalOutputTokens = ReadInt(nameof(defaults.MaximumTotalOutputTokens), defaults.MaximumTotalOutputTokens),
+                    MaximumRetryAttempts = ReadInt(nameof(defaults.MaximumRetryAttempts), defaults.MaximumRetryAttempts),
+                    PerCallTimeout = ReadDuration(nameof(defaults.PerCallTimeout), defaults.PerCallTimeout),
+                    TotalTimeout = ReadDuration(nameof(defaults.TotalTimeout), defaults.TotalTimeout),
+                    MaximumProviderCost = ReadCost(),
+                    MaximumFanOut = ReadInt(nameof(defaults.MaximumFanOut), defaults.MaximumFanOut)
+                };
+            });
+            string ResolveFeature141Path(string key)
+            {
+                var configured = configuration[key];
+                if (string.IsNullOrWhiteSpace(configured))
+                    throw new InvalidOperationException($"{key} must be configured before activating Feature 141.");
+                if (Path.IsPathFullyQualified(configured)) return configured;
+                var packaged = Path.GetFullPath(configured, AppContext.BaseDirectory);
+                if (File.Exists(packaged) || Directory.Exists(packaged)) return packaged;
+                return Path.GetFullPath(configured);
+            }
+
+            var feature141HierarchyPath = ResolveFeature141Path("Feature141:SchemaNavigator:HierarchyPath");
+            var feature141CatalogPath = ResolveFeature141Path("Feature141:SchemaNavigator:CatalogPath");
+            services.AddSingleton(_ => new JsonCatalogNavigationHierarchyProvider(
+                feature141HierarchyPath, feature141CatalogPath));
+            services.AddSingleton(_ => new StructuredQueryCatalogSnapshotBuilder().Build(
+                feature141CatalogPath, feature141HierarchyPath));
+            services.AddSingleton<ICatalogNavigationHierarchyProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+            services.AddSingleton<ICatalogNavigationOutlineProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+            services.AddSingleton<ISchemaContextExpander>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+            services.AddSingleton<ISchemaContextCompletenessValidator, SchemaContextCompletenessValidator>();
+            services.AddSingleton<LlmVectorlessSchemaNavigator>();
+            services.AddSingleton<IVectorlessSchemaNavigator>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
+            services.AddSingleton<IQuestionSchemaRequirementsExtractor>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
+            services.AddSingleton<IStructuredQueryPlanBuilder, StructuredQueryPlanBuilder>();
+            services.AddSingleton<IStructuredQueryPlanValidator>(_ => new StructuredQueryPlanValidator(executionEnabled: true));
+            services.AddSingleton<IStructuredQueryCompiler, StructuredQueryCompiler>();
+            services.AddSingleton<IPersianStructuredQueryResponseGenerator, PersianStructuredQueryResponseGenerator>();
+            services.AddSingleton<IReviewedCompanyPopulationResolver>(_ => new ReviewedCompanyPopulationResolver(
+                configuration.GetSection("Feature141:ReviewedCompanyPopulations").Get<List<ReviewedCompanyPopulation>>() ?? []));
+            services.AddSingleton<IReviewedProductEquivalenceResolver>(_ => new ReviewedProductEquivalenceResolver(
+                configuration.GetSection("Feature141:ReviewedProductEquivalenceGroups").Get<List<ReviewedProductEquivalenceGroup>>() ?? []));
+            services.AddSingleton<IReviewedProductConceptResolver>(_ => new ReviewedProductConceptResolver(
+                configuration.GetSection("Feature141:ProductCatalog:Concepts").Get<List<ReviewedProductConcept>>() ?? []));
+            services.AddSingleton<IAuthorizedCompanyDiscoveryScopeResolver>(_ => new AuthorizedCompanyDiscoveryScopeResolver(
+                configuration.GetSection("Feature141:CompanyDiscoveryScopes").Get<List<AuthorizedCompanyDiscoveryScope>>() ?? []));
+            services.AddScoped<IStructuredQueryCompanyBinder, StructuredQueryCompanyBinder>();
+            services.AddScoped<IStructuredQueryProductBinder, StructuredQueryProductBinder>();
+            services.AddOptions<StructuredQueryExecutionOptions>()
+                .BindConfiguration(StructuredQueryExecutionOptions.SectionName)
+                .PostConfigure(options =>
+                {
+                    options.Enabled = configuration.GetValue<bool>("Feature141:Enabled");
+                    options.ConnectionString = configuration.GetConnectionString("Feature141ReadOnly") ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(options.ConnectionString)) return;
+                    NpgsqlConnectionStringBuilder builder;
+                    try
+                    {
+                        builder = new NpgsqlConnectionStringBuilder(options.ConnectionString);
+                    }
+                    catch (ArgumentException)
+                    {
+                        // Never allow parser exceptions to echo a connection string into startup logs.
+                        throw new InvalidOperationException(
+                            "Feature141:QueryExecution requires a valid ConnectionStrings:Feature141ReadOnly value.");
+                    }
+                    if (string.IsNullOrWhiteSpace(options.DesignatedDatabase))
+                        options.DesignatedDatabase = builder.Database ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(options.ReadOnlyRole))
+                        options.ReadOnlyRole = builder.Username ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(options.AuthorizationProvenance))
+                        options.AuthorizationProvenance = "feature141:catalog-backed-runtime-v1";
+                })
+                .ValidateOnStart();
+            services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StructuredQueryExecutionOptions>,
+                StructuredQueryExecutionOptionsValidator>();
+            services.AddSingleton<CatalogStructuredQueryAuthorizer>();
+            services.AddSingleton<IStructuredQueryAuthorizer>(provider =>
+                provider.GetRequiredService<CatalogStructuredQueryAuthorizer>());
+            services.AddSingleton<IDevelopmentStructuredQueryAuthorizer, DevelopmentStructuredQueryAuthorizer>();
+            services.AddScoped<IReadOnlyStructuredQueryExecutor, NpgsqlReadOnlyStructuredQueryExecutor>();
+            services.AddScoped<IOfflineStructuredQueryPlanningService, OfflineStructuredQueryPlanningService>();
+            services.AddScoped<Feature141ChatQueryService>();
+            services.AddScoped<IConversationalCapabilityExecutor, RegisteredFinancialSourceCapabilityExecutor>();
+        }
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
@@ -941,7 +1188,18 @@ public static class ServiceCollectionExtensions
         // CyclicalWaves data provider
         services
             .AddOptions<CyclicalWavesProviderOptions>()
-            .BindConfiguration(CyclicalWavesProviderOptions.SectionName);
+            .BindConfiguration(CyclicalWavesProviderOptions.SectionName)
+            .Validate(
+                options =>
+                    options.TokenExpirationSafetyMarginSeconds is > 0 and <= 3_600 &&
+                    (!cyclicalWavesAcquisitionSettings.Enabled ||
+                     (Uri.TryCreate(options.BaseAddress, UriKind.Absolute, out var baseAddress) &&
+                      baseAddress.Scheme == Uri.UriSchemeHttps &&
+                      !string.IsNullOrWhiteSpace(options.UserName) &&
+                      !string.IsNullOrWhiteSpace(options.Password))),
+                "CyclicalWaves settings must define a bounded token safety margin and, when data " +
+                "acquisition is enabled, an HTTPS base address plus secret-backed credentials.")
+            .ValidateOnStart();
         services.AddSingleton<CyclicalWavesTokenCache>();
         services.AddTransient<CyclicalWavesAuthHandler>();
         services
@@ -951,8 +1209,27 @@ public static class ServiceCollectionExtensions
                     Microsoft.Extensions.Options.IOptions<CyclicalWavesProviderOptions>>().Value;
                 client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
             })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
             .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
             .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
+        services.AddTransient<CyclicalWavesDataAcquisitionResilienceHandler>();
+        services
+            .AddHttpClient<CyclicalWavesDataAcquisitionClient>((provider, client) =>
+            {
+                var settings = provider.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<CyclicalWavesProviderOptions>>().Value;
+                client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
+            .AddHttpMessageHandler<CyclicalWavesDataAcquisitionResilienceHandler>();
+        services.AddScoped<ICyclicalWavesDataAcquisitionClient>(provider =>
+            provider.GetRequiredService<CyclicalWavesDataAcquisitionClient>());
+        services.AddSingleton<ICanonicalJsonHasher, CanonicalJsonHasher>();
+        services.AddScoped<ICyclicalWavesAcquisitionCompanySource, CyclicalWavesAcquisitionCompanySource>();
+        services.AddScoped<ICyclicalWavesDataAcquisitionRepository, CyclicalWavesDataAcquisitionRepository>();
+        services.AddScoped<ICyclicalWavesDataAcquisitionService, CyclicalWavesDataAcquisitionService>();
         services.AddScoped<MockFinancialDataProvider>();
         services.AddScoped<ISymbolDataProvider>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
@@ -964,6 +1241,7 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<ICyclicalWavesPsProviderClient>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+        services.AddScoped<ICyclicalWavesPsAcceptedOperation, CyclicalWavesPsOperation>();
         services
             .AddOptions<CyclicalWavesPsSyncOptions>()
             .BindConfiguration(CyclicalWavesPsSyncOptions.SectionName)
@@ -1032,6 +1310,8 @@ public static class ServiceCollectionExtensions
             })
             .AddHttpMessageHandler<NadpcoApiAuthHandler>()
             .AddHttpMessageHandler<NadpcoApiResilienceHandler>();
+        services.AddScoped<INadpcoMonthlyProductSalesDirectProvider>(provider =>
+            provider.GetRequiredService<NadpcoApiDataProviderClient>());
 
         // CodalDb data provider (read-only SQL Server; coexists with CyclicalWaves). It is NOT
         // registered as the default ISymbolDataProvider/etc. nor as IMarketDataProvider; it is
@@ -1126,12 +1406,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiCompanyNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
+        services.AddScoped<IManualNoavaranFinancialStatementBackfillService, ManualNoavaranFinancialStatementBackfillService>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiMonthlyActivityNormalizer>();
         services.AddScoped<IFinancialStatementAnalysisRepository, EfCoreFinancialStatementAnalysisRepository>();
         services.AddScoped<IFinancialStatementSelectionService, FinancialStatementSelectionService>();
         services.AddScoped<IFinancialStatementAnalysisRenderer, FinancialStatementAnalysisRenderer>();
         services.AddScoped<IFinancialStatementAnalysisUseCase, FinancialStatementAnalysisUseCase>();
         services.AddScoped<IFinancialStatementTableRepository, EfCoreFinancialStatementTableRepository>();
+        services.AddScoped<IQuarterlyFinancialReportsRepository>(provider =>
+            (IQuarterlyFinancialReportsRepository)provider.GetRequiredService<IFinancialStatementTableRepository>());
+        services.AddScoped<IQuarterlyFinancialReportsQueryUseCase, QuarterlyFinancialReportsQueryUseCase>();
         services.AddScoped<IFinancialStatementTableRenderer, FinancialStatementTableRenderer>();
         services.AddScoped<IFinancialStatementTableQueryUseCase, FinancialStatementTableQueryUseCase>();
         // Spec 075 â€” product revenue mix: calculator + repository wired after monthly-activity ingestion.
@@ -1146,13 +1430,30 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
         services.AddScoped<IMonthlyActivityTrendQueryUseCase, MonthlyActivityTrendQueryUseCase>();
+        services.AddScoped<IMonthlyProductComparisonReadRepository, EfCoreMonthlyProductComparisonRepository>();
+        services.AddScoped<IMonthlyProductCatalogReadRepository>(sp =>
+            (IMonthlyProductCatalogReadRepository)sp.GetRequiredService<IMonthlyProductComparisonReadRepository>());
+        services.AddScoped<IMonthlyProductComparisonUseCase, MonthlyProductComparisonUseCase>();
+        services.AddScoped<IMonthlyProductTrendQueryUseCase, MonthlyProductTrendQueryUseCase>();
+        services.AddScoped<IMonthlySalesProductFollowUpSuggestionService, MonthlySalesProductFollowUpSuggestionService>();
+        services.AddSingleton<IMonthlyProductTrendFollowUpSuggestionService, MonthlyProductTrendFollowUpSuggestionService>();
+        services.AddSingleton<IProductRevenueMixFollowUpSuggestionService, ProductRevenueMixFollowUpSuggestionService>();
+        services.AddSingleton<IMonthlySalesQualityRankingFollowUpSuggestionService, MonthlySalesQualityRankingFollowUpSuggestionService>();
+        services.AddSingleton<IQuarterlyFinancialReportFollowUpSuggestionService, QuarterlyFinancialReportFollowUpSuggestionService>();
+        services.AddSingleton<IFinancialStatementAnalysisFollowUpSuggestionService, FinancialStatementAnalysisFollowUpSuggestionService>();
         // Spec 112 — provider-neutral feed over persisted monthly reports and financial statements.
         services.AddScoped<ICompanyDisclosureFeedRepository, CompanyDisclosureFeedRepository>();
+        services.AddSingleton<CompanyDisclosureFeedCache>();
         services.AddScoped<IDisclosureListingUseCase, DisclosureListingUseCase>();
         // Spec 080 — deterministic monthly production/sales quality ranking snapshots.
         services.AddSingleton<IMonthlySalesQualityScoreCalculator, MonthlySalesQualityScoreCalculator>();
         services.AddScoped<IMonthlySalesQualityRankingRepository, MonthlySalesQualityRankingRepository>();
         services.AddScoped<IRecalculateMonthlySalesQualityRankingUseCase, RecalculateMonthlySalesQualityRankingUseCase>();
+        services.AddOptions<MonthlySalesQualityRankingOptions>()
+            .BindConfiguration(MonthlySalesQualityRankingOptions.SectionName)
+            .Validate(options => options.DefaultLimit is >= 1 && options.DefaultLimit <= options.MaximumLimit && options.MaximumLimit <= 50,
+                "Monthly sales quality ranking limits must be between 1 and 50.")
+            .ValidateOnStart();
         services.AddScoped<IMonthlySalesQualityRankingQueryUseCase, MonthlySalesQualityRankingQueryUseCase>();
         // Spec 084 — proactive market event intelligence.
         services.AddSingleton<IInsightScoringService, DeterministicInsightScoringService>();
@@ -1200,7 +1501,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>
             sp.GetRequiredService<NadpcoApiDataProviderClient>());
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexCoverageNormalizer>();
-        services.AddScoped<ICompanyResolverService, CompanyResolverService>();
+        services.AddScoped<CompanyResolverService>();
+        services.AddScoped<ICompanyResolverService>(sp => sp.GetRequiredService<CompanyResolverService>());
+        services.AddScoped<ICompanyResolutionOutcomeService>(sp => sp.GetRequiredService<CompanyResolverService>());
         services.AddScoped<ICyclicalWavesCompanyMappingService, CyclicalWavesCompanyMappingService>();
         services.AddScoped<IBackfillCyclicalWavesCompanyIdService, BackfillCyclicalWavesCompanyIdService>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
@@ -1233,6 +1536,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INormalizedMetricInputSource, MonthlyProductionQuantityMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesRateMetricInputSource>();
         services.AddSingleton<IMonthlyActivityOutputTypeResolver, DefaultMonthlyActivityOutputTypeResolver>();
+        services.AddSingleton<INoavaranMonthlyReportTypeResolver, NoavaranMonthlyReportTypeResolver>();
         services.AddScoped<INormalizedMetricInputReader, NormalizedMetricInputReader>();
         services.AddScoped<IDerivedMetricResultStore, PersistedDerivedMetricResultStore>();
         services.AddScoped<IDerivedMetricCalculationService, DerivedMetricCalculationService>();
@@ -1255,6 +1559,25 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CyclicalWavesPsVisualizationSyncService>();
         services.AddScoped<ICyclicalWavesPsVisualizationSyncService>(provider =>
             provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services.AddScoped<IFeature114AcceptedPsVisualizationPersistence>(provider =>
+            provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services
+            .AddOptions<IndustryRelativeValuationSourceOptions>()
+            .BindConfiguration(IndustryRelativeValuationSourceOptions.SectionName);
+        services.AddScoped<ICyclicalWavesMetricSnapshotReader, CyclicalWavesMetricSnapshotReader>();
+        services.AddScoped<IIndustryRelativeValuationOrchestrationService,
+            IndustryRelativeValuationOrchestrationService>();
+        services.AddScoped<IndustryRelativeValuationCalculationInputBuilder>();
+        services.AddScoped<IndustryRelativeValuationCalculationSnapshotWriter>();
+        services.AddOptions<IndustryWatchOptions>()
+            .BindConfiguration("IndustryRelativeValuation")
+            .Validate(options => options.EntryConsecutiveSnapshots is >= 1 and <= 30 &&
+                                 options.ExitConsecutiveSnapshots is >= 1 and <= 30,
+                "Industry watch thresholds must be between 1 and 30.")
+            .ValidateOnStart();
+        services.AddScoped(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<IndustryWatchOptions>>().Value);
+        services.AddScoped<IndustryWatchEvaluationService>();
         services.AddScoped<ICompanyPsVisualizationReader>(provider =>
             provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
         services.AddOptions<CyclicalWavesPsVisualizationOptions>()
@@ -1281,6 +1604,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<MonthlyActivityBackfillCoordinator>();
         services.AddScoped<IMonthlyActivityBackfillCoordinator>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
+        services.AddScoped<IMonthlyActivityBackfillOutboxRelay, MonthlyActivityBackfillOutboxRelay>();
+        services.AddOptions<MonthlyActivityBackfillOutboxOptions>()
+            .BindConfiguration(MonthlyActivityBackfillOutboxOptions.SectionName)
+            .Validate(options =>
+                options.PollSeconds > 0 &&
+                options.BatchSize is > 0 and <= 5000 &&
+                options.LeaseSeconds is >= 10 and <= 3600 &&
+                options.MaximumAttempts is > 0 and <= 100,
+                "Monthly-activity outbox options must be positive and bounded.")
+            .ValidateOnStart();
         services.AddScoped<IMonthlyActivityBackfillStateReader>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
         services.AddScoped<ISingleCompanyMonthlyIngestionService, SingleCompanyMonthlyIngestionService>();
@@ -1430,8 +1763,6 @@ public static class ServiceCollectionExtensions
                                  options.MaximumQueryRangeDays is > 0 and <= 3650,
                 "Alert history settings must be positive and bounded.")
             .ValidateOnStart();
-        services.AddOptions<TelegramNotificationOptions>()
-            .BindConfiguration(TelegramNotificationOptions.SectionName);
         services.AddScoped<INotificationEntitlementPolicy, NotificationEntitlementPolicy>();
         services.AddScoped<INotificationRecipientResolver, NotificationRecipientResolver>();
         services.AddScoped<INotificationUseCases, NotificationUseCases>();
@@ -1511,6 +1842,9 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<PollingDataSyncActivityMonitor>());
         services.AddHostedService(provider =>
             provider.GetRequiredService<PollingDataSyncActivityMonitor>());
+
+        // Feature 148 must stay last: CyclicalWaves-mode Chat registrations replace the defaults above.
+        services.AddCyclicalWavesV2AndProviderSelection(configuration);
 
         return services;
     }

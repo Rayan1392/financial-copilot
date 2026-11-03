@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using System.Globalization;
 using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.Authentication;
@@ -8,10 +9,15 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.MissingAnswer;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 
 namespace FinancialCopilot.API.Controllers;
 
@@ -20,7 +26,9 @@ namespace FinancialCopilot.API.Controllers;
 [Authorize(Policy = AuthorizationPolicies.DataAdmin)]
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
 public sealed class AdminDataOperationsController(
+    FinancialIngestionDbContext financialIngestionDbContext,
     IDataSyncRequestPublisher publisher,
+    ILogger<AdminDataOperationsController> logger,
     IDataSyncRunReader runReader,
     IFinancialDataProviderHealthService providerHealth,
     ISourceFreshnessReader sourceFreshnessReader,
@@ -55,8 +63,12 @@ public sealed class AdminDataOperationsController(
     IComprehensiveAnalysisSyncRunReader comprehensiveAnalysisSyncRunReader,
     IComprehensiveAnalysisPlainTextBackfillService comprehensiveAnalysisBackfill,
     IBackfillCyclicalWavesCompanyIdService cyclicalWavesCompanyIdBackfill,
-    TimeProvider timeProvider) : ControllerBase
+    TimeProvider timeProvider,
+    IOptions<CyclicalWavesLegacyOptions>? legacyOptions = null) : ControllerBase
 {
+    // Feature 148: legacy triggers stay retired unless a test explicitly re-enables legacy calls.
+    private bool LegacyIngestionRetired => legacyOptions?.Value.AllowCalls != true;
+
     [HttpPost("data-sync/symbols")]
     public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueSymbolSync(
         [FromBody] AdminDataSyncRequest? request,
@@ -68,6 +80,81 @@ public sealed class AdminDataOperationsController(
         [FromBody] AdminDataSyncRequest? request,
         CancellationToken cancellationToken) =>
         QueueAsync(ProviderDataset.FinancialStatements, request, requiresReference: true, cancellationToken);
+
+    [HttpPost("data-sync/financial-statements/by-period")]
+    public async Task<ActionResult<AdminFinancialStatementsByPeriodResponse>> QueueFinancialStatementsByPeriod(
+        [FromBody] AdminFinancialStatementsByPeriodRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+            ModelState.AddModelError("request", "Request body is required.");
+        else
+        {
+            if (request.FiscalYear is < 1400 or > 1500)
+                ModelState.AddModelError(nameof(request.FiscalYear), "FiscalYear must be a supported Persian year between 1400 and 1500.");
+            if (request.Period is not null and not (3 or 6 or 9 or 12))
+                ModelState.AddModelError(nameof(request.Period), "Period must be 3, 6, 9, or 12 months.");
+        }
+
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var selected = financialIngestionDbContext.NoavaranEligibleCompanies.AsNoTracking()
+            .Where(company => company.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                company.ExternalCompanyId != null);
+        if (request!.CompanyId is { } companyId)
+            selected = selected.Where(company => company.Id == companyId);
+
+        var companies = await selected
+            .Select(company => new { company.Id, company.ExternalCompanyId })
+            .Distinct()
+            .OrderBy(company => company.Id)
+            .ToArrayAsync(cancellationToken);
+
+        if (request.CompanyId is not null && companies.Length == 0)
+            return NotFound(new { message = "The company does not exist in the Noavaran eligible-company view." });
+
+        var batchKey = string.IsNullOrWhiteSpace(request.IdempotencyKey)
+            ? $"admin-financial-statements:{Guid.NewGuid():N}"
+            : request.IdempotencyKey.Trim();
+        var failed = new List<string>();
+        var queued = 0;
+        foreach (var company in companies)
+        {
+            if (!int.TryParse(company.ExternalCompanyId, out var providerId) || providerId <= 0)
+            {
+                failed.Add(company.Id.ToString("D"));
+                continue;
+            }
+
+            try
+            {
+                var externalReference = providerId.ToString(CultureInfo.InvariantCulture);
+                await publisher.PublishAsync(new DataSyncRequest(
+                    Guid.NewGuid(),
+                    ProviderDataset.FinancialStatements,
+                    externalReference,
+                    timeProvider.GetUtcNow(),
+                    $"{batchKey}:{company.Id:D}:{request.FiscalYear}:{request.Period?.ToString(CultureInfo.InvariantCulture) ?? "all"}",
+                    ProviderSources.NoavaranCurrentApiName,
+                    SourceMode.CurrentIncremental,
+                    StatementFiscalYear: request.FiscalYear,
+                    StatementPeriodMonths: request.Period),
+                    cancellationToken);
+                queued++;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                failed.Add(company.Id.ToString("D"));
+                logger.LogWarning(exception, "Failed to enqueue financial-statement sync for company {CompanyId}.", company.Id);
+            }
+        }
+
+        var requestId = Guid.NewGuid();
+        var status = failed.Count == 0 ? "Queued" : queued == 0 ? "Failed" : "QueuedWithFailures";
+        return Accepted(new AdminFinancialStatementsByPeriodResponse(
+            requestId, status, companies.Length, queued, failed.Count, failed));
+    }
 
     [HttpPost("data-sync/monthly-reports")]
     public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueMonthlyReportSync(
@@ -166,6 +253,9 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminCyclicalWavesFullSyncResponse>> RunCyclicalWavesFullSync(
         CancellationToken cancellationToken)
     {
+        if (LegacyIngestionRetired)
+            return LegacyCyclicalWavesRetirement.Gone(this);
+
         var result = await cyclicalWavesFullSync.ExecuteAsync(cancellationToken);
         return Ok(new AdminCyclicalWavesFullSyncResponse(
             result.SymbolsSynced,
@@ -181,6 +271,9 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminComprehensiveAnalysisFullSyncResponse>> RunComprehensiveAnalysisFullSync(
         CancellationToken cancellationToken)
     {
+        if (LegacyIngestionRetired)
+            return LegacyCyclicalWavesRetirement.Gone(this);
+
         var result = await comprehensiveAnalysisFullSync.ExecuteAsync(cancellationToken);
         return Ok(new AdminComprehensiveAnalysisFullSyncResponse(
             result.PagesTotal,
@@ -192,6 +285,9 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminComprehensiveAnalysisDailySyncResponse>> RunComprehensiveAnalysisDailySync(
         CancellationToken cancellationToken)
     {
+        if (LegacyIngestionRetired)
+            return LegacyCyclicalWavesRetirement.Gone(this);
+
         var result = await comprehensiveAnalysisDailySync.ExecuteAsync(cancellationToken);
         return Ok(new AdminComprehensiveAnalysisDailySyncResponse(
             result.PagesTotal,
@@ -478,12 +574,99 @@ public sealed class AdminDataOperationsController(
         var result = await monthlyActivityBackfillCoordinator.StartAsync(
             new MonthlyActivityBackfillRequest($"{actor.ActorType}:{actor.ActorId}"),
             cancellationToken);
-        return Ok(new AdminMonthlyActivityBackfillStartResponse(
+        var response = new AdminMonthlyActivityBackfillStartResponse(
+            result.BatchId,
             result.Outcome,
             result.MonthsPlanned,
             result.CompaniesPlanned,
             result.RequestsEnqueued,
-            ToMonthlyBackfillProgressResponse(result.Progress)));
+            ToMonthlyBackfillProgressResponse(result.Progress));
+        return result.Outcome == "Started" ? Accepted(response) : Ok(response);
+    }
+
+    [HttpPost("noavaran-current/monthly-backfill/single-month")]
+    public async Task<ActionResult<AdminMonthlyActivityBackfillStartResponse>> StartSingleMonthActivityBackfill(
+        [FromBody] AdminMonthlyActivitySingleMonthBackfillRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.ShamsiYear is < 1380 or > 1500)
+        {
+            ModelState.AddModelError(
+                nameof(request.ShamsiYear),
+                "ShamsiYear must be a plausible Shamsi year (1380-1500).");
+        }
+
+        if (request.ShamsiMonth is < 1 or > 12)
+        {
+            ModelState.AddModelError(nameof(request.ShamsiMonth), "ShamsiMonth must be between 1 and 12.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var result = await monthlyActivityBackfillCoordinator.StartAsync(
+            new MonthlyActivityBackfillRequest(
+                $"{actor.ActorType}:{actor.ActorId}",
+                new ShamsiMonth(request.ShamsiYear, request.ShamsiMonth)),
+            cancellationToken);
+        var response = new AdminMonthlyActivityBackfillStartResponse(
+            result.BatchId,
+            result.Outcome,
+            result.MonthsPlanned,
+            result.CompaniesPlanned,
+            result.RequestsEnqueued,
+            ToMonthlyBackfillProgressResponse(result.Progress));
+        return result.Outcome == "Started" ? Accepted(response) : Ok(response);
+    }
+
+    [HttpPost("noavaran-current/monthly-backfill/single-month/reporting-type")]
+    public async Task<ActionResult<AdminMonthlyActivityReportingTypeBackfillResponse>>
+        StartSingleMonthActivityBackfillForReportingType(
+            [FromBody] AdminMonthlyActivityReportingTypeBackfillRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (request.ShamsiYear is < 1404 or > 1500)
+        {
+            ModelState.AddModelError(
+                nameof(request.ShamsiYear),
+                "ShamsiYear must be between 1404 and 1500 for NADPCO monthly activity.");
+        }
+
+        if (request.ShamsiMonth is < 1 or > 12)
+        {
+            ModelState.AddModelError(nameof(request.ShamsiMonth), "ShamsiMonth must be between 1 and 12.");
+        }
+
+        if (request.ReportingType <= 0)
+        {
+            ModelState.AddModelError(nameof(request.ReportingType), "ReportingType must be greater than zero.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var result = await monthlyActivityBackfillCoordinator.StartForReportingTypeAsync(
+            new MonthlyActivityReportingTypeBackfillRequest(
+                $"{actor.ActorType}:{actor.ActorId}",
+                new ShamsiMonth(request.ShamsiYear, request.ShamsiMonth),
+                request.ReportingType),
+            cancellationToken);
+
+        var response = new AdminMonthlyActivityReportingTypeBackfillResponse(
+            result.BatchId,
+            result.Outcome,
+            result.ShamsiYear,
+            result.ShamsiMonth,
+            result.ReportingType,
+            result.CompaniesPlanned,
+            result.RequestsEnqueued);
+        return result.Outcome == "Started" ? Accepted(response) : Ok(response);
     }
 
     [HttpGet("noavaran-current/monthly-backfill")]
@@ -492,6 +675,29 @@ public sealed class AdminDataOperationsController(
     {
         var progress = await monthlyActivityBackfillCoordinator.GetProgressAsync(cancellationToken);
         return Ok(ToMonthlyBackfillProgressResponse(progress));
+    }
+
+    [HttpGet("noavaran-current/monthly-backfill/batches/{batchId:guid}")]
+    public async Task<ActionResult<AdminMonthlyActivityBackfillBatchResponse>> GetMonthlyActivityBackfillBatch(
+        Guid batchId,
+        CancellationToken cancellationToken)
+    {
+        var batch = await monthlyActivityBackfillCoordinator.GetBatchAsync(batchId, cancellationToken);
+        return batch is null ? NotFound() : Ok(ToMonthlyBackfillBatchResponse(batch));
+    }
+
+    [HttpGet("noavaran-current/monthly-backfill/batches")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminMonthlyActivityBackfillBatchResponse>>> ListMonthlyActivityBackfillBatches(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 100)
+        {
+            return BadRequest("limit must be between 1 and 100.");
+        }
+
+        var batches = await monthlyActivityBackfillCoordinator.ListBatchesAsync(limit, cancellationToken);
+        return Ok(batches.Select(ToMonthlyBackfillBatchResponse).ToArray());
     }
 
     // --- Spec 075: one-time backfill of persisted company product revenue mix rows (DataAdmin only) ---
@@ -558,6 +764,11 @@ public sealed class AdminDataOperationsController(
             ModelState.AddModelError("ShamsiMonth", "Shamsi month must be between 1 and 12.");
             return ValidationProblem(ModelState);
         }
+        if (request.OutputType is < 0 or > 4)
+        {
+            ModelState.AddModelError(nameof(request.OutputType), "OutputType must be between 0 and 4.");
+            return ValidationProblem(ModelState);
+        }
         var from = new ShamsiMonth(request.FromShamsiYear, (byte)request.FromShamsiMonth);
         var to = new ShamsiMonth(request.ToShamsiYear, (byte)request.ToShamsiMonth);
         if (from > to)
@@ -574,7 +785,8 @@ public sealed class AdminDataOperationsController(
                 request.FromShamsiMonth,
                 request.ToShamsiYear,
                 request.ToShamsiMonth,
-                $"{actor.ActorType}:{actor.ActorId}"),
+                $"{actor.ActorType}:{actor.ActorId}",
+                request.OutputType),
             cancellationToken);
 
         return Ok(new AdminSingleCompanyMonthlyIngestionResponse(
@@ -604,6 +816,25 @@ public sealed class AdminDataOperationsController(
                 month.CompaniesFailed,
                 month.Status)).ToArray(),
             progress.OutputTypeCounts);
+
+    private static AdminMonthlyActivityBackfillBatchResponse ToMonthlyBackfillBatchResponse(
+        MonthlyActivityBackfillBatch batch) =>
+        new(
+            batch.BatchId,
+            batch.Status,
+            batch.RequestedBy,
+            batch.CreatedAt,
+            batch.PublishingStartedAt,
+            batch.PublishedAt,
+            batch.CompletedAt,
+            batch.TargetShamsiYear,
+            batch.TargetShamsiMonth,
+            batch.PlannedCount,
+            batch.PublishedCount,
+            batch.ProcessedCount,
+            batch.FailedCount,
+            batch.RetryableCount,
+            batch.LastError);
 
     // --- Spec 050: NADPCO all-index fundamental-index catch-up coverage (DataAdmin only) ---
     // Distinct from the curated 041 fundamental-index sync: this fetches EVERY vendor index
@@ -980,6 +1211,14 @@ public sealed class AdminDataOperationsController(
     public async Task<ActionResult<AdminProviderHealthResponse>> GetProviderHealth(
         CancellationToken cancellationToken)
     {
+        // The only registered health service is the retired legacy CyclicalWaves client: report it without I/O.
+        if (LegacyIngestionRetired)
+            return Ok(new AdminProviderHealthResponse(
+                ProviderSources.CyclicalWavesName,
+                LegacyCyclicalWavesRetirement.Code,
+                timeProvider.GetUtcNow(),
+                LegacyCyclicalWavesRetirement.Detail));
+
         var health = await providerHealth.CheckAsync(cancellationToken);
         return Ok(new AdminProviderHealthResponse(
             health.ProviderName,
@@ -1149,6 +1388,9 @@ public sealed class AdminDataOperationsController(
         var selectedProviderName = string.IsNullOrWhiteSpace(providerName)
             ? request?.ProviderName?.Trim()
             : providerName;
+        if (LegacyIngestionRetired && selectedProviderName is not null &&
+            string.Equals(ProviderSources.NormalizeName(selectedProviderName), ProviderSources.CyclicalWavesName, StringComparison.OrdinalIgnoreCase))
+            return LegacyCyclicalWavesRetirement.Gone(this);
         var now = timeProvider.GetUtcNow();
         var idempotencyKey = string.IsNullOrWhiteSpace(request?.IdempotencyKey)
             ? $"admin-data-sync:{dataset}:{externalReference ?? "all"}:{Guid.NewGuid():N}"

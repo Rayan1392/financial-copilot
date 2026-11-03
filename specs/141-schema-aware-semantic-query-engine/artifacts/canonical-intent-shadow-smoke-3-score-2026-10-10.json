@@ -1,0 +1,148 @@
+{
+  "benchmarkVersion": 2,
+  "shadowPathOnly": true,
+  "casesInBenchmark": 60,
+  "casesEvaluated": 1,
+  "casesNotRun": 59,
+  "casesWithAdjudicatedGold": 0,
+  "casesWithOnlyInheritedMeasureLabels": 35,
+  "casesAwaitingGoldAdjudication": 49,
+  "unconditionalValidIntent": {
+    "correct": 1,
+    "denominator": 1,
+    "rate": 1.0
+  },
+  "unconditionalFieldMetrics": {},
+  "conditionalFieldMetrics": {},
+  "failureCategories": {
+    "malformed_or_truncated_model_output": 0,
+    "structured_schema_validation_failure": 0,
+    "unsupported_semantic_intent": 0,
+    "unknown_catalog_reference": 0,
+    "missing_catalog_coverage": 0,
+    "semantic_policy_rejection": 0,
+    "query_authorization_rejection": 0,
+    "planner_or_compiler_unsupported_operation": 0,
+    "provider_timeout_or_cancellation": 0,
+    "provider_failure_or_unavailable": 0,
+    "internal_implementation_error": 0,
+    "completed": 1,
+    "unmatched_attempt_reconciled_as_canceled": 0
+  },
+  "unmatchedStartedAttempts": 0,
+  "optionBTokenTotals": {
+    "input": 1340,
+    "output": 355,
+    "reportedCases": 1
+  },
+  "optionBLatencyMs": {
+    "mean": 5076.0,
+    "max": 5076
+  },
+  "perCase": [
+    {
+      "caseId": "fa-03",
+      "question": "روند فروش کگل را نمایش بده.",
+      "goldStatus": "inherited_measure_only_unreviewed",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "completed",
+      "optionBValidIntent": true,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 4222,
+        "outputTokens": 760,
+        "latencyMs": 7469
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 1,
+          "measures": [
+            {
+              "concept": "فروش",
+              "kind": 6,
+              "unit": 0
+            }
+          ],
+          "operation": {
+            "kind": 4,
+            "direction": null
+          },
+          "comparison": {
+            "mode": 0,
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": 0,
+            "granularity": 0,
+            "userPeriodLabel": null,
+            "numberOfPeriods": null,
+            "startLabel": null,
+            "endLabel": null
+          },
+          "entityScope": {
+            "kind": 0,
+            "companyLabels": [
+              "کگل"
+            ]
+          },
+          "products": [],
+          "categories": [],
+          "filters": null,
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": 2,
+            "requestedFields": [
+              "فروش",
+              "روند"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": true,
+            "questions": [
+              "منظور از فروش، مبلغ فروش، مقدار فروش یا نرخ فروش است؟"
+            ],
+            "unresolvedPoints": [
+              "نوع سنجه فروش مشخص نیست",
+              "بازه زمانی روند مشخص نیست"
+            ]
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 1340,
+        "outputTokens": 355,
+        "latencyMs": 5076
+      }
+    }
+  ]
+}

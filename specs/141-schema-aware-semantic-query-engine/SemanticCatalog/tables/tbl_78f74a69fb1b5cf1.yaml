@@ -1,0 +1,170 @@
+{
+  "id": "tbl_78f74a69fb1b5cf1",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioAnalyticsSnapshots",
+    "ObjectType": "ef_table",
+    "Columns": [
+      {
+        "Name": "CalculationVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "CommodityWeight",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ConfidenceScore",
+        "Type": "numeric",
+        "Nullable": false,
+        "DefaultValue": "0"
+      },
+      {
+        "Name": "DepositWeight",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "DerivativeWeight",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EquityWeight",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EvidenceJson",
+        "Type": "character varying(50000)",
+        "Nullable": false
+      },
+      {
+        "Name": "FullExitCount",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "0"
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false,
+        "DefaultValue": "00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "Name": "HerfindahlIndex",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false,
+        "DefaultValue": "00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "Name": "InputCompletenessJson",
+        "Type": "character varying(4000)",
+        "Nullable": false
+      },
+      {
+        "Name": "LiquidityRiskStatus",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "Available"
+      },
+      {
+        "Name": "NetEquityDeploymentAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "NewPositionCount",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "0"
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": false,
+        "DefaultValue": "1/1/0001"
+      },
+      {
+        "Name": "PreviousComparableReportId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "PurchaseAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false,
+        "DefaultValue": "00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "Name": "RiskPosture",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "MoreRiskOn"
+      },
+      {
+        "Name": "SaleAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Top10Concentration",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Top5Concentration",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "TurnoverRatio",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ValuationQualityStatus",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "Unknown"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "",
+        "Unique": false,
+        "Definition": "ReportId"
+      },
+      {
+        "Name": "",
+        "Unique": true,
+        "Definition": "FundId,PeriodEndDate,CalculationVersion"
+      }
+    ],
+    "Constraints": []
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

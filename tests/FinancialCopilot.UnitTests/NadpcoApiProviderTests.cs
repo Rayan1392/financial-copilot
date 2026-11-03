@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
@@ -113,6 +114,65 @@ public sealed class NadpcoApiProviderTests
         Assert.Equal(FinancialProviderErrorCode.Unauthorized, exception.Code);
         Assert.DoesNotContain("vendor-user", exception.Message);
         Assert.DoesNotContain("vendor-password", exception.Message);
+    }
+
+    [Fact]
+    public async Task DataProvider_HealthCheck_UsesCachedTokenWithoutCallingVendor()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var now = new DateTimeOffset(2026, 8, 12, 8, 0, 0, TimeSpan.Zero);
+        var cache = CreateTokenCache();
+        cache.SetToken("cached-token", now, now.AddHours(1));
+        var vendorCalled = false;
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            vendorCalled = true;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var provider = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            cache,
+            Options.Create(new NadpcoApiProviderOptions()),
+            new MutableTimeProvider(now),
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            CreateProductBoundary());
+
+        var result = await provider.CheckAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderHealthStatus.Healthy, result.Status);
+        Assert.False(vendorCalled);
+    }
+
+    [Fact]
+    public async Task DataProvider_HealthCheck_WithEmptyCache_IsDegradedWithoutCallingVendor()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var vendorCalled = false;
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            vendorCalled = true;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var provider = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            CreateProductBoundary());
+
+        var result = await provider.CheckAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderHealthStatus.Degraded, result.Status);
+        Assert.False(vendorCalled);
     }
 
     [Fact]
@@ -320,7 +380,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 StatementFromYear = 1401,
@@ -328,7 +388,8 @@ public sealed class NadpcoApiProviderTests
                 StatementIsAudited = false
             }),
             TimeProvider.System,
-            NullLogger<NadpcoApiDataProviderClient>.Instance);
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            CreateProductBoundary());
 
         await client.FetchFinancialStatementsAsync("3", CancellationToken.None);
 
@@ -338,6 +399,177 @@ public sealed class NadpcoApiProviderTests
         Assert.All(requests, r => Assert.Contains("fromYear=1401", r.Uri));
         Assert.All(requests, r => Assert.Contains("perTId=6", r.Uri));
         Assert.All(requests, r => Assert.Contains("isAudited=false", r.Uri));
+    }
+
+    [Theory]
+    [InlineData(ManualNoavaranFinancialStatementType.BalanceSheet, "api/v2/FS/BalanceSheet/Values")]
+    [InlineData(ManualNoavaranFinancialStatementType.IncomeStatement, "api/v2/FS/IncomeStatement/Values")]
+    [InlineData(ManualNoavaranFinancialStatementType.CashFlow, "api/v2/FS/CashFlow/Values")]
+    [InlineData(ManualNoavaranFinancialStatementType.FinancialRatios, "api/v2/CompanyFundamentalIndex/Values")]
+    public async Task DataProvider_ManualFinancialStatement_UsesSelectedEndpointAndExactFiscalScope(
+        ManualNoavaranFinancialStatementType type,
+        string expectedPath)
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<(string Uri, string Body)>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(async request =>
+        {
+            requests.Add((request.RequestUri!.OriginalString,
+                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync()));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions
+            {
+                StatementIsAudited = false,
+                FundamentalIndexIsAudited = true
+            }),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            CreateProductBoundary());
+
+        var payload = await client.FetchManualFinancialStatementAsync("3", 1404, 6, type, CancellationToken.None);
+
+        var request = Assert.Single(requests);
+        Assert.Contains(expectedPath, request.Uri, StringComparison.Ordinal);
+        Assert.Contains("fromYear=1404", request.Uri);
+        Assert.Contains("toYear=1404", request.Uri);
+        Assert.Contains("perTId=6", request.Uri);
+        Assert.Contains("\"companyIds\":[3]", request.Body);
+        if (type == ManualNoavaranFinancialStatementType.FinancialRatios)
+        {
+            Assert.Equal(ProviderDataset.FundamentalIndexes, payload.Dataset);
+            Assert.Contains("\"companyIndexIds\":[", request.Body);
+            Assert.Contains("isAudited=true", request.Uri);
+        }
+        else
+        {
+            Assert.Equal(ProviderDataset.FinancialStatements, payload.Dataset);
+            Assert.Contains("\"items\":[]", request.Body);
+            Assert.Contains("isAudited=false", request.Uri);
+        }
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(6)]
+    [InlineData(9)]
+    [InlineData(12)]
+    public async Task DataProvider_ManualFinancialStatement_MapsSupportedMonthsToPeriodTypeId(int months)
+    {
+        await using var dbContext = CreateProviderDbContext();
+        string? endpoint = null;
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            endpoint = request.RequestUri!.OriginalString;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            });
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        await client.FetchManualFinancialStatementAsync(
+            "3", 1404, months, ManualNoavaranFinancialStatementType.IncomeStatement, CancellationToken.None);
+
+        Assert.Contains($"perTId={months}", endpoint);
+    }
+
+    [Fact]
+    public async Task DataProvider_PeriodScopedStatements_UsesExactYearAndAllFourPeriodsWhenUnspecified()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.OriginalString);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            });
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        await client.FetchFinancialStatementsAsync("3", CancellationToken.None, 1405, null);
+
+        Assert.Equal(12, requests.Count);
+        Assert.All(requests, uri =>
+        {
+            Assert.Contains("fromYear=1405", uri);
+            Assert.Contains("toYear=1405", uri);
+            Assert.Matches("perTId=(3|6|9|12)", uri);
+        });
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=3", StringComparison.Ordinal)));
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=6", StringComparison.Ordinal)));
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=9", StringComparison.Ordinal)));
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=12", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task ManualBackfillService_RepeatedIdenticalPayloadIsReportedAsAlreadyPersisted()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var provider = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+        var processor = new CapturingFinancialDataSyncProcessor();
+        using var ingestionDb = new FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.FinancialIngestionDbContext(
+            new DbContextOptionsBuilder<FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.FinancialIngestionDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var service = new FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi.ManualNoavaranFinancialStatementBackfillService(
+            provider, processor, ingestionDb, TimeProvider.System);
+        var request = new ManualNoavaranFinancialStatementBackfillRequest(
+            "3", 1404, 12, ManualNoavaranFinancialStatementType.IncomeStatement);
+
+        var first = await service.ExecuteAsync(request, CancellationToken.None);
+        var second = await service.ExecuteAsync(request, CancellationToken.None);
+
+        Assert.Equal("Persisted", first.Outcome);
+        Assert.Equal("AlreadyExists", second.Outcome);
+        Assert.Equal(first.RunId, second.RunId);
+        Assert.Equal(2, processor.Requests.Count);
+        Assert.Equal(processor.Requests[0].IdempotencyKey, processor.Requests[1].IdempotencyKey);
+        Assert.Equal("1404", processor.Requests[0].SourceDateRangeStartJalali);
+        Assert.Equal("1404", processor.Requests[0].SourceDateRangeEndJalali);
     }
 
     [Fact]
@@ -361,7 +593,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 FundamentalIndexFromYear = 1401,
@@ -405,7 +637,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 // Permitted range (Shamsi 1404+); flows through unchanged.
@@ -413,16 +645,19 @@ public sealed class NadpcoApiProviderTests
                 MonthlyActivityToDate = "1404/12/29"
             }),
             TimeProvider.System,
-            NullLogger<NadpcoApiDataProviderClient>.Instance);
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            CreateProductBoundary());
 
         var payload = await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
 
         Assert.Equal(ProviderDataset.MonthlyProductionSales, payload.Dataset);
-        // 5 ProductSales requests (outputTypeId 0–4) + 1 ServiceSales request.
-        Assert.Equal(6, requests.Count);
+        // A classified ProductSales company calls ProductSales only.
+        Assert.Equal(5, requests.Count);
         Assert.Equal(5, requests.Count(r => r.Uri.Contains("ProductSales")));
-        Assert.Equal(1, requests.Count(r => r.Uri.Contains("ServiceSales")));
-        Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        Assert.Equal(0, requests.Count(r => r.Uri.Contains("ServiceSales")));
+        Assert.All(
+            requests.Where(r => r.Uri.Contains("ProductSales")),
+            r => Assert.Contains("\"companyIds\":[3]", r.Body));
         // Live-verified contract (spec 057): Shamsi bounds are year+month query-string tokens;
         // the JSON body must not carry dates (v3 ServiceSales returns HTTP 500 otherwise).
         Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));
@@ -435,7 +670,357 @@ public sealed class NadpcoApiProviderTests
                 r => r.Uri.Contains("ProductSales") && r.Uri.Contains($"outputTypeId={id}"));
         }
 
-        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales") && !r.Uri.Contains("outputTypeId"));
+        Assert.DoesNotContain(requests, r => r.Uri.Contains("ServiceSales"));
+    }
+
+    [Fact]
+    public async Task DataProvider_FetchMonthlyReports_ReportingType1000008UsesProductSalesOnly()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.OriginalString);
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext), 1_000_008);
+
+        await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        Assert.All(requests, uri => Assert.Contains("ProductSales", uri, StringComparison.Ordinal));
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_FetchMonthlyReports_UnsupportedReportingTypeFailsBeforeVendorCall()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.OriginalString);
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext), 1_000_001);
+
+        var exception = await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchMonthlyReportsAsync("3", CancellationToken.None));
+
+        Assert.Equal(FinancialProviderErrorCode.InvalidResponse, exception.Code);
+        Assert.Empty(requests);
+    }
+
+    [Theory]
+    [InlineData(1_000_010)]
+    public async Task DataProvider_FetchMonthlyReports_UnknownReportingTypeFailsBeforeVendorCall(int reportingType)
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.OriginalString);
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext), reportingType);
+
+        await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchMonthlyReportsAsync("3", CancellationToken.None));
+
+        Assert.Empty(requests);
+    }
+
+    [Fact]
+    public async Task DataProvider_FetchMonthlyReports_MissingReportingTypeFailsBeforeVendorCall()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.OriginalString);
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext), null);
+
+        await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchMonthlyReportsAsync("3", CancellationToken.None));
+
+        Assert.Empty(requests);
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_PostsAllFiveCompanyMonthOutputTypeRequests()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<(string Uri, string Body)>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(async request =>
+        {
+            requests.Add((
+                request.RequestUri!.OriginalString,
+                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync()));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        var payload = await client.FetchProductSalesAllOutputTypesAsync(
+            "19",
+            1405,
+            5,
+            CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        for (var outputType = 0; outputType <= 4; outputType++)
+        {
+            var request = Assert.Single(requests, item =>
+                item.Uri.EndsWith($"outputTypeId={outputType}", StringComparison.Ordinal));
+            Assert.Contains("\"companyIds\":[19]", request.Body);
+            Assert.DoesNotContain("\"fromDate\"", request.Body);
+        }
+        Assert.Equal(ProviderDataset.MonthlyProductionSales, payload.Dataset);
+        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(
+            payload.Payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(envelope);
+        Assert.Equal("[]", envelope.ProductSalesType0);
+        Assert.Equal("[]", envelope.ProductSalesType1);
+        Assert.Equal("[]", envelope.ProductSalesType2);
+        Assert.Equal("[]", envelope.ProductSalesType3);
+        Assert.Equal("[]", envelope.ProductSalesType4);
+        Assert.Equal("[]", envelope.ServiceSales);
+        Assert.DoesNotContain(requests, item => item.Uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_UsableType0SuppressesServiceSales()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.EndsWith("outputTypeId=0", StringComparison.Ordinal))
+            {
+                return JsonResponse(new[] { new { com_ID = 19, year = 1405, month = 5, salesValue = 0 } });
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext), 1_000_000);
+
+        await client.FetchProductSalesAllOutputTypesAsync("19", 1405, 5, CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_ExplicitType0UsesOneServiceFallback()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                return JsonResponse(new[] { new { companyId = 19, year = 1405, month = 5, revenueDuringThePeriod = 30 } });
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext), 1_000_005);
+
+        await client.FetchProductSalesAllOutputTypesAsync("19", 1405, 5, CancellationToken.None, 0);
+
+        Assert.Single(requests);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ProductSales", StringComparison.Ordinal));
+        Assert.Single(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectServiceSales_ServiceFailureRemainsProviderFailure()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext), 1_000_005);
+
+        var exception = await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchProductSalesAllOutputTypesAsync("19", 1405, 5, CancellationToken.None, 0));
+
+        Assert.Equal(FinancialProviderErrorCode.RemoteUnavailable, exception.Code);
+        Assert.Single(requests);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ProductSales", StringComparison.Ordinal));
+        Assert.Single(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_EmptyType0CallsServiceSalesOnceEvenWhenOtherTypesHaveRows()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.EndsWith("outputTypeId=1", StringComparison.Ordinal))
+            {
+                return JsonResponse(new[] { new { com_ID = 19, year = 1405, month = 5, salesValue = 20 } });
+            }
+
+            if (uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                return JsonResponse(new[] { new { companyId = 19, year = 1405, month = 5, revenueDuringThePeriod = 30 } });
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        var payload = await client.FetchProductSalesAllOutputTypesAsync("19", 1405, 5, CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(
+            payload.Payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(envelope);
+        Assert.Equal("[]", envelope!.ServiceSales);
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_Type0FailureDoesNotCallServiceSalesFallback()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.EndsWith("outputTypeId=0", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchProductSalesAllOutputTypesAsync("19", 1405, 5, CancellationToken.None));
+
+        Assert.Single(requests);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_Below1404BoundaryFailsBeforeAnyServiceSalesRequest()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.OriginalString);
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.FetchProductSalesAllOutputTypesAsync("19", 1403, 12, CancellationToken.None));
+
+        Assert.Empty(requests);
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_IsolatesOutputTypeFailure()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.EndsWith("outputTypeId=2", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        var payload = await client.FetchProductSalesAllOutputTypesAsync(
+            "19",
+            1405,
+            5,
+            CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(
+            payload.Payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(envelope);
+        Assert.Equal("[]", envelope.ProductSalesType0);
+        Assert.Equal("[]", envelope.ProductSalesType1);
+        Assert.Null(envelope.ProductSalesType2);
+        Assert.Equal("[]", envelope.ProductSalesType3);
+        Assert.Equal("[]", envelope.ProductSalesType4);
+        Assert.Equal("[]", envelope.ServiceSales);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -459,7 +1044,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 // Earlier than the permitted Shamsi 1404 boundary — must be clamped up to 1404/01/01.
@@ -467,13 +1052,16 @@ public sealed class NadpcoApiProviderTests
                 MonthlyActivityToDate = null
             }),
             TimeProvider.System,
-            NullLogger<NadpcoApiDataProviderClient>.Instance);
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            CreateProductBoundary());
 
         await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
 
-        // 5 ProductSales requests (outputTypeId 0–4) + 1 ServiceSales request.
-        Assert.Equal(6, requests.Count);
-        Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        // ProductSales is selected from persisted ReportingType; no response probing occurs.
+        Assert.Equal(5, requests.Count);
+        Assert.All(
+            requests.Where(r => r.Uri.Contains("ProductSales")),
+            r => Assert.Contains("\"companyIds\":[3]", r.Body));
         // 1403-and-earlier is not permitted; the from-date is clamped to the 1404 access boundary
         // and travels as a year+month query token (live-verified contract, spec 057).
         Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));
@@ -482,7 +1070,98 @@ public sealed class NadpcoApiProviderTests
         Assert.All(requests, r => Assert.DoesNotContain("\"fromDate\"", r.Body));
         Assert.All(requests, r => Assert.DoesNotContain("\"outputType\"", r.Body));
         // ProductSales requests carry outputTypeId 0–4; ServiceSales request must not.
-        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales") && !r.Uri.Contains("outputTypeId"));
+        Assert.DoesNotContain(requests, r => r.Uri.Contains("ServiceSales"));
+    }
+
+    [Fact]
+    public async Task DataProvider_UsableProductType0_SuppressesServiceSalesFallback()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.Contains("ProductSales") && uri.EndsWith("outputTypeId=0", StringComparison.Ordinal))
+            {
+                return JsonResponse(new[] { new { com_ID = 3, year = 1405, month = 2, salesValue = 10 } });
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_EmptyProductType0_CallsServiceSalesOnceEvenWhenOtherTypesHaveRows()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.Contains("ProductSales") && uri.EndsWith("outputTypeId=1", StringComparison.Ordinal))
+            {
+                return JsonResponse(new[] { new { com_ID = 3, year = 1405, month = 2, salesValue = 20 } });
+            }
+
+            if (uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                return JsonResponse(new[] { new { companyId = 3, year = 1405, month = 2, revenueDuringThePeriod = 30 } });
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        var payload = await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(
+            payload.Payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(envelope);
+        Assert.Equal("[]", envelope!.ServiceSales);
+    }
+
+    [Fact]
+    public async Task DataProvider_ProductType0Failure_DoesNotCallServiceSalesFallback()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.Contains("ProductSales") && uri.EndsWith("outputTypeId=0", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchMonthlyReportsAsync("3", CancellationToken.None));
+
+        Assert.DoesNotContain(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -535,14 +1214,30 @@ public sealed class NadpcoApiProviderTests
 
     private static NadpcoApiDataProviderClient CreateDataProvider(
         HttpClient httpClient,
-        IProviderRawPayloadStore store) =>
-        new(
+        IProviderRawPayloadStore store,
+        int? reportingType = 1_000_000)
+    {
+        var boundary = new NoavaranCurrentApiBoundaryOverride();
+        boundary.SetReportingType(reportingType);
+        return new(
             httpClient,
             store,
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions()),
             TimeProvider.System,
-            NullLogger<NadpcoApiDataProviderClient>.Instance);
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            boundary);
+    }
+
+    private static NoavaranCurrentApiBoundaryOverride CreateProductBoundary()
+    {
+        var boundary = new NoavaranCurrentApiBoundaryOverride();
+        boundary.SetReportingType(1_000_000);
+        return boundary;
+    }
+
+    private static NadpcoApiTokenCache CreateTokenCache() =>
+        new(new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
 
     private static FinancialProviderDbContext CreateProviderDbContext()
     {
@@ -617,6 +1312,46 @@ public sealed class NadpcoApiProviderTests
         public Task<ProviderRawPayload> FetchMonthlyReportsAsync(
             string externalCompanyId,
             CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class CapturingFinancialDataSyncProcessor : IFinancialDataSyncProcessor
+    {
+        private Guid? _runId;
+        public List<DataSyncRequest> Requests { get; } = [];
+
+        public Task<DataSyncProcessingResult> ProcessPayloadAsync(
+            DataSyncRequest request,
+            ProviderRawPayload payload,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            _runId ??= request.RequestId;
+            var run = new DataSyncRun(
+                _runId.Value,
+                request.IdempotencyKey,
+                request.Dataset,
+                request.ExternalReference,
+                DataSyncRunStatus.Completed,
+                request.RequestedAt,
+                request.RequestedAt,
+                request.RequestedAt,
+                ProcessedRecords: 1,
+                ErrorCount: 0,
+                ErrorMessage: null,
+                SourcePayloadChecksum: payload.Checksum,
+                ProviderName: request.ProviderName);
+            return Task.FromResult(new DataSyncProcessingResult(run, AlreadyProcessed: Requests.Count > 1));
+        }
+
+        public Task<DataSyncProcessingResult> ProcessAsync(DataSyncRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<DataSyncProcessingResult> ProcessProviderAsync(
+            DataSyncRequest request,
+            Func<Task<ProviderRawPayload>> payloadFactory,
+            CancellationToken cancellationToken,
+            bool rethrowProviderExceptions = false) =>
             throw new NotSupportedException();
     }
 }

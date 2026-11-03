@@ -1,0 +1,483 @@
+using System.Globalization;
+using System.Net;
+using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
+
+public sealed class NadpcoApiDataProviderClient(
+    HttpClient httpClient,
+    IProviderRawPayloadStore rawPayloads,
+    INadpcoApiTokenProvider tokenProvider,
+    IOptions<NadpcoApiProviderOptions> options,
+    TimeProvider timeProvider,
+    ILogger<NadpcoApiDataProviderClient> logger,
+    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null) :
+    ISymbolDataProvider,
+    IFinancialStatementProvider,
+    IMonthlyProductionSalesProvider,
+    IFinancialRatioProvider,
+    IFundamentalIndexCoverageProvider,
+    IFinancialDataProviderHealthService
+{
+    private readonly NadpcoApiProviderOptions _settings = options.Value;
+    private readonly SemaphoreSlim _throttle = new(Math.Max(1, options.Value.MaxReadParallelism));
+
+    // Access to the current-API monthly-activity endpoints is granted only from Shamsi 1404 onward;
+    // requesting 1403 or earlier returns HTTP 500. Enforced in code so a misconfigured earlier
+    // start date cannot reintroduce the permission failure (spec 042 access note).
+    private const int MonthlyActivityMinimumShamsiYear = 1404;
+    private const string MonthlyActivityMinimumFromDate = "1404/01/01";
+
+    public string ProviderName => _settings.ProviderName;
+
+    public Task<ProviderRawPayload> FetchSymbolsAsync(CancellationToken cancellationToken) =>
+        FetchGetRawAsync(
+            ProviderDataset.Symbols,
+            "api/v3/BaseInfo/Companies",
+            "all",
+            cancellationToken);
+
+    public async Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var envelope = new NadpcoFinancialStatementEnvelope(
+            await PostJsonForPayloadAsync(
+                BuildStatementEndpoint("api/v2/FS/BalanceSheet/Values"),
+                new NadpcoApiStatementRequest(
+                    companyIds,
+                    Array.Empty<int>()),
+                cancellationToken),
+            await PostJsonForPayloadAsync(
+                BuildStatementEndpoint("api/v2/FS/IncomeStatement/Values"),
+                new NadpcoApiStatementRequest(
+                    companyIds,
+                    Array.Empty<int>()),
+                cancellationToken),
+            await PostJsonForPayloadAsync(
+                BuildStatementEndpoint("api/v2/FS/CashFlow/Values"),
+                new NadpcoApiStatementRequest(
+                    companyIds,
+                    Array.Empty<int>()),
+                cancellationToken));
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+
+        return await StorePayloadAsync(
+            ProviderDataset.FinancialStatements,
+            "api/v2/FS/*/Values",
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchMonthlyReportsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        // An explicit per-run month window (spec 057 backfill/steady-state) bounds the request to
+        // one Shamsi month and takes precedence; otherwise a backfill year override or the
+        // configured range applies. The clamp always keeps the start at/above the vendor-permitted
+        // 1404 monthly boundary (spec 042/053).
+        var requestedFromDate = boundaryOverride?.MonthlyActivityFromDate
+            ?? (boundaryOverride?.FromShamsiYear is { } overrideYear
+                ? $"{overrideYear}/01/01"
+                : _settings.MonthlyActivityFromDate);
+        var requestedToDate = boundaryOverride?.MonthlyActivityToDate ?? _settings.MonthlyActivityToDate;
+        // Live-verified vendor contract (spec 057 task 2, confirmed 2026-06-10 against
+        // data3.nadpco.com): both monthly-activity endpoints take the Shamsi bounds as
+        // query-string parameters in year+month form (fromDate=140502) — sending the dates in the
+        // JSON body makes v3 ServiceSales return HTTP 500. The body carries only companyIds.
+        var fromToken = ToShamsiYearMonthToken(ClampMonthlyActivityFromDate(requestedFromDate));
+        var toToken = ToShamsiYearMonthToken(requestedToDate);
+        var body = new NadpcoApiMonthlyActivityRequest(
+            new[] { ParseCompanyId(companyId) },
+            FromDate: null,
+            ToDate: null,
+            OutputType: null);
+
+        // Fetch all 5 outputTypeId values (0–4) independently so a failure for one type does not
+        // block the others. Null means the fetch failed; the normalizer skips null slots.
+        var productSalesByType = new string?[5];
+        for (var outputTypeId = 0; outputTypeId <= 4; outputTypeId++)
+        {
+            try
+            {
+                productSalesByType[outputTypeId] = await PostJsonForPayloadAsync(
+                    BuildMonthlyActivityEndpoint(
+                        "api/v2/MonthlyActivity/ProductSales", fromToken, toToken, outputTypeId),
+                    body,
+                    cancellationToken);
+            }
+            catch (FinancialProviderException exception)
+            {
+                logger.LogWarning(
+                    "NADPCO ProductSales outputTypeId={OutputTypeId} fetch failed for company {CompanyId} " +
+                    "({ProviderErrorCode}); skipping this output type.",
+                    outputTypeId,
+                    companyId,
+                    exception.Code);
+            }
+        }
+
+        // ServiceSales failures are isolated so they cannot poison the product-sales data of the
+        // same company-month. Degrade to an empty service-sales payload with a visible warning;
+        // service rows resume once the month is re-requested.
+        string serviceSales;
+        try
+        {
+            serviceSales = await PostJsonForPayloadAsync(
+                BuildMonthlyActivityEndpoint(
+                    "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
+                body,
+                cancellationToken);
+        }
+        catch (FinancialProviderException exception)
+        {
+            logger.LogWarning(
+                "NADPCO ServiceSales fetch failed for company {CompanyId} ({ProviderErrorCode}); " +
+                "persisting product sales only for this request.",
+                companyId,
+                exception.Code);
+            serviceSales = "[]";
+        }
+
+        var envelope = new NadpcoMonthlyActivityEnvelope(
+            productSalesByType[0],
+            productSalesByType[1],
+            productSalesByType[2],
+            productSalesByType[3],
+            productSalesByType[4],
+            serviceSales);
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+
+        return await StorePayloadAsync(
+            ProviderDataset.MonthlyProductionSales,
+            "api/v*/MonthlyActivity/*Sales",
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchFinancialRatiosAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var json = await PostJsonForPayloadAsync(
+            BuildFundamentalIndexEndpoint("api/v2/CompanyFundamentalIndex/Values"),
+            new NadpcoApiFundamentalIndexRequest(
+                companyIds,
+                NadpcoApiFundamentalIndexMap.MappedIndexIds.ToArray()),
+            cancellationToken);
+
+        return await StorePayloadAsync(
+            ProviderDataset.FundamentalIndexes,
+            "api/v2/CompanyFundamentalIndex/Values",
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    // Spec 050: all-index coverage. Sends an EMPTY companyIndexIds so the vendor returns every index,
+    // and an explicit Shamsi year range — independent of the curated 041 allowlist and configured years.
+    public async Task<ProviderRawPayload> FetchAllFundamentalIndexesAsync(
+        string externalCompanyId,
+        int fromShamsiYear,
+        int toShamsiYear,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var endpoint = $"api/v2/CompanyFundamentalIndex/Values?fromYear={fromShamsiYear}&toYear={toShamsiYear}";
+        var json = await PostJsonForPayloadAsync(
+            endpoint,
+            new NadpcoApiFundamentalIndexRequest(companyIds, CompanyIndexIds: Array.Empty<int>()),
+            cancellationToken);
+
+        return await StorePayloadAsync(
+            ProviderDataset.FundamentalIndexCoverage,
+            endpoint,
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    public async Task<ProviderHealthResult> CheckAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Health checks must respect the shared Redis-backed daily token cache. Forcing a
+            // refresh here consumes the vendor's limited daily token allowance every time an
+            // operator or monitoring client reads the health endpoint.
+            await tokenProvider.GetTokenAsync(forceRefresh: false, cancellationToken);
+            return new ProviderHealthResult(
+                ProviderName,
+                ProviderHealthStatus.Healthy,
+                timeProvider.GetUtcNow(),
+                "A valid authenticated token is available.");
+        }
+        catch (FinancialProviderException exception)
+        {
+            logger.LogWarning(
+                "NADPCO API health check failed with provider error {ProviderErrorCode}.",
+                exception.Code);
+            var status = exception.Code == FinancialProviderErrorCode.InvalidResponse
+                ? ProviderHealthStatus.Degraded
+                : ProviderHealthStatus.Unavailable;
+            return new ProviderHealthResult(ProviderName, status, timeProvider.GetUtcNow(), exception.Code.ToString());
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "NADPCO API health check failed.");
+            return new ProviderHealthResult(
+                ProviderName,
+                ProviderHealthStatus.Unavailable,
+                timeProvider.GetUtcNow(),
+                "TransportFailure");
+        }
+    }
+
+    private async Task<ProviderRawPayload> FetchGetRawAsync(
+        ProviderDataset dataset,
+        string endpoint,
+        string externalReference,
+        CancellationToken cancellationToken)
+    {
+        await _throttle.WaitAsync(cancellationToken);
+        try
+        {
+            using var response = await httpClient.GetAsync(endpoint, cancellationToken);
+            var payloadText = await ReadSuccessfulPayloadAsync(response, endpoint, cancellationToken);
+            return await StorePayloadAsync(dataset, endpoint, externalReference, payloadText, cancellationToken);
+        }
+        finally
+        {
+            _throttle.Release();
+        }
+    }
+
+    private async Task<string> PostJsonForPayloadAsync<TPayload>(
+        string endpoint,
+        TPayload payload,
+        CancellationToken cancellationToken)
+    {
+        await _throttle.WaitAsync(cancellationToken);
+        try
+        {
+            using var response = await httpClient.PostAsJsonAsync(endpoint, payload, JsonOptions, cancellationToken);
+            return await ReadSuccessfulPayloadAsync(response, endpoint, cancellationToken);
+        }
+        finally
+        {
+            _throttle.Release();
+        }
+    }
+
+    private async Task<string> ReadSuccessfulPayloadAsync(
+        HttpResponseMessage response,
+        string endpoint,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        var code = response.StatusCode == HttpStatusCode.Unauthorized
+            ? FinancialProviderErrorCode.Unauthorized
+            : FinancialProviderErrorCode.RemoteUnavailable;
+        logger.LogWarning(
+            "NADPCO API returned {StatusCode} for {Endpoint}. Reason={ReasonPhrase} Body={ResponseBody}",
+            response.StatusCode,
+            endpoint,
+            response.ReasonPhrase,
+            Limit(responseBody));
+        throw new FinancialProviderException(
+            code,
+            $"NADPCO API request failed for '{endpoint}' with status {(int)response.StatusCode} ({response.StatusCode}).");
+    }
+
+    private async Task<ProviderRawPayload> StorePayloadAsync(
+        ProviderDataset dataset,
+        string endpoint,
+        string externalReference,
+        string payloadText,
+        CancellationToken cancellationToken)
+    {
+        var payload = new ProviderRawPayload(
+            Guid.NewGuid(),
+            ProviderName,
+            dataset,
+            endpoint,
+            externalReference,
+            payloadText,
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payloadText))),
+            timeProvider.GetUtcNow());
+        await rawPayloads.StoreAsync(payload, cancellationToken);
+        return payload;
+    }
+
+    private static string RequireReference(string externalCompanyId) =>
+        string.IsNullOrWhiteSpace(externalCompanyId)
+            ? throw new ArgumentException("External company id is required.", nameof(externalCompanyId))
+            : externalCompanyId.Trim();
+
+    // Effective Shamsi start year for the current run: a DataAdmin backfill override when set
+    // (spec 053 AC #3), else the configured per-dataset value.
+    private int? EffectiveFromYear(int? configured) =>
+        boundaryOverride?.FromShamsiYear ?? configured;
+
+    private string BuildStatementEndpoint(string path)
+    {
+        var query = new List<string>();
+        AddInt("fromYear", EffectiveFromYear(_settings.StatementFromYear));
+        AddInt("toYear", _settings.StatementToYear);
+        AddInt("perTId", _settings.StatementPeriodTypeId);
+        AddBool("isAudited", _settings.StatementIsAudited);
+        AddBool("isRepresented", _settings.StatementIsRepresented);
+        AddBool("isComposing", _settings.StatementIsComposing);
+
+        return query.Count == 0 ? path : $"{path}?{string.Join("&", query)}";
+
+        void AddInt(string name, int? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value}");
+            }
+        }
+
+        void AddBool(string name, bool? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value.ToString().ToLowerInvariant()}");
+            }
+        }
+    }
+
+    private string BuildFundamentalIndexEndpoint(string path)
+    {
+        var query = new List<string>();
+        AddInt("fromYear", EffectiveFromYear(_settings.FundamentalIndexFromYear));
+        AddInt("toYear", _settings.FundamentalIndexToYear);
+        AddInt("perTId", _settings.FundamentalIndexPeriodTypeId);
+        AddBool("isAudited", _settings.FundamentalIndexIsAudited);
+        AddBool("isRepresented", _settings.FundamentalIndexIsRepresented);
+        AddBool("isComposing", _settings.FundamentalIndexIsComposing);
+
+        return query.Count == 0 ? path : $"{path}?{string.Join("&", query)}";
+
+        void AddInt(string name, int? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value}");
+            }
+        }
+
+        void AddBool(string name, bool? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value.ToString().ToLowerInvariant()}");
+            }
+        }
+    }
+
+    private static int ParseCompanyId(string externalCompanyId) =>
+        int.TryParse(externalCompanyId, out var companyId)
+            ? companyId
+            : throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"NADPCO external company id '{externalCompanyId}' is not a valid numeric coID.");
+
+    // Converts a Jalali date string ("1405/02/01" or already "140502") to the vendor's
+    // year+month query token ("140502"). Unparseable input is passed through for the vendor to
+    // validate.
+    private static string? ToShamsiYearMonthToken(string? jalaliDate)
+    {
+        if (string.IsNullOrWhiteSpace(jalaliDate))
+        {
+            return null;
+        }
+
+        var parts = jalaliDate.Split('/');
+        return parts.Length >= 2 && int.TryParse(parts[0], out var year) && int.TryParse(parts[1], out var month)
+            ? string.Create(CultureInfo.InvariantCulture, $"{year:D4}{month:D2}")
+            : jalaliDate.Trim();
+    }
+
+    private static string BuildMonthlyActivityEndpoint(
+        string path,
+        string? fromToken,
+        string? toToken,
+        int? outputType)
+    {
+        var query = new List<string>(3);
+        if (fromToken is not null)
+        {
+            query.Add($"fromDate={fromToken}");
+        }
+
+        if (toToken is not null)
+        {
+            query.Add($"toDate={toToken}");
+        }
+
+        if (outputType is not null)
+        {
+            query.Add($"outputTypeId={outputType.Value}");
+        }
+
+        return query.Count == 0 ? path : $"{path}?{string.Join("&", query)}";
+    }
+
+    // Never request monthly activity earlier than the permitted Shamsi 1404 boundary. A null/blank or
+    // earlier-than-permitted configured date is raised to 1404/01/01; the leading Jalali year token
+    // (yyyy/...) is compared numerically. Unparseable input is left as-is for the vendor to validate.
+    private static string? ClampMonthlyActivityFromDate(string? configuredFromDate)
+    {
+        if (string.IsNullOrWhiteSpace(configuredFromDate))
+        {
+            return MonthlyActivityMinimumFromDate;
+        }
+
+        var yearToken = configuredFromDate.Split('/', 2)[0];
+        return int.TryParse(yearToken, out var year) && year < MonthlyActivityMinimumShamsiYear
+            ? MonthlyActivityMinimumFromDate
+            : configuredFromDate;
+    }
+
+    private static string Limit(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        const int maximumLength = 1_000;
+        var normalized = value.ReplaceLineEndings(" ").Trim();
+        return normalized.Length <= maximumLength
+            ? normalized
+            : normalized[..maximumLength] + "...";
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+}

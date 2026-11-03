@@ -1,0 +1,63 @@
+{
+  "testCase": {
+    "Id": "C6",
+    "Question": "کدام شرکت‌ها سود خالص بالای ۱۰۰۰ میلیون ریال دارند؟",
+    "Refusal": false,
+    "Contains": [
+      "فملی",
+      "۱٬۶۰۰",
+      "کگل",
+      "۱٬۲۰۰"
+    ],
+    "Excludes": [
+      "کگهر",
+      "فولاد"
+    ],
+    "SpecialistContains": null,
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "کدام شرکت‌ها سود خالص بالای ۱۰۰۰ میلیون ریال دارند؟",
+    "Enabled": true,
+    "Answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال»، در آخرین دورهٔ گزارش مشترک (دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال\n- کگل: سود خالص ۱٬۲۰۰ میلیون ریال\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند.",
+    "PersistedUserMessage": "کدام شرکت‌ها سود خالص بالای ۱۰۰۰ میلیون ریال دارند؟",
+    "PersistedAssistantMessage": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال»، در آخرین دورهٔ گزارش مشترک (دوره سه‌ماهه منتهی به ۳۱ خرداد ۱۴۰۵):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال\n- کگل: سود خالص ۱٬۲۰۰ میلیون ریال\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9 Fingerprint=957591cf8f00b2dc3cf0ffdebd09a50df7561c5a51ffa9aebc8f80645155be1e Status=Succeeded Rows=2 ElapsedMs=45.5434",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9 | Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities=entity:خالص,entity:میلیون,entity:ریال,entity:دارند RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:stock_screening:ClarificationRequired Definitive=True CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9",
+    "SemanticCapability": "stock_screening",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null
+    },
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols= Products= RequestedMeasures=netProfit PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=None Presentation=Table",
+      "Feature141 statement shape classified. Shape=Filter Diagnostic=none Operation=DiscoverPopulation Ranking=none Constraints= RequestedFields= Filters=MeasureThresholdFilter CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9",
+      "Feature141 query completed. CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9 Fingerprint=957591cf8f00b2dc3cf0ffdebd09a50df7561c5a51ffa9aebc8f80645155be1e Status=Succeeded Rows=2 ElapsedMs=45.5434"
+    ],
+    "ElapsedMs": 22777.3264,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9",
+      "Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities=entity:خالص,entity:میلیون,entity:ریال,entity:دارند RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:stock_screening:ClarificationRequired Definitive=True CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-chat-mvp-5cdb426a46664d39b87b817174b76db9 RolloutMode=Shadow LegacyCapability=stock_screening LegacyConfidence=0.96 SemanticIntent=stock_screening SemanticCapabilityCandidate=stock_screening SemanticConfidence=0.96 ExtractedCompany=خالص ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) ResolvedCompany=(null) Compan"
+    ]
+  }
+}

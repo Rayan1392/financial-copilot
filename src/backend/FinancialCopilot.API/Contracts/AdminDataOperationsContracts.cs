@@ -5,6 +5,20 @@ public sealed record AdminDataSyncRequest(
     string? IdempotencyKey = null,
     string? ProviderName = null);
 
+public sealed record AdminFinancialStatementsByPeriodRequest(
+    Guid? CompanyId,
+    int FiscalYear,
+    int? Period,
+    string? IdempotencyKey = null);
+
+public sealed record AdminFinancialStatementsByPeriodResponse(
+    Guid RequestId,
+    string Status,
+    int EligibleCompanies,
+    int QueuedCompanies,
+    int FailedCompanies,
+    IReadOnlyCollection<string> FailedCompanyIds);
+
 public sealed record AdminDataSyncQueuedResponse(
     Guid RequestId,
     string Dataset,
@@ -157,12 +171,66 @@ public sealed record AdminCurrentApiHealthResponse(
 
 // --- Spec 057: NADPCO monthly-activity reverse-chronological backfill ---
 
+public sealed record AdminMonthlyActivitySingleMonthBackfillRequest(
+    int ShamsiYear,
+    int ShamsiMonth);
+
+public sealed record AdminMonthlyActivityReportingTypeBackfillRequest(
+    int ShamsiYear,
+    int ShamsiMonth,
+    int ReportingType);
+
+public sealed record AdminMonthlyActivityReportingTypeBackfillResponse(
+    Guid? BatchId,
+    string Outcome,
+    int ShamsiYear,
+    int ShamsiMonth,
+    int ReportingType,
+    int CompaniesPlanned,
+    int RequestsEnqueued);
+
+public sealed record AdminMonthlyActivitySingleCompanyMonthDirectRequest(
+    int CompanyId,
+    int ShamsiYear,
+    int ShamsiMonth,
+    string? Symbol = null);
+
+public sealed record AdminMonthlyActivitySingleCompanyMonthDirectResponse(
+    Guid RequestId,
+    int CompanyId,
+    int ShamsiYear,
+    int ShamsiMonth,
+    string Status,
+    bool AlreadyProcessed,
+    int ProcessedRecords,
+    int ErrorCount,
+    string? ErrorMessage,
+    DateTimeOffset? CompletedAt);
+
 public sealed record AdminMonthlyActivityBackfillStartResponse(
+    Guid? BatchId,
     string Outcome,
     int MonthsPlanned,
     int CompaniesPlanned,
     int RequestsEnqueued,
     AdminMonthlyActivityBackfillProgressResponse Progress);
+
+public sealed record AdminMonthlyActivityBackfillBatchResponse(
+    Guid BatchId,
+    string Status,
+    string RequestedBy,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? PublishingStartedAt,
+    DateTimeOffset? PublishedAt,
+    DateTimeOffset? CompletedAt,
+    int? TargetShamsiYear,
+    int? TargetShamsiMonth,
+    int PlannedCount,
+    int PublishedCount,
+    int ProcessedCount,
+    int FailedCount,
+    int RetryableCount,
+    string? LastError);
 
 public sealed record AdminMonthlyActivityBackfillMonthResponse(
     int ShamsiYear,
@@ -335,7 +403,8 @@ public sealed record AdminSingleCompanyMonthlyIngestionRequest(
     int FromShamsiYear,
     int FromShamsiMonth,
     int ToShamsiYear,
-    int ToShamsiMonth);
+    int ToShamsiMonth,
+    int? OutputType = null);
 
 public sealed record AdminSingleCompanyMonthlyIngestionResponse(
     string Outcome,
@@ -439,3 +508,16 @@ public sealed record AdminComprehensiveAnalysisBackfillResponse(int RowsUpdated)
 
 // --- Spec 067: CyclicalWaves CompanyId backfill ---
 public sealed record AdminBackfillCyclicalWavesCompanyIdResponse(int Resolved, int Unresolved);
+
+public sealed record AdminManualNoavaranFinancialStatementBackfillRequest(
+    string Symbol,
+    int FiscalYearEnding,
+    int PeriodMonths,
+    string StatementType);
+
+public sealed record AdminManualNoavaranFinancialStatementBackfillResponse(
+    Guid? RunId,
+    string Outcome,
+    int ProcessedRecords,
+    string? Message,
+    int PersistedItems = 0);

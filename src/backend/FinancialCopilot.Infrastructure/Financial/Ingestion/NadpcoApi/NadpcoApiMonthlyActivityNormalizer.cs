@@ -50,46 +50,83 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
 
         foreach (var group in groupedReports)
         {
-            var normalizedItems = CollapseDuplicateLineItems(group);
+            var normalizedItems = CollapseDuplicateLineItems(group).ToArray();
             var first = normalizedItems[0];
             var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(first.JalaliYear, first.JalaliMonth);
 
-            var report = await dbContext.MonthlyReports.SingleOrDefaultAsync(
-                row => row.ProviderName == ProviderName && row.ExternalReportId == first.ExternalReportId,
+            var logicalReportKey = BuildLogicalReportKey(
+                first.ExternalCompanyId, periodStart, periodEnd, first.SourceKind, first.OutputType);
+            var revisionFingerprint = payload.Checksum;
+            var existingCandidate = await dbContext.MonthlyReports.SingleOrDefaultAsync(
+                row => row.ProviderName == ProviderName &&
+                       row.ExternalReportId == first.ExternalReportId &&
+                       row.RevisionFingerprint == revisionFingerprint,
                 cancellationToken);
 
-            if (report is null)
+            // Replayed revisions keep their row ids and line items. A prior Pending revision is
+            // re-evaluated against the current accepted pointer in case stronger ordering evidence
+            // is now available; accepted or rejected revisions remain otherwise idempotent.
+            if (existingCandidate is not null)
             {
-                report = new NormalizedMonthlyReportRow
-                {
-                    Id = Guid.NewGuid(),
-                    ProviderName = ProviderName,
-                    ExternalReportId = first.ExternalReportId
-                };
-                dbContext.MonthlyReports.Add(report);
+                await ReconcilePendingRevisionAsync(existingCandidate, cancellationToken);
+                continue;
             }
 
-            report.ExternalCompanyId = first.ExternalCompanyId;
-            report.OutputType = first.OutputType;
-            report.PeriodStart = periodStart;
-            report.PeriodEnd = periodEnd;
-            report.ReportType = first.SourceKind;
-            report.SourcePayloadChecksum = payload.Checksum;
-            report.LastSynchronizedAt = payload.ReceivedAt;
-            report.WarningsJson = BuildEvidenceJson(normalizedItems, periodStart, periodEnd);
+            var report = new NormalizedMonthlyReportRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = ProviderName,
+                ExternalReportId = first.ExternalReportId,
+                ExternalCompanyId = first.ExternalCompanyId,
+                OutputType = first.OutputType,
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd,
+                ReportType = first.SourceKind,
+                LogicalReportKey = logicalReportKey,
+                RevisionFingerprint = revisionFingerprint,
+                SourcePayloadChecksum = payload.Checksum,
+                LastSynchronizedAt = payload.ReceivedAt,
+                ProviderPublishedAtUtc = first.ProviderPublishedAtUtc,
+                PublishedAt = first.ProviderPublishedAtUtc is { } published
+                    ? DateOnly.FromDateTime(published.UtcDateTime)
+                    : null,
+                WarningsJson = BuildEvidenceJson(normalizedItems, periodStart, periodEnd),
+                IsAccepted = true,
+                RevisionStatus = "Accepted"
+            };
+
+            var current = await dbContext.MonthlyReports
+                .Where(row => row.LogicalReportKey == logicalReportKey && row.IsAccepted)
+                .OrderByDescending(row => row.ProviderPublishedAtUtc)
+                .ThenByDescending(row => row.RevisionFingerprint)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (current is not null)
+            {
+                var comparison = CompareRevisionEvidence(report, current);
+                if (comparison < 0)
+                {
+                    report.IsAccepted = false;
+                    report.RevisionStatus = "RejectedOlder";
+                }
+                else if (comparison == 0)
+                {
+                    // Equal provider timestamps (or equal receipt timestamps when both provider
+                    // timestamps are absent) do not establish an ordering. Keep the current
+                    // pointer and retain the candidate for review; checksum ordering is not evidence.
+                    report.IsAccepted = false;
+                    report.RevisionStatus = "Pending";
+                }
+                else
+                {
+                    current.IsAccepted = false;
+                    current.RevisionStatus = "Superseded";
+                }
+            }
+
+            dbContext.MonthlyReports.Add(report);
 
             await dbContext.SaveChangesAsync(cancellationToken);
-
-            // Authoritative replace: remove all existing line items for this report before
-            // re-inserting from the current payload so stale rows from prior runs cannot accumulate.
-            var staleLineItems = await dbContext.MonthlyReportLineItems
-                .Where(li => li.MonthlyReportId == report.Id)
-                .ToListAsync(cancellationToken);
-            if (staleLineItems.Count > 0)
-            {
-                dbContext.MonthlyReportLineItems.RemoveRange(staleLineItems);
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
 
             foreach (var item in normalizedItems)
             {
@@ -98,6 +135,12 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                     Id = Guid.NewGuid(),
                     MonthlyReportId = report.Id,
                     ProductCode = item.LineItemCode,
+                    SourceRowKey = item.SourceRowKey,
+                    SourceRowFingerprint = item.SourceRowFingerprint ?? string.Empty,
+                    SourceMultiplicity = item.SourceMultiplicity,
+                    ProviderProductCode = item.ProviderProductCode,
+                    ProviderProductId = item.ProviderProductId,
+                    SourcePayloadChecksum = payload.Checksum,
                     ProductionQuantity = item.ProductionQuantity,
                     SalesQuantity = item.SalesQuantity,
                     SalesAmount = item.SalesAmount,
@@ -111,12 +154,23 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // Recalculate product revenue mix for each single-month (OutputType=0) ProductSales group.
-        var singleMonthGroups = groupedReports
-            .Where(g => g.Key.SourceKind == "ProductSales" && g.First().OutputType is null or 0)
+        // ServiceSales is a monthly source equivalent for trend purposes. Group by company/month
+        // so a historical payload containing both sources recalculates once; the calculator applies
+        // ProductSales-over-ServiceSales precedence from persisted rows.
+        var monthlyTrendGroups = groupedReports
+            .Where(g =>
+                (g.Key.SourceKind == "ProductSales" && g.First().OutputType is null or 0) ||
+                g.Key.SourceKind == "ServiceSales")
+            .GroupBy(g => new
+            {
+                g.Key.ExternalCompanyId,
+                g.Key.JalaliYear,
+                g.Key.JalaliMonth
+            })
+            .Select(g => g.First())
             .ToArray();
 
-        foreach (var group in singleMonthGroups)
+        foreach (var group in monthlyTrendGroups)
         {
             var first = group.First();
             await revenueMixCalculator.RecalculateAsync(
@@ -129,8 +183,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 cancellationToken);
         }
 
-        // Recalculate trend snapshot for each single-month ProductSales group (spec 076).
-        foreach (var group in singleMonthGroups)
+        // Recalculate the trend snapshot for every monthly trend source, including ServiceSales-only
+        // periods (spec 076). The calculator applies ProductSales-over-ServiceSales precedence.
+        foreach (var group in monthlyTrendGroups)
         {
             var first = group.First();
             await trendSnapshotCalculator.RecalculateAsync(
@@ -143,7 +198,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 cancellationToken);
         }
 
-        var affectedPeriods = singleMonthGroups
+        var affectedPeriods = monthlyTrendGroups
             .Select(group => new { group.Key.JalaliYear, group.Key.JalaliMonth })
             .Distinct()
             .ToArray();
@@ -171,12 +226,111 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         return new NormalizationOutcome(groupedReports.Length, canonicalId);
     }
 
-    private static NadpcoApiMonthlyActivityItem[] CollapseDuplicateLineItems(
-        IEnumerable<NadpcoApiMonthlyActivityItem> items) =>
-        items
-            .GroupBy(item => item.LineItemCode, StringComparer.Ordinal)
-            .Select(group => group.Last())
+    private static IReadOnlyList<NadpcoApiMonthlyActivityItem> CollapseDuplicateLineItems(
+        IEnumerable<NadpcoApiMonthlyActivityItem> items)
+    {
+        var materialized = items
+            .Select(item => item with { SourceRowFingerprint = BuildSourceRowFingerprint(item) })
             .ToArray();
+
+        // A provider row id is authoritative for duplicate detection.  Without one, preserve
+        // every occurrence: identical economic rows may be legitimate multiplicity.  Their
+        // canonical ordinal is report-local evidence only and is never a cross-period ProductKey.
+        var withProviderIdentity = materialized
+            .Where(item => !string.IsNullOrWhiteSpace(item.SourceRowKey))
+            .GroupBy(item => item.SourceRowKey!, StringComparer.Ordinal)
+            .Select(group => group.OrderBy(item => item.SourceRowFingerprint, StringComparer.Ordinal).First() with
+            {
+                SourceMultiplicity = group.Count()
+            })
+            .ToArray();
+        var withoutProviderIdentity = materialized
+            .Where(item => string.IsNullOrWhiteSpace(item.SourceRowKey))
+            .GroupBy(item => item.SourceRowFingerprint, StringComparer.Ordinal)
+            .Select(group => group.OrderBy(item => item.LineItemCode, StringComparer.Ordinal).First() with
+            {
+                SourceMultiplicity = group.Count()
+            })
+            .OrderBy(item => item.SourceRowFingerprint, StringComparer.Ordinal)
+            .ToArray();
+
+        var result = withProviderIdentity.Concat(withoutProviderIdentity).ToArray();
+        var occurrenceByFingerprint = new Dictionary<string, int>(StringComparer.Ordinal);
+        return result.Select(item =>
+        {
+            var fingerprint = item.SourceRowFingerprint ?? string.Empty;
+            occurrenceByFingerprint.TryGetValue(fingerprint, out var occurrence);
+            occurrence++;
+            occurrenceByFingerprint[fingerprint] = occurrence;
+            return item with
+            {
+                SourceMultiplicity = Math.Max(1, item.SourceMultiplicity),
+                SourceRowKey = string.IsNullOrWhiteSpace(item.SourceRowKey)
+                    ? $"fingerprint:{fingerprint}:occurrence:{occurrence}"
+                    : item.SourceRowKey
+            };
+        }).OrderBy(item => item.SourceRowFingerprint, StringComparer.Ordinal).ThenBy(item => item.SourceRowKey, StringComparer.Ordinal).ToArray();
+    }
+
+    private static string BuildLogicalReportKey(string companyId, DateOnly start, DateOnly end, string reportType, int? outputType) =>
+        string.Create(CultureInfo.InvariantCulture, $"{NadpcoApiCompanyNormalizer.NadpcoApiProviderName}|{companyId}|{start:yyyy-MM-dd}|{end:yyyy-MM-dd}|{reportType}|{outputType?.ToString() ?? "null"}");
+
+    private static int CompareRevisionEvidence(NormalizedMonthlyReportRow incoming, NormalizedMonthlyReportRow current)
+    {
+        if (incoming.ProviderPublishedAtUtc is { } incomingPublished && current.ProviderPublishedAtUtc is { } currentPublished)
+            return incomingPublished.CompareTo(currentPublished);
+        if (incoming.ProviderPublishedAtUtc is not null && current.ProviderPublishedAtUtc is null) return 1;
+        if (incoming.ProviderPublishedAtUtc is null && current.ProviderPublishedAtUtc is not null) return -1;
+        return incoming.LastSynchronizedAt.CompareTo(current.LastSynchronizedAt);
+    }
+
+    private async Task ReconcilePendingRevisionAsync(
+        NormalizedMonthlyReportRow candidate,
+        CancellationToken cancellationToken)
+    {
+        if (candidate.IsAccepted || candidate.RevisionStatus != "Pending")
+            return;
+
+        var current = await dbContext.MonthlyReports
+            .Where(row => row.LogicalReportKey == candidate.LogicalReportKey && row.IsAccepted)
+            .OrderBy(row => row.ExternalReportId)
+            .ThenBy(row => row.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (current is null)
+        {
+            candidate.IsAccepted = true;
+            candidate.RevisionStatus = "Accepted";
+        }
+        else
+        {
+            var comparison = CompareRevisionEvidence(candidate, current);
+            if (comparison > 0)
+            {
+                current.IsAccepted = false;
+                current.RevisionStatus = "Superseded";
+                candidate.IsAccepted = true;
+                candidate.RevisionStatus = "Accepted";
+            }
+            else if (comparison < 0)
+            {
+                candidate.RevisionStatus = "RejectedOlder";
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string BuildSourceRowFingerprint(NadpcoApiMonthlyActivityItem item) =>
+        HashShort(string.Join("|", [
+            item.SourceKind, item.ExternalCompanyId, item.LineItemCode, item.ProviderLineItemId,
+            item.Title, item.Unit,
+            item.ProductionQuantity?.ToString(CultureInfo.InvariantCulture), item.SalesQuantity?.ToString(CultureInfo.InvariantCulture),
+            item.SalesAmount?.ToString(CultureInfo.InvariantCulture), item.SalesRate?.ToString(CultureInfo.InvariantCulture)]));
 
     // Deserializes the envelope payload. Tries the new 6-field shape (spec 059) first; falls back to
     // the legacy 2-field shape for payloads stored before the spec-059 migration. Legacy ProductSales
@@ -295,7 +449,11 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             item.PublishDate ?? parent.PublishDate,
             item.JalaliPublishDate ?? parent.JalaliPublishDate,
             VendorLineItemId: vendorCode,
-            MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode));
+            MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode),
+            PublishDateTime: item.PublishDateTime ?? parent.PublishDateTime,
+            SourceRowKey: item.GetSourceRowId(),
+            ProviderProductId: item.GetProductId(),
+            ProviderProductCode: item.ProductCode);
     }
 
     private static IReadOnlyList<NadpcoApiMonthlyActivityItem> ReadServiceSales(string json)
@@ -314,6 +472,16 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 exception);
         }
 
+        var titleSensitiveCodes = records
+            .Where(record => !string.IsNullOrWhiteSpace(record.GetServiceCode()))
+            .GroupBy(record => record.GetServiceCode()!.Trim(), StringComparer.Ordinal)
+            .Where(group => group
+                .Select(record => NormalizeIdentityText(record.GetServiceTitle()))
+                .Distinct(StringComparer.Ordinal)
+                .Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
         return records.Select((record, index) =>
         {
             var companyId = RequireCompanyId(record.GetCompanyId(), "service-sales");
@@ -323,10 +491,20 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             var unit = record.GetServiceUnit();
             var category = record.CategoryTitle;
             var vendorCode = record.GetServiceCode();
-            var lineItemCode = BuildLineItemCode("SERVICE", vendorCode, title, category, unit, index);
+            var lineItemCode = BuildLineItemCode(
+                "SERVICE",
+                vendorCode,
+                title,
+                category,
+                unit,
+                index,
+                includeTitleForVendorCode: vendorCode is not null && titleSensitiveCodes.Contains(vendorCode.Trim()),
+                instrumentCode: record.GetTseCode());
             var externalReportId = BuildExternalReportId(
                 "ServiceSales",
-                record.GetActivityId(),
+                // ServiceSales uses one canonical company-month report identity; provider activity
+                // IDs are line/evidence data and must not split the logical monthly report.
+                activityId: null,
                 companyId,
                 year,
                 month,
@@ -342,7 +520,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 title,
                 unit,
                 ProductionQuantity: null,
-                record.GetSalesQuantity(),
+                // The ServiceSales endpoint does not expose a normalized service quantity in its
+                // live contract. Keep it null rather than treating a monetary amount as quantity.
+                SalesQuantity: null,
                 record.GetSalesRate(),
                 record.GetSalesValue(),
                 OutputType: null,
@@ -356,10 +536,15 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 record.GetTseCode(),
                 record.FiscalYearEnd,
                 record.JalaliFiscalYearEnd,
-                record.PublishDate,
+                record.PublishDate ?? record.PublishDateTime,
                 record.JalaliPublishDate,
                 VendorLineItemId: vendorCode,
-                MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode));
+                MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode),
+                PublishDateTime: record.PublishDateTime,
+                RevenueFromBeginning: record.RevenueFromBeginning,
+                RevenueEndOfLastPeriod: record.RevenueEndOfLastPeriod,
+                SourceRowKey: record.GetSourceRowId(),
+                ProviderProductCode: vendorCode);
         }).ToArray();
     }
 
@@ -391,16 +576,27 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         string? title,
         string? category,
         string? unit,
-        int index)
+        int index,
+        bool includeTitleForVendorCode = false,
+        string? instrumentCode = null)
     {
         if (!string.IsNullOrWhiteSpace(vendorCode))
         {
-            return $"{prefix}:{vendorCode.Trim()}";
+            var normalizedCode = vendorCode.Trim();
+            return includeTitleForVendorCode
+                ? $"{prefix}:{normalizedCode}:TITLE:{NormalizeIdentityText(title)}"
+                : $"{prefix}:{normalizedCode}";
         }
 
-        var naturalKey = string.Join("|", [title, category, unit, index.ToString(CultureInfo.InvariantCulture)]);
+        var naturalKey = string.Join(
+            "|",
+            [instrumentCode, NormalizeIdentityText(title), NormalizeIdentityText(unit),
+                NormalizeIdentityText(category)]);
         return $"{prefix}:NATURAL:{HashShort(naturalKey)}";
     }
+
+    private static string NormalizeIdentityText(string? value) =>
+        string.Join(' ', (value ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     private static int RequireCompanyId(int? value, string sourceKind) =>
         value is > 0
@@ -448,7 +644,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 first.JalaliFiscalYearEnd,
                 first.PublishDate,
                 first.JalaliPublishDate,
-                SchemaAudit = "No migration required: service sales map to SalesQuantity/SalesAmount; product or service title, unit, rate, output type, category, and publication fields are preserved as evidence.",
+                SchemaAudit = "No migration required: ServiceSales revenueDuringThePeriod maps to SalesAmount; service quantities remain null when the endpoint does not provide them, and cumulative revenue stays evidence-only.",
                 LineItems = items.Select(item => new
                 {
                     item.LineItemCode,
@@ -463,7 +659,10 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                     item.CategoryTitle,
                     NaturalKeyNote = item.MissingVendorLineItemId
                         ? "Line item code is a deterministic natural key, not a fabricated vendor product/service id."
-                        : null
+                        : null,
+                    item.PublishDateTime,
+                    item.RevenueFromBeginning,
+                    item.RevenueEndOfLastPeriod
                 }).ToArray()
             }
         }, JsonOptions);
@@ -499,7 +698,22 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         string? PublishDate,
         string? JalaliPublishDate,
         string? VendorLineItemId,
-        bool MissingVendorLineItemId);
+        bool MissingVendorLineItemId,
+        string? PublishDateTime = null,
+        decimal? RevenueFromBeginning = null,
+        decimal? RevenueEndOfLastPeriod = null,
+        string? SourceRowKey = null,
+        string? SourceRowFingerprint = null,
+        int SourceMultiplicity = 1,
+        long? ProviderProductId = null,
+        string? ProviderProductCode = null)
+    {
+        public string? ProviderLineItemId => SourceRowKey;
+        public DateTimeOffset? ProviderPublishedAtUtc =>
+            DateTimeOffset.TryParse(PublishDateTime ?? PublishDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var value)
+                ? value.ToUniversalTime()
+                : null;
+    }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

@@ -1,0 +1,278 @@
+{
+  "id": "tbl_9cd5e3c4801282f3",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundDerivativePositions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "DerivativeType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "OptionType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PositionSide",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "UnderlyingExternalCompanyId",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "UnderlyingTradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "RawInstrumentName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedInstrumentName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "RawUnderlyingName",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "ContractQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ContractMultiplier",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "UnderlyingCoverageQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "StrikePrice",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ExpiryOrExerciseJalali",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "ExpiryOrExerciseDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "EffectiveReturnPercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "WeightOfTotalAssetsPercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "HedgeCoverageStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "HedgeCoverageCalculationVersion",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "HedgeCoverageEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundDerivativePositions_DerivativeType",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDerivativePositions_DerivativeType\" ON public.\"FundDerivativePositions\" USING btree (\"DerivativeType\")",
+        "Columns": [
+          "DerivativeType"
+        ]
+      },
+      {
+        "Name": "IX_FundDerivativePositions_ExpiryOrExerciseDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDerivativePositions_ExpiryOrExerciseDate\" ON public.\"FundDerivativePositions\" USING btree (\"ExpiryOrExerciseDate\")",
+        "Columns": [
+          "ExpiryOrExerciseDate"
+        ]
+      },
+      {
+        "Name": "IX_FundDerivativePositions_FundId_PeriodEndDate_PeriodContext",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDerivativePositions_FundId_PeriodEndDate_PeriodContext\" ON public.\"FundDerivativePositions\" USING btree (\"FundId\", \"PeriodEndDate\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodEndDate",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundDerivativePositions_ReportId_PeriodContext_SourceLogica~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundDerivativePositions_ReportId_PeriodContext_SourceLogica~\" ON public.\"FundDerivativePositions\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\", \"NormalizedInstrumentName\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow",
+          "NormalizedInstrumentName"
+        ]
+      },
+      {
+        "Name": "IX_FundDerivativePositions_ResolutionStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDerivativePositions_ResolutionStatus\" ON public.\"FundDerivativePositions\" USING btree (\"ResolutionStatus\")",
+        "Columns": [
+          "ResolutionStatus"
+        ]
+      },
+      {
+        "Name": "IX_FundDerivativePositions_TradingInstrumentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDerivativePositions_TradingInstrumentId\" ON public.\"FundDerivativePositions\" USING btree (\"TradingInstrumentId\")",
+        "Columns": [
+          "TradingInstrumentId"
+        ]
+      },
+      {
+        "Name": "IX_FundDerivativePositions_UnderlyingExternalCompanyId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDerivativePositions_UnderlyingExternalCompanyId\" ON public.\"FundDerivativePositions\" USING btree (\"UnderlyingExternalCompanyId\")",
+        "Columns": [
+          "UnderlyingExternalCompanyId"
+        ]
+      },
+      {
+        "Name": "PK_FundDerivativePositions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundDerivativePositions\" ON public.\"FundDerivativePositions\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundDerivativePositions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,11 +1,27 @@
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace FinancialCopilot.UnitTests;
 
 public sealed class PlanCapabilityServiceTests
 {
+    [Fact]
+    public void MaxSeededCapabilityMatrixExactlyMatchesPro()
+    {
+        using var dbContext = CreateDbContext();
+        var capabilityEntity = dbContext.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(PlanCapabilityRow));
+        Assert.NotNull(capabilityEntity);
+        var seedRows = capabilityEntity!.GetSeedData();
+        var pro = ReadPlanCapabilities(seedRows, "Pro");
+        var max = ReadPlanCapabilities(seedRows, "Max");
+
+        Assert.NotEmpty(pro);
+        Assert.Equal(pro.OrderBy(item => item.Key), max.OrderBy(item => item.Key));
+    }
+
     [Fact]
     public async Task AssignedPlan_AllowsEnabledCapability()
     {
@@ -52,10 +68,54 @@ public sealed class PlanCapabilityServiceTests
             service.ValidateCanExecuteAsync(account, "AiQuery.Scanner", CancellationToken.None));
     }
 
+    [Fact]
+    public async Task ActiveMaxRequiresAnExplicitCapabilityAndRevokedMaxFallsBackToFinitePlan()
+    {
+        await using var dbContext = CreateDbContext();
+        var account = await SeedAccountAsync(dbContext, enabled: false);
+        var row = await dbContext.CustomerAccounts.SingleAsync(item => item.Id == account.Id);
+        row.ExternalSubscriptionManaged = true;
+        row.SubscriptionPlanCode = "Max";
+        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow
+        {
+            Code = "Max", Name = "Max", IncludedCredits = 0, QuotaMode = "Unlimited", PricingPolicyVersion = "v1"
+        });
+        dbContext.PlanCapabilities.Add(new PlanCapabilityRow
+        {
+            PlanCode = "Max", CapabilityCode = "AiQuery.Scanner", PolicyVersion = "approved-v1", IsEnabled = true
+        });
+        var maxWindow = new ExternalPlanSubscriptionRow
+        {
+            Id = Guid.NewGuid(), CustomerAccountId = account.Id, IdentityKey = "max:window",
+            PlanCode = "Max", StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1), ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(10)
+        };
+        dbContext.ExternalPlanSubscriptions.Add(maxWindow);
+        await dbContext.SaveChangesAsync();
+
+        var service = new PlanCapabilityService(dbContext);
+        await service.ValidateCanExecuteAsync(account, "AiQuery.Scanner", CancellationToken.None);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ValidateCanExecuteAsync(account, "AiQuery.StockAnalysis", CancellationToken.None));
+
+        maxWindow.IsRevoked = true;
+        await dbContext.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ValidateCanExecuteAsync(account, "AiQuery.Scanner", CancellationToken.None));
+    }
+
     private static BillingDbContext CreateDbContext() =>
         new(new DbContextOptionsBuilder<BillingDbContext>()
             .UseInMemoryDatabase($"plan-capability-{Guid.NewGuid():N}")
             .Options);
+
+    private static Dictionary<string, (bool IsEnabled, decimal? Limit)> ReadPlanCapabilities(
+        IEnumerable<IDictionary<string, object?>> rows,
+        string planCode) => rows
+        .Where(row => Equals(row[nameof(PlanCapabilityRow.PlanCode)], planCode))
+        .ToDictionary(
+            row => (string)row[nameof(PlanCapabilityRow.CapabilityCode)]!,
+            row => ((bool)row[nameof(PlanCapabilityRow.IsEnabled)]!,
+                (decimal?)row[nameof(PlanCapabilityRow.Limit)]));
 
     private static async Task<CustomerAccount> SeedAccountAsync(
         BillingDbContext dbContext,

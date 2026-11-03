@@ -35,37 +35,144 @@ public sealed class RabbitMqDataSyncOptions
     public ushort PrefetchCount { get; init; } = 1;
 
     public int? ConsumerTimeoutMilliseconds { get; init; }
+
+    /// <summary>
+    /// Maximum concurrently leased publisher channels on the process-wide publisher connection.
+    /// </summary>
+    public int PublisherChannelLimit { get; init; } = 4;
+
+    /// <summary>
+    /// Upper bound, per message, for waiting on a publisher channel and its broker confirm.
+    /// </summary>
+    public int PublishTimeoutSeconds { get; init; } = 30;
 }
 
-public sealed class RabbitMqDataSyncRequestBus(
-    IOptions<RabbitMqDataSyncOptions> options,
-    ILogger<RabbitMqDataSyncRequestBus> logger) : IDataSyncRequestPublisher, IDataSyncRequestConsumer
+/// <summary>
+/// Publishes and consumes data-synchronization requests over two long-lived connections per process:
+/// one for publishing and one shared by all competing consumers, each consumer on its own channel.
+/// </summary>
+public sealed class RabbitMqDataSyncRequestBus :
+    IDataSyncRequestPublisher,
+    IDataSyncRequestConsumer,
+    IAsyncDisposable,
+    IDisposable
 {
-    public async Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken)
-    {
-        var settings = options.Value;
-        EnsureEnabled(settings);
-        await using var connection = await CreateConnectionAsync(settings, cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-        await DeclareQueueAsync(channel, settings.RequestQueue, settings.ConsumerTimeoutMilliseconds, cancellationToken);
-        var body = JsonSerializer.SerializeToUtf8Bytes(request, JsonOptions);
+    private const string ConnectionName = "FinancialCopilot.DataSync";
 
-        await channel.BasicPublishAsync(
-            exchange: string.Empty,
-            routingKey: settings.RequestQueue,
-            mandatory: false,
-            body: body,
-            cancellationToken: cancellationToken);
+    private readonly IOptions<RabbitMqDataSyncOptions> options;
+    private readonly ILogger<RabbitMqDataSyncRequestBus> logger;
+    private readonly RabbitMqConnectionPolicy policy;
+    private readonly RabbitMqSharedConnection publisherConnection;
+    private readonly RabbitMqSharedConnection consumerConnection;
+    private readonly RabbitMqPublisherChannelPool publisherChannels;
+
+    public RabbitMqDataSyncRequestBus(
+        IOptions<RabbitMqDataSyncOptions> options,
+        ILogger<RabbitMqDataSyncRequestBus> logger)
+        : this(
+            options,
+            logger,
+            CreateConnectionFactory(options.Value),
+            RabbitMqConnectionPolicy.Create(options.Value.PublisherChannelLimit, options.Value.PublishTimeoutSeconds),
+            TimeProvider.System)
+    {
     }
 
-    public async Task ConsumeAsync(
+    internal RabbitMqDataSyncRequestBus(
+        IOptions<RabbitMqDataSyncOptions> options,
+        ILogger<RabbitMqDataSyncRequestBus> logger,
+        IConnectionFactory connectionFactory,
+        RabbitMqConnectionPolicy policy,
+        TimeProvider timeProvider)
+    {
+        this.options = options;
+        this.logger = logger;
+        this.policy = policy;
+        publisherConnection = new RabbitMqSharedConnection(
+            connectionFactory, $"{ConnectionName}.Publisher", policy, timeProvider, logger);
+        consumerConnection = new RabbitMqSharedConnection(
+            connectionFactory, $"{ConnectionName}.Consumer", policy, timeProvider, logger);
+        publisherChannels = new RabbitMqPublisherChannelPool(
+            publisherConnection,
+            new CreateChannelOptions(
+                publisherConfirmationsEnabled: true,
+                publisherConfirmationTrackingEnabled: true),
+            policy,
+            logger);
+    }
+
+    public async Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken)
+    {
+        await PublishBatchAsync([request], cancellationToken);
+    }
+
+    public async Task PublishBatchAsync(
+        IReadOnlyCollection<DataSyncRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        if (requests.Count == 0)
+        {
+            return;
+        }
+
+        var settings = options.Value;
+        EnsureEnabled(settings);
+        await publisherChannels.ExecuteAsync(
+            requests.Count,
+            (channel, token) => PublishOnChannelAsync(channel, settings, requests, token),
+            cancellationToken);
+    }
+
+    private static async Task PublishOnChannelAsync(
+        IChannel channel,
+        RabbitMqDataSyncOptions settings,
+        IReadOnlyCollection<DataSyncRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        await DeclareQueueAsync(channel, settings.RequestQueue, settings.ConsumerTimeoutMilliseconds, cancellationToken);
+
+        foreach (var request in requests)
+        {
+            var body = JsonSerializer.SerializeToUtf8Bytes(request, JsonOptions);
+            var properties = new BasicProperties
+            {
+                Persistent = true,
+                ContentType = "application/json",
+                MessageId = request.RequestId.ToString(),
+                CorrelationId = request.IdempotencyKey
+            };
+
+            await channel.BasicPublishAsync(
+                exchange: string.Empty,
+                routingKey: settings.RequestQueue,
+                mandatory: true,
+                basicProperties: properties,
+                body: body,
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    public Task ConsumeAsync(
         Func<DataSyncRequest, CancellationToken, Task> handler,
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
         EnsureEnabled(settings);
-        await using var connection = await CreateConnectionAsync(settings, cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        return RabbitMqResilientConsumer.RunAsync(
+            consumerConnection,
+            (channel, token) => StartConsumingAsync(channel, settings, handler, token),
+            "data synchronization",
+            policy,
+            logger,
+            cancellationToken);
+    }
+
+    private async Task StartConsumingAsync(
+        IChannel channel,
+        RabbitMqDataSyncOptions settings,
+        Func<DataSyncRequest, CancellationToken, Task> handler,
+        CancellationToken cancellationToken)
+    {
         await DeclareQueueAsync(channel, settings.RequestQueue, settings.ConsumerTimeoutMilliseconds, cancellationToken);
         await channel.BasicQosAsync(
             prefetchSize: 0,
@@ -123,8 +230,17 @@ public sealed class RabbitMqDataSyncRequestBus(
             autoAck: false,
             consumer: consumer,
             cancellationToken: cancellationToken);
-        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
     }
+
+    public async ValueTask DisposeAsync()
+    {
+        await publisherChannels.DisposeAsync();
+        await publisherConnection.DisposeAsync();
+        await consumerConnection.DisposeAsync();
+    }
+
+    // A synchronously disposed service provider throws for singletons that are only IAsyncDisposable.
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
     private static void EnsureEnabled(RabbitMqDataSyncOptions settings)
     {
@@ -135,21 +251,13 @@ public sealed class RabbitMqDataSyncRequestBus(
         }
     }
 
-    private static Task<IConnection> CreateConnectionAsync(
-        RabbitMqDataSyncOptions settings,
-        CancellationToken cancellationToken)
-    {
-        var factory = new ConnectionFactory
-        {
-            HostName = settings.HostName,
-            Port = settings.Port,
-            VirtualHost = settings.VirtualHost,
-            UserName = settings.UserName,
-            Password = settings.Password
-        };
-
-        return factory.CreateConnectionAsync("FinancialCopilot.DataSync", cancellationToken);
-    }
+    private static ConnectionFactory CreateConnectionFactory(RabbitMqDataSyncOptions settings) =>
+        RabbitMqConnectionPolicy.CreateConnectionFactory(
+            settings.HostName,
+            settings.Port,
+            settings.VirtualHost,
+            settings.UserName,
+            settings.Password);
 
     private static Task<QueueDeclareOk> DeclareQueueAsync(
         IChannel channel,

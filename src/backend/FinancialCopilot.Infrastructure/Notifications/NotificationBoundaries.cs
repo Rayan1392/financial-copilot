@@ -1,7 +1,6 @@
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Billing.Contracts;
-using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Notifications;
 
@@ -67,14 +66,6 @@ public sealed class NotificationDispatcherOptions
     public int MessagePartLength { get; set; } = 3800;
     public int TransportErrorRetentionDays { get; set; } = 30;
     public int DeliveryAuditRetentionDays { get; set; } = 730;
-}
-
-public sealed class TelegramNotificationOptions
-{
-    public const string SectionName = "Telegram:Notifications";
-    public string BotToken { get; set; } = string.Empty;
-    public string BaseUrl { get; set; } = "https://api.telegram.org";
-    public int RequestTimeoutSeconds { get; set; } = 30;
 }
 
 public sealed class AlertHistoryOptions

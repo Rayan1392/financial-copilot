@@ -1,0 +1,28 @@
+{
+  "id": "rel_c67166054422cd5c",
+  "from": {
+    "schema": "public",
+    "table": "UserAlertRecords",
+    "columns": [
+      "SourceEventId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "InsightEvents",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"SourceEventId\") REFERENCES \"InsightEvents\"(\"Id\") ON DELETE SET NULL",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

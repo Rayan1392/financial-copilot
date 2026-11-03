@@ -1,0 +1,59 @@
+{
+  "id": "metric_operating_assets_ratio",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "OPERATING_ASSETS_RATIO"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Operating Assets Ratio",
+    "Description": "Governed semantic definition for Operating Assets Ratio.",
+    "Category": 5,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "operating assets ratio",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "OPERATING_ASSETS_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت دارایی‌های عملیاتی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "OPERATING_ASSETS_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "rel_818227f1407b2495",
+  "from": {
+    "schema": "public",
+    "table": "TradingInstruments",
+    "columns": [
+      "NormalizedCompanyId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "Companies",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"NormalizedCompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

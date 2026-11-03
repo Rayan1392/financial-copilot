@@ -19,7 +19,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 /// </summary>
 public sealed class MonthlyActivityBackfillCoordinator(
     FinancialIngestionDbContext dbContext,
-    IDataSyncRequestPublisher publisher,
+    IMonthlyActivityBackfillOutboxRelay outboxRelay,
     IOptions<NadpcoApiProviderOptions> providerOptions,
     TimeProvider timeProvider,
     ILogger<MonthlyActivityBackfillCoordinator> logger) :
@@ -27,17 +27,42 @@ public sealed class MonthlyActivityBackfillCoordinator(
     IMonthlyActivityBackfillStateReader
 {
     private const string KeyPrefix = "nadpco-monthlybf";
+    private const string ReportingTypeKeyPrefix = "nadpco-monthlyrt";
 
     public async Task<MonthlyActivityBackfillStartResult> StartAsync(
         MonthlyActivityBackfillRequest request,
         CancellationToken cancellationToken)
     {
         var providerName = providerOptions.Value.ProviderName;
+        await outboxRelay.ReconcileActiveBatchesAsync(cancellationToken);
+        var activeBatch = await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+            .SingleOrDefaultAsync(row => row.ActiveSlot != null, cancellationToken);
+        if (activeBatch is not null)
+        {
+            return new MonthlyActivityBackfillStartResult(
+                "AlreadyInProgress",
+                activeBatch.TargetShamsiMonth is null ? 0 : 1,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: activeBatch.PlannedCount,
+                await GetProgressAsync(cancellationToken),
+                activeBatch.Id);
+        }
+
         var state = await GetOrCreateStateAsync(providerName, cancellationToken);
-        if (state.IsCompleted)
+        var now = timeProvider.GetUtcNow();
+        var eligibleMonths = ShamsiMonthCalculator.DescendingMonths(
+            ShamsiMonthCalculator.LatestPublishedMonth(now),
+            ShamsiMonthCalculator.MonthlyActivityFloor);
+        IReadOnlyList<ShamsiMonth> requestedMonths = request.TargetMonth is { } targetMonth
+            ? [targetMonth]
+            : eligibleMonths;
+        var plannedBeforeStart = ParsePlannedMonths(state.PlannedMonthsJson);
+        if (state.IsCompleted && request.TargetMonth is null)
         {
             var progress = await GetProgressAsync(cancellationToken);
-            if (progress.IsCompleted)
+            var planIncludesAllEligibleMonths = eligibleMonths.All(month =>
+                plannedBeforeStart.Any(planned => planned.Year == month.Year && planned.Month == month.Month));
+            if (progress.IsCompleted && planIncludesAllEligibleMonths)
             {
                 return new MonthlyActivityBackfillStartResult(
                     "AlreadyCompleted",
@@ -50,76 +75,301 @@ public sealed class MonthlyActivityBackfillCoordinator(
             await dbContext.Entry(state).ReloadAsync(cancellationToken);
         }
 
-        var now = timeProvider.GetUtcNow();
-        var months = ShamsiMonthCalculator.DescendingMonths(
-            ShamsiMonthCalculator.LatestPublishedMonth(now),
-            ShamsiMonthCalculator.MonthlyActivityFloor);
         var companyIds = await QueryKnownCompanyIdsAsync(providerName, cancellationToken);
         if (companyIds.Count == 0)
         {
             return new MonthlyActivityBackfillStartResult(
                 "NoCompanies",
-                months.Count,
+                requestedMonths.Count,
                 CompaniesPlanned: 0,
                 RequestsEnqueued: 0,
                 await GetProgressAsync(cancellationToken));
         }
 
+        // A backfill can remain active across a Shamsi month boundary. Preserve the existing
+        // plan and append newly eligible months instead of freezing the plan at the first start.
+        // This also allows a completed historical plan to reopen when a new month becomes eligible.
+        var plannedMonths = MergePlannedMonths(plannedBeforeStart, requestedMonths, companyIds.Count);
+
         state.LastStartedAt = now;
         state.RequestedBy = Limit(request.RequestedBy, 256);
         state.PlannedMonthsJson = JsonSerializer.Serialize(
-            months.Select(month => new PlannedMonth(month.Year, month.Month, companyIds.Count)).ToArray());
-        await dbContext.SaveChangesAsync(cancellationToken);
-
+            plannedMonths.ToArray());
         // Skip company-months only when a completed run also has persisted monthly report rows.
         // Completed-but-empty runs remain retryable for gradually published months.
         var completedKeys = await QueryCompletedKeysWithPersistedRowsAsync(providerName, cancellationToken);
 
-        var enqueued = 0;
-        foreach (var month in months)
+        var monthsToEnqueue = request.TargetMonth is null
+            ? plannedMonths.Select(month => new ShamsiMonth(month.Year, month.Month)).ToArray()
+            : requestedMonths;
+        var requestsToEnqueue = new List<DataSyncRequest>();
+        // Publish in output-type waves: all eligible companies/months for type 0, then type 1,
+        // through type 4. The output type is carried with the request so the provider performs one
+        // corresponding vendor call per message instead of fetching all types per company.
+        for (var outputType = 0; outputType <= 4; outputType++)
         {
-            var fromDate = month.FirstDayJalali;
-            var toDate = ShamsiMonthCalculator.LastDayJalali(month);
-            foreach (var companyId in companyIds)
+            foreach (var month in monthsToEnqueue)
             {
-                var key = BuildKey(month, companyId);
-                if (completedKeys.Contains(key))
+                var fromDate = month.FirstDayJalali;
+                var toDate = ShamsiMonthCalculator.LastDayJalali(month);
+                foreach (var companyId in companyIds)
                 {
-                    continue;
-                }
+                    var key = BuildKey(month, companyId, outputType);
+                    if (completedKeys.Contains(key))
+                    {
+                        continue;
+                    }
 
-                await publisher.PublishAsync(
-                    new DataSyncRequest(
-                        Guid.NewGuid(),
-                        ProviderDataset.MonthlyProductionSales,
-                        companyId.ToString(CultureInfo.InvariantCulture),
-                        timeProvider.GetUtcNow(),
-                        IdempotencyKey: key,
-                        ProviderName: providerName,
-                        Mode: SourceMode.CurrentIncremental,
-                        SourceDateRangeStartJalali: fromDate,
-                        SourceDateRangeEndJalali: toDate),
-                    cancellationToken);
-                enqueued++;
+                    requestsToEnqueue.Add(
+                        new DataSyncRequest(
+                            Guid.NewGuid(),
+                            ProviderDataset.MonthlyProductionSales,
+                            companyId.ToString(CultureInfo.InvariantCulture),
+                            timeProvider.GetUtcNow(),
+                            IdempotencyKey: key,
+                            ProviderName: providerName,
+                            Mode: SourceMode.CurrentIncremental,
+                            SourceDateRangeStartJalali: fromDate,
+                            SourceDateRangeEndJalali: toDate,
+                            MonthlyActivityOutputType: outputType));
+                }
             }
         }
 
+        var enqueued = requestsToEnqueue.Count;
+
+        var batch = new MonthlyActivityBackfillBatchRow
+        {
+            Id = Guid.NewGuid(),
+            SourceName = providerName,
+            RequestedBy = Limit(request.RequestedBy, 256),
+            Status = enqueued == 0 ? "NothingToEnqueue" : "Queued",
+            ActiveSlot = enqueued == 0 ? null : 1,
+            TargetShamsiYear = request.TargetMonth?.Year,
+            TargetShamsiMonth = request.TargetMonth?.Month,
+            CreatedAt = now,
+            CompletedAt = enqueued == 0 ? now : null,
+            PlannedCount = enqueued
+        };
+        dbContext.MonthlyActivityBackfillBatches.Add(batch);
+        dbContext.MonthlyActivityBackfillOutbox.AddRange(requestsToEnqueue.Select((syncRequest, sequence) =>
+            new MonthlyActivityBackfillOutboxRow
+            {
+                Id = syncRequest.RequestId,
+                BatchId = batch.Id,
+                Sequence = sequence,
+                IdempotencyKey = syncRequest.IdempotencyKey,
+                PayloadJson = JsonSerializer.Serialize(syncRequest, JsonOptions),
+                Status = "Pending",
+                CreatedAt = now
+            }));
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            dbContext.ChangeTracker.Clear();
+            activeBatch = await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+                .SingleOrDefaultAsync(row => row.ActiveSlot != null, cancellationToken);
+            if (activeBatch is null)
+            {
+                throw;
+            }
+
+            return new MonthlyActivityBackfillStartResult(
+                "AlreadyInProgress",
+                activeBatch.TargetShamsiMonth is null ? 0 : 1,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: activeBatch.PlannedCount,
+                await GetProgressAsync(cancellationToken),
+                activeBatch.Id);
+        }
+
         logger.LogInformation(
-            "Monthly-activity backfill enqueued {Enqueued} company-month requests across {Months} months " +
+            "Monthly-activity backfill batch {BatchId} durably planned {Enqueued} company-month requests across {Months} months " +
             "({Newest} → {Oldest}) for {Companies} companies, requested by {RequestedBy}.",
+            batch.Id,
             enqueued,
-            months.Count,
-            months[0],
-            months[^1],
+            monthsToEnqueue.Count,
+            monthsToEnqueue[0],
+            monthsToEnqueue[^1],
             companyIds.Count,
             request.RequestedBy);
 
         return new MonthlyActivityBackfillStartResult(
             enqueued == 0 ? "NothingToEnqueue" : "Started",
-            months.Count,
+            monthsToEnqueue.Count,
             companyIds.Count,
             enqueued,
-            await GetProgressAsync(cancellationToken));
+            await GetProgressAsync(cancellationToken),
+            batch.Id);
+    }
+
+    public async Task<MonthlyActivityReportingTypeBackfillStartResult> StartForReportingTypeAsync(
+        MonthlyActivityReportingTypeBackfillRequest request,
+        CancellationToken cancellationToken)
+    {
+        var providerName = providerOptions.Value.ProviderName;
+        await outboxRelay.ReconcileActiveBatchesAsync(cancellationToken);
+
+        var activeBatch = await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+            .SingleOrDefaultAsync(row => row.ActiveSlot != null, cancellationToken);
+        if (activeBatch is not null)
+        {
+            return new MonthlyActivityReportingTypeBackfillStartResult(
+                "AlreadyInProgress",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: activeBatch.PlannedCount,
+                activeBatch.Id);
+        }
+
+        var companyIds = await QueryKnownCompanyIdsAsync(
+            providerName,
+            request.ReportingType,
+            cancellationToken);
+        if (companyIds.Count == 0)
+        {
+            return new MonthlyActivityReportingTypeBackfillStartResult(
+                "NoCompanies",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: 0);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var fromDate = request.TargetMonth.FirstDayJalali;
+        var toDate = ShamsiMonthCalculator.LastDayJalali(request.TargetMonth);
+        var requestsToEnqueue = companyIds
+            .Select(companyId => new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.MonthlyProductionSales,
+                companyId.ToString(CultureInfo.InvariantCulture),
+                now,
+                IdempotencyKey: BuildReportingTypeKey(
+                    request.TargetMonth,
+                    request.ReportingType,
+                    companyId),
+                ProviderName: providerName,
+                Mode: SourceMode.CurrentIncremental,
+                SourceDateRangeStartJalali: fromDate,
+                SourceDateRangeEndJalali: toDate,
+                MonthlyActivityOutputType: null))
+            .ToArray();
+
+        var batch = new MonthlyActivityBackfillBatchRow
+        {
+            Id = Guid.NewGuid(),
+            SourceName = providerName,
+            RequestedBy = Limit(request.RequestedBy, 256),
+            Status = "Queued",
+            ActiveSlot = 1,
+            TargetShamsiYear = request.TargetMonth.Year,
+            TargetShamsiMonth = request.TargetMonth.Month,
+            CreatedAt = now,
+            PlannedCount = requestsToEnqueue.Length
+        };
+        dbContext.MonthlyActivityBackfillBatches.Add(batch);
+        dbContext.MonthlyActivityBackfillOutbox.AddRange(requestsToEnqueue.Select((syncRequest, sequence) =>
+            new MonthlyActivityBackfillOutboxRow
+            {
+                Id = syncRequest.RequestId,
+                BatchId = batch.Id,
+                Sequence = sequence,
+                IdempotencyKey = syncRequest.IdempotencyKey,
+                PayloadJson = JsonSerializer.Serialize(syncRequest, JsonOptions),
+                Status = "Pending",
+                CreatedAt = now
+            }));
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            dbContext.ChangeTracker.Clear();
+            activeBatch = await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+                .SingleOrDefaultAsync(row => row.ActiveSlot != null, cancellationToken);
+            if (activeBatch is null)
+            {
+                throw;
+            }
+
+            return new MonthlyActivityReportingTypeBackfillStartResult(
+                "AlreadyInProgress",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: activeBatch.PlannedCount,
+                activeBatch.Id);
+        }
+
+        logger.LogInformation(
+            "Monthly-activity reporting-type backfill batch {BatchId} queued {Enqueued} company-month requests for ReportingType {ReportingType}, month {Month}, requested by {RequestedBy}.",
+            batch.Id,
+            requestsToEnqueue.Length,
+            request.ReportingType,
+            request.TargetMonth,
+            request.RequestedBy);
+
+        return new MonthlyActivityReportingTypeBackfillStartResult(
+            "Started",
+            request.TargetMonth.Year,
+            request.TargetMonth.Month,
+            request.ReportingType,
+            companyIds.Count,
+            requestsToEnqueue.Length,
+            batch.Id);
+    }
+
+    public async Task<MonthlyActivityBackfillBatch?> GetBatchAsync(
+        Guid batchId,
+        CancellationToken cancellationToken)
+    {
+        await outboxRelay.ReconcileActiveBatchesAsync(cancellationToken);
+        var row = await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+            .SingleOrDefaultAsync(batch => batch.Id == batchId, cancellationToken);
+        return row is null ? null : MapBatch(row);
+    }
+
+    public async Task<IReadOnlyCollection<MonthlyActivityBackfillBatch>> ListBatchesAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (limit is < 1 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        }
+
+        await outboxRelay.ReconcileActiveBatchesAsync(cancellationToken);
+        return await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+            .OrderByDescending(batch => batch.CreatedAt)
+            .Take(limit)
+            .Select(batch => new MonthlyActivityBackfillBatch(
+                batch.Id,
+                batch.Status,
+                batch.RequestedBy,
+                batch.CreatedAt,
+                batch.PublishingStartedAt,
+                batch.PublishedAt,
+                batch.CompletedAt,
+                batch.TargetShamsiYear,
+                batch.TargetShamsiMonth,
+                batch.PlannedCount,
+                batch.PublishedCount,
+                batch.ProcessedCount,
+                batch.FailedCount,
+                batch.RetryableCount,
+                batch.LastError))
+            .ToArrayAsync(cancellationToken);
     }
 
     public async Task<MonthlyActivityBackfillProgress> GetProgressAsync(CancellationToken cancellationToken)
@@ -136,13 +386,11 @@ public sealed class MonthlyActivityBackfillCoordinator(
         var persistedCompanyMonths = await QueryPersistedCompanyMonthKeysAsync(providerName, cancellationToken);
         var runs = await dbContext.SyncRuns.AsNoTracking()
             .Where(run => run.IdempotencyKey.StartsWith(KeyPrefix))
-            .Select(run => new
-            {
+            .Select(run => new BackfillRun(
                 run.IdempotencyKey,
                 run.Status,
                 run.ExternalReference,
-                run.ErrorMessage
-            })
+                run.ErrorMessage))
             .ToListAsync(cancellationToken);
         var byMonthToken = runs
             .GroupBy(run => MonthTokenOf(run.IdempotencyKey))
@@ -151,15 +399,21 @@ public sealed class MonthlyActivityBackfillCoordinator(
         var months = planned.Select(month =>
         {
             byMonthToken.TryGetValue(MonthToken(month.Year, month.Month), out var monthRuns);
-            var completed = monthRuns?.Count(run =>
-                run.Status == DataSyncRunStatus.Completed.ToString() &&
-                HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)) ?? 0;
-            var noDataYet = monthRuns?.Count(run =>
-                (run.Status == DataSyncRunStatus.Completed.ToString() &&
-                    !HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)) ||
-                (run.Status == DataSyncRunStatus.Failed.ToString() && IsNoDataYet(run.ErrorMessage))) ?? 0;
-            var failed = monthRuns?.Count(run =>
-                run.Status == DataSyncRunStatus.Failed.ToString() && !IsNoDataYet(run.ErrorMessage)) ?? 0;
+            var companyGroups = monthRuns?
+                .Where(run => !string.IsNullOrWhiteSpace(run.ExternalReference))
+                .GroupBy(run => run.ExternalReference!, StringComparer.Ordinal)
+                .ToArray() ?? [];
+            var completed = companyGroups.Count(group =>
+                IsCompletedCompanyMonth(group, persistedCompanyMonths));
+            var noDataYet = companyGroups.Count(group =>
+                !IsCompletedCompanyMonth(group, persistedCompanyMonths) &&
+                IsTerminalCompanyMonth(group) &&
+                group.Any(run => IsNoDataRun(run, persistedCompanyMonths)) &&
+                group.All(run => run.Status != DataSyncRunStatus.Failed.ToString() || IsNoDataYet(run.ErrorMessage)));
+            var failed = companyGroups.Count(group =>
+                !IsCompletedCompanyMonth(group, persistedCompanyMonths) &&
+                IsTerminalCompanyMonth(group) &&
+                group.Any(run => run.Status == DataSyncRunStatus.Failed.ToString() && !IsNoDataYet(run.ErrorMessage)));
             var terminal = completed + noDataYet + failed;
             var status = completed >= month.Companies
                 ? "Completed"
@@ -247,13 +501,27 @@ public sealed class MonthlyActivityBackfillCoordinator(
         CancellationToken cancellationToken) =>
         NoavaranCompanyScope.EligibleCompanyIdsAsync(dbContext, providerName, cancellationToken);
 
+    private Task<IReadOnlyList<int>> QueryKnownCompanyIdsAsync(
+        string providerName,
+        int reportingType,
+        CancellationToken cancellationToken) =>
+        NoavaranCompanyScope.EligibleCompanyIdsAsync(
+            dbContext,
+            providerName,
+            reportingType,
+            cancellationToken);
+
     private static string MonthToken(int year, int month) =>
         string.Create(CultureInfo.InvariantCulture, $"{year:D4}{month:D2}");
 
-    internal static string BuildKey(ShamsiMonth month, int companyId) =>
+    internal static string BuildKey(ShamsiMonth month, int companyId, int? outputType = null) =>
+        $"{KeyPrefix}-{month.Year:D4}{month.Month:D2}-{companyId}" +
+            (outputType is { } type ? $"-ot{type}" : string.Empty);
+
+    internal static string BuildReportingTypeKey(ShamsiMonth month, int reportingType, int companyId) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"{KeyPrefix}-{month.Year:D4}{month.Month:D2}-{companyId}");
+            $"{ReportingTypeKeyPrefix}-{month.Year:D4}{month.Month:D2}-rt{reportingType}-{companyId}");
 
     // Key shape: nadpco-monthlybf-{yyyyMM}-{companyId}.
     private static string MonthTokenOf(string idempotencyKey)
@@ -284,13 +552,27 @@ public sealed class MonthlyActivityBackfillCoordinator(
         CancellationToken cancellationToken)
     {
         var reports = await dbContext.MonthlyReports.AsNoTracking()
-            .Where(row => row.ProviderName == providerName)
-            .Select(row => new { row.ExternalCompanyId, row.PeriodStart })
+            .Where(row => row.ProviderName == providerName && row.IsAccepted)
+            .Select(row => new { row.ExternalCompanyId, row.PeriodStart, row.ReportType, row.OutputType })
             .ToListAsync(cancellationToken);
 
         return reports
             .Where(row => !string.IsNullOrWhiteSpace(row.ExternalCompanyId))
-            .Select(row => CompanyMonthToken(row.ExternalCompanyId!, JalaliMonthToken(row.PeriodStart)))
+            .SelectMany(row =>
+            {
+                var companyMonth = CompanyMonthToken(row.ExternalCompanyId!, JalaliMonthToken(row.PeriodStart));
+                // ServiceSales and legacy ProductSales-null rows are the persisted equivalent of
+                // the type-0 monthly decision and must satisfy the type-0 backfill key.
+                if (row.ReportType == "ServiceSales" ||
+                    (row.ReportType == "ProductSales" && (row.OutputType == 0 || row.OutputType is null)))
+                {
+                    return new[] { companyMonth, $"{companyMonth}:ot0" };
+                }
+
+                return row.OutputType is { } outputType
+                    ? new[] { companyMonth, $"{companyMonth}:ot{outputType}" }
+                    : new[] { companyMonth };
+            })
             .ToHashSet(StringComparer.Ordinal);
     }
 
@@ -299,7 +581,68 @@ public sealed class MonthlyActivityBackfillCoordinator(
         string? externalReference,
         HashSet<string> persistedCompanyMonths) =>
         !string.IsNullOrWhiteSpace(externalReference) &&
-        persistedCompanyMonths.Contains(CompanyMonthToken(externalReference, MonthTokenOf(idempotencyKey)));
+        persistedCompanyMonths.Contains(CompanyMonthToken(externalReference, MonthTokenOf(idempotencyKey))) &&
+        (OutputTypeOf(idempotencyKey) is not { } outputType ||
+            persistedCompanyMonths.Contains($"{CompanyMonthToken(externalReference, MonthTokenOf(idempotencyKey))}:ot{outputType}"));
+
+    private static bool IsCompletedCompanyMonth(
+        IEnumerable<BackfillRun> runs,
+        HashSet<string> persistedCompanyMonths)
+    {
+        var runArray = runs.ToArray();
+        var typedRuns = runArray.Where(run => OutputTypeOf(run.IdempotencyKey) is not null).ToArray();
+        if (typedRuns.Length == 0)
+        {
+            return runArray.Any(run =>
+                run.Status == DataSyncRunStatus.Completed.ToString() &&
+                HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths));
+        }
+
+        return Enumerable.Range(0, 5).All(outputType => typedRuns.Any(run =>
+            OutputTypeOf(run.IdempotencyKey) == outputType &&
+            run.Status == DataSyncRunStatus.Completed.ToString() &&
+            HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)));
+    }
+
+    private static bool IsTerminalCompanyMonth(IEnumerable<BackfillRun> runs)
+    {
+        var runArray = runs.ToArray();
+        var typedRuns = runArray.Where(run => OutputTypeOf(run.IdempotencyKey) is not null).ToArray();
+        return typedRuns.Length == 0
+            ? runArray.All(run => run.Status is "Completed" or "Failed")
+            : Enumerable.Range(0, 5).All(outputType => typedRuns.Any(run =>
+                OutputTypeOf(run.IdempotencyKey) == outputType &&
+                run.Status is "Completed" or "Failed"));
+    }
+
+    private static bool IsNoDataRun(BackfillRun run, HashSet<string> persistedCompanyMonths) =>
+        run.Status == DataSyncRunStatus.Failed.ToString()
+            ? IsNoDataYet(run.ErrorMessage)
+            : !HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths);
+
+    private static int? OutputTypeOf(string idempotencyKey)
+    {
+        var markerIndex = idempotencyKey.LastIndexOf("-ot", StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var valueStart = markerIndex + 3;
+        var valueEnd = idempotencyKey.IndexOf('-', valueStart);
+        var token = valueEnd < 0
+            ? idempotencyKey[valueStart..]
+            : idempotencyKey[valueStart..valueEnd];
+        return int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var outputType)
+            ? outputType
+            : null;
+    }
+
+    private sealed record BackfillRun(
+        string IdempotencyKey,
+        string Status,
+        string? ExternalReference,
+        string? ErrorMessage);
 
     private static bool IsNoDataYet(string? errorMessage) =>
         !string.IsNullOrWhiteSpace(errorMessage) &&
@@ -358,10 +701,50 @@ public sealed class MonthlyActivityBackfillCoordinator(
         }
     }
 
+    private static IReadOnlyList<PlannedMonth> MergePlannedMonths(
+        IReadOnlyList<PlannedMonth> existing,
+        IReadOnlyList<ShamsiMonth> eligibleMonths,
+        int companyCount)
+    {
+        var byMonth = existing
+            .GroupBy(month => (month.Year, month.Month))
+            .ToDictionary(group => group.Key, group => group.First() with { Companies = companyCount });
+
+        foreach (var month in eligibleMonths)
+        {
+            byMonth.TryAdd((month.Year, month.Month), new PlannedMonth(month.Year, month.Month, companyCount));
+        }
+
+        return byMonth.Values
+            .OrderByDescending(month => month.Year)
+            .ThenByDescending(month => month.Month)
+            .ToArray();
+    }
+
     private static string Limit(string value, int length) =>
         string.IsNullOrWhiteSpace(value)
             ? "unknown"
             : value.Length <= length ? value : value[..length];
+
+    private static MonthlyActivityBackfillBatch MapBatch(MonthlyActivityBackfillBatchRow batch) =>
+        new(
+            batch.Id,
+            batch.Status,
+            batch.RequestedBy,
+            batch.CreatedAt,
+            batch.PublishingStartedAt,
+            batch.PublishedAt,
+            batch.CompletedAt,
+            batch.TargetShamsiYear,
+            batch.TargetShamsiMonth,
+            batch.PlannedCount,
+            batch.PublishedCount,
+            batch.ProcessedCount,
+            batch.FailedCount,
+            batch.RetryableCount,
+            batch.LastError);
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private sealed record PlannedMonth(int Year, int Month, int Companies);
 }

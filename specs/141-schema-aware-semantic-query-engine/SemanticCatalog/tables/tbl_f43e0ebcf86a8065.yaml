@@ -1,0 +1,242 @@
+{
+  "id": "tbl_f43e0ebcf86a8065",
+  "physical": {
+    "Schema": "public",
+    "Name": "NoavaranEligibleCompanies",
+    "ObjectType": "view",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "Name",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyIsin",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanySymbol",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "GroupId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "GroupTitle",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryTitle",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "InstrumentCode",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "InstrumentRefPlaceholder",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "NameEnglish",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceModifiedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "SymbolIsin",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "TseSymbol",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "AcceptionDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "AcceptionDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "BusinessStartDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "BusinessStartDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyCode",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanySymbolEnglish",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanySymbolPinglish",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EnlistedDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EnlistedDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EstablishmentDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EstablishmentDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "FundTypeId",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "FundTypeTitle",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "InExchange",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "IpoDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "IpoDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketBoard",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "NationalId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "PrecedencyRight",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationCity",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationNumber",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationProvince",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "LogicalVendor",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceMode",
+        "Type": "character varying(32)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [],
+    "ForeignKeys": [],
+    "Indexes": [],
+    "Constraints": []
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

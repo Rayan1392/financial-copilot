@@ -2,6 +2,8 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { mobileRedirectResponse } from "./lib/experience/server-redirect";
+import { MOBILE_AUTO_REDIRECT_ENABLED } from "./lib/experience/flag";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -69,6 +71,11 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Feature 153 device routing runs here rather than in start.ts request middleware: it needs only the raw
+      // Request, must short-circuit before any SSR work, and must not touch server-function traffic, which the
+      // adapter excludes itself. It is a no-op unless the build enables VITE_MOBILE_AUTO_REDIRECT.
+      const mobileRedirect = mobileRedirectResponse(request, { enabled: MOBILE_AUTO_REDIRECT_ENABLED });
+      if (mobileRedirect) return mobileRedirect;
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

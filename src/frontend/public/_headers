@@ -1,0 +1,14 @@
+# Static-asset response headers for the Cloudflare Workers asset server (wrangler) — Feature 153 T19.
+# The service worker and manifest must be revalidated on every check so updates and rollbacks reach users.
+/sw.js
+  Cache-Control: no-cache
+  Content-Type: text/javascript; charset=utf-8
+/sw-kill.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json
+/offline.html
+  Cache-Control: no-cache
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

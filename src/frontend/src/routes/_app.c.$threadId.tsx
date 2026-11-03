@@ -1,114 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { getThreadMessages, sendChatMessage } from "@/lib/chat.functions";
-import { getFollowedSymbols } from "@/lib/followed-symbols.functions";
 import { MessageList } from "@/components/app/message-list";
 import { PromptInput } from "@/components/app/prompt-input";
-import { useEffect, useRef, useState } from "react";
-import { getAuthenticatedUser } from "@/integrations/financial-copilot/auth";
-import { adminPermissions, hasPermission } from "@/integrations/financial-copilot/admin-permissions";
-import { isSubscriptionCooldownMessage } from "@/lib/subscription-cooldown";
+import { useEffect, useRef } from "react";
+import { chatErrorMessage } from "@/lib/chat/chat-errors";
+import { useChatThread } from "@/lib/chat/use-chat-thread";
 
 export const Route = createFileRoute("/_app/c/$threadId")({
   component: ChatThreadPage,
 });
 
-function chatErrorMessage(error: Error): string {
-  if (isSubscriptionCooldownMessage(error.message)) return error.message;
-  if (error.message.toLowerCase().includes("insufficient"))
-    return "اعتبار کافی برای پردازش درخواست وجود ندارد. لطفاً حساب خود را شارژ کنید.";
-  return "متأسفیم، خطایی در پردازش درخواست رخ داد. لطفاً دوباره امتحان کنید.";
-}
-
 function ChatThreadPage() {
   const { threadId } = Route.useParams();
-  const qc = useQueryClient();
-  const fetchMessages = useServerFn(getThreadMessages);
-  const fetchFollowed = useServerFn(getFollowedSymbols);
-  const send = useServerFn(sendChatMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [queryError, setQueryError] = useState<string | null>(null);
-  const lastMessageRef = useRef<string>("");
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-
-  useEffect(() => {
-    getAuthenticatedUser().then((user) => {
-      setShowDiagnostics(hasPermission(user, adminPermissions.orchestrationDiagnostics));
-    });
-  }, []);
-
-  const { data: messages = [], isLoading } = useQuery({
-    queryKey: ["messages", threadId],
-    queryFn: () => fetchMessages({ data: { threadId } }),
-    retry: false,
-    throwOnError: false,
-    refetchOnWindowFocus: false,
-  });
-  const { data: followed } = useQuery({
-    queryKey: ["followed-symbols"],
-    queryFn: () => fetchFollowed(),
-    retry: false,
-    throwOnError: false,
-    refetchOnWindowFocus: false,
-  });
-
-  const sendMutation = useMutation({
-    mutationFn: ({ message, scannerPage = 1, scannerPageSize = 20, disclosurePage = 1, suggestedActionId, idempotencyKey }: { message: string; scannerPage?: number; scannerPageSize?: number; disclosurePage?: number; suggestedActionId?: string; idempotencyKey: string }) =>
-      send({ data: {
-        threadId,
-        message,
-        scannerPage,
-        scannerPageSize,
-        disclosurePage,
-        suggestedActionId,
-        idempotencyKey,
-      } }),
-    onSuccess: () => {
-      setQueryError(null);
-      qc.invalidateQueries({ queryKey: ["messages", threadId] });
-      qc.invalidateQueries({ queryKey: ["threads"] });
-      qc.invalidateQueries({ queryKey: ["subscription"] });
-      qc.invalidateQueries({ queryKey: ["usage"] });
-    },
-    onError: (error: Error) => {
-      setQueryError(chatErrorMessage(error));
-      void qc.invalidateQueries({ queryKey: ["usage"] });
-    },
-  });
-
-  const submit = (text: string, suggestedActionId?: string) => {
-    if (sendMutation.isPending) return;
-    lastMessageRef.current = text;
-    setQueryError(null);
-    sendMutation.mutate({ message: text, suggestedActionId, idempotencyKey: crypto.randomUUID() });
-  };
-
-  const handlePageChange = (page: number, originalQuery?: string, pageSize?: number) => {
-    if (originalQuery) lastMessageRef.current = originalQuery;
-    if (!lastMessageRef.current) return;
-    setQueryError(null);
-    sendMutation.mutate({
-      message: lastMessageRef.current,
-      scannerPage: page,
-      scannerPageSize: pageSize,
-      idempotencyKey: crypto.randomUUID(),
-    });
-  };
-
-  const handleDisclosurePageChange = (page: number, originalQuery: string) => {
-    lastMessageRef.current = originalQuery;
-    setQueryError(null);
-    sendMutation.mutate({
-      message: originalQuery,
-      disclosurePage: page,
-      idempotencyKey: crypto.randomUUID(),
-    });
-  };
+  const thread = useChatThread(threadId);
+  const { messages, isLoading, submit, showDiagnostics } = thread;
+  const queryError = thread.failure ? chatErrorMessage(thread.failure) : null;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages.length, sendMutation.isPending]);
+  }, [messages.length, thread.isPending]);
 
   return (
     <>
@@ -116,12 +26,12 @@ function ChatThreadPage() {
         <MessageList
           messages={messages}
           loading={isLoading}
-          streaming={sendMutation.isPending}
+          streaming={thread.isPending}
           onSuggested={submit}
-          onPageChange={handlePageChange}
-          onDisclosurePageChange={handleDisclosurePageChange}
+          onPageChange={thread.changeScannerPage}
+          onDisclosurePageChange={thread.changeDisclosurePage}
           showDiagnostics={showDiagnostics}
-          followedSymbols={new Set(followed?.symbols.map((item) => item.symbol) ?? [])}
+          followedSymbols={thread.followedSymbols}
         />
       </div>
       {queryError && (
@@ -131,7 +41,7 @@ function ChatThreadPage() {
       )}
       <PromptInput
         onSubmit={submit}
-        loading={sendMutation.isPending}
+        loading={thread.isPending}
         showAssistedQuery
       />
     </>

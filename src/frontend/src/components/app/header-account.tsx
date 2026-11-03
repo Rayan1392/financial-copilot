@@ -2,9 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getOwnProfile } from "@/integrations/financial-copilot/auth";
 import { officialDisplayName } from "@/lib/profile-display-name";
+import { OWN_PROFILE_QUERY_KEY } from "@/lib/workspace/query-keys";
 
-/** Shared cache key for `GET /api/auth/v1/profile`. AuthSync clears the cache on login/logout. */
-export const OWN_PROFILE_QUERY_KEY = ["own-profile"] as const;
+export { OWN_PROFILE_QUERY_KEY };
 
 /**
  * Compact account chip at the start (right, in RTL) of the main header: avatar initial and the TahlilApp

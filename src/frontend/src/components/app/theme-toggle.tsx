@@ -1,13 +1,20 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type Theme = "dark" | "light";
+export type Theme = "dark" | "light";
 
 const themeStorageKey = "financial-copilot-theme";
 
+/** Browser UI colors matching `--background` in each theme (the dark one is also in the PWA manifest). */
+const THEME_COLORS: Record<Theme, string> = { dark: "#09090b", light: "#f7f7f9" };
+
 function storedTheme(): Theme {
   if (typeof window === "undefined") return "dark";
-  return window.localStorage.getItem(themeStorageKey) === "light" ? "light" : "dark";
+  try {
+    return window.localStorage.getItem(themeStorageKey) === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
 }
 
 function applyTheme(theme: Theme) {
@@ -15,6 +22,7 @@ function applyTheme(theme: Theme) {
   root.classList.toggle("light", theme === "light");
   root.classList.toggle("dark", theme === "dark");
   root.style.colorScheme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[theme]);
 }
 
 /** Applies the persisted preference after hydration, including on public/auth pages. */
@@ -23,7 +31,8 @@ export function ThemeInitializer() {
   return null;
 }
 
-export function ThemeToggle() {
+/** The current theme and a toggle that persists it; shared by the desktop toggle and the mobile account row. */
+export function useTheme() {
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => setTheme(storedTheme()), []);
@@ -31,10 +40,19 @@ export function ThemeToggle() {
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
-    window.localStorage.setItem(themeStorageKey, nextTheme);
+    try {
+      window.localStorage.setItem(themeStorageKey, nextTheme);
+    } catch {
+      // Storage unavailable: the theme still applies for this page view.
+    }
     applyTheme(nextTheme);
   }
 
+  return { theme, toggleTheme };
+}
+
+export function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
   const nextLabel = theme === "dark" ? "تغییر به تم روشن" : "تغییر به تم تیره";
   return (
     <button

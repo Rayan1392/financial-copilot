@@ -1,66 +1,23 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { sendChatMessage } from "@/lib/chat.functions";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
-import { useState } from "react";
-import { isSubscriptionCooldownMessage } from "@/lib/subscription-cooldown";
-import { ArrowLeft, BarChart3, FileText, PieChart, TrendingUp } from "lucide-react";
+import { ArrowLeft, TrendingUp } from "lucide-react";
+import { STARTER_PROMPTS } from "@/lib/chat/starter-prompts";
+import { chatErrorMessage } from "@/lib/chat/chat-errors";
+import { useStartChat } from "@/lib/chat/use-start-chat";
 
 export const Route = createFileRoute("/_app/chat")({
   component: NewChatPage,
 });
 
-function chatErrorMessage(error: Error): string {
-  if (isSubscriptionCooldownMessage(error.message)) return error.message;
-  if (error.message.toLowerCase().includes("insufficient"))
-    return "اعتبار کافی برای پردازش درخواست وجود ندارد. لطفاً حساب خود را شارژ کنید.";
-  return "متأسفیم، خطایی در پردازش درخواست رخ داد. لطفاً دوباره امتحان کنید.";
-}
-
 function NewChatPage() {
   const navigate = useNavigate();
-  const qc = useQueryClient();
-  const send = useServerFn(sendChatMessage);
-  const [queryError, setQueryError] = useState<string | null>(null);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-
-  const starterPrompts = [
-    { text: "ترکیب فروش محصولات کگهر را بررسی کن", icon: PieChart },
-    { text: "روند فروش ماهانه کگهر را نشان بده", icon: TrendingUp },
-    { text: "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟", icon: BarChart3 },
-    { text: "رتبه‌بندی گزارش‌های ماهانه را نشان بده", icon: FileText },
-    { text: "گزارش فصلی فملی", icon: FileText },
-    { text: "گزارش سود و زیان فصلی فولاد را بررسی کن", icon: FileText },
-  ];
-
-  const startChat = useMutation({
-    mutationFn: async ({ message, suggestedActionId, idempotencyKey }: {
-      message: string;
-      suggestedActionId?: string;
-      idempotencyKey: string;
-    }) => {
-      const result = await send({ data: { message, scannerPage: 1, suggestedActionId, idempotencyKey } });
-      return result.threadId;
-    },
-    onSuccess: (id) => {
-      void qc.invalidateQueries({ queryKey: ["usage"] });
-      navigate({ to: "/c/$threadId", params: { threadId: id } });
-    },
-    onError: (error: Error) => {
-      setPendingMessage(null);
-      setQueryError(chatErrorMessage(error));
-      void qc.invalidateQueries({ queryKey: ["usage"] });
-    },
+  const startChat = useStartChat({
+    navigateToThread: (threadId) => navigate({ to: "/c/$threadId", params: { threadId } }),
   });
-
-  const submit = (text: string, suggestedActionId?: string) => {
-    if (startChat.isPending) return;
-    setQueryError(null);
-    setPendingMessage(text);
-    startChat.mutate({ message: text, suggestedActionId, idempotencyKey: crypto.randomUUID() });
-  };
+  const { submit, pendingMessage } = startChat;
+  const queryError = startChat.failure ? chatErrorMessage(startChat.failure) : null;
+  const starterPrompts = STARTER_PROMPTS;
 
   return (
     <>

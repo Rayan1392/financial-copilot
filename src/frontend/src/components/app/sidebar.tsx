@@ -1,10 +1,10 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Plus, Trash2, LogOut, Settings, Send, RefreshCw } from "lucide-react";
-import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
-import { getUsage } from "@/lib/market-view.functions";
+import { createThread } from "@/lib/chat.functions";
+import { useConversations, useDeleteConversation, useUsage } from "@/lib/workspace/queries";
 import {
   getStoredAuthenticatedUser,
   logout,
@@ -25,27 +25,15 @@ export function ConversationSidebar() {
   const qc = useQueryClient();
   const params = useParams({ strict: false });
   const activeId = (params as { threadId?: string }).threadId;
-  const fetchThreads = useServerFn(listThreads);
-  const fetchUsage = useServerFn(getUsage);
   const create = useServerFn(createThread);
-  const del = useServerFn(deleteThread);
-  const qOpts = { retry: false, throwOnError: false, refetchOnWindowFocus: false } as const;
-  const { data: threads = [] } = useQuery({
-    queryKey: ["threads"],
-    queryFn: () => fetchThreads(),
-    ...qOpts,
-  });
+  const { data: threads = [] } = useConversations();
   const {
     data: usage,
     isLoading: usageLoading,
     isError: usageError,
     isFetching: usageFetching,
     refetch: refetchUsage,
-  } = useQuery({
-    queryKey: ["usage"],
-    queryFn: () => fetchUsage(),
-    ...qOpts,
-  });
+  } = useUsage();
   const [usageRefreshing, setUsageRefreshing] = useState(false);
   async function refreshUsage() {
     if (usageRefreshing) return;
@@ -61,10 +49,8 @@ export function ConversationSidebar() {
       navigate({ to: "/c/$threadId", params: { threadId: thread.id } });
     },
   });
-  const removeChat = useMutation({
-    mutationFn: (id: string) => del({ data: { threadId: id } }),
-    onSuccess: (_data, id) => {
-      qc.invalidateQueries({ queryKey: ["threads"] });
+  const removeChat = useDeleteConversation({
+    onDeleted: (id) => {
       if (activeId === id) navigate({ to: "/chat" });
     },
   });

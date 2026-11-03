@@ -4,19 +4,21 @@ import { login } from "@/integrations/financial-copilot/auth";
 import { safeInternalPath } from "@/lib/safe-redirect";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { redirect: string; reason?: "expired" } => ({
     redirect: safeInternalPath(search.redirect),
+    // Closed value: only "expired" is recognized, so no arbitrary text reaches the page.
+    reason: search.reason === "expired" ? "expired" : undefined,
   }),
   head: () => ({ meta: [{ title: "ورود — ساپیو - دستیار هوشمند بازار" }] }),
   component: AuthPage,
 });
 
 export function AuthPage() {
-  const { redirect } = Route.useSearch();
-  return <AuthScreen redirect={redirect} />;
+  const { redirect, reason } = Route.useSearch();
+  return <AuthScreen redirect={redirect} sessionExpired={reason === "expired"} />;
 }
 
-export function AuthScreen({ redirect }: { redirect: string }) {
+export function AuthScreen({ redirect, sessionExpired = false }: { redirect: string; sessionExpired?: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,7 +39,7 @@ export function AuthScreen({ redirect }: { redirect: string }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+    <div className="min-h-screen flex items-center justify-center bg-background p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-10 justify-center">
           <div className="size-10 rounded-xl bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center">
@@ -51,6 +53,11 @@ export function AuthScreen({ redirect }: { redirect: string }) {
           <p className="text-xs text-muted-foreground mb-5">
             برای دسترسی به تحلیل‌های هوشمند بازار
           </p>
+          {sessionExpired && (
+            <p role="status" className="mb-4 rounded-lg bg-gold/10 px-3 py-2 text-xs leading-6 text-gold">
+              نشست شما به پایان رسید؛ دوباره وارد شوید.
+            </p>
+          )}
 
           <form onSubmit={submit} className="space-y-3">
             <div>
@@ -61,9 +68,12 @@ export function AuthScreen({ redirect }: { redirect: string }) {
                 id="auth-email"
                 type="email"
                 required
+                autoComplete="email"
+                inputMode="email"
+                dir="ltr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <div>
@@ -74,9 +84,11 @@ export function AuthScreen({ redirect }: { redirect: string }) {
                 id="auth-password"
                 type="password"
                 required
+                autoComplete="current-password"
+                dir="ltr"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             {error && <div className="text-xs text-destructive">{error}</div>}

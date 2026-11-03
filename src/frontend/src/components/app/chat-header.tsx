@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Bell, Eye, FileSearch, Home, Settings } from "lucide-react";
+import { Bell, Eye, FileSearch, Home, Settings, Smartphone } from "lucide-react";
 import { HeaderAccount } from "@/components/app/header-account";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import {
@@ -12,10 +12,12 @@ import {
   getStoredAuthenticatedUser,
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
+import { useExperienceSwitch } from "@/lib/experience/use-experience-switch";
 
 export function ChatHeader() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showMonthlyBackfill, setShowMonthlyBackfill] = useState(false);
+  const { switchToMobile } = useExperienceSwitch();
 
   useEffect(() => {
     const updateAccess = () => {
@@ -90,6 +92,15 @@ export function ChatHeader() {
             <Settings className="size-4" />
           </Link>
         )}
+        <button
+          type="button"
+          onClick={switchToMobile}
+          className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+          aria-label="نسخه موبایل"
+          title="نسخه موبایل"
+        >
+          <Smartphone className="size-4" />
+        </button>
         <ThemeToggle />
       </div>
     </header>

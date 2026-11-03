@@ -37,13 +37,13 @@ Failed sends follow the revised decision D-A1: no automatic retry and no «تل�
 | T15 answer blocks at phone width | Partly done | Fixtures: wide markdown table and scanner table. Fixes: <12 px text raised to 12 px in compact density only (CSS); wide tables made keyboard-focusable. Charts, PS gauge, quarterly table, statements and disclosures were not rendered in fixtures. See limitations. |
 | T16 switch UI and banners | Done | Account «نمایش نسخه دسکتاپ», desktop header «نسخه موبایل», `experience-banner.tsx` (<1024 px), `desktop-suggestion.tsx` |
 | T17 manifest, icons, iOS meta | Done | Icons generated from `docs/Logo.png` by `scripts/generate-pwa-icons.mjs` (**brand source needs owner confirmation**). |
-| T18 service worker, offline, update, kill-switch | Done | `public/sw.js`, `offline.html`, `sw-kill.js`, `lib/pwa/{register.ts,update-toast.tsx}`, runbook `docs/deplyment/pwa-service-worker.md` |
+| T18 service worker, offline, update, kill-switch | Done | `public/sw.js`, `offline.html`, `sw-kill.js`, `lib/pwa/{register.ts,update-toast.tsx}`, runbook `docs/deployment/pwa-service-worker.md` |
 | T19 static serving | Done (Wrangler) | `public/_headers`; evidence below. Docker itself unavailable on this host; the identical `wrangler dev` command was used. |
 | T20 install | Done | `lib/pwa/install.ts`, `install-card.tsx`, `ios-install-sheet.tsx`, account entry |
 | T21 offline handling | Done | `hooks/use-online-status.ts`, `offline-banner.tsx`; send disabled with hint |
 | T22 accessibility pass | Automated part done | axe (serious/critical) on all screens in both themes and with sheets open; text ≥ 12 px; 44 px targets; landmarks; names. Manual screen-reader script below, **not yet run**. |
 | T23 auth screen | Done | 16 px inputs, `autocomplete`, `inputmode`, safe areas, closed `reason=expired` notice |
-| T24 documentation | Done | README section, `specs/README.md` entry, runbook, this report. Optional `docs/deplyment` rename **not done** (awaits owner decision). |
+| T24 documentation | Done | README section, `specs/README.md` entry, runbook, this report. The `docs/deplyment` → `docs/deployment` rename was done after the merge, at the owner's request. |
 | T25 verification | Automated runs done | Manual device matrix and production checks not run (see limitations). |
 | B1, B2 | Deferred | Not implemented (D-Q2). |
 | B3 | Proposed only | Not implemented. |
@@ -170,7 +170,7 @@ offline fallback works (AC-27 passes).
 6. **Docker image not run** (Docker is broken on this host). The same `wrangler dev` command was verified directly.
 7. **Not automated:** AC-18 error states, AC-28 update prompt, AC-33 reduced motion, and the 5 s undo toast.
 8. **History search** covers the newest 100 conversations only (B-1 deferred).
-9. **Optional rename** `docs/deplyment` → `docs/deployment` is not done.
+9. The deployment docs folder is now `docs/deployment/` (renamed after the merge, at the owner's request).
 
 ## Manual screen-reader script (T22, to run)
 
@@ -203,4 +203,4 @@ The full list is in `git status`.
     `theme-toggle`;
   - `lib/chat.functions.ts`, `lib/market-view.functions.ts`, `integrations/financial-copilot/api-client.server.ts`;
   - `server.ts`, `styles.css`, `vite.config.ts`, `.env.example`, `package.json`, `package-lock.json`.
-- **Docs:** `README.md`, `specs/README.md`, `docs/deplyment/pwa-service-worker.md`, and this folder.
+- **Docs:** `README.md`, `specs/README.md`, `docs/deployment/pwa-service-worker.md`, and this folder.

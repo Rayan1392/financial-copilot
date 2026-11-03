@@ -273,7 +273,7 @@ Work can run in parallel across these lanes:
     - hashed `/assets/*` are immutable.
   - If Wrangler asset headers need configuration, add the minimal config (for example a `_headers` file, if supported) and document it.
 - **Depends on:** T17
-- **Files:** `public/_headers` (if needed), `docs/deplyment/*` note. `docs/deplyment/` is the repository's real, misspelled directory name; see the discovery path note.
+- **Files:** `public/_headers` (if needed), `docs/deployment/*` note.
 - **Acceptance:** A recorded `curl -I` evidence table for all three runtimes in the implementation report.
 
 ### 153-T18 — Service worker, offline page, registration, update flow, kill-switch
@@ -284,7 +284,7 @@ Work can run in parallel across these lanes:
   - **Chunk errors:** `vite:preloadError` shows the same prompt.
   - **Kill-switch:** `public/sw-kill.js` template and a runbook.
 - **Depends on:** T19, T07
-- **Files:** `public/sw.js`, `public/offline.html`, `lib/pwa/register.ts`, `lib/pwa/update-toast.tsx`, `docs/deplyment/pwa-service-worker.md`.
+- **Files:** `public/sw.js`, `public/offline.html`, `lib/pwa/register.ts`, `lib/pwa/update-toast.tsx`, `docs/deployment/pwa-service-worker.md`.
 - **Acceptance:**
   - AC-26, AC-27, AC-28, AC-29.
   - Unit tests of the fetch-routing function cover `/_serverFn/`, `/api/`, the API origin, navigation, `/assets/`, fonts, and non-GET requests.
@@ -378,11 +378,11 @@ These tasks are kept for a later decision. B2 is revisited if T03's client-side 
 - **Description:**
   - **README:** the mobile route, the `VITE_MOBILE_AUTO_REDIRECT` flag, and the PWA notes.
   - **`specs/README.md`:** the index entry.
-  - **`docs/deplyment`:** the service-worker runbook (update, kill-switch, header verification).
+  - **`docs/deployment`:** the service-worker runbook (update, kill-switch, header verification).
   - **`ImplementationReport.md`:** evidence for each AC, test results, the device matrix, and known gaps.
 - **Depends on:** all implemented tasks.
-- **Files:** `README.md`, `specs/README.md`, `docs/deplyment/pwa-service-worker.md`, `specs/153-mobile-pwa-workspace/ImplementationReport.md`.
-- **Optional housekeeping (owner to approve or skip):** rename `docs/deplyment/` to `docs/deployment/`. No other Markdown file links to it today. If approved, update the Feature 153 references in the same change.
+- **Files:** `README.md`, `specs/README.md`, `docs/deployment/pwa-service-worker.md`, `specs/153-mobile-pwa-workspace/ImplementationReport.md`.
+- **Housekeeping (done 2026-11-03 at the owner's request):** renamed `docs/deplyment/` to `docs/deployment/` and updated the references.
 - **Acceptance:** Every AC has linked evidence or an explicit "not verified" note. The report includes the T02 replay outcome and the D-Q4/D-Q5 follow-ups.
 
 ### 153-T25 — Verification run and device matrix

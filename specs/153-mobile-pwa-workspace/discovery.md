@@ -122,15 +122,15 @@ All routes are on the .NET API. They require JWT or API key and are rate-limited
 
 | Source | Frontend origin(s) | API origin | Same-site? |
 |---|---|---|---|
-| `docs/deplyment/deploy-develop-to-vps.md` (lines 55, 96, 98) | `https://sapioai.ir`, `https://sapio.ir` | `https://api.sapioai.ir` | `sapioai.ir` ↔ `api.sapioai.ir`: **yes**. `sapio.ir` ↔ `api.sapioai.ir`: **no** (different registrable domain) |
-| `docs/deplyment/docker-compose.md` (lines 30, 95–96), example values | `https://tse.avidaweb.com` | `https://tseai.avidaweb.com` | yes |
+| `docs/deployment/deploy-develop-to-vps.md` (lines 55, 96, 98) | `https://sapioai.ir`, `https://sapio.ir` | `https://api.sapioai.ir` | `sapioai.ir` ↔ `api.sapioai.ir`: **yes**. `sapio.ir` ↔ `api.sapioai.ir`: **no** (different registrable domain) |
+| `docs/deployment/docker-compose.md` (lines 30, 95–96), example values | `https://tse.avidaweb.com` | `https://tseai.avidaweb.com` | yes |
 | `docker-compose.yml` lines 87–88 | `FRONTEND_PUBLIC_ORIGIN` (required env, no default); alternate defaults to `https://sapio.ir` | build arg `VITE_FINANCIAL_COPILOT_API_BASE_URL` | depends on deployed values |
 
 The refresh cookie is `SameSite=Strict` on the API origin. A frontend served from a cross-site origin (for example `sapio.ir` calling `api.sapioai.ir`) would not send it on the credentialed `fetch`, so session refresh would fail there. This affects desktop today as well as the installed PWA. This is a **production rollout gate** (owner decision D-Q5). Before production login validation or enabling automatic redirects: (1) read the live frontend and API origins from the deployment configuration (production `.env` and build arguments), and (2) verify on those origins that the refresh cookie is set and sent, so the session refreshes. The gate does not block local UI implementation.
 
 ## Documentation path note
 
-`docs/deplyment/` is **the repository's actual directory name** (misspelled in the repo, containing `deploy-develop-to-vps.md` and `docker-compose.md`). There is no `docs/deployment/`, so the path in these documents is correct as written; it is not a typo in Feature 153. No other Markdown file links to the folder. Renaming it to `docs/deployment/` would be cheap, but it is a repository change outside Feature 153's documentation scope. It is listed as an optional housekeeping item (tasks.md T24) for the owner to approve or skip.
+The deployment docs folder was originally named `docs/deplyment/` (misspelled). At the owner's request it was renamed to `docs/deployment/` on 2026-11-03, after the Feature 153 merge, and every reference was updated.
 
 ## Reuse verdict
 

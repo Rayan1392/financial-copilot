@@ -292,5 +292,5 @@ screen or the desktop header.
 The app is installable (manifest scope `/`, start URL `/m`). The service worker in
 `src/frontend/public/sw.js` caches static assets only and never caches HTML, server-function or API
 responses. Update, header verification and kill-switch steps are in
-[docs/deplyment/pwa-service-worker.md](docs/deplyment/pwa-service-worker.md). Specs, decisions and the
+[docs/deployment/pwa-service-worker.md](docs/deployment/pwa-service-worker.md). Specs, decisions and the
 implementation report: [specs/153-mobile-pwa-workspace/](specs/153-mobile-pwa-workspace/).

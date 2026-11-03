@@ -2,7 +2,7 @@
  * Kill-switch service worker (Feature 153 spec §9.3). NOT active by default.
  *
  * To remove the SapioAI service worker from every browser after a defect, deploy this file's contents as
- * `/sw.js` (see docs/deplyment/pwa-service-worker.md). Browsers check `/sw.js` on navigation, install this
+ * `/sw.js` (see docs/deployment/pwa-service-worker.md). Browsers check `/sw.js` on navigation, install this
  * version, delete every SapioAI cache, unregister, and reload open pages without a worker.
  */
 "use strict";

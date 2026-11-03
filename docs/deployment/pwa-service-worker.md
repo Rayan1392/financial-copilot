@@ -59,4 +59,7 @@ Use this when a worker defect affects users. It is a deploy, not a configuration
 They are separate from the worker and stay off unless the build sets `VITE_MOBILE_AUTO_REDIRECT=true`. Do not
 enable them in production until the live frontend and API origins are confirmed from the deployment
 configuration and the refresh cookie is verified to be set and sent on those origins (spec decision D-Q5).
-Rollback is a rebuild with the flag set to `false`.
+With Docker Compose, set `FRONTEND_MOBILE_AUTO_REDIRECT=true` in the server's `.env` and rebuild the frontend image
+(`docker compose -f docker-compose.yml -f docker-compose.local-build.yml build frontend`, then
+`docker compose up -d frontend`); `docker-compose.local-build.yml` passes it to the build as `VITE_MOBILE_AUTO_REDIRECT`.
+Rollback is the same rebuild with the value set to `false`.

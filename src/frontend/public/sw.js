@@ -6,7 +6,7 @@
  * stores a response marked `no-store` or `private`.
  *
  * The page registers `/sw.js?v=<build id>`; the version names the static cache, and activation removes caches of
- * other versions. Emergency rollback: deploy public/sw-kill.js as /sw.js (docs/deplyment/pwa-service-worker.md).
+ * other versions. Emergency rollback: deploy public/sw-kill.js as /sw.js (docs/deployment/pwa-service-worker.md).
  */
 "use strict";
 

@@ -143,6 +143,11 @@ function mapPoint(point: MonthlyActivityTrendChartPoint): MonthlyTrendChartPoint
   };
 }
 
+/** Exact amount for tooltips and the mobile detail panel: grouped, up to one decimal, Persian digits. */
+export function formatMonthlyTrendAmount(value: number): string {
+  return toPersianDigits(value.toLocaleString("en", { maximumFractionDigits: 1 }));
+}
+
 function formatBarAmount(value: number | null): string | null {
   if (value === null) return null;
   return toPersianDigits(

@@ -34,7 +34,7 @@ Failed sends follow the revised decision D-A1: no automatic retry and no «تل�
 | T13 watchlist and sheets | Done | `routes/m.watchlist.tsx`, `symbol-sheet.tsx`, `add-symbol-sheet.tsx`, `lib/chat/symbol-prompts.ts` (D-Q1), `lib/workspace/follow-actions.ts` |
 | T14 account | Done | `routes/m.account.index.tsx`, `credit-summary.tsx`; text-only purchase guidance (D-Q6) |
 | T14b shared profile panel | Done | `components/app/profile-panel.tsx`; `/profile` renders it unchanged; `/m/account/profile` renders it without a nested `<main>`. |
-| T15 answer blocks at phone width | Partly done | Fixtures: wide markdown table and scanner table. Fixes: <12 px text raised to 12 px in compact density only (CSS); wide tables made keyboard-focusable. Charts, PS gauge, quarterly table, statements and disclosures were not rendered in fixtures. See limitations. |
+| T15 answer blocks at phone width | Done for the main blocks | First pass: wide markdown and scanner tables (text ≥ 12 px in compact density, keyboard-focusable scroll regions). Second pass: **dedicated phone layouts for the monthly sales trend chart and the quarterly report** (see "Mobile answer layouts"). Product trend, statement analysis and disclosure listings keep the desktop renderers. |
 | T16 switch UI and banners | Done | Account «نمایش نسخه دسکتاپ», desktop header «نسخه موبایل», `experience-banner.tsx` (<1024 px), `desktop-suggestion.tsx` |
 | T17 manifest, icons, iOS meta | Done | Icons generated from `docs/Logo.png` by `scripts/generate-pwa-icons.mjs` (**brand source needs owner confirmation**). |
 | T18 service worker, offline, update, kill-switch | Done | `public/sw.js`, `offline.html`, `sw-kill.js`, `lib/pwa/{register.ts,update-toast.tsx}`, runbook `docs/deployment/pwa-service-worker.md` |
@@ -109,8 +109,8 @@ The evidence keys:
 
 | Suite | Before (develop) | After | Notes |
 |---|---|---|---|
-| Vitest (`npx vitest run`) | 5 files failed, 2 tests failed, 203 passed | **5 files failed, 2 tests failed, 368 passed** | Identical pre-existing failures: `markdown-message` (quarterly header text), `monthly-product-trend-chart` (failed-trend message), and 3 `scripts/*.browser.test.mjs` that Vitest collects but cannot run. **No new failures**; 165 new tests pass. |
-| Browser checks (`npm run test:mobile-browser`) | — | **71/71 pass** | Production build + `wrangler dev --local`, Chrome headless, mock API |
+| Vitest (`npx vitest run`) | 5 files failed, 2 tests failed, 203 passed | **5 files failed, 2 tests failed, 382 passed** | Identical pre-existing failures: `markdown-message` (quarterly header text), `monthly-product-trend-chart` (failed-trend message), and 3 `scripts/*.browser.test.mjs` that Vitest collects but cannot run. **No new failures**; 179 new tests pass (14 of them for the mobile answer layouts). |
+| Browser checks (`npm run test:mobile-browser`) | — | **85/85 pass** | Production build + `wrangler dev --local`, Chrome headless, mock API. Includes the analysis conversation (sales trend + quarterly report) at 320/360/390 px in both themes. |
 | .NET replay characterization (2 tests) | — | **2/2 pass** | Needs local `Authentication__Email__Enabled=false` (see above) |
 | `tsc --noEmit` | fails (pre-existing) | no new errors in new or changed code | Remaining errors are pre-existing (`/disclosures` link search param, `/auth` navigations without `search`, `_app.top-up`, test fixture typings). |
 | ESLint | — | new files clean | Existing files are not Prettier-clean on `develop`; they were not reformatted. |
@@ -129,6 +129,56 @@ The evidence keys:
 
 The 307 for `/offline.html` comes from the asset server's HTML handling. The worker stores a non-redirected copy, so the
 offline fallback works (AC-27 passes).
+
+## Mobile answer layouts (2026-11-03, second pass)
+
+The two densest analytical answers now have dedicated phone layouts in `/m`. They are selected through an
+answer-density context that `MessageList density="compact"` provides (`components/app/answer-density.ts`). Desktop
+renders exactly as before, which is verified in the browser at 1440 px and by tests.
+
+### Monthly sales trend (`components/mobile/answers/monthly-sales-trend-mobile.tsx`)
+
+| Decision | Why |
+|---|---|
+| Full-text legend list above the plot, with a caption explaining that the number beside each year is the total of its reported months | The desktop Recharts legend packs both yearly totals and «٪ از سال قبل» into one wrapped line; at 320 px it collided with the plot. |
+| Value axis sized to its longest tick, 12 px ticks, no rotated axis title (the unit is shown once as a chip) | Gives the 12 columns the remaining width without clipping. |
+| Month labels at −60°, 12 px, all twelve kept | Every period stays visible; tapping shows the full name. |
+| **Tap a month column** (selection computed from the tap position) or use «ماه قبل»/«ماه بعد» (44 px) | No floating tooltip: the exact month, year, values and unit appear in a detail panel **below** the chart, so a finger never covers the bars. The selected month is emphasized; the others are dimmed. |
+| Detail panel: current-year and previous-year values for that month (with year), 12-month average, and the change against the same month of the previous year | Unreported months read «گزارش نشده», never zero. The average reads «–» where the series has no value. |
+| PS gauge below the chart instead of overlaid; insights with signed percentages; missing-data notes; source and calculation time | Nothing from the desktop card is dropped. Source and calculation time (previously only in the PNG export) are shown too. |
+| Screen-reader table with all 12 months and an `aria-live` detail panel | Exact values do not depend on the chart. |
+
+### Quarterly report (`components/mobile/answers/quarterly-report-mobile.tsx`)
+
+| Decision | Why |
+|---|---|
+| **Card per line item (default)**: label, «درصد تغییر به فصل قبل» badge (glyph ▲/▼ plus the favorable or unfavorable tone of the desktop, which inverts for expense rows), latest period value, previous period value | The desktop table at phone width used 7–9 px text. Cards keep the most important comparison readable at 16 px. |
+| «همه فصل‌ها (n)» expands every period with a bar proportional to the value (negative values in rose, margins in gold) | Every value of every period stays one tap away, with the trend shape visible. |
+| Short period names in cards («فصل دوم ۱۴۰۵»), with the exact end dates listed once above the cards | Avoids repeating two-line labels on every card while keeping the exact definition of each period. |
+| **«جدول» view**: all line items × all periods (newest first) plus the change column, with the item column pinned; only this region scrolls sideways | For comparing many items across periods, where cards cannot preserve a useful comparison. The region is focusable and labelled. |
+| Values are the desktop cell strings: parentheses for negatives, «—» unavailable (announced «ناموجود»), «-» zero, «٪» on margin rows | No value is recomputed or reformatted. |
+| Design tokens for both themes; trend chart collapsed under «نمودار روند»; image download kept (44 px); EPS and provenance notes kept | |
+
+### Verification (production build in the Worker runtime, mock API, real-shaped answers)
+
+- **Fixtures** (`scripts/mobile-workspace/answer-fixtures.mjs`, typed by `answer-fixtures.d.mts`):
+  - the monthly trend has a long company name, five unreported current-year months, an unreported previous-year
+    month, three months without an average, insights and a missing-data note;
+  - the quarterly report has 15 rows × 5 periods with missing cells, negative expenses, zeros, a long label, the
+    gross-margin row, and the trend chart enabled.
+- **Browser** at 320, 360 and 390 px in dark and light, with no page-level horizontal scroll in any view:
+  - a tap selects the month under the finger;
+  - the buttons step through months;
+  - the detail panel never overlaps the chart;
+  - 15 cards render, and expanding one and opening the chart work;
+  - the table has 15 rows, its item column is pinned, and it scrolls inside its region;
+  - axe finds no serious or critical issues, text is ≥ 12 px and touch targets are ≥ 44 px.
+- **Desktop at 1440 px** still renders the original chart card (Recharts legend) and the fixed quarterly table.
+- **Unit tests** (`components/mobile/answers/__tests__`) cover:
+  - month selection, tap mapping and same-month change;
+  - period ordering, cell formatting and bar scaling;
+  - that every value, change and period of the desktop table appears in the phone table view, and every period in
+    an expanded card.
 
 ## Deviations from the plan
 
@@ -161,9 +211,12 @@ offline fallback works (AC-27 passes).
    - TalkBack and VoiceOver (script below).
 3. **Brand icon:** generated from `docs/Logo.png`. Its suitability is unconfirmed; regenerate with
    `npm run pwa:icons` after any change.
-4. **T15 is partial.** Charts, PS gauge, quarterly table, statement analysis and disclosure listings were not
-   rendered in phone fixtures. Polish item: the monospace «دنبال کردن نماد» button in scanner rows wraps awkwardly
-   at 360 px.
+4. **Other answer blocks keep desktop renderers on phones.** Product trend, statement analysis and disclosure
+   listings were not redesigned. Polish item: the monospace «دنبال کردن نماد» button in scanner rows wraps
+   awkwardly at 360 px.
+   The optional quarterly trend chart (`QuarterlyFinancialChart`, shown when `/api/ui/v1/config` enables it or for
+   banks) keeps its light-only colors and scrolls sideways inside its region. On phones it is collapsed under
+   «نمودار روند».
 5. **Same-key retry stays unavailable** until B-3 is approved, built and verified. A user who resends after a
    first-message failure without checking تاریخچه can still create a duplicate conversation; the message mitigates
    this but cannot prevent it.

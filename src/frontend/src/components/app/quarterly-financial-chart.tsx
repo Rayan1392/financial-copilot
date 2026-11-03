@@ -32,7 +32,14 @@ export function QuarterlyFinancialChart({ model }: { model: QuarterlyFinancialTa
           </span>
         ))}
       </div>
-      <div className="w-0 min-w-full max-w-full overflow-x-auto" dir="ltr">
+      {/* Focusable so keyboard users can scroll a chart wider than the screen (WCAG 2.1.1). */}
+      <div
+        className="w-0 min-w-full max-w-full overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
+        dir="ltr"
+        tabIndex={0}
+        role="region"
+        aria-label="نمودار فصلی؛ برای دیدن همه فصل‌ها افقی بکشید"
+      >
         <div style={{ width: `max(100%, ${Math.max(640, points.length * 120)}px)` }} className="h-64" role="img" aria-label={banking ? "نمودار درآمد تسهیلات، خالص درآمد و سود بانک با دو حاشیه درصدی" : "نمودار فروش، سود ناخالص، سود خالص و مارجین ناخالص بر اساس فصل"}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={points} margin={{ top: 12, right: 12, left: 12, bottom: 0 }} barGap={2}>

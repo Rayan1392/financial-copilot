@@ -125,7 +125,9 @@ async function smallText(page) {
       const ownText = [...element.childNodes].some(
         (node) => node.nodeType === 3 && node.textContent.trim(),
       );
-      if (!ownText || element.offsetParent === null) continue;
+      // Recharts measures text in an off-screen span; it is never visible.
+      if (!ownText || element.offsetParent === null || element.id === "recharts_measurement_span")
+        continue;
       const size = parseFloat(getComputedStyle(element).fontSize);
       if (size < 12)
         offenders.push(
@@ -139,8 +141,9 @@ async function smallText(page) {
 async function smallTargets(page) {
   return page.evaluate(() => {
     const offenders = [];
+    // App chrome plus the controls of the phone answer layouts (Feature 153 sales chart and quarterly report).
     for (const element of document.querySelectorAll(
-      "header a, header button, nav a, form button",
+      "header a, header button, nav a, form button, main section[aria-labelledby] button, main section[aria-labelledby] summary",
     )) {
       const box = element.getBoundingClientRect();
       if (box.width === 0) continue;
@@ -160,6 +163,8 @@ async function main() {
   await new Promise((resolve) => mock.server.listen(MOCK_PORT, "127.0.0.1", resolve));
   const browser = await chromium.launch({ executablePath, headless: true });
   const threadRoute = `/m/c/${mock.richConversationId}`;
+  // Monthly sales trend + quarterly report answers with long labels and missing values.
+  const analysisRoute = `/m/c/${mock.analysisConversationId}`;
   const screens = [
     "/m",
     "/m/history",
@@ -168,6 +173,7 @@ async function main() {
     "/m/account",
     "/m/account/profile",
     threadRoute,
+    analysisRoute,
   ];
 
   try {
@@ -445,6 +451,109 @@ async function main() {
       assert(new URL(page.url()).pathname === "/chat", page.url());
     });
     await context.close();
+
+    // Mobile answer layouts (sales trend chart, quarterly report) at every phone width and in both themes.
+    for (const theme of ["dark", "light"]) {
+      for (const width of [320, 360, 390]) {
+        const answers = await newPhoneContext(browser, { width, theme });
+        const answersPage = await answers.newPage();
+        await check(
+          `Answers @${width}px ${theme}: tap a month, cards, table, chart — no page overflow`,
+          async () => {
+            await open(answersPage, analysisRoute, "main section[aria-labelledby]");
+            const chart = answersPage.locator("main [role=img]").first();
+            await chart.scrollIntoViewIfNeeded();
+            const box = await chart.boundingBox();
+            // Tap the 3rd of 12 columns (right of the value axis), then step with the buttons.
+            await answersPage.touchscreen.tap(box.x + box.width * 0.35, box.y + box.height * 0.5);
+            const panel = answersPage.locator("main [aria-live=polite]").first();
+            assert(
+              (await panel.textContent()).includes("خرداد"),
+              `tap selected: ${await panel.textContent()}`,
+            );
+            await answersPage.getByRole("button", { name: "ماه بعد" }).click();
+            assert((await panel.textContent()).includes("تیر"), "next month");
+            assert((await panel.textContent()).includes("میلیارد ریال"), "value with unit");
+            // Measure both at the same scroll position: the button click may have scrolled the page.
+            const chartNow = await chart.boundingBox();
+            const panelBox = await panel.boundingBox();
+            assert(
+              panelBox.y >= chartNow.y + chartNow.height - 1,
+              "the detail panel overlaps the chart",
+            );
+
+            const cards = answersPage
+              .getByRole("list", { name: "اقلام گزارش فصلی" })
+              .getByRole("listitem");
+            assert((await cards.count()) === 15, `${await cards.count()} cards`);
+            await answersPage
+              .getByRole("button", { name: /همه فصل‌ها/ })
+              .first()
+              .click();
+            await answersPage.locator("summary", { hasText: "نمودار روند" }).click();
+            assert((await horizontalOverflow(answersPage)) <= 1, "page overflow in cards view");
+
+            await answersPage.getByRole("button", { name: "جدول", exact: true }).click();
+            const region = answersPage.getByRole("region", { name: /جدول کامل گزارش فصلی/ });
+            const scroll = await region.evaluate((element) => ({
+              scrollWidth: element.scrollWidth,
+              clientWidth: element.clientWidth,
+              pinned: getComputedStyle(element.querySelector("tbody th")).position,
+            }));
+            assert(
+              scroll.scrollWidth > scroll.clientWidth,
+              "the table should scroll inside its region",
+            );
+            assert(scroll.pinned === "sticky", "item column not pinned");
+            assert((await region.locator("tbody tr").count()) === 15, "table rows");
+            assert((await horizontalOverflow(answersPage)) <= 1, "page overflow in table view");
+            const violations = await runAxe(answersPage);
+            const small = await smallText(answersPage);
+            const targets = await smallTargets(answersPage);
+            assert(violations.length === 0, violations.join("; "));
+            assert(
+              small.length === 0 && targets.length === 0,
+              [...small, ...targets].slice(0, 6).join("; "),
+            );
+            if (width === 360)
+              await answersPage.screenshot({
+                path: path.join(SCREENSHOT_DIR, `answers-table-${theme}-360.png`),
+              });
+          },
+        );
+        await answers.close();
+      }
+    }
+
+    // Desktop keeps the original answer renderers.
+    const desktopAnswers = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await desktopAnswers.addInitScript(
+      (accessToken) => sessionStorage.setItem("financial_copilot_access_token", accessToken),
+      fakeAccessToken(),
+    );
+    const desktopAnswersPage = await desktopAnswers.newPage();
+    await check(
+      "Desktop answers unchanged: original chart card and fixed quarterly table",
+      async () => {
+        await desktopAnswersPage.goto(`${APP_URL}/c/${mock.analysisConversationId}`, {
+          waitUntil: "networkidle",
+        });
+        await desktopAnswersPage.waitForSelector("table.table-fixed", { timeout: 15_000 });
+        assert(
+          (await desktopAnswersPage.$$(".recharts-legend-wrapper")).length >= 1,
+          "desktop legend",
+        );
+        assert(
+          (await desktopAnswersPage.getByRole("button", { name: "ماه قبل" }).count()) === 0,
+          "mobile controls on desktop",
+        );
+        assert(
+          (await desktopAnswersPage.getByRole("list", { name: "اقلام گزارش فصلی" }).count()) === 0,
+          "cards on desktop",
+        );
+      },
+    );
+    await desktopAnswers.close();
 
     // AC-24: a signed-out deep link goes through login and returns to the same conversation.
     const signedOut = await browser.newContext({

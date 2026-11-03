@@ -10,6 +10,8 @@ import {
 import { downloadQuarterlyFinancialTableImage } from "./quarterly-financial-table-image";
 import { QuarterlyFinancialChart } from "./quarterly-financial-chart";
 import type { QuarterlyFinancialReportTableResult } from "@/lib/chat.functions";
+import { useAnswerDensity } from "./answer-density";
+import { QuarterlyReportMobile } from "@/components/mobile/answers/quarterly-report-mobile";
 
 export interface QuarterlyFinancialTableRow {
   rowId?: string;
@@ -412,7 +414,13 @@ export function parseQuarterlyFinancialTable(
   };
 }
 
-export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTableModel }) {
+/** The QoQ change of a row as a number: the typed comparison when present, otherwise the parsed change cell. */
+export function quarterlyRowChange(row: QuarterlyFinancialTableRow): number | null {
+  return row.qoqChange ?? numericValue(row.values.at(-1) ?? "-");
+}
+
+/** Whether the optional trend chart is shown (UI configuration, or always for banks) and the PNG export. */
+function useQuarterlyReportActions(model: QuarterlyFinancialTableModel) {
   const [exporting, setExporting] = useState(false);
   const [showChart, setShowChart] = useState<boolean | null>(null);
   useEffect(() => {
@@ -436,7 +444,35 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
       setExporting(false);
     }
   };
+  return { exporting, showChart, download };
+}
 
+/** Phone answers (`/m`) get period cards and a pinned-column table; desktop rendering is unchanged. */
+export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTableModel }) {
+  const density = useAnswerDensity();
+  const actions = useQuarterlyReportActions(model);
+  if (density === "compact") {
+    return (
+      <QuarterlyReportMobile
+        model={model}
+        changes={model.rows.map(quarterlyRowChange)}
+        showChart={actions.showChart === true || model.templateId === "BankingIncomeStatement"}
+        chartConfigLoading={actions.showChart === null}
+        exporting={actions.exporting}
+        onDownload={() => void actions.download()}
+      />
+    );
+  }
+  return <QuarterlyFinancialTableDesktop model={model} actions={actions} />;
+}
+
+function QuarterlyFinancialTableDesktop({
+  model,
+  actions: { exporting, showChart, download },
+}: {
+  model: QuarterlyFinancialTableModel;
+  actions: ReturnType<typeof useQuarterlyReportActions>;
+}) {
   return (
     <section
       className="my-3 w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-200 bg-[#fffdf8] shadow-sm"
@@ -518,7 +554,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
                 </td>
               ))}
               <td
-                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${row.grossMargin || row.bankingMargin ? grossMarginChangeClass(resolveQuarterlyChangeColors(row.sourceItemId, row.qoqChange ?? numericValue(row.values.at(-1) ?? "-")).tone) : resolveQuarterlyChangeColors(row.sourceItemId, row.qoqChange ?? numericValue(row.values.at(-1) ?? "-")).className}`}
+                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${row.grossMargin || row.bankingMargin ? grossMarginChangeClass(resolveQuarterlyChangeColors(row.sourceItemId, quarterlyRowChange(row)).tone) : resolveQuarterlyChangeColors(row.sourceItemId, quarterlyRowChange(row)).className}`}
               >
                 {row.values.at(-1)}
               </td>

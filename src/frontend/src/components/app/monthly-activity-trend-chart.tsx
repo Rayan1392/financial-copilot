@@ -10,21 +10,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { MonthlyActivityTrendResult, PsVisualizationResult } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
-import { createMonthlyTrendChartCardViewModel } from "@/components/app/monthly-activity-trend-chart-view-model";
+import {
+  createMonthlyTrendChartCardViewModel,
+  formatMonthlyTrendAmount,
+} from "@/components/app/monthly-activity-trend-chart-view-model";
 import { downloadMonthlyTrendChartImage } from "@/components/app/monthly-activity-trend-chart-image";
 import { PsGauge } from "@/components/app/ps-gauge";
+import { useAnswerDensity } from "@/components/app/answer-density";
+import { useInteractiveChartTheme } from "@/components/app/use-chart-theme";
+import { MonthlySalesTrendMobile } from "@/components/mobile/answers/monthly-sales-trend-mobile";
 
 interface Props {
   data: MonthlyActivityTrendResult;
   psVisualization?: PsVisualizationResult;
-}
-
-function formatAmount(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return toPersianDigits(value.toLocaleString("en", { maximumFractionDigits: 1 }));
 }
 
 function formatBarAmount(value: number | string | null | undefined): string {
@@ -103,29 +104,20 @@ function CustomTooltip({
         // eslint-disable-next-line react/forbid-dom-props
         <p key={entry.name} style={{ color: entry.color }}>
           {entry.name}:{" "}
-          {entry.value != null ? `${formatAmount(entry.value)} ${unit}` : "گزارش نشده"}
+          {entry.value != null ? `${formatMonthlyTrendAmount(entry.value)} ${unit}` : "گزارش نشده"}
         </p>
       ))}
     </div>
   );
 }
 
-function useInteractiveChartTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const update = () => setTheme(root.classList.contains("light") ? "light" : "dark");
-    update();
-    const observer = new MutationObserver(update);
-    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
-
-  return theme;
+/** Phone answers (`/m`) get a dedicated layout; desktop rendering is unchanged. */
+export function MonthlyActivityTrendChart(props: Props) {
+  const density = useAnswerDensity();
+  return density === "compact" ? <MonthlySalesTrendMobile {...props} /> : <MonthlyActivityTrendChartDesktop {...props} />;
 }
 
-export function MonthlyActivityTrendChart({ data, psVisualization }: Props) {
+function MonthlyActivityTrendChartDesktop({ data, psVisualization }: Props) {
   const theme = useInteractiveChartTheme();
   const viewModel = createMonthlyTrendChartCardViewModel(data, theme);
   const [isDownloading, setIsDownloading] = useState(false);

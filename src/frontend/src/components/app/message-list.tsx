@@ -15,6 +15,7 @@ import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-tre
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
+import { AnswerDensityContext, useAnswerDensity } from "@/components/app/answer-density";
 import {
   consolidationLabel,
   disclosureTypeLabels,
@@ -49,6 +50,7 @@ export function MessageList({
   if (loading) return <div className="p-8 text-sm text-muted-foreground">در حال بارگذاری...</div>;
   const compact = density === "compact";
   return (
+    <AnswerDensityContext.Provider value={density}>
     <div
       data-density={density}
       className={compact ? "px-4 py-5 space-y-6 max-w-4xl mx-auto w-full min-w-0" : "p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full"}
@@ -82,6 +84,7 @@ export function MessageList({
       })}
       {streaming && <StreamingPlaceholder />}
     </div>
+    </AnswerDensityContext.Provider>
   );
 }
 
@@ -119,6 +122,7 @@ function AssistantBlock({
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
 }) {
+  const compact = useAnswerDensity() === "compact";
   const isSuccessfulProductTrend = block.monthlyProductTrendResult?.resolutionState === "Resolved";
   const tableMetadataLabel = block.tableMetadataLabel ?? getMonthlySalesMetadataLabel(block);
   const message =
@@ -165,10 +169,13 @@ function AssistantBlock({
   const displayMessage = mainMessage.replace(/[.。]\s*$/u, "").trimEnd();
 
   return (
-    <div className="flex gap-4" dir={isRtlMessage ? "rtl" : "ltr"}>
-      <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
-        AI
-      </div>
+    <div className={compact ? "flex" : "flex gap-4"} dir={isRtlMessage ? "rtl" : "ltr"}>
+      {/* On phones the avatar column would take 44 px from every chart and table; the bubble layout identifies the speaker. */}
+      {!compact && (
+        <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
+          AI
+        </div>
+      )}
       <div
         className={`flex-1 space-y-5 min-w-0 ${isRtlMessage ? "text-right" : "text-left"}`}
         dir={isRtlMessage ? "rtl" : "ltr"}

@@ -5,6 +5,7 @@
 //     connection after the server finished (the client must reconcile and show the answer).
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { monthlySalesTrendResult, quarterlyReportResult } from "./answer-fixtures.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -86,7 +87,30 @@ export function createMockApi(options = {}) {
       assistantContent: assistantContent(WIDE_MARKDOWN, { scannerTable: SCANNER_TABLE }),
     },
   ]);
-  for (let index = 1; index <= 104; index += 1) {
+  const at = (offsetMs) => new Date(now - offsetMs).toISOString();
+  const analysisId = addConversation("تحلیل فروش و گزارش فصلی فولاد", at(30_000), [
+    { messageId: randomUUID(), role: "User", content: "روند فروش ماهانه فولاد را نشان بده", createdAt: at(50_000) },
+    {
+      messageId: randomUUID(),
+      role: "Assistant",
+      content: "روند فروش ماهانه فولاد",
+      createdAt: at(45_000),
+      assistantContent: assistantContent("روند فروش ماهانه فولاد مبارکه در دو سال اخیر:", {
+        monthlyActivityTrendResult: monthlySalesTrendResult,
+      }),
+    },
+    { messageId: randomUUID(), role: "User", content: "گزارش فصلی فولاد", createdAt: at(40_000) },
+    {
+      messageId: randomUUID(),
+      role: "Assistant",
+      content: "گزارش فصلی فولاد",
+      createdAt: at(35_000),
+      assistantContent: assistantContent("گزارش سود و زیان فصلی فولاد مبارکه:", {
+        financialStatementTableResult: { quarterlyResult: quarterlyReportResult },
+      }),
+    },
+  ]);
+  for (let index = 1; index <= 103; index += 1) {
     addConversation(`گفتگوی شماره ${index}`, new Date(now - index * 0.6 * DAY).toISOString());
   }
 
@@ -269,6 +293,7 @@ export function createMockApi(options = {}) {
         ].filter((item) => item.symbolCode.includes(url.searchParams.get("search") ?? "")),
       ];
     }
+    if (path === "/api/ui/v1/config") return [200, { quarterlyFinancialTable: { showChart: true } }];
     if (path === "/api/v1/usage/me") {
       return [
         200,
@@ -352,5 +377,5 @@ export function createMockApi(options = {}) {
     response.end(JSON.stringify(payload));
   });
 
-  return { server, richConversationId: richId, conversations };
+  return { server, richConversationId: richId, analysisConversationId: analysisId, conversations };
 }

@@ -1,12 +1,11 @@
-# Continuous deployment of the prod branch: every push to prod builds and deploys that commit on the production
-# server (api, worker, frontend), waits for health, and rolls the containers back if the new version is unhealthy.
-# The server-side steps live in ops/deploy/prod-deploy.sh; this job only connects and streams that script.
+# Production deployment is triggered only by a version tag. Before using SSH, verify the tagged commit is
+# reachable from origin/prod. The server-side steps live in ops/deploy/prod-deploy.sh.
 # The repository is public, so its logs are public: the script prints no secret values or container logs.
-name: Deploy prod
+name: Deploy prod tag
 
 on:
   push:
-    branches: [prod]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -19,7 +18,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/prod'
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -28,6 +27,32 @@ jobs:
     steps:
       - name: Check out the commit being deployed
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release tag is on prod
+        id: release
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          RELEASE_NAME: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Only stable version tags in vMAJOR.MINOR.PATCH format may deploy." >&2
+            exit 1
+          }
+          tag_sha="$(git rev-parse "${RELEASE_REF}^{commit}")"
+          [[ "$tag_sha" == "$RELEASE_SHA" ]] || {
+            echo "The release tag does not resolve to the workflow commit." >&2
+            exit 1
+          }
+          git fetch --quiet origin +refs/heads/prod:refs/remotes/origin/prod
+          git merge-base --is-ancestor "$tag_sha" origin/prod || {
+            echo "The release tag target is not reachable from origin/prod; production deploy refused." >&2
+            exit 1
+          }
+          echo "commit_sha=$tag_sha" >> "$GITHUB_OUTPUT"
 
       - name: Configure SSH (pinned host key, deploy key only)
         env:
@@ -44,8 +69,9 @@ jobs:
           PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
           PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE_COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
         run: |
           ssh -i ~/.ssh/deploy_key -p "$PROD_SSH_PORT" \
             -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
-            "$PROD_SSH_USER@$PROD_SSH_HOST" "bash -s -- $GITHUB_SHA" < ops/deploy/prod-deploy.sh
+            "$PROD_SSH_USER@$PROD_SSH_HOST" "bash -s -- $RELEASE_COMMIT_SHA" < ops/deploy/prod-deploy.sh

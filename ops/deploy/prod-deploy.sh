@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Production deploy of one commit of the prod branch. Run as root on the production server by the "Deploy prod"
+# Production deploy of one release-tag commit reachable from the prod branch. Run as root on the production server by the "Deploy prod tag"
 # GitHub Actions workflow, streamed over SSH:
 #
-#   ssh … 'bash -s -- <commit-sha>' < ops/deploy/prod-deploy.sh
+#   ssh … 'bash -s -- <release-commit-sha>' < ops/deploy/prod-deploy.sh
 #
 # It fast-forwards the server checkout to that commit, builds api, worker and frontend on the server, points
 # IMAGE_TAG in .env at the new images, recreates only those three services, and waits until they are healthy.
@@ -27,7 +27,7 @@ readonly API_HEALTH_TIMEOUT_SECONDS=600
 readonly FRONTEND_TIMEOUT_SECONDS=120
 readonly WORKER_SETTLE_SECONDS=45
 
-target_sha="${1:?usage: prod-deploy.sh <commit sha>}"
+target_sha="${1:?usage: prod-deploy.sh <release commit sha>}"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 fail() { log "FAILED: $*"; exit 1; }
@@ -80,9 +80,10 @@ if (($(free_gb) < MIN_FREE_GB)); then
   (($(free_gb) >= MIN_FREE_GB)) || fail "only $(free_gb)G free; need ${MIN_FREE_GB}G"
 fi
 
-# 2. Check out exactly the pushed commit on the prod branch (fast-forward only).
-git fetch --quiet origin prod
+# 2. Check out exactly the tagged commit. Defense in depth: reject commits outside origin/prod.
+git fetch --quiet origin +refs/heads/prod:refs/remotes/origin/prod
 git cat-file -e "${target_sha}^{commit}" 2>/dev/null || fail "commit $target_sha not found on origin/prod"
+git merge-base --is-ancestor "$target_sha" origin/prod || fail "commit $target_sha is not reachable from origin/prod"
 if git show-ref --verify --quiet refs/heads/prod; then
   git checkout --quiet prod
 else

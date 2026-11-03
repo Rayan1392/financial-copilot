@@ -1,0 +1,5 @@
+services:
+  api:
+    image: financial-copilot-api:3963f94-tzdata
+  frontend:
+    image: financial-copilot-frontend:3963f94-tzdata

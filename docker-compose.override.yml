@@ -1,0 +1,3 @@
+services:
+  telegram-gateway:
+    image: financial-copilot-telegram-gateway:rollback-20260926-112832

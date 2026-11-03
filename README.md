@@ -81,8 +81,13 @@ dotnet test src/backend/FinancialCopilot.sln --configuration Release
 Run the API locally:
 
 ```powershell
+$env:TAHLILAPP_CLIENT_SECRET = "<tahlilapp-client-secret>"
 dotnet run --project src/backend/FinancialCopilot.API
 ```
+
+Development uses the persistent `DataProtectionKeys` directory under the API project.
+The key files are ignored by Git. Set `DataProtection__KeyRingPath` to an existing,
+writable directory to use a different key ring.
 
 Run the frontend locally in a second terminal:
 
@@ -123,6 +128,27 @@ In the Development environment, the initial foundation endpoints are:
 Protected AI routes accept either a configured JWT bearer token or an `X-Api-Key` credential. JWT actors must include a tenant id claim (`financial_copilot:tenant_id`) and a GUID subject. API client configuration stores SHA-256 key hashes rather than raw API keys and supplies both client and tenant ids.
 
 JWT signing keys and API key hashes must be supplied through secrets or environment configuration; the repository settings do not contain active credentials. Authenticated AI requests are rate limited by user id or API client id using `RateLimiting:AuthenticatedActor` settings.
+
+Feature 145 adds email verification and password recovery to owned web-app accounts. Apply the new Auth migration before deploying the matching API/frontend build. Existing users keep their stored `EmailConfirmed` value and remain eligible under the existing login policy; only new registrations require email verification. Registration no longer creates a session until the address is verified. The SMTP sender is disabled by default; configure these environment variables through the deployment secret manager:
+
+```powershell
+$env:Authentication__Email__Enabled = "true"
+$env:Authentication__Email__FrontendBaseUrl = "https://app.example.com"
+$env:Authentication__Email__TokenHashSecret = "<at-least-32-character-random-secret>"
+$env:Authentication__Smtp__Host = "smtppro.zoho.com"
+$env:Authentication__Smtp__Port = "587"
+$env:Authentication__Smtp__Security = "StartTls"
+$env:Authentication__Smtp__UserName = "no-reply@sapioai.ir"
+$env:Authentication__Smtp__Password = "<zoho-application-specific-password>"
+$env:Authentication__Smtp__SenderAddress = "no-reply@sapioai.ir"
+$env:Authentication__Smtp__SenderName = "Sapio AI"
+```
+
+Authentication email is sent through Zoho Mail SMTP as `no-reply@sapioai.ir`; `appsettings.json` ships every non-secret value above, so only the password must be supplied. With email enabled, a user name without a password fails startup validation. Use port 465 with `SslOnConnect` if 587/STARTTLS is blocked, and `smtp.zoho.com` or the regional host shown in Zoho Mail settings if the organization plan or data centre differs. See `specs/145-email-verification-and-password-recovery/ZohoSmtpMigrationReport.md`.
+
+The frontend origin must be an HTTPS origin with no path/query/fragment outside local development. Verification and recovery links use fixed frontend paths and fragments, so the token is removed from browser history before submission. Do not enable email delivery until valid SMTP and frontend-origin settings are present. The API uses a 10 requests/minute in-process public-auth IP limiter and shared-database per-email cooldowns (60 seconds, at most 5/hour); multi-instance deployments must also enforce IP limits at a shared gateway. Password reset revokes all refresh tokens and new owned-user JWTs through Identity security-stamp validation. Pre-feature JWTs without a stamp claim remain valid until their expiry; the checked-in `Authentication:OwnedIdentity:AccessTokenMinutes` value is 15 minutes. Logout revokes refresh sessions but cannot invalidate an already-issued stateless JWT before its expiry.
+
+When deployed behind a reverse proxy, enable `ForwardedHeaders` only with explicit `KnownProxies` or non-global `KnownNetworks`; arbitrary client-supplied `X-Forwarded-For` values must never be trusted. The API validates the allow-list at startup and applies forwarded headers before request logging, authentication, and rate limiting.
 
 ## Scanner Cache Configuration
 
@@ -202,6 +228,30 @@ destructive company-catalog clean-slate path is maintenance-only through DataAdm
 by the scheduled worker. DataAdmin operators can inspect scheduler health/history and trigger an
 on-demand scheduled workflow through the protected `nadpcoapi/scheduled-sync/*` admin endpoints.
 
+## CyclicalWaves v2 Provider and Chat Provider Selection (Feature 148)
+
+The CyclicalWaves v2 (TahlilApp API v2) provider is configured through the `CyclicalWavesV2` section
+(contracts in [docs/providers/cyclicalwaves-v2](docs/providers/cyclicalwaves-v2/README.md)). Credentials are
+required only while ingestion is enabled and come from secrets or environment variables:
+
+```powershell
+$env:CyclicalWavesV2__Identifier = "<account-identifier>"
+$env:CyclicalWavesV2__Password = "<account-password>"
+$env:CyclicalWavesV2__IngestionEnabled = "true"      # Worker and Admin sync
+$env:CyclicalWavesV2__DailySyncEnabled = "true"      # daily Full run, cron CyclicalWavesV2__DailySyncCronUtc (default 30 23 * * *)
+```
+
+Data lands in schema `cyclicalwaves` only. DataAdmin operators use `/admin/data/cyclicalwaves-v2`
+(API `api/v1/admin/cyclicalwaves-v2/*`): catalog and single-ticker syncs run inline; screener, income
+statements, analysis and Full runs are queued for the Worker.
+
+Chat answers from one provider, selected by `FinancialData:ChatProvider` (`NoavaranAmin` default, or
+`CyclicalWaves`); there is no fallback between providers. Legacy CyclicalWaves-derived `DerivedMetrics` rows,
+including rows that mix a CyclicalWaves and a NoavaranAmin operand, are always excluded from NoavaranAmin lookups,
+scans, professional scans and financial-metric alerts; there is no setting to include them. The legacy `back1.cyclicalwaves.com` integration is
+retired: `CyclicalWavesLegacy:AllowCalls=false` blocks every legacy request before transmission and its
+credentials are optional.
+
 ## Market View Configuration
 
 Actor-scoped watchlists and `GET /api/v1/market/summary` read normalized StockMarketDB
@@ -229,3 +279,18 @@ Feature 098 adds Telegram-visible Billing products, checkout intents, manual rec
 exactly-once credit/subscription fulfillment, reconciliation, and Telegram status notifications.
 Apply the Billing migration before enabling `/plans`, `/buy`, or receipt review. See
 [docs/telegram-billing-purchases.md](docs/telegram-billing-purchases.md).
+
+## Mobile Workspace and PWA (Feature 153)
+
+Phones get a dedicated workspace at `/m` (chat, history, market, watchlist, account) built on the
+existing APIs; no backend change is required. Automatic phone redirects from `/chat`, `/c/<id>` and
+`/followed-symbols` are behind the build-time flag `VITE_MOBILE_AUTO_REDIRECT` (default `false`).
+Keep it off in production until the live frontend/API origins and refresh-cookie behavior are
+verified (spec D-Q5). `/m` works with the flag off, and users switch manually from the account
+screen or the desktop header.
+
+The app is installable (manifest scope `/`, start URL `/m`). The service worker in
+`src/frontend/public/sw.js` caches static assets only and never caches HTML, server-function or API
+responses. Update, header verification and kill-switch steps are in
+[docs/deployment/pwa-service-worker.md](docs/deployment/pwa-service-worker.md). Specs, decisions and the
+implementation report: [specs/153-mobile-pwa-workspace/](specs/153-mobile-pwa-workspace/).

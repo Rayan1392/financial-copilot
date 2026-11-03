@@ -1,0 +1,191 @@
+{
+  "id": "tbl_ca13db9a5e329440",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_telegram_processed_updates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(200)",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramUpdateId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "CallbackQueryId",
+        "Type": "character varying(160)",
+        "Nullable": true
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "TelegramUserId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramChatId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "MessageThreadId",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ConversationId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ResponseJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "ProcessedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TenantId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_tenants",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\")"
+      },
+      {
+        "Columns": [
+          "ActorId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\")"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_telegram_processed_updates_ActorId_TenantId_TelegramCh~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_processed_updates_ActorId_TenantId_TelegramCh~\" ON public.auth_telegram_processed_updates USING btree (\"ActorId\", \"TenantId\", \"TelegramChatId\", \"ProcessedAtUtc\")",
+        "Columns": [
+          "ActorId",
+          "TenantId",
+          "TelegramChatId",
+          "ProcessedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_processed_updates_ExpiresAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_processed_updates_ExpiresAtUtc\" ON public.auth_telegram_processed_updates USING btree (\"ExpiresAtUtc\")",
+        "Columns": [
+          "ExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_processed_updates_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_telegram_processed_updates_IdempotencyKey\" ON public.auth_telegram_processed_updates USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_processed_updates_TenantId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_processed_updates_TenantId\" ON public.auth_telegram_processed_updates USING btree (\"TenantId\")",
+        "Columns": [
+          "TenantId"
+        ]
+      },
+      {
+        "Name": "PK_auth_telegram_processed_updates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_telegram_processed_updates\" ON public.auth_telegram_processed_updates USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_telegram_processed_updates_auth_tenants_TenantId",
+        "Type": "f",
+        "Columns": [
+          "TenantId"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\")"
+      },
+      {
+        "Name": "FK_auth_telegram_processed_updates_auth_users_ActorId",
+        "Type": "f",
+        "Columns": [
+          "ActorId"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\")"
+      },
+      {
+        "Name": "PK_auth_telegram_processed_updates",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

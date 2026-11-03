@@ -1,0 +1,43 @@
+{
+  "datasetVersion": 6,
+  "purpose": "Fresh post-fix holdout created after the v5 extraction failure was inspected. Cases test company market data, statement scope, and product-period navigation without repeating v5 questions.",
+  "cases": [
+    {
+      "id": "holdout-v6-company-market-snapshot",
+      "question": "For each named company, show its latest traded price and daily percentage move.",
+      "domains": ["company-industry", "market-data"],
+      "tables": ["Companies", "TradingInstruments", "DailyInstrumentTrades"],
+      "metrics": ["LATEST_PRICE", "DAILY_CHANGE_PCT"],
+      "metricIds": ["metric_latest_price", "metric_daily_change_pct"],
+      "dimensions": ["dim_company"],
+      "entities": ["company", "trading instrument"],
+      "relationships": [],
+      "nodeIds": ["dimension-dim_company", "domain-company-industry", "domain-market-data", "table-tbl_45c7c30ce87b0cf0", "table-tbl_8646d83cdb350f92", "table-tbl_b5b50f52c60bb568"]
+    },
+    {
+      "id": "holdout-v6-statement-profit-scope",
+      "question": "Return the most recent standalone net profit for each company.",
+      "domains": ["financial-statements"],
+      "tables": ["FinancialStatements", "FinancialStatementLineItems", "Companies"],
+      "metrics": ["NET_PROFIT"],
+      "metricIds": ["metric_net_profit"],
+      "dimensions": ["dim_company"],
+      "entities": ["company"],
+      "relationships": [],
+      "statementScope": "standalone",
+      "nodeIds": ["dimension-dim_company", "domain-financial-statements", "table-tbl_4f2ef2d8dd59b46a", "table-tbl_53d51e26e1ca6929", "table-tbl_8646d83cdb350f92"]
+    },
+    {
+      "id": "holdout-v6-product-sales-period",
+      "question": "Show monthly sales quantity by company, product, and reporting month.",
+      "domains": ["monthly-activity"],
+      "tables": ["MonthlyReports", "MonthlyReportLineItems"],
+      "metrics": ["MONTHLY_SALES_QUANTITY"],
+      "metricIds": ["metric_monthly_sales_quantity"],
+      "dimensions": ["dim_company", "dim_product_identity", "dim_monthly_period"],
+      "entities": ["company", "product"],
+      "relationships": [],
+      "nodeIds": ["dimension-dim_company", "dimension-dim_product_identity", "dimension-dim_monthly_period", "domain-monthly-activity", "table-tbl_8ecd0432a4292998", "table-tbl_8e759d70dada6bd8"]
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+# Feature 141 production deployment change set (2026-10-30), relative to HEAD e71617e.
+# One path per line. Everything else in the working tree is excluded (see production-deployment-readiness.md).
+
+# Engine (Application)
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Intent/CanonicalBusinessMeasureConceptRegistry.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Intent/PersianReportingPeriodNormalizer.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/LlmVectorlessSchemaNavigator.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/PersianStatementComparisonRenderer.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/PersianStructuredQueryResponseGenerator.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/ProducerSalesQueryIntentClassifier.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/ReportingPeriodRequirementsNormalizer.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/ReviewedSemanticScopeCatalogs.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/SchemaNavigationContracts.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/StructuredQueryCatalogSnapshotBuilder.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/StructuredQueryCompilation.cs
+src/backend/FinancialCopilot.Application/FinancialData/Semantics/Navigation/StructuredQueryPlanning.cs
+src/backend/FinancialCopilot.Infrastructure/Financial/Semantics/StructuredQueryProductBinder.cs
+
+# Chat integration (specialist-first fallback, product routing, billing classification of Feature 141 results)
+src/backend/FinancialCopilot.Application/AI/Orchestration/ConversationTaskStateContracts.cs
+src/backend/FinancialCopilot.Application/AI/Orchestration/DeterministicCapabilityInterpreter.cs
+src/backend/FinancialCopilot.Application/AI/Orchestration/ProductSemanticIntentRules.cs
+src/backend/FinancialCopilot.Application/AI/Orchestration/SemanticCapabilityExecutors.cs
+src/backend/FinancialCopilot.Infrastructure/AI/OrchestrationV2/Adapters/CompanyScopedProductResolver.cs
+src/backend/FinancialCopilot.Infrastructure/AI/OrchestrationV2/FinancialCopilotAgentWorkflowRunner.cs
+src/backend/FinancialCopilot.Infrastructure/AI/OrchestrationV2/Workflow/Feature141ChatQueryService.cs
+src/backend/FinancialCopilot.Infrastructure/AI/OrchestrationV2/Workflow/FinancialCopilotWorkflowDefinition.cs
+src/backend/FinancialCopilot.Infrastructure/AI/OrchestrationV2/Workflow/PersianFinancialResponseFormatter.cs
+src/backend/FinancialCopilot.Infrastructure/AI/OrchestrationV2/Workflow/RegisteredFinancialSourceCapabilityExecutor.cs
+
+# Semantic catalog packaged into the API image (docker/api.Dockerfile copies these paths)
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/catalog.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/manifest.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/relationships/rel_26d0b2a4b006b368.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/relationships/rel_4e54d40aee8b45e4.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/relationships/rel_71eca79d3b7d6aa2.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/relationships/rel_e4fa0fe989156533.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/tables/tbl_53d51e26e1ca6929.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/tables/tbl_8646d83cdb350f92.yaml
+specs/141-schema-aware-semantic-query-engine/SemanticCatalog/tables/tbl_8e759d70dada6bd8.yaml
+specs/141-schema-aware-semantic-query-engine/artifacts/navigation-hierarchy.yaml
+specs/141-schema-aware-semantic-query-engine/artifacts/navigation-hierarchy.md
+
+# Deployment configuration (production .env variables are documented in .env.example)
+docker-compose.yml
+.env.example
+
+# Operator tooling (not deployed; run by the DBA/operator)
+tools/SemanticCatalog/preflight_feature141.py
+tools/SemanticCatalog/sql/feature141-read-role-setup.sql
+tools/SemanticCatalog/sql/feature141-read-role-verify.sql
+tools/SemanticCatalog/sql/feature141-read-role-revoke.sql
+tools/SemanticCatalog/sql/feature141-public-company-scope-env.sql
+
+# Tests
+tests/FinancialCopilot.IntegrationTests/Feature141ChatMvpTests.cs
+tests/FinancialCopilot.IntegrationTests/Feature141CompanyDiscoverySemanticsPostgreSqlTests.cs
+tests/FinancialCopilot.IntegrationTests/Feature141CrossCompanyComparisonSemanticsPostgreSqlTests.cs
+tests/FinancialCopilot.IntegrationTests/Feature141EngineVerticalSliceTests.cs
+tests/FinancialCopilot.IntegrationTests/Feature141MonthlyProductionSemanticsPostgreSqlTests.cs
+tests/FinancialCopilot.IntegrationTests/Feature141ProductionDataPilotTests.cs
+tests/FinancialCopilot.IntegrationTests/MonthlyStructuredQueryPostgreSqlTests.cs
+tests/FinancialCopilot.IntegrationTests/PostgreSqlIntegrationFixture.cs
+tests/FinancialCopilot.UnitTests/Feature128SemanticRoutingTests.cs
+tests/FinancialCopilot.UnitTests/Feature141ChatBillingClassificationTests.cs
+tests/FinancialCopilot.UnitTests/Feature141ChatThresholdGuardTests.cs
+tests/FinancialCopilot.UnitTests/Feature141CrossCompanyStatementComparisonTests.cs
+tests/FinancialCopilot.UnitTests/Feature141JalaliRenderingTests.cs
+tests/FinancialCopilot.UnitTests/Feature141ProductIdentityAndDiscoveryGrantTests.cs
+tests/FinancialCopilot.UnitTests/PersianFinancialResponseFormatterTests.cs
+tests/FinancialCopilot.UnitTests/PersianReportingPeriodNormalizerTests.cs
+tests/FinancialCopilot.UnitTests/PersianResponseArtifactReplayTests.cs
+tests/FinancialCopilot.UnitTests/PersianStructuredQueryResponseGeneratorTests.cs
+tests/FinancialCopilot.UnitTests/ProducerSalesQueryIntentClassifierTests.cs
+tests/FinancialCopilot.UnitTests/ProductSalesMeasureRoutingTests.cs
+tests/FinancialCopilot.UnitTests/SchemaNavigatorTests.cs
+tests/FinancialCopilot.UnitTests/StructuredQueryCompilationTests.cs
+tests/FinancialCopilot.UnitTests/StructuredQueryPlanningTests.cs

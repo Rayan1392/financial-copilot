@@ -1,0 +1,34 @@
+{
+    "id":  "rel_e4fa0fe989156533",
+    "from":  {
+                 "schema":  "public",
+                 "table":  "FinancialStatements",
+                 "columns":  [
+                                 "CompanyId"
+                             ]
+             },
+    "to":  {
+               "schema":  "public",
+               "table":  "Companies",
+               "columns":  [
+                               "Id"
+                           ]
+           },
+    "physicalConstraint":  "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL",
+    "inferredCardinality":  "many-to-one",
+    "semantic":  {
+                     "approved":  true,
+                     "status":  "physical-fk-not-runtime-join",
+                     "runtimeJoinable":  false,
+                     "queryAuthorization":  {
+                                                "approved":  false,
+                                                "queryable":  false,
+                                                "reason":  "CompanyId is NULL for every NoavaranCurrentApi statement; Feature 141 joins statements to companies through rel_26d0b2a4b006b368 (ProviderName, ExternalCompanyId).",
+                                                "provenance":  "product-owner-confirmed:Feature141-noavaran-company-mapping-2026-10-29"
+                                            }
+                 },
+    "provenance":  {
+                       "source":  "postgres-pg_catalog",
+                       "verified":  true
+                   }
+}

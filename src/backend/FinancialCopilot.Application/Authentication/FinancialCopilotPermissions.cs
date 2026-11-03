@@ -25,6 +25,7 @@ public static class FinancialCopilotPermissions
     public const string TelegramLinkManageSelf = "telegram.link.manage.self";
     public const string TelegramMembershipReadSelf = "telegram.membership.read.self";
     public const string DataSyncManage = "data.sync.manage";
+    public const string NoavaranMonthlyBackfillExecute = "noavaran.monthly-backfill.execute";
     public const string BillingManage = "billing.manage";
     public const string AdminUsersRead = "admin.users.read";
     public const string AdminUsersManage = "admin.users.manage";
@@ -42,6 +43,7 @@ public static class FinancialCopilotPermissions
     public const string AdminCreditsAdjust = "admin.credits.adjust";
     public const string AdminBillingAuditRead = "admin.billing-audit.read";
     public const string AdminSecurityAuditRead = "admin.security-audit.read";
+    public const string AdminUsersPiiRead = "admin.users.pii.read";
 
     public static readonly IReadOnlyCollection<string> All =
     [
@@ -68,6 +70,7 @@ public static class FinancialCopilotPermissions
         TelegramLinkManageSelf,
         TelegramMembershipReadSelf,
         DataSyncManage,
+        NoavaranMonthlyBackfillExecute,
         BillingManage,
         AdminUsersRead,
         AdminUsersManage,
@@ -84,7 +87,8 @@ public static class FinancialCopilotPermissions
         AdminUsageLedgerRead,
         AdminCreditsAdjust,
         AdminBillingAuditRead,
-        AdminSecurityAuditRead
+        AdminSecurityAuditRead,
+        AdminUsersPiiRead
     ];
 
     public static readonly IReadOnlyCollection<string> AdminAll =

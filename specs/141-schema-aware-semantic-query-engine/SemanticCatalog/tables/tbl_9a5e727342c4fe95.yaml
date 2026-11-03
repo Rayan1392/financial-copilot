@@ -1,0 +1,145 @@
+{
+  "id": "tbl_9a5e727342c4fe95",
+  "physical": {
+    "Schema": "public",
+    "Name": "RadarSymbolOverrides",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "RadarProfileId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "State",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "EventTypesJson",
+        "Type": "jsonb",
+        "Nullable": true
+      },
+      {
+        "Name": "MinimumSeverity",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "MinimumImportance",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Sensitivity",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ConcurrencyToken",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RemovedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "RadarProfileId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "RadarProfiles",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"RadarProfileId\") REFERENCES \"RadarProfiles\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_RadarSymbolOverrides_Company_State",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_RadarSymbolOverrides_Company_State\" ON public.\"RadarSymbolOverrides\" USING btree (\"ExternalCompanyId\", \"State\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "State"
+        ]
+      },
+      {
+        "Name": "PK_RadarSymbolOverrides",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_RadarSymbolOverrides\" ON public.\"RadarSymbolOverrides\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_RadarSymbolOverrides_Profile_Company",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_RadarSymbolOverrides_Profile_Company\" ON public.\"RadarSymbolOverrides\" USING btree (\"RadarProfileId\", \"ExternalCompanyId\")",
+        "Columns": [
+          "RadarProfileId",
+          "ExternalCompanyId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_RadarSymbolOverrides_RadarProfiles_RadarProfileId",
+        "Type": "f",
+        "Columns": [
+          "RadarProfileId"
+        ],
+        "Definition": "FOREIGN KEY (\"RadarProfileId\") REFERENCES \"RadarProfiles\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_RadarSymbolOverrides",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

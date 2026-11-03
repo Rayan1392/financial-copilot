@@ -1,0 +1,49 @@
+{
+  "id": "P33",
+  "run": {
+    "Question": "روند فروش گندله کگل در ۱۲ ماه اخیر چطور بوده؟",
+    "Enabled": true,
+    "Answer": "روند فروش گندله کگل (کگل)",
+    "PersistedUserMessage": "روند فروش گندله کگل در ۱۲ ماه اخیر چطور بوده؟",
+    "PersistedAssistantMessage": "روند فروش گندله کگل (کگل)",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=SemanticPrimary CorrelationId=feature141-pilot-3db4ea6c558143c59e38a723f690579d | Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=Product:گندله,CompanyOrSymbol:کگل RequestedMetrics=فروش RequestedPeriod=LastAvailableMonths RequestedComparison=(null) Presentation=Chart | Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=Executed ReasonCode=none PayloadType=MonthlyProductTrendResult",
+    "SemanticCapability": "product_sales_trend",
+    "Intent": "MonthlyProductTrend",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 597,
+      "CompletionTokens": 285,
+      "TotalTokens": 882,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:product_sales_trend"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 49.0000,
+    "WalletBalanceAfter": 48.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 6329.9542,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=SemanticPrimary CorrelationId=feature141-pilot-3db4ea6c558143c59e38a723f690579d",
+      "Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=Product:گندله,CompanyOrSymbol:کگل RequestedMetrics=فروش RequestedPeriod=LastAvailableMonths RequestedComparison=(null) Presentation=Chart",
+      "Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=Executed ReasonCode=none PayloadType=MonthlyProductTrendResult",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-3db4ea6c558143c59e38a723f690579d RolloutMode=Canary LegacyCapability=product_sales_trend LegacyConfidence=0.99 SemanticIntent=product_sales_trend SemanticCapabilityCandidate=product_sales_trend SemanticConfidence=0.97 ExtractedCompany=(null) ExtractedProduct=گندله ExtractedMetric=فروش ExtractedPeriod=LastAvailableMonths Resol"
+    ],
+    "ExecutedQueries": []
+  }
+}

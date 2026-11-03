@@ -178,6 +178,47 @@ public sealed class MonthlyActivityMetricInputSourceTests
         Assert.Equal("cyclicalwaves-precomputed-rials-passthrough-v1", evidence.UnitNormalizationPolicy);
     }
 
+    [Fact]
+    public async Task SalesAmount_UsesServiceSalesWhenProductType0HasNoRows()
+    {
+        await using var db = CreateDb();
+        await SeedReportAsync(
+            db,
+            [Line(salesQuantity: null, salesAmount: 75m)],
+            periodOffset: 0,
+            outputType: null,
+            reportType: "ServiceSales");
+
+        var observations = await new MonthlySalesMetricInputSource(db)
+            .LoadAsync("13150", CancellationToken.None);
+
+        var observation = Assert.Single(observations);
+        Assert.Equal(75_000_000m, observation.Value);
+    }
+
+    [Fact]
+    public async Task SalesAmount_ProductType0SuppressesPersistedServiceSales()
+    {
+        await using var db = CreateDb();
+        await SeedReportAsync(
+            db,
+            [Line(salesQuantity: null, salesAmount: 75m)],
+            periodOffset: 0,
+            outputType: null,
+            reportType: "ServiceSales");
+        await SeedReportAsync(
+            db,
+            [Line(salesQuantity: null, salesAmount: 20m)],
+            periodOffset: 0,
+            outputType: 0);
+
+        var observations = await new MonthlySalesMetricInputSource(db)
+            .LoadAsync("13150", CancellationToken.None);
+
+        var observation = Assert.Single(observations);
+        Assert.Equal(20_000_000m, observation.Value);
+    }
+
     private static FinancialIngestionDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -203,7 +244,8 @@ public sealed class MonthlyActivityMetricInputSourceTests
         int? outputType = null,
         string providerName = "NoavaranCurrentApi",
         string externalCompanyId = "13150",
-        string productCodePrefix = "PRODUCT")
+        string productCodePrefix = "PRODUCT",
+        string reportType = "ProductSales")
     {
         var periodStart = new DateOnly(2026, 4, 21).AddMonths(periodOffset);
         var periodEnd = new DateOnly(2026, 5, 21).AddMonths(periodOffset);
@@ -215,7 +257,7 @@ public sealed class MonthlyActivityMetricInputSourceTests
             ExternalReportId = Guid.NewGuid().ToString(),
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,
-            ReportType = "ProductSales",
+            ReportType = reportType,
             OutputType = outputType,
             SourcePayloadChecksum = "checksum",
             LastSynchronizedAt = Now

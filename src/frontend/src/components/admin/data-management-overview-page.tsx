@@ -1,14 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { adminApi, type FundPortfolioReport, type FundPortfolioReview, type FundPortfolioRun } from "@/integrations/financial-copilot/admin-client";
-import { Activity, Archive, ArrowRight, BarChart2, Database, GitCompare } from "lucide-react";
+import { Activity, Archive, ArrowRight, BarChart2, Database, GitCompare, Waves } from "lucide-react";
 
 type SourceCard = { title: string; vendor: string; source: string; mode: string; description: string; to: string; icon: React.ComponentType<{ className?: string }>; badge?: { label: string; cls: string } };
 
 const sources: SourceCard[] = [
   { title: "آرشیو نواوران امین", vendor: "NoavaranAmin", source: "NoavaranArchiveSql", mode: "ArchiveOneTime", description: "تصویر ثابت SQL از CodalDB؛ یک‌بار وارد، اعتبارسنجی و نهایی می‌شود و زمان‌بندی ندارد.", to: "/admin/data/archive", icon: Archive, badge: { label: "آرشیو", cls: "bg-blue-500/15 text-blue-600" } },
   { title: "رابط فعلی نواوران", vendor: "NoavaranAmin", source: "NoavaranCurrentApi", mode: "CurrentIncremental", description: "همگام‌سازی افزایشی دوره‌ای از سال ۱۴۰۳ به بعد از طریق API نواوران.", to: "/admin/data/noavaran", icon: BarChart2, badge: { label: "زنده", cls: "bg-emerald-500/15 text-emerald-600" } },
-  { title: "رابط CyclicalWaves", vendor: "CyclicalWaves", source: "CyclicalWavesApi", mode: "ExternalSnapshot", description: "منبع مستقل داده‌های بنیادی با همگام‌سازی دوره‌ای تصویر کامل.", to: "/admin/data/noavaran", icon: BarChart2, badge: { label: "تصویر کامل", cls: "bg-purple-500/15 text-purple-600" } },
+  { title: "CyclicalWaves (قدیمی، متوقف‌شده)", vendor: "CyclicalWaves", source: "CyclicalWavesApi", mode: "ExternalSnapshot", description: "مسیر قدیمی همگام‌سازی تصویر کامل CyclicalWaves؛ متوقف شده و با CyclicalWaves v2 جایگزین شده است.", to: "/admin/data/noavaran", icon: BarChart2, badge: { label: "متوقف‌شده", cls: "bg-muted text-muted-foreground" } },
+  { title: "CyclicalWaves v2", vendor: "CyclicalWaves", source: "CyclicalWavesV2", mode: "IndependentProvider", description: "ارائه‌دهنده مستقل داده‌های مالی: کاتالوگ نمادها، اسکرینر، صورت‌های سود و زیان و تحلیل جامع.", to: "/admin/data/cyclicalwaves-v2", icon: Waves, badge: { label: "v2", cls: "bg-purple-500/15 text-purple-600" } },
   { title: "پل StockMarketDB", vendor: "Tsetmc", source: "StockMarketDb", mode: "MigrationBridge", description: "داده‌های معاملات بازار از طریق پل فقط‌خواندنی SQL Server؛ راهکاری موقت تا جایگزینی با خوراک مستقیم TSETMC.", to: "/admin/data/stockmarket", icon: Database, badge: { label: "پل", cls: "bg-amber-500/15 text-amber-600" } },
   { title: "خوراک مستقیم TSETMC", vendor: "Tsetmc", source: "TsetmcWebService", mode: "CurrentIncremental", description: "دریافت مستقیم از وب‌سرویس ASMX تی‌اس‌ای‌ام‌سی؛ هنوز عملیاتی نشده است.", to: "/admin/data/stockmarket", icon: Database, badge: { label: "برنامه‌ریزی‌شده", cls: "bg-muted text-muted-foreground" } },
 ];

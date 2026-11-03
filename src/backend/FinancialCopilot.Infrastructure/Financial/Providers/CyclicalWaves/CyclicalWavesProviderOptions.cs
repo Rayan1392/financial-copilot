@@ -16,6 +16,8 @@ public sealed class CyclicalWavesProviderOptions
 
     public int RetryCount { get; init; } = 2;
 
+    public int TokenExpirationSafetyMarginSeconds { get; init; } = 60;
+
     public int CircuitBreakSeconds { get; init; } = 60;
 
     public int CircuitFailureThreshold { get; init; } = 5;

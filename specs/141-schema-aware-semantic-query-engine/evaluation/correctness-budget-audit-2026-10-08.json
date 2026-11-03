@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-08",
+  "domainScoringContract": "exact set match of selected canonical domain node IDs; precision, recall, and F1 reported separately as macro averages",
+  "scorerDefectFound": false,
+  "priorRecordedFinalOfflineRescore": {
+    "macroPrecision": 0.3151804717022108,
+    "macroRecall": 0.916025641025641,
+    "macroF1": 0.4069662106973171,
+    "averageFinalContextNodeCount": 23.047619047619047,
+    "maximumFinalContextNodeCount": 60,
+    "averageFalsePositiveNodes": 19.761904761904763,
+    "exactDomainSetAccuracy": 0.0,
+    "domainPrecision": 0.24444444444444452,
+    "domainRecall": 0.9523809523809523,
+    "domainF1": 0.3820861678004534,
+    "metricRecall": 0.8461538461538461,
+    "dimensionRecall": 0.9047619047619048,
+    "financialReferenceAccuracy": 0.625,
+    "sourceItemReferenceAccuracy": 0.75,
+    "financialOperationAccuracy": 0.875
+  },
+  "freshGolden": {
+    "macroPrecision": 0.5352397602397603,
+    "macroRecall": 0.7277777777777779,
+    "macroF1": 0.5720671254072063,
+    "averageFinalContextNodeCount": 7.714285714285714,
+    "maximumFinalContextNodeCount": 11,
+    "averageFalsePositiveNodes": 5.142857142857143,
+    "exactDomainSetAccuracy": 0.6190476190476191,
+    "domainPrecision": 0.7619047619047619,
+    "domainRecall": 0.8333333333333334,
+    "domainF1": 0.7777777777777776,
+    "metricRecall": 0.8461538461538461,
+    "dimensionRecall": 0.9047619047619048,
+    "financialReferenceAccuracy": 0.75,
+    "sourceItemReferenceAccuracy": 0.875,
+    "financialOperationAccuracy": 0.75,
+    "caseCount": 21,
+    "unscoredCaseIds": [],
+    "usage": {
+      "modelCalls": 42,
+      "inputTokens": 212255,
+      "outputTokens": 14238,
+      "latencyMs": 203279,
+      "providerReportedCost": null,
+      "costCurrency": null
+    }
+  },
+  "freshHeldoutV6": {
+    "macroPrecision": 0.4777777777777777,
+    "macroRecall": 0.8111111111111112,
+    "macroF1": 0.6011904761904762,
+    "averageFinalContextNodeCount": 9.666666666666666,
+    "maximumFinalContextNodeCount": 10,
+    "averageFalsePositiveNodes": 5.0,
+    "exactDomainSetAccuracy": 0.6666666666666666,
+    "domainPrecision": 0.8333333333333334,
+    "domainRecall": 1.0,
+    "domainF1": 0.8888888888888888,
+    "metricRecall": 1.0,
+    "dimensionRecall": 1.0,
+    "financialReferenceAccuracy": null,
+    "sourceItemReferenceAccuracy": null,
+    "financialOperationAccuracy": null,
+    "caseCount": 3,
+    "unscoredCaseIds": [],
+    "usage": {
+      "modelCalls": 6,
+      "inputTokens": 22680,
+      "outputTokens": 2360,
+      "latencyMs": 31309,
+      "providerReportedCost": null,
+      "costCurrency": null
+    }
+  },
+  "contaminatedHeldoutV5": {
+    "caseId": "holdout-v5-cashflow-net-margin",
+    "failureCode": "requirements_contain_unsupported_entityKinds",
+    "phase": "requirements_extraction",
+    "rejectedRequirementsPayloadPersisted": false
+  },
+  "catalogHash": "b7ce865504f0b2b78321cd15a17f64b3b11bebb2ea8182bd8709bdc9e71935f4",
+  "artifacts": {
+    "priorRescore": "scored-navigator-quality-golden-offline-audited-v1.json",
+    "goldenPredictions": "../artifacts/navigator-quality-corrected-v3-live.jsonl",
+    "goldenScore": "scored-navigator-quality-corrected-v3-live.json",
+    "heldoutDataset": "navigation-heldout-v6-unseen-2026-10-08.json",
+    "heldoutPredictions": "../artifacts/navigator-heldout-v6-final-live.jsonl",
+    "heldoutScore": "scored-navigator-heldout-v6-final-live.json"
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "runAt": "2026-10-29T05:17:53.8794611+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E02",
+    "Question": "سود عملیاتی کگهر چقدر است؟",
+    "Fixture": {
+      "DatabaseName": "feature131_a8bce6d45e8249ba96f1270198dc58fd",
+      "RestrictedRole": "feature141_vs_reader_52636ed85f894808a9b31bf095a6aa0e",
+      "CompanyId": "dc220b8e-a5a9-49f9-a92d-2ff8d4c361df",
+      "DecoyCompanyId": "bfb12832-5a92-4c6c-beae-af7d699879a4",
+      "StatementId": "90095f8f-b974-4197-a3ab-ca831359a445",
+      "OlderStatementId": "0b7f918a-d05c-45c7-bb2c-dbda9c5cb2aa",
+      "SeededLineItemCount": 4,
+      "MonthlyReportId": null,
+      "ProductKey": null,
+      "ReviewedCompanyUniverse": null,
+      "UnauthorizedProducerId": null,
+      "CompaniesBySymbol": null,
+      "MonthlyValueColumn": "ProductionQuantity"
+    },
+    "ExpectedOutcome": "Answered",
+    "TypedOutcome": "Unsupported",
+    "TypedOutcomeReason": "canonical_semantics_not_representable_in_current_planner_handoff",
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "سود عملیاتی",
+          "ConceptId": "operatingProfit",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "operatingProfit"
+          ],
+          "Kind": "FinancialStatementItem",
+          "Dimension": "CurrencyAmount",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "CompanyTotal"
+          },
+          "RequestedUnit": "Unspecified",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "Retrieve",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "None",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "Unspecified",
+        "Granularity": "Unspecified",
+        "UserPeriodLabel": null,
+        "NumberOfPeriods": null,
+        "StartLabel": null,
+        "EndLabel": null
+      },
+      "EntityScope": {
+        "Kind": "NamedCompanies",
+        "CompanyLabels": [
+          "کگهر"
+        ]
+      },
+      "Products": [],
+      "Categories": [],
+      "Filters": null,
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Scalar",
+        "RequestedFields": []
+      },
+      "Constraints": [
+        {
+          "Name": "valueGrain",
+          "Value": "companyTotal",
+          "Provenance": "Inferred"
+        }
+      ],
+      "Ambiguity": {
+        "RequiresClarification": false,
+        "Questions": [],
+        "UnresolvedPoints": []
+      }
+    },
+    "TypedBindingStatus": "Unsupported",
+    "TypedBindingDiagnostics": [
+      "canonical_semantics_not_representable_in_current_planner_handoff"
+    ],
+    "BoundSourceCatalogId": "source_item_9c617846fc7c5c13",
+    "ChatPathBindingStatus": null,
+    "ChatPathBindingDiagnostic": null,
+    "HandoffStatus": null,
+    "HandoffDiagnosticCode": null,
+    "PlannerRequirements": null,
+    "Navigation": null,
+    "Plan": null,
+    "PlanStructurallyValid": false,
+    "PlanExecutionEligible": false,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [],
+    "CompanyBindingStatus": null,
+    "BoundCompanyId": null,
+    "CompilationSucceeded": false,
+    "CompilationDiagnostics": [],
+    "Sql": null,
+    "SqlParameters": {},
+    "QueryFingerprint": null,
+    "CompiledEffectiveUnit": null,
+    "CompiledOperation": null,
+    "CompiledCompanyIds": [],
+    "CompiledSemanticReviewApproved": false,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": false,
+    "GrantIssued": false,
+    "GrantDatabase": null,
+    "GrantRole": null,
+    "GrantProvenance": null,
+    "ExecutionStatus": null,
+    "ExecutionDiagnostic": null,
+    "ExecutionRowCount": 0,
+    "ExecutionRows": [],
+    "ActualValue": null,
+    "ActualPeriodStart": null,
+    "ActualPeriodEnd": null,
+    "ActualPersianPeriodStart": null,
+    "ActualPersianPeriodEnd": null,
+    "ActualRowCompanyId": null,
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": null,
+    "ExecutionAuthorizationProvenance": null,
+    "ExecutionElapsedMs": null,
+    "IndependentDatabaseValue": null,
+    "IndependentLineItemCount": 0,
+    "PersianAnswerStatus": null,
+    "PersianAnswer": null,
+    "PersianAnswerUnit": null,
+    "PersianEvidence": [],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadOtherDomainTable": false,
+    "RequirementsMeasureIds": [],
+    "RequirementsNormalizationDiagnostics": [],
+    "ModelPeriodStart": null,
+    "ModelPeriodEnd": null,
+    "NormalizedPersianMonth": null,
+    "NormalizedPeriodStart": null,
+    "NormalizedPeriodEnd": null,
+    "ProductBindingStatus": null,
+    "ProductKey": null,
+    "ActualProductCode": null,
+    "ActualSourceUnit": null,
+    "ProductConceptCatalogId": null,
+    "ProductConceptAliases": [],
+    "ProductMappingCoverageStatus": null,
+    "CompanyDiscoveryScopeId": null,
+    "CompanyDiscoveryCoverageComplete": null,
+    "GrantAllowedCompanyIds": [],
+    "ActualCompanySymbols": [],
+    "ActualCompanyIds": [],
+    "CompiledWithFixtureOnlyColumnApproval": false,
+    "FixtureOnlyApprovedColumns": [],
+    "WritablePrincipalExecutionStatus": null,
+    "WritablePrincipalDiagnostic": null,
+    "LlmCalls": 1,
+    "ObservedModelCalls": 1,
+    "ObservedExecutorCalls": 0,
+    "LlmInputTokens": 2441,
+    "LlmOutputTokens": 446,
+    "IntentLatencyMs": 5047.683,
+    "NavigatorLatencyMs": 0,
+    "TotalElapsedMs": 5307.7978,
+    "SecretValuesLogged": false
+  }
+}

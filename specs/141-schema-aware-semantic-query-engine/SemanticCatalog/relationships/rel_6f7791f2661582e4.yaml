@@ -1,0 +1,28 @@
+{
+  "id": "rel_6f7791f2661582e4",
+  "from": {
+    "schema": "public",
+    "table": "auth_user_tenants",
+    "columns": [
+      "UserId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "auth_users",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

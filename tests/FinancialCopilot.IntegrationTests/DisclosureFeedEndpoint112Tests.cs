@@ -63,6 +63,20 @@ public sealed class DisclosureFeedEndpoint112Tests : IClassFixture<Authenticatio
         Assert.Equal("MonthlyProductionSales", Assert.Single(filters.GetProperty("types").EnumerateArray()).GetString());
     }
 
+    [Fact]
+    public async Task GetDisclosures_BindsGregorianDateOnlyValuesFromTheJalaliPicker()
+    {
+        using var client = AuthorizedClient();
+        using var response = await client.GetAsync(
+            "/api/v1/disclosures?publishedFrom=2026-07-01&publishedTo=2026-07-31", CancellationToken.None);
+        using var body = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var filters = body.RootElement.GetProperty("appliedFilters");
+        Assert.Equal("2026-07-01", filters.GetProperty("publishedFrom").GetString());
+        Assert.Equal("2026-07-31", filters.GetProperty("publishedTo").GetString());
+    }
+
     [Theory]
     [InlineData("?types=NotAType")]
     [InlineData("?page=0")]

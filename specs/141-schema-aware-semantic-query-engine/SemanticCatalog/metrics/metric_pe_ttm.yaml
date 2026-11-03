@@ -1,0 +1,204 @@
+{
+  "id": "metric_pe_ttm",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "PE_TTM"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "P/E (TTM)",
+    "Description": "Governed semantic definition for P/E (TTM).",
+    "Category": 2,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "p/e",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "pe",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "p/e",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "pe",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت پی به ای",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی به ای",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی بر ای",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی‌ای",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "پی ای",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت قیمت به سود",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "قیمت به سود",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "price-to-earnings",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "price to earnings",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "price-to-earnings",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "price to earnings",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "PE_TTM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "PE_RATIO"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "PE_RATIO"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

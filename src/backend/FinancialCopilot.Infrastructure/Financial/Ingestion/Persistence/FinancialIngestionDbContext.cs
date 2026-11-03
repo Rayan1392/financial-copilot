@@ -49,6 +49,12 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<MonthlyActivityBackfillStateRow> MonthlyActivityBackfillStates =>
         Set<MonthlyActivityBackfillStateRow>();
 
+    public DbSet<MonthlyActivityBackfillBatchRow> MonthlyActivityBackfillBatches =>
+        Set<MonthlyActivityBackfillBatchRow>();
+
+    public DbSet<MonthlyActivityBackfillOutboxRow> MonthlyActivityBackfillOutbox =>
+        Set<MonthlyActivityBackfillOutboxRow>();
+
     public DbSet<NadpcoFundamentalIndexObservationRow> NadpcoFundamentalIndexObservations =>
         Set<NadpcoFundamentalIndexObservationRow>();
 
@@ -120,6 +126,24 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<CompanyPsVisualizationLeaseRow> CompanyPsVisualizationLeases => Set<CompanyPsVisualizationLeaseRow>();
 
+    public DbSet<IndustryRelativeValuationSourceFactRow> IndustryRelativeValuationSourceFacts =>
+        Set<IndustryRelativeValuationSourceFactRow>();
+
+    public DbSet<IndustryRelativeValuationSourceLeaseRow> IndustryRelativeValuationSourceLeases =>
+        Set<IndustryRelativeValuationSourceLeaseRow>();
+
+    public DbSet<IndustryRelativeValuationCalculationRow> IndustryRelativeValuationCalculations =>
+        Set<IndustryRelativeValuationCalculationRow>();
+    public DbSet<IndustryRelativeValuationMetricRow> IndustryRelativeValuationMetrics =>
+        Set<IndustryRelativeValuationMetricRow>();
+    public DbSet<CompanyIndustryRelativeValuationRow> CompanyIndustryRelativeValuations =>
+        Set<CompanyIndustryRelativeValuationRow>();
+    public DbSet<IndustryWatchStateRow> IndustryWatchStates => Set<IndustryWatchStateRow>();
+    public DbSet<IndustryWatchTransitionRow> IndustryWatchTransitions => Set<IndustryWatchTransitionRow>();
+    public DbSet<IndustryWatchEvaluationRow> IndustryWatchEvaluations => Set<IndustryWatchEvaluationRow>();
+    public DbSet<IndustryRelativeValuationOutboxRow> IndustryRelativeValuationOutbox =>
+        Set<IndustryRelativeValuationOutboxRow>();
+
     public DbSet<MonthlySalesQualityRankingSnapshotRow> MonthlySalesQualityRankingSnapshots =>
         Set<MonthlySalesQualityRankingSnapshotRow>();
 
@@ -153,8 +177,59 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<ComprehensiveAnalysisSyncLogRow> ComprehensiveAnalysisSyncLogs => Set<ComprehensiveAnalysisSyncLogRow>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    public DbSet<Feature126EventStreamRow> Feature126EventStreams => Set<Feature126EventStreamRow>();
+    public DbSet<Feature126EventRow> Feature126Events => Set<Feature126EventRow>();
+
+    public DbSet<CyclicalWavesMetricSnapshotRow> CyclicalWavesMetricSnapshots =>
+        Set<CyclicalWavesMetricSnapshotRow>();
+
+    public DbSet<CyclicalWavesAcquisitionCheckRow> CyclicalWavesAcquisitionChecks =>
+        Set<CyclicalWavesAcquisitionCheckRow>();
+
+    // Feature 148: CyclicalWaves v2 provider data (schema "cyclicalwaves").
+    public DbSet<CyclicalWavesV2TickerRow> CyclicalWavesV2Tickers => Set<CyclicalWavesV2TickerRow>();
+
+    public DbSet<CyclicalWavesV2MetricDefinitionRow> CyclicalWavesV2MetricDefinitions =>
+        Set<CyclicalWavesV2MetricDefinitionRow>();
+
+    public DbSet<CyclicalWavesV2FinancialValueRow> CyclicalWavesV2FinancialValues =>
+        Set<CyclicalWavesV2FinancialValueRow>();
+
+    public DbSet<CyclicalWavesV2ScreenerMetadataRow> CyclicalWavesV2ScreenerMetadata =>
+        Set<CyclicalWavesV2ScreenerMetadataRow>();
+
+    public DbSet<CyclicalWavesV2IncomeStatementLineDefinitionRow> CyclicalWavesV2IncomeStatementLineDefinitions =>
+        Set<CyclicalWavesV2IncomeStatementLineDefinitionRow>();
+
+    public DbSet<CyclicalWavesV2IncomeStatementRow> CyclicalWavesV2IncomeStatements =>
+        Set<CyclicalWavesV2IncomeStatementRow>();
+
+    public DbSet<CyclicalWavesV2IncomeStatementValueRow> CyclicalWavesV2IncomeStatementValues =>
+        Set<CyclicalWavesV2IncomeStatementValueRow>();
+
+    public DbSet<CyclicalWavesV2AnalysisRow> CyclicalWavesV2Analyses => Set<CyclicalWavesV2AnalysisRow>();
+
+    public DbSet<CyclicalWavesV2AnalysisCategoryRow> CyclicalWavesV2AnalysisCategories =>
+        Set<CyclicalWavesV2AnalysisCategoryRow>();
+
+    public DbSet<CyclicalWavesV2AnalysisTagRow> CyclicalWavesV2AnalysisTags => Set<CyclicalWavesV2AnalysisTagRow>();
+
+    public DbSet<CyclicalWavesV2SyncRunRow> CyclicalWavesV2SyncRuns => Set<CyclicalWavesV2SyncRunRow>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(FinancialIngestionDbContext).Assembly,
             type => type.Namespace == typeof(FinancialIngestionDbContext).Namespace);
+
+        if (Database.IsNpgsql())
+        {
+            modelBuilder.Entity<CyclicalWavesMetricSnapshotRow>()
+                .ToTable(
+                    "CyclicalWavesMetricSnapshots",
+                    table => table.HasCheckConstraint(
+                        "CK_CyclicalWavesMetricSnapshots_ResponseHash",
+                        "\"ResponseHash\" ~ '^[0-9a-f]{64}$'"));
+        }
+    }
 }

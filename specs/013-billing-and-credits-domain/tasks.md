@@ -69,6 +69,7 @@ Implemented in this story:
 - Implemented consumer and settlement boundary contracts (`ISubscriptionService`, `ITopUpService`, `IPaymentGatewayService`, and `IPaymentReconciliationService`) and ledger/read support required by the foundation scope.
 - Added scheduled worker maintenance for abandoned reservation expiry and optional outbox dispatch. Outbox events remain pending unless an external `IBillingOutboxDispatcher` transport is registered.
 - Added unit and integration verification for Billing domain policies, pricing, reservation/finalization/refund/idempotency behavior, persistence/outbox handling, endpoint authorization/reporting, tenant boundaries, external-user attribution, and scheduled-maintenance coordination.
+- Implemented the Feature 139 30-day subscription-credit lifecycle on the existing wallet/ledger; see [`subscription-credit-periods.md`](subscription-credit-periods.md) for grant, expiry, transition, migration and staging-approval details.
 
 Explicitly deferred to dependent delivery stories or external integration scope:
 

@@ -44,6 +44,42 @@ public sealed class BillingEndpointTests : IClassFixture<BillingApiFactory>
     }
 
     [Fact]
+    public async Task UsageMe_WithActiveMax_ExposesUnlimitedModeAndAuthoritativeWindowExpiry()
+    {
+        await _factory.ResetBillingDataAsync();
+        var expiresAt = DateTimeOffset.UtcNow.AddDays(12);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+            var account = await db.CustomerAccounts.SingleAsync(row => row.Id == BillingApiFactory.IndividualAccountId);
+            account.ExternalSubscriptionManaged = true;
+            account.SubscriptionPlanCode = "Max";
+            account.SubscriptionEffectiveFrom = DateTimeOffset.UtcNow.AddDays(-1);
+            account.SubscriptionEffectiveTo = expiresAt;
+            var wallet = await db.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
+            wallet.Balance = 0m;
+            wallet.ReservedAmount = 0m;
+            db.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
+            {
+                Id = Guid.NewGuid(), CustomerAccountId = account.Id, IdentityKey = $"max:{Guid.NewGuid():N}",
+                PlanCode = "Max", StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1), ExpiresAtUtc = expiresAt
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+        using var response = await client.GetAsync("/api/v1/usage/me", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0m, document.RootElement.GetProperty("balance").GetDecimal());
+        Assert.Equal("Unlimited", document.RootElement.GetProperty("creditQuotaMode").GetString());
+        Assert.Equal(expiresAt, document.RootElement.GetProperty("subscriptionExpiresAtUtc").GetDateTimeOffset());
+    }
+
+    [Fact]
     public async Task UsageMe_WithPartnerApiClient_ReturnsOrganizationCapacityAndAttribution()
     {
         await _factory.ResetBillingDataAsync();

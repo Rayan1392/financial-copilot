@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Domain.Financial.Entities;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
@@ -29,6 +30,9 @@ public sealed class SemanticQueryFrameEnricher : ISemanticQueryFrameEnricher
         var enriched = slots.ToDictionary(slot => slot.Type);
         switch (capabilityCode)
         {
+            case "financial_statement_value_search":
+                AddValueSearch(enriched, capabilityCode, interpretation.OriginalText);
+                break;
             case "comprehensive_analysis":
                 AddComprehensiveAnalysis(enriched, capabilityCode, interpretation.OriginalText, now);
                 break;
@@ -53,6 +57,18 @@ public sealed class SemanticQueryFrameEnricher : ISemanticQueryFrameEnricher
         return enriched.Values.OrderBy(slot => slot.Type).ToArray();
     }
 
+    private static void AddValueSearch(IDictionary<QuerySlotType, ResolvedQuerySlot> slots, string capabilityCode, string message)
+    {
+        if (!QueryNormalization.TryParseFinancialStatementClues(message, out var clues, out var error))
+        {
+            slots[QuerySlotType.NumericClues] = new(QuerySlotType.NumericClues, null, QueryValueProvenance.UserExplicit, 0m,
+                error == "numeric_clue_required" ? QuerySlotValidationState.Missing : QuerySlotValidationState.Invalid, capabilityCode, error);
+            return;
+        }
+        Add(slots, capabilityCode, QuerySlotType.NumericClues, string.Join(',', clues.Select(clue => clue.Value.ToString(CultureInfo.InvariantCulture))));
+        Add(slots, capabilityCode, QuerySlotType.StatementType, FinancialStatementType.IncomeStatement.ToString(), QueryValueProvenance.PolicyDefaulted);
+    }
+
     private static void AddComprehensiveAnalysis(
         IDictionary<QuerySlotType, ResolvedQuerySlot> slots,
         string capabilityCode,
@@ -64,7 +80,7 @@ public sealed class SemanticQueryFrameEnricher : ISemanticQueryFrameEnricher
         AddTopic(topics, normalized, "تحلیل_تکنیکال", "تحلیل تکنیکال", "technical analysis");
         AddTopic(topics, normalized, "قیمت_تعادلی", "قیمت تعادلی", "equilibrium price");
         AddTopic(topics, normalized, "رصد_معاملات_عمده", "رصد معاملات عمده", "معاملات عمده", "suspicious volume", "block trades");
-        AddTopic(topics, normalized, "گزارش_فصلی", "گزارش فصلی", "quarterly report");
+        AddTopic(topics, normalized, "گزارش_فصلی", "گزارش فصلی", "گزارش عملکرد", "quarterly report");
         AddTopic(topics, normalized, "گزارش_ماهانه", "گزارش ماهانه", "monthly report");
         AddTopic(topics, normalized, "نمودار_P_S", "نمودار p s", "p s chart");
         AddTopic(topics, normalized, "نمودار_P_E", "نمودار p e", "p e chart");

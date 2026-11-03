@@ -1,0 +1,375 @@
+{
+  "id": "tbl_fbb1a80f9494622e",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_checkout_intents",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CustomerAccountId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductCode",
+        "Type": "character varying(96)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductDisplayName",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "Currency",
+        "Type": "character varying(8)",
+        "Nullable": false
+      },
+      {
+        "Name": "Credits",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "PlanCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "DurationDays",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "Channel",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PaymentReference",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "ReceiptIdempotencyKey",
+        "Type": "character varying(160)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReviewIdempotencyKey",
+        "Type": "character varying(160)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(80)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderReferenceHash",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReceiptAttachmentKind",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReceiptAttachmentReference",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReceiptContentHash",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ReceiptSubmittedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ReviewedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ReviewerActorId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ReviewReason",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "FulfillmentLedgerEntryId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "FulfillmentFinancialTransactionId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "FulfilledAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ConcurrencyToken",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CustomerAccountId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_customer_accounts",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CustomerAccountId\") REFERENCES billing_customer_accounts(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "FulfillmentFinancialTransactionId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_financial_transactions",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"FulfillmentFinancialTransactionId\") REFERENCES billing_financial_transactions(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "ProductCode"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_purchase_products",
+        "PrincipalColumns": [
+          "Code"
+        ],
+        "Definition": "FOREIGN KEY (\"ProductCode\") REFERENCES billing_purchase_products(\"Code\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "FulfillmentLedgerEntryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_usage_ledger_entries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"FulfillmentLedgerEntryId\") REFERENCES billing_usage_ledger_entries(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_billing_checkout_intents_CustomerAccountId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_checkout_intents_CustomerAccountId\" ON public.billing_checkout_intents USING btree (\"CustomerAccountId\")",
+        "Columns": [
+          "CustomerAccountId"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_FulfillmentFinancialTransactionId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_checkout_intents_FulfillmentFinancialTransactionId\" ON public.billing_checkout_intents USING btree (\"FulfillmentFinancialTransactionId\")",
+        "Columns": [
+          "FulfillmentFinancialTransactionId"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_FulfillmentLedgerEntryId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_checkout_intents_FulfillmentLedgerEntryId\" ON public.billing_checkout_intents USING btree (\"FulfillmentLedgerEntryId\")",
+        "Columns": [
+          "FulfillmentLedgerEntryId"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_checkout_intents_IdempotencyKey\" ON public.billing_checkout_intents USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_PaymentReference",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_checkout_intents_PaymentReference\" ON public.billing_checkout_intents USING btree (\"PaymentReference\")",
+        "Columns": [
+          "PaymentReference"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_ProductCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_checkout_intents_ProductCode\" ON public.billing_checkout_intents USING btree (\"ProductCode\")",
+        "Columns": [
+          "ProductCode"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_ProviderReferenceHash",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_checkout_intents_ProviderReferenceHash\" ON public.billing_checkout_intents USING btree (\"ProviderReferenceHash\")",
+        "Columns": [
+          "ProviderReferenceHash"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_Status_ExpiresAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_checkout_intents_Status_ExpiresAtUtc\" ON public.billing_checkout_intents USING btree (\"Status\", \"ExpiresAtUtc\")",
+        "Columns": [
+          "Status",
+          "ExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_billing_checkout_intents_TenantId_ActorId_Status_CreatedAtU~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_checkout_intents_TenantId_ActorId_Status_CreatedAtU~\" ON public.billing_checkout_intents USING btree (\"TenantId\", \"ActorId\", \"Status\", \"CreatedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "Status",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_billing_checkout_intents",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_checkout_intents\" ON public.billing_checkout_intents USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_billing_checkout_intents_billing_customer_accounts_Customer~",
+        "Type": "f",
+        "Columns": [
+          "CustomerAccountId"
+        ],
+        "Definition": "FOREIGN KEY (\"CustomerAccountId\") REFERENCES billing_customer_accounts(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_billing_checkout_intents_billing_financial_transactions_Ful~",
+        "Type": "f",
+        "Columns": [
+          "FulfillmentFinancialTransactionId"
+        ],
+        "Definition": "FOREIGN KEY (\"FulfillmentFinancialTransactionId\") REFERENCES billing_financial_transactions(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_billing_checkout_intents_billing_purchase_products_ProductC~",
+        "Type": "f",
+        "Columns": [
+          "ProductCode"
+        ],
+        "Definition": "FOREIGN KEY (\"ProductCode\") REFERENCES billing_purchase_products(\"Code\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_billing_checkout_intents_billing_usage_ledger_entries_Fulfi~",
+        "Type": "f",
+        "Columns": [
+          "FulfillmentLedgerEntryId"
+        ],
+        "Definition": "FOREIGN KEY (\"FulfillmentLedgerEntryId\") REFERENCES billing_usage_ledger_entries(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_billing_checkout_intents",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

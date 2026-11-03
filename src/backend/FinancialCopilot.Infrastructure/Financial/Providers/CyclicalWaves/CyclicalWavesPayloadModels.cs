@@ -3,8 +3,10 @@ using System.Text.Json.Serialization;
 namespace FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 
 internal sealed record CyclicalWavesAuthResponse(
+    [property: JsonPropertyName("token_type")] string? TokenType,
+    [property: JsonPropertyName("expires_in")] int ExpiresIn,
     [property: JsonPropertyName("access_token")] string AccessToken,
-    [property: JsonPropertyName("expires_in")] int ExpiresIn);
+    [property: JsonPropertyName("refresh_token")] string? RefreshToken);
 
 internal sealed record CyclicalWavesTickerDetailResponse(
     [property: JsonPropertyName("success")] bool Success,

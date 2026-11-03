@@ -1,0 +1,174 @@
+{
+  "id": "tbl_0fdc848316fe6a5d",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_daily_free_allowance_grants",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CustomerAccountId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "AllowanceDateKey",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "GrantedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LedgerEntryId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ExpiredCredits",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CustomerAccountId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_customer_accounts",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CustomerAccountId\") REFERENCES billing_customer_accounts(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "LedgerEntryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_usage_ledger_entries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"LedgerEntryId\") REFERENCES billing_usage_ledger_entries(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_billing_daily_free_allowance_grants_CustomerAccountId_Actor~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_daily_free_allowance_grants_CustomerAccountId_Actor~\" ON public.billing_daily_free_allowance_grants USING btree (\"CustomerAccountId\", \"ActorId\", \"AllowanceDateKey\", \"PolicyVersion\")",
+        "Columns": [
+          "CustomerAccountId",
+          "ActorId",
+          "AllowanceDateKey",
+          "PolicyVersion"
+        ]
+      },
+      {
+        "Name": "IX_billing_daily_free_allowance_grants_ExpiresAtUtc_ExpiredAtU~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_daily_free_allowance_grants_ExpiresAtUtc_ExpiredAtU~\" ON public.billing_daily_free_allowance_grants USING btree (\"ExpiresAtUtc\", \"ExpiredAtUtc\")",
+        "Columns": [
+          "ExpiresAtUtc",
+          "ExpiredAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_billing_daily_free_allowance_grants_LedgerEntryId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_daily_free_allowance_grants_LedgerEntryId\" ON public.billing_daily_free_allowance_grants USING btree (\"LedgerEntryId\")",
+        "Columns": [
+          "LedgerEntryId"
+        ]
+      },
+      {
+        "Name": "PK_billing_daily_free_allowance_grants",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_daily_free_allowance_grants\" ON public.billing_daily_free_allowance_grants USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_billing_daily_free_allowance_grants_billing_customer_accoun~",
+        "Type": "f",
+        "Columns": [
+          "CustomerAccountId"
+        ],
+        "Definition": "FOREIGN KEY (\"CustomerAccountId\") REFERENCES billing_customer_accounts(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_billing_daily_free_allowance_grants_billing_usage_ledger_en~",
+        "Type": "f",
+        "Columns": [
+          "LedgerEntryId"
+        ],
+        "Definition": "FOREIGN KEY (\"LedgerEntryId\") REFERENCES billing_usage_ledger_entries(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_billing_daily_free_allowance_grants",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

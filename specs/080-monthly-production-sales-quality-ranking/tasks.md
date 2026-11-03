@@ -199,7 +199,7 @@ Create repository methods for saving and querying ranking snapshots.
 `IMonthlySalesQualityRankingRepository`
 
 ### Required Methods
-- `GetLatestAvailablePeriodAsync`
+- `GetLatestRankablePeriodAsync`
 - `GetRankingAsync`
 - `GetCompanyRankingAsync`
 - `UpsertSnapshotsAsync`
@@ -213,6 +213,11 @@ Create repository methods for saving and querying ranking snapshots.
 - Query supports symbol filter.
 - Query supports minimum sales amount.
 - Pagination/limit is handled safely.
+
+### Default Ranking Period Rule
+- When the query does not include an explicit reporting period, use the latest fully completed Jalali calendar month.
+- Resolve the default period from the application clock and Persian calendar, never from the maximum period stored in monthly reports or ranking snapshots.
+- A company's fiscal-year end month does not affect its eligibility for a calendar-month ranking; include it when it has a valid report for the selected calendar month.
 - No client-side filtering over large tables if avoidable.
 
 ---

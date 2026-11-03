@@ -102,7 +102,8 @@ public sealed class NadpcoApiCompanyNormalizer(
             company.RegistrationNumber = Trim(record.RegistrationNumber);
             company.RegistrationProvince = Trim(record.RegistrationProvince);
             company.RegistrationCity = Trim(record.RegistrationCity);
-            company.MarketBoard = Trim(record.MarketBoard);
+            company.ReportingType = record.ReportingType;
+            company.MarketBoard = Trim(record.MarketBoardTitle) ?? Trim(record.MarketBoard);
             company.SourceModifiedAt = null;
             company.LastSynchronizedAt = payload.ReceivedAt;
 

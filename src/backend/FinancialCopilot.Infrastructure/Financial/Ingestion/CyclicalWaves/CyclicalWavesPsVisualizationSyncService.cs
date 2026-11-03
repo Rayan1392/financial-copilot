@@ -82,7 +82,7 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
     ICyclicalWavesPsProviderClient provider,
     IOptions<CyclicalWavesPsSyncOptions> options,
     TimeProvider clock,
-    ILogger<CyclicalWavesPsVisualizationSyncService> logger) : ICyclicalWavesPsVisualizationSyncService, ICompanyPsVisualizationReader
+    ILogger<CyclicalWavesPsVisualizationSyncService> logger) : ICyclicalWavesPsVisualizationSyncService, ICompanyPsVisualizationReader, IFeature114AcceptedPsVisualizationPersistence
 {
     private const string ProviderName = "CyclicalWaves";
     private readonly CyclicalWavesPsSyncOptions _options = options.Value;
@@ -138,6 +138,35 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
         }
     }
 
+    public async Task PersistAcceptedGaugeAsync(Guid companyId, string symbolIsin, PsGaugeDistribution gauge,
+        DateTimeOffset fetchedAtUtc, string? correlationId, CancellationToken cancellationToken)
+    {
+        if (gauge.GaugeClose <= 0m || gauge.GaugeAverage <= 0m) return;
+        var company = await db.Companies.AsNoTracking().SingleOrDefaultAsync(x => x.Id == companyId, cancellationToken);
+        var symbol = new PsEligibleCompany(companyId, symbolIsin.Trim().ToUpperInvariant(), company?.Ticker ?? string.Empty);
+        var observationDate = DateOnly.FromDateTime(fetchedAtUtc.UtcDateTime);
+        var current = new PsCurrentValues(symbol.CompanySymbol, symbol.CompanySymbol, gauge.GaugeClose, gauge.GaugeAverage, observationDate);
+        var normalizedHash = HashSnapshot(symbol, gauge, current);
+        var existing = await db.CompanyPsGaugeSnapshots.SingleOrDefaultAsync(x =>
+            x.ProviderName == ProviderName && x.CompanyId == companyId && x.ObservationDate == observationDate, cancellationToken);
+        if (existing is not null && existing.NormalizedSnapshotHash == normalizedHash) return;
+        var now = clock.GetUtcNow();
+        var total = gauge.BucketA + gauge.BucketB + gauge.BucketC + gauge.BucketD + gauge.BucketE + gauge.BucketF;
+        var row = existing ?? new CompanyPsGaugeSnapshotRow { Id = Guid.NewGuid(), CompanyId = companyId, ProviderName = ProviderName, ObservationDate = observationDate, FirstSeenAtUtc = now };
+        row.SourceCompanyIsin = symbol.SymbolIsin; row.TtmPsRatio = gauge.GaugeClose; row.ForwardPsRatio = gauge.GaugeAverage;
+        row.GaugeClose = gauge.GaugeClose; row.GaugeAverage = gauge.GaugeAverage; row.BoundaryStart = gauge.BoundaryStart;
+        row.BoundaryMin = gauge.BoundaryMin; row.BoundaryAverage = gauge.BoundaryAverage; row.BoundaryMax = gauge.BoundaryMax; row.BoundaryEnd = gauge.BoundaryEnd;
+        row.BucketA = gauge.BucketA; row.BucketB = gauge.BucketB; row.BucketC = gauge.BucketC; row.BucketD = gauge.BucketD; row.BucketE = gauge.BucketE; row.BucketF = gauge.BucketF; row.BucketTotal = total;
+        row.ProviderSymbol = symbol.CompanySymbol; row.GaugeFetchedAtUtc = fetchedAtUtc; row.CurrentValuesFetchedAtUtc = fetchedAtUtc; row.LastSyncedAtUtc = fetchedAtUtc;
+        row.CompletenessStatus = PsVisualizationComponentStatus.Complete.ToString(); row.GaugeRenderabilityStatus = total > 0 ? GaugeRenderabilityStatus.Renderable.ToString() : GaugeRenderabilityStatus.InvalidBucketTotal.ToString(); row.QualityStatus = "Valid";
+        row.GaugePayloadHash = HashGauge(gauge); row.CurrentValuesPayloadHash = HashCurrent(current); row.NormalizedSnapshotHash = normalizedHash;
+        if (existing is null) db.CompanyPsGaugeSnapshots.Add(row);
+        var state = await GetOrCreateStateAsync(symbol, cancellationToken);
+        state.SourceCompanyIsin = symbol.SymbolIsin; state.LastSuccessfulSnapshotId = row.Id; state.LastSuccessfulSnapshotDate = observationDate;
+        state.LastGaugeSuccessAtUtc = fetchedAtUtc; state.LastCurrentValuesSuccessAtUtc = fetchedAtUtc; state.LastSuccessfulCorrelationId = correlationId;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<PsVisualizationReadModel?> GetAsync(Guid companyId, CancellationToken cancellationToken)
     {
         var snapshot = await db.CompanyPsGaugeSnapshots.AsNoTracking().Where(x => x.CompanyId == companyId && x.GaugeRenderabilityStatus == GaugeRenderabilityStatus.Renderable.ToString()).OrderByDescending(x => x.ObservationDate).FirstOrDefaultAsync(cancellationToken);
@@ -145,21 +174,106 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
         var points = await db.CompanyPsHistoryPoints.AsNoTracking().Where(x => x.CompanyId == companyId && x.ProviderName == ProviderName && x.IsActiveInLatestSuccessfulSeries).OrderBy(x => x.ObservationDate).ThenBy(x => x.ProviderPointId).Select(x => new PsHistoryPoint(x.ProviderPointId, x.ObservationDate, x.PsRatio)).ToArrayAsync(cancellationToken);
         if (snapshot is null && state is null && points.Length == 0) return null;
         var warnings = state is null ? Array.Empty<string>() : ParseWarnings(state.LastWarningCodesJson);
+        var lastPs = snapshot is null ? null : await ReadLatestLastPsAsync(
+            companyId,
+            snapshot.SourceCompanyIsin,
+            cancellationToken);
         return new PsVisualizationReadModel(
             companyId,
             snapshot is null ? PsVisualizationComponentStatus.Partial : PsVisualizationComponentStatus.Complete,
             snapshot is null ? GaugeRenderabilityStatus.UnverifiedSemantics : GaugeRenderabilityStatus.Renderable,
-            snapshot?.ObservationDate,
+            lastPs?.ObservationDate ?? snapshot?.ObservationDate,
             snapshot?.LastSyncedAtUtc,
             state?.LastHistorySuccessAtUtc,
             warnings,
             points,
             snapshot is null ? null : new PsPersistedSnapshotFacts(
-                snapshot.ProviderName, snapshot.ProviderSymbol, snapshot.TtmPsRatio, snapshot.ForwardPsRatio,
+                snapshot.ProviderName, snapshot.ProviderSymbol, lastPs?.Value, snapshot.ForwardPsRatio,
                 snapshot.GaugeClose, snapshot.BoundaryStart, snapshot.BoundaryMin, snapshot.BoundaryAverage,
                 snapshot.BoundaryMax, snapshot.BoundaryEnd, snapshot.BucketA, snapshot.BucketB, snapshot.BucketC,
-                snapshot.BucketD, snapshot.BucketE, snapshot.BucketF, snapshot.LastSyncedAtUtc));
+                snapshot.BucketD, snapshot.BucketE, snapshot.BucketF, snapshot.LastSyncedAtUtc,
+                lastPs?.SnapshotId, lastPs?.SymbolIsin, lastPs?.AcquiredAtUtc, lastPs?.ObservationDate));
     }
+
+    private async Task<LastPsMarker?> ReadLatestLastPsAsync(
+        Guid companyId,
+        string symbolIsin,
+        CancellationToken cancellationToken)
+    {
+        var normalizedIsin = symbolIsin.Trim().ToUpperInvariant();
+        if (normalizedIsin.Length == 0) return null;
+
+        var candidates = await db.CyclicalWavesMetricSnapshots.AsNoTracking()
+            .Where(x => x.CompanyId == companyId &&
+                        x.ProviderName == ProviderName &&
+                        x.MetricType == "LastPS" &&
+                        x.SymbolIsin == normalizedIsin)
+            .OrderByDescending(x => x.AcquisitionDateUtc)
+            .ThenByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .ToArrayAsync(cancellationToken);
+        if (candidates.Length == 0) return null;
+
+        var snapshotIds = candidates.Select(x => x.Id).ToArray();
+        var acceptedChecks = await db.CyclicalWavesAcquisitionChecks.AsNoTracking()
+            .Where(x => x.CompanyId == companyId &&
+                        x.ProviderName == ProviderName &&
+                        x.MetricType == "LastPS" &&
+                        x.SnapshotId.HasValue &&
+                        snapshotIds.Contains(x.SnapshotId.Value) &&
+                        (x.Result == "Changed" || x.Result == "NoChange"))
+            .ToArrayAsync(cancellationToken);
+
+        foreach (var candidate in candidates)
+        {
+            var accepted = acceptedChecks
+                .Where(x => x.SnapshotId == candidate.Id &&
+                            x.ResponseHash == candidate.ResponseHash &&
+                            string.Equals(x.SymbolIsin?.Trim(), candidate.SymbolIsin, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.CompletedAtUtc)
+                .ThenByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .FirstOrDefault();
+            if (accepted is null) continue;
+            if (!TryReadPsRatio(candidate.RawResponseJson, out var value)) continue;
+
+            return new LastPsMarker(candidate.Id, candidate.SymbolIsin, candidate.AcquisitionDateUtc, candidate.ProviderObservationDate, value);
+        }
+
+        return null;
+    }
+
+    private static bool TryReadPsRatio(string rawResponseJson, out decimal value)
+    {
+        value = default;
+        try
+        {
+            using var document = JsonDocument.Parse(rawResponseJson);
+            if (!document.RootElement.TryGetProperty("data", out var data) ||
+                !data.TryGetProperty("ps_ratio", out var ratio) ||
+                ratio.ValueKind != JsonValueKind.Number ||
+                !ratio.TryGetDecimal(out value) ||
+                value < 0m)
+            {
+                value = default;
+                return false;
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            value = default;
+            return false;
+        }
+    }
+
+    private sealed record LastPsMarker(
+        Guid SnapshotId,
+        string SymbolIsin,
+        DateTimeOffset AcquiredAtUtc,
+        DateOnly? ObservationDate,
+        decimal Value);
 
     private sealed record SnapshotSyncOutcome(bool Changed, bool ClientError);
 
@@ -229,7 +343,7 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
             state.LastGaugeSuccessAtUtc = now; state.LastCurrentValuesSuccessAtUtc = now; state.ConsecutiveGaugeFailures = 0; state.ConsecutiveCurrentValuesFailures = 0; state.LastErrorCode = null; state.LastWarningCodesJson = "[]"; await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(false, false);
         }
         var row = existing ?? new CompanyPsGaugeSnapshotRow { Id = Guid.NewGuid(), CompanyId = company.CompanyId, ProviderName = ProviderName, ObservationDate = current.ObservationDate, FirstSeenAtUtc = now };
-        row.SourceCompanyIsin = company.SymbolIsin; row.TtmPsRatio = current.TtmPsRatio; row.ForwardPsRatio = current.ForwardPsRatio; row.GaugeClose = gauge.GaugeClose;
+        row.SourceCompanyIsin = company.SymbolIsin; row.TtmPsRatio = current.TtmPsRatio; row.ForwardPsRatio = current.ForwardPsRatio; row.GaugeClose = gauge.GaugeClose; row.GaugeAverage = gauge.GaugeAverage;
         row.BoundaryStart = gauge.BoundaryStart; row.BoundaryMin = gauge.BoundaryMin; row.BoundaryAverage = gauge.BoundaryAverage; row.BoundaryMax = gauge.BoundaryMax; row.BoundaryEnd = gauge.BoundaryEnd;
         row.BucketA = gauge.BucketA; row.BucketB = gauge.BucketB; row.BucketC = gauge.BucketC; row.BucketD = gauge.BucketD; row.BucketE = gauge.BucketE; row.BucketF = gauge.BucketF; row.BucketTotal = total;
         row.ProviderSymbol = current.Symbol; row.GaugeFetchedAtUtc = now; row.CurrentValuesFetchedAtUtc = now; row.LastSyncedAtUtc = now; row.CompletenessStatus = PsVisualizationComponentStatus.Complete.ToString(); row.GaugeRenderabilityStatus = renderability.ToString(); row.QualityStatus = "Valid"; row.QualityWarningsJson = JsonSerializer.Serialize(warnings); row.GaugePayloadHash = HashGauge(gauge); row.CurrentValuesPayloadHash = HashCurrent(current); row.NormalizedSnapshotHash = normalizedHash;

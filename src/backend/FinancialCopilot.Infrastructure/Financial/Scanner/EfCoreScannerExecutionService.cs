@@ -110,6 +110,8 @@ public sealed class EfCoreScannerExecutionService(
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
             .Where(dm => externalCompanyIds.Contains(dm.ExternalCompanyId) && allRequiredCodes.Contains(dm.MetricCode))
             .ToListAsync(cancellationToken);
+        // Feature 148 C1/C1-M: drop legacy and mixed CyclicalWaves-derived rows before any latest-row selection.
+        derivedRows = LegacyCyclicalWavesDerivedMetricFilter.Apply(derivedRows);
 
         // Latest row per (ExternalCompanyId, MetricCode) — highest PeriodEnd wins
         var latestByCompanyMetric = derivedRows
@@ -293,6 +295,8 @@ public sealed class EfCoreScannerExecutionService(
             : await dbContext.DerivedMetrics.AsNoTracking()
                 .Where(row => externalCompanyIds.Contains(row.ExternalCompanyId) && requiredOtherCodes.Contains(row.MetricCode))
                 .ToListAsync(cancellationToken);
+        // Feature 148 C1/C1-M: drop legacy and mixed CyclicalWaves-derived rows before any latest-row selection.
+        derivedRows = LegacyCyclicalWavesDerivedMetricFilter.Apply(derivedRows);
         var latestOtherMetrics = derivedRows
             .GroupBy(row => (row.ExternalCompanyId, row.MetricCode), ExternalCompanyMetricKeyComparer.Instance)
             .ToDictionary(

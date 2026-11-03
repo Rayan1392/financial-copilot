@@ -1,0 +1,105 @@
+{
+  "id": "tbl_38f8b68fbe5c38d1",
+  "physical": {
+    "Schema": "public",
+    "Name": "MetricRecalculationRequests",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceDataset",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalReference",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourcePayloadChecksum",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "AttemptCount",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "0"
+      },
+      {
+        "Name": "LastAttemptAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastError",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProcessedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MetricRecalculationRequests_ProcessedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MetricRecalculationRequests_ProcessedAt\" ON public.\"MetricRecalculationRequests\" USING btree (\"ProcessedAt\")",
+        "Columns": [
+          "ProcessedAt"
+        ]
+      },
+      {
+        "Name": "IX_MetricRecalculationRequests_SourceDataset_SourcePayloadChec~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MetricRecalculationRequests_SourceDataset_SourcePayloadChec~\" ON public.\"MetricRecalculationRequests\" USING btree (\"SourceDataset\", \"SourcePayloadChecksum\")",
+        "Columns": [
+          "SourceDataset",
+          "SourcePayloadChecksum"
+        ]
+      },
+      {
+        "Name": "PK_MetricRecalculationRequests",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MetricRecalculationRequests\" ON public.\"MetricRecalculationRequests\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MetricRecalculationRequests",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

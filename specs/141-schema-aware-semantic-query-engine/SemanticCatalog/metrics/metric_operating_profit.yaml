@@ -1,0 +1,87 @@
+{
+  "id": "metric_operating_profit",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "OPERATING_PROFIT"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Operating Profit",
+    "Description": "Governed semantic definition for Operating Profit.",
+    "Category": 0,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "operating profit",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "OPERATING_PROFIT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "ebit proxy",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "OPERATING_PROFIT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "سود عملیاتی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "OPERATING_PROFIT"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "OPERATING_PROFIT"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "OPERATING_PROFIT"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

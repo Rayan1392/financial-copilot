@@ -1,0 +1,49 @@
+{
+  "id": "P05",
+  "run": {
+    "Question": "مبلغ فروش گندله کگهر در آخرین ماه چقدر بوده؟",
+    "Enabled": true,
+    "Answer": "فروش «گندله» شرکت کگهر در دوره ۱۴۰۵/۰۵ حدود ۳٬۹۵۸٫۱ میلیارد تومان بوده است.",
+    "PersistedUserMessage": "مبلغ فروش گندله کگهر در آخرین ماه چقدر بوده؟",
+    "PersistedAssistantMessage": "فروش «گندله» شرکت کگهر در دوره ۱۴۰۵/۰۵ حدود ۳٬۹۵۸٫۱ میلیارد تومان بوده است.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_value Disposition=SemanticPrimary CorrelationId=feature141-pilot-f00dbea4c69e42e398d1e0993878510a | Chat semantic route selected. Route=semantic_capability Capability=product_sales_value ExtractedEntities=product:گندله,company_symbol:کگهر RequestedMetrics=فروش RequestedPeriod=LatestAvailable RequestedComparison=(null) Presentation=Summary | Chat semantic route completed. Route=semantic_capability Capability=product_sales_value Status=Executed ReasonCode=none PayloadType=ProductSalesValuePayload",
+    "SemanticCapability": "product_sales_value",
+    "Intent": "MonthlyProductTrend",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 597,
+      "CompletionTokens": 266,
+      "TotalTokens": 863,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:product_sales_value"
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 97.0000,
+    "WalletBalanceAfter": 96.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 5927.3204,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_value Disposition=SemanticPrimary CorrelationId=feature141-pilot-f00dbea4c69e42e398d1e0993878510a",
+      "Chat semantic route selected. Route=semantic_capability Capability=product_sales_value ExtractedEntities=product:گندله,company_symbol:کگهر RequestedMetrics=فروش RequestedPeriod=LatestAvailable RequestedComparison=(null) Presentation=Summary",
+      "Chat semantic route completed. Route=semantic_capability Capability=product_sales_value Status=Executed ReasonCode=none PayloadType=ProductSalesValuePayload",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-f00dbea4c69e42e398d1e0993878510a RolloutMode=Canary LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=product_sales_value SemanticCapabilityCandidate=product_sales_value SemanticConfidence=0.98 ExtractedCompany=(null) ExtractedProduct=گندله ExtractedMetric=فروش ExtractedPeriod=LatestAvailable Resolved"
+    ],
+    "ExecutedQueries": []
+  }
+}

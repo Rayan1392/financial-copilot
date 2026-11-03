@@ -4,15 +4,19 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 
 namespace FinancialCopilot.IntegrationTests;
 
-public sealed class TelegramAccountLinking087Tests : IClassFixture<OwnedIdentityApiFactory>
+public sealed class TelegramAccountLinking087Tests : IClassFixture<TelegramAccountLinkingApiFactory>
 {
-    private readonly OwnedIdentityApiFactory _factory;
+    private readonly TelegramAccountLinkingApiFactory _factory;
 
-    public TelegramAccountLinking087Tests(OwnedIdentityApiFactory factory) => _factory = factory;
+    public TelegramAccountLinking087Tests(TelegramAccountLinkingApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task WebChallenge_AdapterConfirmation_LinksOnceAndUnlinksIdempotently()
@@ -40,7 +44,7 @@ public sealed class TelegramAccountLinking087Tests : IClassFixture<OwnedIdentity
         };
         using var confirmation = await adapter.PostAsJsonAsync("/api/v1/telegram/link/confirm", request);
         using var result = await ReadJsonAsync(confirmation);
-        Assert.Equal(HttpStatusCode.OK, confirmation.StatusCode);
+        Assert.True(confirmation.StatusCode == HttpStatusCode.OK, await confirmation.Content.ReadAsStringAsync());
         Assert.Equal(0, result.RootElement.GetProperty("outcome").GetInt32());
 
         using var replay = await adapter.PostAsJsonAsync("/api/v1/telegram/link/confirm", request);
@@ -209,17 +213,27 @@ public sealed class TelegramAccountLinking087Tests : IClassFixture<OwnedIdentity
         return client;
     }
 
-    private static async Task AuthenticateNewUserAsync(HttpClient client)
+    private async Task AuthenticateNewUserAsync(HttpClient client)
     {
+        var email = $"telegram-{Guid.NewGuid():N}@example.test";
         using var register = await client.PostAsJsonAsync(
             "/api/auth/v1/register",
-            new { email = $"telegram-{Guid.NewGuid():N}@example.test", password = "StrongPassword!123" });
-        using var session = await ReadJsonAsync(register);
+            new { email, password = "StrongPassword!123" });
         register.EnsureSuccessStatusCode();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var user = await db.Users.SingleAsync(row => row.Email == email);
+            user.EmailVerificationRequired = false;
+            await db.SaveChangesAsync();
+        }
+        using var login = await client.PostAsJsonAsync("/api/auth/v1/login", new { email, password = "StrongPassword!123" });
+        using var session = await ReadJsonAsync(login);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
             session.RootElement.GetProperty("accessToken").GetString());
     }
+
 
     private static async Task<string> CreateStartParameterAsync(HttpClient client)
     {
@@ -233,5 +247,20 @@ public sealed class TelegramAccountLinking087Tests : IClassFixture<OwnedIdentity
     {
         await using var stream = await response.Content.ReadAsStreamAsync();
         return await JsonDocument.ParseAsync(stream);
+    }
+}
+
+public sealed class TelegramAccountLinkingApiFactory : OwnedIdentityApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<AuthDbContext>();
+            services.RemoveAll<DbContextOptions<AuthDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<AuthDbContext>>();
+            services.AddDbContext<AuthDbContext>(options => options.UseInMemoryDatabase("telegram-linking-auth"));
+        });
     }
 }

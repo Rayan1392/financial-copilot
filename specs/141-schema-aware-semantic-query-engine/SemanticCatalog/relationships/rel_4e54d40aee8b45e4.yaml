@@ -1,0 +1,43 @@
+{
+  "id": "rel_4e54d40aee8b45e4",
+  "from": {
+    "schema": "public",
+    "table": "MonthlyReports",
+    "columns": [
+      "CompanyId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "Companies",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": true,
+    "status": "physical-fk-not-runtime-join",
+    "runtimeJoinable": false,
+    "queryAuthorization": {
+      "approved": false,
+      "queryable": false,
+      "reason": "Noavaran monthly reports carry no CompanyId; Feature 141 joins reports to companies through rel_71eca79d3b7d6aa2 (ProviderName, ExternalCompanyId).",
+      "provenance": "product-owner-confirmed:Feature141-noavaran-monthly-company-mapping-2026-10-29",
+      "previousProvenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "decisionRecord": "evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json"
+    }
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  },
+  "verification": {
+    "status": "verified-application-logical-relationship",
+    "applicationModelField": "MonthlyReports.CompanyId",
+    "targetIdentity": "Companies.Id",
+    "physicalForeignKey": "present-in-pg_catalog",
+    "note": "EF model NormalizedMonthlyReportRow.CompanyId; verified 2026-10-29"
+  }
+}

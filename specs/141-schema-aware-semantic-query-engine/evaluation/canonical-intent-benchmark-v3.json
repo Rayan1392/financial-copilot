@@ -1,0 +1,2948 @@
+{
+  "benchmarkVersion": 3,
+  "purpose": "Canonical business concepts, per-measure qualifiers, requested/source units, operation, period, and entity semantics; no physical schema or query result is gold.",
+  "createdUtc": "2026-10-10",
+  "sourceDatasets": [
+    "release-readiness-dev-v1.json",
+    "release-readiness-holdout-v2.json",
+    "release-readiness-holdout-v3.json"
+  ],
+  "adjudicationManifest": "canonical-intent-adjudications-v3.json",
+  "reviewer": "Codex; single-reviewer semantic adjudication",
+  "reviewMethod": "Determine semantics from the immutable Persian question and the Feature 141 semantic scope. Do not use Option B prediction values to define gold. Preserve unresolved wording as ambiguous or disputed.",
+  "historicalHoldoutsRemainHistorical": true,
+  "caseCount": 60,
+  "adjudicatedCaseCount": 30,
+  "disputedCaseCount": 1,
+  "cases": [
+    {
+      "id": "fa-02",
+      "question": "کدام محصولات کگل رشد تولید داشته‌اند؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "d5d94dc66b491cb6c9af66c7a774992e8617437a6fbcb3e7d94f01b776fc34fa",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_GROWTH_YOY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-03",
+      "question": "روند فروش کگل را نمایش بده.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "7994ece55c15d85c600b47bf7aca312995c3eea802c222bbb9986e39dc578bfe",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-04",
+      "question": "سود خالص فولاد چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "6979c3b12bffc30229ef430a36b056f1b6d1bbc69bf8e0904051ec0b16807c8b",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-05",
+      "question": "سود خالص تلفیقی فولاد چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "07a1fc133e6e3a0a5c9a445b3a44e951221258654899a95caf7ed1b209d37b9d",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-06",
+      "question": "مقایسه سود خالص اصلی و تلفیقی فولاد",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "b0c23451da603d839c54803fe5b026d47afd6be6ca89b095dd2ab4e296cf488c",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-07",
+      "question": "کدام شرکت‌های صنعت فلزات اساسی بیشترین رشد فروش را داشته‌اند؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "7b439223865f7713a63bcb5334bef93a7ce1495a96f0ac679930ffea3f01df12",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-08",
+      "question": "نسبت P/E شرکت‌های یک صنعت را مقایسه کن.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "dcf40799ce0488964fca047416bbb988ef213308adefaddcc04eac6044bafb1f",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "PE_TTM"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-09",
+      "question": "قیمت پایانی کگل در ماه گذشته",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "ff4783a9446e89e0f9e6ee03f1466fbccd89eaad1ab99e91a2f7123908b6be6c",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "LATEST_PRICE"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-10",
+      "question": "روند شاخص کل در شش ماه گذشته",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "637678dcf09b5fe1063bfffa8c8c8e3c07512a9264cacbf11d37f07c1cebb61d",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "index level and change percent; no generic metric ID asserted"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-value-01",
+      "question": "آخرین سود عملیاتی هر سهم کگل چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "94b6845ef28a4894540e285cf466ec451c76b4a2655611f3cf3073212959ec4f",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-value-02",
+      "question": "آخرین سود عملیاتی کگل چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "cac11713dd930b6b3ea662b75096572e170fbba742e3b0c0819efcd8b39a39e6",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "disputed",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": "The original question says سود عملیاتی (operating profit) and does not say هر سهم (per share). The v2 correction's owner-approved per-share rationale conflicts with the source wording. Exclude from exact scoring pending owner resolution; retain both source and v2 overlay unchanged.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "cac11713dd930b6b3ea662b75096572e170fbba742e3b0c0819efcd8b39a39e6"
+      }
+    },
+    {
+      "id": "fa-value-03",
+      "question": "سود خالص هر سهم کگل چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "a0c7dc615e8486d58f1af4efc45f072317600532a738373a112e7da61e226866",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "earningsPerShare"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "earningsPerShare",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "unspecified"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "earningsPerShare",
+            "value": "currencyPerShare"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "earningsPerShare",
+            "value": "irrPerShare"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "earningsPerShare",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "سود خالص هر سهم denotes the reported earnings-per-share business concept; preserve per-share dimension without asserting the provider's stored unit.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "a0c7dc615e8486d58f1af4efc45f072317600532a738373a112e7da61e226866"
+      }
+    },
+    {
+      "id": "fa-value-04",
+      "question": "موجودی نقد کگهر در پایان سال ۱۴۰۴ چقدر بود؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "1e8f11a36bb63ec58d55361da77bd3270822c91883e1e24a2847c6379a92cddb",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-value-05",
+      "question": "هزینه استهلاک فولاد در آخرین صورت سود و زیان چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "db041ef632f25e7fc84863c272042141317eb15cb22afc1ef9d96f28136aa6d5",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-value-06",
+      "question": "سود خالص تلفیقی فولاد در آخرین گزارش چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "07638a77b63ea6db05362b141ba935846dc33cb4b66a77ae47e595abfbd19b77",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-value-07",
+      "question": "رشد سود عملیاتی کگل نسبت به سال قبل چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "bb02516f3d3b2dfc954c22fc350beedb42bc036262a4b77eac968e83ceb5e3bb",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "fa-value-08",
+      "question": "حاشیه سود خالص کگهر چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "ed672d07d723eec67f8b435e7698e8d012d14c04147269b328babf74c34c7527",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-01",
+      "question": "آخرین گزارش جداگانه فولاد چه میزان سود خالص ثبت کرده است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "07c1df00757bdb161937c435f6198614302bcb8a103d5924a0cbe9b9ba63cd3a",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-02",
+      "question": "سود خالص شرکت فولاد در آخرین صورت مالی چقدر گزارش شده؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "723d5aa8bbd94944579cb09809b00d11836b4a8e9f809de96a5da7aef002eb57",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "netProfit"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "netProfit",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "netProfit",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Requests net profit for named فولاد in the latest financial statement; no standalone/consolidated scope, cadence, or display unit is specified.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "723d5aa8bbd94944579cb09809b00d11836b4a8e9f809de96a5da7aef002eb57"
+      }
+    },
+    {
+      "id": "readiness-dev-03",
+      "question": "در گزارش تلفیقی فولاد، رقم سود خالص چقدر است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "f8b8136e2eac8dd762243ee7572740e1f45c12974e5a3cc82547de39dcf9a992",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "netProfit"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "netProfit",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "consolidated",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "netProfit",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Explicit consolidated net profit for named فولاد; latest report is implied by the wording, while the accounting unit is not.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "f8b8136e2eac8dd762243ee7572740e1f45c12974e5a3cc82547de39dcf9a992"
+      }
+    },
+    {
+      "id": "readiness-dev-04",
+      "question": "سود خالص جداگانه و تلفیقی فولاد را کنار هم مقایسه کن.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "4f62e0d29c4e2d1594c90ef5fb6a8a397158c48024620096086cd3f2757db80f",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "netProfit",
+          "netProfit"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "netProfit",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "standalone",
+            "valueGrain": "companyTotal"
+          },
+          {
+            "conceptId": "netProfit",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "consolidated",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "netProfit",
+            "value": "currencyAmount"
+          },
+          {
+            "conceptId": "netProfit",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": "unspecified"
+          },
+          {
+            "conceptId": "netProfit",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": null,
+            "evidence": "unresolved"
+          },
+          {
+            "conceptId": "netProfit",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "compare",
+        "comparison": "statementScope",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "comparison"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Explicitly compares standalone and consolidated net-profit values for the same company; preserve two scoped versions of one concept.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "4f62e0d29c4e2d1594c90ef5fb6a8a397158c48024620096086cd3f2757db80f"
+      }
+    },
+    {
+      "id": "readiness-dev-05",
+      "question": "آخرین مقدار گزارش‌شده سود عملیاتی هر سهم کگل چیست؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "e6fa59f1c24ff8ac00ce19fdb0c3e971dd7f70a053f3caa9ddc2fb3da3903e59",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-06",
+      "question": "موجودی وجه نقد کگهر در پایان سال ۱۴۰۴ چه مبلغی بود؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "5b61a57b7fb1cf59a92f1a709acb71df19f4b1d95fa6fc993c6ebb28efe48863",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-07",
+      "question": "هزینه استهلاک فولاد را از آخرین صورت سود و زیان پیدا کن.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "182ec804ebf4897b4125aaa2370e27d37695f80be84bff129e53a84d61ba5aa4",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-08",
+      "question": "سود عملیاتی هر سهم کگل نسبت به سال قبل چند درصد تغییر کرد؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "8e6279b72ed8df054e3e58ef7bdf5d69c6bf539b3772d5f2f28bbaa795db600c",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "operatingProfitPerShare"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "valueForm": "percentageChange",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "unspecified"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "value": "currencyPerShare"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "value": "irrPerShare"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "growthRate",
+        "comparison": "yearOverYear",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Operating profit per share is requested as a year-over-year percentage change. The per-share unit is a semantic requested unit, not a source-unit assertion.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "8e6279b72ed8df054e3e58ef7bdf5d69c6bf539b3772d5f2f28bbaa795db600c"
+      }
+    },
+    {
+      "id": "readiness-dev-09",
+      "question": "حاشیه سود ناخالص کگهر در تازه‌ترین گزارش چند درصد است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "ff114fbed6e95118e779a59e125ee46459b9533049ec6a24371421022695bac1",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-10",
+      "question": "نسبت قیمت به درآمد شرکت‌های صنعت فولاد را در یک جدول مقایسه کن.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "707ad0d79ba0fbc599bcc0d7233be201882042fae8c13661a5cfa5cf0492074f",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "PE_TTM"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "priceEarningsRatio"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "value": "ratio"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "value": "ratio"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "compare",
+        "comparison": "multiCompany",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "categoryLabels": [
+          "صنعت فولاد"
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "categoryLabels",
+        "output"
+      ],
+      "correctionReason": "Ranks price-to-earnings ratios across the steel-industry company population in a table. It does not specify a reporting period or a company identifier.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "707ad0d79ba0fbc599bcc0d7233be201882042fae8c13661a5cfa5cf0492074f"
+      }
+    },
+    {
+      "id": "readiness-dev-11",
+      "question": "بیشترین قیمت پایانی کگل در ماه گذشته چه بوده است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "e1361cc71a7a90017fb6e0e0d449151e84f051ef5c1b4ed8e555a35781f9853f",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "LATEST_PRICE"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-12",
+      "question": "در سال اخیر کدام شرکت‌ها بر اساس گزارش مثبت، گندله تولید کرده‌اند؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "716bdfba938e10e3393e9c89693436ce4a7af9bf6afc169ac2cff329785e7fea",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-13",
+      "question": "شرکت‌های دارای تولید مثبت گندله سنگ‌آهن در شهریور ۱۴۰۵ را پیدا کن.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "614e0975d91c238107338bef18c1352f08785ab90aed12053f7db2e42f8c42d6",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-14",
+      "question": "مقدار تولید گندله کگهر در ماه شهریور ۱۴۰۵ چقدر ثبت شده؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "8affc73aab8ccf781bf432ac3b478086b75fa53449c8785434ae067d65883138",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitMonth:شهریور ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "productLabels": [
+          "گندله"
+        ],
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output"
+      ],
+      "correctionReason": "Named company, pellet production quantity, and exact Shahrivar 1405 month are explicit. The value is product-level, not company-wide production.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "8affc73aab8ccf781bf432ac3b478086b75fa53449c8785434ae067d65883138"
+      }
+    },
+    {
+      "id": "readiness-dev-15",
+      "question": "رشد تولید محصولات کگل در مقایسه با دوره مشابه پارسال چه‌قدر بوده؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "45e301995885987ad4aee7a2ee36dd966090b8a401f7b3e8e9465f691c9ba11f",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_GROWTH_YOY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-16",
+      "question": "مبالغ فروش ماهانه کگل را برای شش گزارش آخر به ترتیب زمانی بیاور.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "08ec09a5bcbf16c8f056a258a96c80e07857cd8ad40ef765776b42f05afbe646",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "timeSeries",
+        "comparison": "none",
+        "period": "relativePeriods:month:6",
+        "entityScope": "namedCompanies",
+        "output": "timeSeries"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Six latest monthly sales reports in chronological order means a six-point time series of monthly monetary sales for the named company.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "08ec09a5bcbf16c8f056a258a96c80e07857cd8ad40ef765776b42f05afbe646"
+      }
+    },
+    {
+      "id": "readiness-dev-17",
+      "question": "فروش ریالی کگل در شهریور ۱۴۰۵ به چه میزان رسید؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "12f84a2716ac15dea805a3f4227ce482a1aa2a0640f125d06d054ad93374463b",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "irr"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitMonth:شهریور ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "فروش ریالی explicitly requests sales amount, not physical sales quantity, in Shahrivar 1405.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "12f84a2716ac15dea805a3f4227ce482a1aa2a0640f125d06d054ad93374463b"
+      }
+    },
+    {
+      "id": "readiness-dev-18",
+      "question": "در آخرین گزارش، مقدار فروش گندله کگهر چند تن بوده است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "44e2ccbc092aab9135a2ffe67fb29dca03c28535c18cfb4d00fdc0f0cf8ec37b",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "ton"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "productLabels": [
+          "گندله"
+        ],
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output"
+      ],
+      "correctionReason": "Explicit مقدار فروش, ton unit, pellet, named company, latest monthly report. Sales quantity is not sales amount.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "44e2ccbc092aab9135a2ffe67fb29dca03c28535c18cfb4d00fdc0f0cf8ec37b"
+      }
+    },
+    {
+      "id": "readiness-dev-19",
+      "question": "کدام شرکت‌های صنعت فولاد رشد فروش ماهانه بیشتری داشته‌اند؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "a2f0cc633e3ffc201896014dbc88e5eac80009fd851ce9dedb574a2d738df4d0",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "genuinely_ambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "rank",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "categoryLabels": [
+          "صنعت فولاد"
+        ],
+        "ranking": "descending:salesAmount",
+        "output": "rankedList",
+        "requiresClarification": true
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "categoryLabels",
+        "ranking",
+        "output",
+        "requiresClarification"
+      ],
+      "correctionReason": "Monthly sales growth does not state its comparison baseline (month-over-month, year-over-year, or another period). Preserve the requested ranking and clarify the baseline rather than defaulting to a legacy metric policy.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "a2f0cc633e3ffc201896014dbc88e5eac80009fd851ce9dedb574a2d738df4d0"
+      }
+    },
+    {
+      "id": "readiness-dev-20",
+      "question": "شرکت‌های یک صنعت را با رشد فروش ماهانه مرتب کن.",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "0ab7b62f7e8b2e9d8a357228c0d3275562a457163bde5676beff500fcfee769e",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-dev-21",
+      "question": "کدام شرکت‌های صنعت معدن در شهریور گندله تولید مثبت داشته‌اند؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "329060e49388f27587d3b4a89f9edfb209552a79a2623c2d1a38c5af0fc4654a",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "discoverPopulation",
+        "comparison": "none",
+        "period": "explicitMonth:شهریور",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "categoryLabels": [
+          "معدن"
+        ],
+        "thresholds": [
+          {
+            "measureConcept": "productionQuantity",
+            "operator": "greaterThan",
+            "value": 0,
+            "unit": "unspecified"
+          }
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "categoryLabels",
+        "thresholds",
+        "output"
+      ],
+      "correctionReason": "Find the unbound mining-company population with positive pellet production in the explicitly named month Shahrivar; year is not supplied and must not be invented.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "329060e49388f27587d3b4a89f9edfb209552a79a2623c2d1a38c5af0fc4654a"
+      }
+    },
+    {
+      "id": "readiness-dev-22",
+      "question": "شرکت‌های تولیدکننده گندله را از نظر فروش مقایسه کن؛ منظورم فروش کل شرکت است یا خود محصول؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "a4fbc5f6e1634f52b96bd408afea077c62d36ed4c434b8f264e948f96167917b",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "genuinely_ambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "unspecified"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "compare",
+        "comparison": "multiCompany",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "output": "comparison",
+        "requiresClarification": true
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output",
+        "requiresClarification"
+      ],
+      "correctionReason": "The user explicitly distinguishes company-total sales from sales of the product but does not select one. Keep sales amount as the shared concept and leave value grain unspecified pending clarification.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "a4fbc5f6e1634f52b96bd408afea077c62d36ed4c434b8f264e948f96167917b"
+      }
+    },
+    {
+      "id": "readiness-dev-23",
+      "question": "آیا رشد تولید کگهر با رشد فروش آن هم‌جهت بوده است؟",
+      "sourceDataset": "release-readiness-dev-v1.json",
+      "sourceDatasetVersion": "feature141-release-readiness-v1",
+      "sourceQuestionSha256": "eed66ca857adea07491940e6b0fbad2c5854a6aa3e0719a4b0124dbe2557031e",
+      "split": "original50-development",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity",
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          },
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          },
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          },
+          {
+            "conceptId": "salesAmount",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          },
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "compare",
+        "comparison": "crossMeasure",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "comparison",
+        "requiresClarification": false
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification"
+      ],
+      "correctionReason": "Compares production growth and sales growth direction for named کگهر in its latest available period. Use base concepts plus per-measure percentage-change form.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-dev-v1.json",
+        "sourceQuestionSha256": "eed66ca857adea07491940e6b0fbad2c5854a6aa3e0719a4b0124dbe2557031e"
+      }
+    },
+    {
+      "id": "readiness-holdout-v2-01",
+      "question": "کدام شرکت‌ها در گزارش شهریور ۱۴۰۵ تولید مثبت گندله سنگ‌آهن داشته‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "afc4e16e35905fd768b9667b9e79ccd510bcc3b9ae7c30e93c2a5b0b13eaae2a",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-holdout-v2-02",
+      "question": "در صنعت معدن، کدام شرکت‌ها در آخرین گزارش ماهانه گندله تولید کرده‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "06912affd40994536e193df8fda4e40a02924fd68c160b9eab4d4bf2f3cef47a",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-holdout-v2-03",
+      "question": "کدام تولیدکنندگان در آخرین گزارش، بیش از ۳۰ تن گندله فروخته‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "dcd506ff158f501740cd909e1b87bbe2f06491b83fae3c43d17b43c6bf680bed",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "ton"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "discoverPopulation",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "thresholds": [
+          {
+            "measureConcept": "salesQuantity",
+            "operator": "greaterThan",
+            "value": 30,
+            "unit": "ton"
+          }
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "correctionReason": "The quantity threshold is explicitly greater than 30 tons of pellets in the latest report; company population is unbound.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v2.json",
+        "sourceQuestionSha256": "dcd506ff158f501740cd909e1b87bbe2f06491b83fae3c43d17b43c6bf680bed"
+      }
+    },
+    {
+      "id": "readiness-holdout-v2-04",
+      "question": "تولیدکنندگان گندله را بر پایه فروش کل شرکت در شهریور ۱۴۰۵ از بیشترین به کمترین مرتب کن.",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "f7b4c8722709ba6305c3056edc359cf1c6334c7aa721a5f3669f6744627f462d",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-holdout-v2-05",
+      "question": "کدام محصولات کگهر در سه ماه اخیر بیشترین رشد تولید ماهانه را داشته‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "752763d6402cfd8f6dce0765cf9ed6a14926a59bb1a9844c43a479716edcdd4b",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expected": {},
+      "expectedFields": [],
+      "correctionReason": null,
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": null
+    },
+    {
+      "id": "readiness-holdout-v2-06",
+      "question": "تولید کگل در شهریور ۱۴۰۵ نسبت به ماه مشابه سال قبل چند درصد تغییر کرد؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "7fc77ebd80ab35c7f8424d507186c428cff57dbd875365338f4630100d4727dc",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_GROWTH_YOY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "growthRate",
+        "comparison": "yearOverYear",
+        "period": "explicitMonth:شهریور ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Production quantity for Shahrivar 1405 is compared with the same month a year earlier as a percentage change.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-holdout-v2.json",
+        "sourceQuestionSha256": "7fc77ebd80ab35c7f8424d507186c428cff57dbd875365338f4630100d4727dc"
+      }
+    },
+    {
+      "id": "readiness-holdout-v2-07",
+      "question": "فروش ریالی کگل را برای شش گزارش ماهانه اخیر به ترتیب زمان نشان بده.",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "893a4afca368d66d9bfe1ba1f2f68f4a53dcc4a4afaa7c17dbef30c99c0925d8",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "irr"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "timeSeries",
+        "comparison": "none",
+        "period": "relativePeriods:month:6",
+        "entityScope": "namedCompanies",
+        "output": "timeSeries"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Six most recent monthly reports of ریالی sales in chronological order; preserve monthly discrete basis and six-period series.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-holdout-v2.json",
+        "sourceQuestionSha256": "893a4afca368d66d9bfe1ba1f2f68f4a53dcc4a4afaa7c17dbef30c99c0925d8"
+      }
+    },
+    {
+      "id": "readiness-holdout-v2-08",
+      "question": "فروش ریالی کگل در شهریور ۱۴۰۵ چه مبلغی ثبت شد؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "327665ac6d488128140c6c0543e5e01f2823bd1edb40aca82a555b1374adb73f",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "irr"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitMonth:شهریور ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Explicit ریالی sales amount for Shahrivar 1405. Do not reinterpret as quantity or infer an effective provider unit.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-holdout-v2.json",
+        "sourceQuestionSha256": "327665ac6d488128140c6c0543e5e01f2823bd1edb40aca82a555b1374adb73f"
+      }
+    },
+    {
+      "id": "readiness-holdout-v2-09",
+      "question": "مانده وجه نقد کگهر در پایان سال مالی ۱۴۰۴ چقدر گزارش شده است؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "780ef3b41c467b3b4abbc8ecddc0bbeb160feed075b8c3636acc525b1b1676a3",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "cashBalance"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "cashBalance",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "cashBalance",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "cashBalance",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "cashBalance",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitFiscalYear:۱۴۰۴",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Fiscal-year-end cash balance for کگهر in fiscal 1404; no source unit or standalone/consolidated statement scope is given.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-holdout-v2.json",
+        "sourceQuestionSha256": "780ef3b41c467b3b4abbc8ecddc0bbeb160feed075b8c3636acc525b1b1676a3"
+      }
+    },
+    {
+      "id": "readiness-holdout-v2-10",
+      "question": "آیا رشد تولید و رشد فروش کگهر در آخرین دوره هم‌جهت بوده‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v2.json",
+      "sourceDatasetVersion": "feature141-final-build-holdout-v2",
+      "sourceQuestionSha256": "415fa9acb0478f9b598c5076a7f31a9b00202e609e832c588cb6687b9877eab6",
+      "split": "original50-historical-holdout-v2",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity",
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          },
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          },
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          },
+          {
+            "conceptId": "salesAmount",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          },
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "compare",
+        "comparison": "crossMeasure",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "comparison",
+        "requiresClarification": false
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification"
+      ],
+      "correctionReason": "Both production growth and sales growth are explicit. Represent each as its base business concept plus percentage-change form; compare their direction in the latest period.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v2.json",
+        "sourceQuestionSha256": "415fa9acb0478f9b598c5076a7f31a9b00202e609e832c588cb6687b9877eab6"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-01",
+      "question": "در گزارش مرداد ۱۴۰۵، کدام شرکت‌ها گندله تولید مثبت داشته‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "9b51da514b5409d8805957d5a5176f56b48b7bd7eedbcfb07b5ef16a924802b0",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "discoverPopulation",
+        "comparison": "none",
+        "period": "explicitMonth:مرداد ۱۴۰۵",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "thresholds": [
+          {
+            "measureConcept": "productionQuantity",
+            "operator": "greaterThan",
+            "value": 0,
+            "unit": "unspecified"
+          }
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "correctionReason": "Positive pellet production in Mordad 1405 is a product-level production-population filter over unbound companies.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "9b51da514b5409d8805957d5a5176f56b48b7bd7eedbcfb07b5ef16a924802b0"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-02",
+      "question": "کدام شرکت‌های صنعت معدن در تازه‌ترین گزارش، گندله تولید کرده‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "00e7e3f534f5f3300b00073d15df9bff64d67ebc5e7aadcc1369eb9574f31d1f",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "discoverPopulation",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "categoryLabels": [
+          "معدن"
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "categoryLabels",
+        "output"
+      ],
+      "correctionReason": "Latest report, mining-industry category, pellet product, and unbound company population are explicit. The wording does not specify a reporting cadence or unit.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "00e7e3f534f5f3300b00073d15df9bff64d67ebc5e7aadcc1369eb9574f31d1f"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-03",
+      "question": "در آخرین گزارش ماهانه، کدام تولیدکنندگان گندله بیش از ۳۰ تن فروش داشته‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "3d8c5d332a283ed60dd79d73eaff10bfef5c3a963b8adfd44c87f9d3b714cb63",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "ton"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "discoverPopulation",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "thresholds": [
+          {
+            "measureConcept": "salesQuantity",
+            "operator": "greaterThan",
+            "value": 30,
+            "unit": "ton"
+          }
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "correctionReason": "More than 30 tons sold is a physical sales-quantity threshold for pellets in the latest monthly report.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "3d8c5d332a283ed60dd79d73eaff10bfef5c3a963b8adfd44c87f9d3b714cb63"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-04",
+      "question": "شرکت‌های تولیدکننده گندله را بر پایه مجموع تولید سه ماه اخیر از بیشترین به کمترین مرتب کن.",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "6cfc6cc72f22214bba96bcab6afcad8008e683a578885b9fd0e92cd50dee85f8",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "rank",
+        "comparison": "none",
+        "period": "relativePeriods:month:3",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "aggregation": "sum:acrossPeriods",
+        "ranking": "descending:productionQuantity",
+        "output": "rankedList"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "aggregation",
+        "ranking",
+        "output"
+      ],
+      "correctionReason": "Rank pellet-producing companies by the sum of production across the last three monthly periods. Grain is product-level and amount is a physical quantity.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "6cfc6cc72f22214bba96bcab6afcad8008e683a578885b9fd0e92cd50dee85f8"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-05",
+      "question": "در سه ماه اخیر کدام محصولات کگهر بیشترین رشد مقدار تولید ماهانه را داشته‌اند؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "78e2e2f53474887c05dc1a8363859a0ba7c87a7934645a47f157f648bd518907",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "NET_PROFIT"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "rank",
+        "comparison": "periodOverPeriod",
+        "period": "relativePeriods:month:3",
+        "entityScope": "namedCompanies",
+        "ranking": "descending:productionQuantity",
+        "output": "rankedList"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "ranking",
+        "output"
+      ],
+      "correctionReason": "The request ranks products for a named company by percentage growth in monthly production over the recent three-month window.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "78e2e2f53474887c05dc1a8363859a0ba7c87a7934645a47f157f648bd518907"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-06",
+      "question": "تولید گندله کگل در شهریور ۱۴۰۵ نسبت به شهریور سال قبل چند درصد تغییر داشته است؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "d2bba7b9a44f2261941dd2f4ccbf741d646aa8e84d4024184990a6c6cb03dca0",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_PRODUCTION_GROWTH_YOY"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "growthRate",
+        "comparison": "yearOverYear",
+        "period": "explicitMonth:شهریور ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "productLabels": [
+          "گندله"
+        ],
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output"
+      ],
+      "correctionReason": "Explicit pellet production, current month Shahrivar 1405, prior-year same month, and percent change.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "d2bba7b9a44f2261941dd2f4ccbf741d646aa8e84d4024184990a6c6cb03dca0"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-07",
+      "question": "مبلغ فروش ریالی کگل را برای شش گزارش ماهانه آخر به ترتیب ماه نشان بده.",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "515dc7748720904cedada9c2efabf203e25453b5544864b75703ee7319c4658e",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "irr"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "timeSeries",
+        "comparison": "none",
+        "period": "relativePeriods:month:6",
+        "entityScope": "namedCompanies",
+        "output": "timeSeries"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Six most recent monthly reports of ریالی sales, shown in monthly order, means a six-period discrete amount time series.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "515dc7748720904cedada9c2efabf203e25453b5544864b75703ee7319c4658e"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-08",
+      "question": "مبلغ فروش ریالی کگل در مرداد ۱۴۰۵ چقدر ثبت شده است؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "463737d078e35e2bb48c678c9ed46799e8e3d7ac3ad05bb7e811ff7d599046b1",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES"
+      ],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "irr"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitMonth:مرداد ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "correctionReason": "Explicit ریالی sales amount for Mordad 1405, not quantity.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": true,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "463737d078e35e2bb48c678c9ed46799e8e3d7ac3ad05bb7e811ff7d599046b1"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-09",
+      "question": "وجه نقد پایان سال مالی ۱۴۰۴ کگهر چقدر گزارش شده است؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "985eebaddc20129eac7b815705fb45616f101fbeee231da198789285a34b474e",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [],
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "cashBalance"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "cashBalance",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "cashBalance",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "cashBalance",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "cashBalance",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitFiscalYear:۱۴۰۴",
+        "entityScope": "namedCompanies",
+        "output": "scalar",
+        "requiresClarification": false
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification"
+      ],
+      "correctionReason": "Cash at fiscal-year end is a financial-statement amount, year 1404. The source unit is not stated and must remain unresolved.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "985eebaddc20129eac7b815705fb45616f101fbeee231da198789285a34b474e"
+      }
+    },
+    {
+      "id": "readiness-holdout-v3-10",
+      "question": "آیا رشد تولید و مقدار فروش کگهر در دوره اخیر یکسان بوده است؟",
+      "sourceDataset": "release-readiness-holdout-v3.json",
+      "sourceDatasetVersion": "feature141-post-change-untouched-holdout-v3",
+      "sourceQuestionSha256": "b3455e5f938dabf02205a6f844190a68f8e39dad2ebd4f95ecea22f73a669c53",
+      "split": "historical-holdout-v3",
+      "historicalEvaluationStatus": "previously_used",
+      "legacyExpectedMetrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "goldStatus": "genuinely_ambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity",
+          "salesQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "percentageChange",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          },
+          {
+            "conceptId": "salesQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          },
+          {
+            "conceptId": "salesQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          },
+          {
+            "conceptId": "salesQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          },
+          {
+            "conceptId": "salesQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "compare",
+        "comparison": "crossMeasure",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "requiresClarification": true
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "requiresClarification"
+      ],
+      "correctionReason": "Production growth is a rate while sales quantity is an absolute amount. The user asks whether they are equal without a meaningful common comparison basis; preserve both partial requests and ask for clarification.",
+      "expectedOptionBFailureCategory": null,
+      "reviewProvenance": {
+        "reviewer": "Codex; single-reviewer semantic adjudication",
+        "predictionBlindReview": false,
+        "sourceDataset": "release-readiness-holdout-v3.json",
+        "sourceQuestionSha256": "b3455e5f938dabf02205a6f844190a68f8e39dad2ebd4f95ecea22f73a669c53"
+      }
+    }
+  ]
+}

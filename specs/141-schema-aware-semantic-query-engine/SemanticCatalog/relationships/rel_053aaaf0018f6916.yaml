@@ -1,0 +1,28 @@
+{
+  "id": "rel_053aaaf0018f6916",
+  "from": {
+    "schema": "public",
+    "table": "billing_checkout_intents",
+    "columns": [
+      "FulfillmentFinancialTransactionId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "billing_financial_transactions",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"FulfillmentFinancialTransactionId\") REFERENCES billing_financial_transactions(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "one-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

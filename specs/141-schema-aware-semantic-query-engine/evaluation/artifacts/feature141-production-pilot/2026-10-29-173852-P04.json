@@ -1,0 +1,72 @@
+{
+  "id": "P04",
+  "run": {
+    "Question": "تولید گندله کگل در آخرین ماه گزارش‌شده چقدر بوده؟",
+    "Enabled": true,
+    "Answer": "برای کگل و گندله در آخرین دورهٔ گزارش واجد شرایط دادهٔ واجد شرایطی پیدا نشد.",
+    "PersistedUserMessage": "تولید گندله کگل در آخرین ماه گزارش‌شده چقدر بوده؟",
+    "PersistedAssistantMessage": "برای کگل و گندله در آخرین دورهٔ گزارش واجد شرایط دادهٔ واجد شرایطی پیدا نشد.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669 Fingerprint=9341d87a94e678eee24e7ff8a55cf17c03c35502c2750acec34e1efb8e5f692c Status=NoData Rows=0 ElapsedMs=46.6744",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669 | Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False | Chat Feature 141 fallback evaluated. PreviousRoute=direct_metric_lookup_without_answer Definitive=True CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669",
+    "SemanticCapability": null,
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 12130,
+      "CompletionTokens": 1456,
+      "TotalTokens": 13586,
+      "EstimatedCost": null,
+      "ExecutionRoute": null
+    },
+    "Reservations": [],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 193.0000,
+    "WalletBalanceAfter": 192.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگل Products=گندله RequestedMeasures=productionQuantity PeriodKind=LatestAvailable PeriodCount=1 ComparisonMode=None Presentation=Scalar",
+      "Feature141 statement shape classified. Shape=none Diagnostic=none Operation=Retrieve Ranking=none Constraints= RequestedFields= Filters=none CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669",
+      "Feature141 query completed. CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669 Fingerprint=9341d87a94e678eee24e7ff8a55cf17c03c35502c2750acec34e1efb8e5f692c Status=NoData Rows=0 ElapsedMs=46.6744"
+    ],
+    "ElapsedMs": 25778.9679,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669",
+      "Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=direct_metric_lookup_without_answer Definitive=True CorrelationId=feature141-pilot-a333cd335b114068be3463a702a0b669"
+    ],
+    "ExecutedQueries": [
+      {
+        "Sql": "WITH latest_month AS (SELECT (SELECT mc.\"Id\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r0.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r0.\"ProviderName\") AS \"CompanyId\", MAX(r0.\"PeriodEnd\") AS \"PeriodEnd\" FROM \"public\".\"MonthlyReports\" r0 WHERE (r0.\"ProviderName\", r0.\"ExternalCompanyId\") IN (SELECT mc.\"ProviderName\", mc.\"ExternalCompanyId\" FROM \"public\".\"Companies\" mc WHERE mc.\"Id\" = @company_id) AND r0.\"ProviderName\" = @provider_name AND r0.\"ReportType\" = @report_type AND r0.\"OutputType\" = @output_type AND r0.\"IsAccepted\" = @is_accepted AND r0.\"RevisionStatus\" = @revision_status AND EXISTS (SELECT 1 FROM \"public\".\"MonthlyReportLineItems\" li0 WHERE li0.\"MonthlyReportId\" = r0.\"Id\" AND li0.\"ProductCode\" = @product_code) GROUP BY (SELECT mc.\"Id\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r0.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r0.\"ProviderName\")),\neligible_monthly_rows AS (SELECT (SELECT mc.\"Id\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r.\"ProviderName\") AS \"CompanyId\", r.\"PeriodStart\" AS \"PeriodStart\", r.\"PeriodEnd\" AS \"PeriodEnd\", li.\"ProductCode\" AS \"ProductCode\", li.\"Title\" AS \"ProductTitle\", li.\"ProductionQuantity\" AS \"Value\", li.\"Unit\" AS \"SourceUnit\", COUNT(*) OVER (PARTITION BY (SELECT mc.\"Id\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r.\"ProviderName\"), r.\"PeriodEnd\", li.\"ProductCode\") AS \"SamePeriodCandidateCount\", r.\"ProviderName\" AS \"ProviderName\", r.\"ReportType\" AS \"ReportType\", r.\"OutputType\" AS \"OutputType\", r.\"RevisionStatus\" AS \"RevisionStatus\", r.\"Id\" AS \"ReportIdentity\", r.\"ExternalReportId\" AS \"ExternalReportId\", li.\"SourceRowFingerprint\" AS \"SourceRowFingerprint\", li.\"SourceMultiplicity\" AS \"SourceMultiplicity\" FROM \"public\".\"MonthlyReportLineItems\" li JOIN \"public\".\"MonthlyReports\" r ON li.\"MonthlyReportId\" = r.\"Id\" WHERE (r.\"ProviderName\", r.\"ExternalCompanyId\") IN (SELECT mc.\"ProviderName\", mc.\"ExternalCompanyId\" FROM \"public\".\"Companies\" mc WHERE mc.\"Id\" = @company_id) AND r.\"ProviderName\" = @provider_name AND r.\"ReportType\" = @report_type AND r.\"OutputType\" = @output_type AND r.\"IsAccepted\" = @is_accepted AND r.\"RevisionStatus\" = @revision_status AND li.\"ProductCode\" = @product_code AND EXISTS (SELECT 1 FROM latest_month lm WHERE lm.\"CompanyId\" = (SELECT mc.\"Id\" FROM \"public\".\"Companies\" mc WHERE mc.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND mc.\"ProviderName\" = r.\"ProviderName\") AND lm.\"PeriodEnd\" = r.\"PeriodEnd\")),\nprojected_monthly_rows AS (SELECT * FROM eligible_monthly_rows)\nSELECT *, \"ReportIdentity\" AS \"ReportId\" FROM projected_monthly_rows ORDER BY \"CompanyId\", \"PeriodEnd\" ASC, \"ProductCode\", \"SourceMultiplicity\" LIMIT @row_limit OFFSET @row_offset",
+        "Parameters": {
+          "provider_name": "NoavaranCurrentApi",
+          "report_type": "ProductSales",
+          "output_type": "0",
+          "is_accepted": "True",
+          "revision_status": "Accepted",
+          "row_limit": "2",
+          "row_offset": "0",
+          "company_id": "3386cf62-2fc7-427f-bbdf-364c4666d8df",
+          "product_code": "NoavaranCurrentApi:4:TITLE:گندله|UNIT:تن"
+        },
+        "Status": "NoData",
+        "DiagnosticCode": null,
+        "EffectiveUnit": "row-source-unit",
+        "Rows": []
+      }
+    ]
+  }
+}

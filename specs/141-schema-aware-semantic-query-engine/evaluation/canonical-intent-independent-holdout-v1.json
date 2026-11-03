@@ -1,0 +1,772 @@
+{
+  "benchmarkVersion": 1,
+  "purpose": "Untouched first-pass canonical semantic intent evaluation; gold and questions frozen before model predictions.",
+  "createdUtc": "2026-10-10",
+  "sourceManifest": "canonical-intent-independent-holdout-v1.source.json",
+  "authorship": "Newly authored semantic test cases, independent of the historical 60-question corpus.",
+  "sealPolicy": "Gold and source questions are frozen before the first model request. No edits to questions, gold, extractor, registry, or scorer are permitted after predictions are inspected; any later repair requires a new holdout version.",
+  "caseCount": 12,
+  "adjudicatedCaseCount": 9,
+  "ambiguousCaseCount": 1,
+  "unsupportedCaseCount": 2,
+  "cases": [
+    {
+      "id": "independent-01",
+      "question": "مبلغ فروش ریالی شرکت آریا در دی ۱۴۰۴ چقدر بوده است؟",
+      "sourceQuestionSha256": "0f3b97eb0107d502a80a7ab85d74b6b98720eb4bb63fa920cd6d61a33879c26b",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "irr"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitMonth:دی ۱۴۰۴",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-02",
+      "question": "کدام شرکت‌ها در آخرین گزارش ماهانه بیش از ۵۰۰ تن گندله فروخته‌اند؟",
+      "sourceQuestionSha256": "290d4bcc8c2d0f4ca59b87619706163e48039c458c4fc73d9d6a71625a9663c4",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "salesQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": "ton"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "discoverPopulation",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "productLabels": [
+          "گندله"
+        ],
+        "thresholds": [
+          {
+            "measureConcept": "salesQuantity",
+            "operator": "greaterThan",
+            "value": 500,
+            "unit": "ton"
+          }
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-03",
+      "question": "سود خالص جداگانه و تلفیقی شرکت آریا را در آخرین گزارش با هم مقایسه کن.",
+      "sourceQuestionSha256": "cddf25d4e1c38613e27614428070eb00160d395b5498ae7066c82039b9771598",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "netProfit",
+          "netProfit"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "netProfit",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "standalone",
+            "valueGrain": "companyTotal"
+          },
+          {
+            "conceptId": "netProfit",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "consolidated",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "netProfit",
+            "value": "currencyAmount"
+          },
+          {
+            "conceptId": "netProfit",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": "unspecified"
+          },
+          {
+            "conceptId": "netProfit",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": null,
+            "evidence": "unresolved"
+          },
+          {
+            "conceptId": "netProfit",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "compare",
+        "comparison": "statementScope",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "comparison"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-04",
+      "question": "سود عملیاتی هر سهم شرکت آریا نسبت به سال قبل چند درصد تغییر کرد؟",
+      "sourceQuestionSha256": "cca567fa7dbf56b9dd1b20d9fb0fac6d66fb5a156a1b15a9080ec66572d15b17",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "operatingProfitPerShare"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "valueForm": "percentageChange",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "unspecified"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "value": "currencyPerShare"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "value": "irrPerShare"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "operatingProfitPerShare",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "growthRate",
+        "comparison": "yearOverYear",
+        "period": "latestAvailable",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-05",
+      "question": "مبلغ فروش ماهانه شرکت آریا را برای چهار گزارش آخر به ترتیب زمانی نمایش بده.",
+      "sourceQuestionSha256": "6846df0378425389528d0dd6ed00d60a9417fc7af7301c90219cf56aec140cc4",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "timeSeries",
+        "comparison": "none",
+        "period": "relativePeriods:month:4",
+        "entityScope": "namedCompanies",
+        "output": "timeSeries"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-06",
+      "question": "فروش تجمعی شرکت آریا از ابتدای سال مالی تا پایان خرداد ۱۴۰۵ چه مبلغی بوده است؟",
+      "sourceQuestionSha256": "728f0d6fd3a5a2cfdd7c9427fa2783b54014cde78c824599cf7cab5f51141077",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyCumulative",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitMonth:خرداد ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "output": "scalar"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-07",
+      "question": "فروش شرکت آریا در خرداد ۱۴۰۵ چقدر بود؟",
+      "sourceQuestionSha256": "33aa694836b2cbd7aa20c764fc30ec0c5f1e23a60c028db7e119b8faaafe1f1c",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "genuinely_ambiguous",
+      "expected": {
+        "measureConcepts": [],
+        "measureResolution": [
+          {
+            "userPhrase": "فروش",
+            "status": "ambiguous",
+            "candidateConceptIds": [
+              "salesAmount",
+              "salesQuantity"
+            ]
+          }
+        ],
+        "measureQualifiers": [],
+        "unitDimensions": [],
+        "requestedUnits": [],
+        "effectiveSourceUnits": [],
+        "operation": "retrieve",
+        "comparison": "none",
+        "period": "explicitMonth:خرداد ۱۴۰۵",
+        "entityScope": "namedCompanies",
+        "output": "scalar",
+        "requiresClarification": true
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification",
+        "measureResolution"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-08",
+      "question": "قیمت سهم فولاد را برای پایان سال آینده پیش‌بینی کن.",
+      "sourceQuestionSha256": "a77f0bd0c85b9939708c9941d55aa860bd40a2d1e544b99c8174e358942af4da",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "genuinely_unsupported",
+      "expected": {
+        "measureConcepts": [
+          "latestPrice"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "latestPrice",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "latestPrice",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "latestPrice",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "latestPrice",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "unsupported",
+        "comparison": "none",
+        "period": "unspecified",
+        "entityScope": "namedCompanies",
+        "output": "explanation"
+      },
+      "expectedFields": [],
+      "expectedOptionBFailureCategory": "unsupported_semantic_intent"
+    },
+    {
+      "id": "independent-09",
+      "question": "آیا افزایش سود خالص شرکت آریا باعث رشد قیمت سهم آن شده است؟",
+      "sourceQuestionSha256": "aa5bca9d11ba5ff40a08b0434ba5ff2c0b30119b4c2404fe91af201f2fc1c6db",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "genuinely_unsupported",
+      "expected": {
+        "measureConcepts": [
+          "netProfit",
+          "latestPrice"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "netProfit",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          },
+          {
+            "conceptId": "latestPrice",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "netProfit",
+            "value": "currencyAmount"
+          },
+          {
+            "conceptId": "latestPrice",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": "unspecified"
+          },
+          {
+            "conceptId": "latestPrice",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "netProfit",
+            "value": null,
+            "evidence": "unresolved"
+          },
+          {
+            "conceptId": "latestPrice",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "unsupported",
+        "comparison": "none",
+        "period": "unspecified",
+        "entityScope": "namedCompanies",
+        "output": "explanation"
+      },
+      "expectedFields": [],
+      "expectedOptionBFailureCategory": "unsupported_semantic_intent"
+    },
+    {
+      "id": "independent-10",
+      "question": "شرکت‌های صنعت پتروشیمی را بر اساس نسبت P/E از کمترین به بیشترین رتبه‌بندی کن.",
+      "sourceQuestionSha256": "74e14c8c310b26ae266460596133bd0eb82c2d9d1f84d0538452527debce70ba",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "priceEarningsRatio"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "valueForm": "reportedValue",
+            "reportingBasis": "unspecified",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "value": "ratio"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "value": "ratio"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "priceEarningsRatio",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "rank",
+        "comparison": "none",
+        "period": "latestAvailable",
+        "entityScope": "unboundCompanyPopulation",
+        "categoryLabels": [
+          "صنعت پتروشیمی"
+        ],
+        "ranking": "ascending:priceEarningsRatio",
+        "output": "rankedList"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "categoryLabels",
+        "ranking",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-11",
+      "question": "کدام شرکت‌ها در خرداد ۱۴۰۵ بیش از ۵۰۰ میلیارد ریال فروش ریالی ثبت کرده‌اند؟",
+      "sourceQuestionSha256": "3c28e6f06589fdeda304394fd37f281d75b1b839b5b3af892cc0001870285890",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "salesAmount"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "salesAmount",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "companyTotal"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "salesAmount",
+            "value": "currencyAmount"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": "billionIRR"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "salesAmount",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "discoverPopulation",
+        "comparison": "none",
+        "period": "explicitMonth:خرداد ۱۴۰۵",
+        "entityScope": "unboundCompanyPopulation",
+        "thresholds": [
+          {
+            "measureConcept": "salesAmount",
+            "operator": "greaterThan",
+            "value": 500,
+            "unit": "billionIRR"
+          }
+        ],
+        "output": "table"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "thresholds",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    },
+    {
+      "id": "independent-12",
+      "question": "محصولات شرکت آریا را بر اساس مجموع مقدار تولید در سه ماه اخیر از بیشترین به کمترین مرتب کن.",
+      "sourceQuestionSha256": "7470f5852a86b763ecfdab5155bae731416925c282ca34b4e471f22433aad305",
+      "split": "independent_holdout_v1",
+      "historicalEvaluationStatus": "never_evaluated_before_freeze",
+      "goldStatus": "adjudicated_unambiguous",
+      "expected": {
+        "measureConcepts": [
+          "productionQuantity"
+        ],
+        "measureResolution": [],
+        "measureQualifiers": [
+          {
+            "conceptId": "productionQuantity",
+            "valueForm": "reportedValue",
+            "reportingBasis": "monthlyDiscrete",
+            "statementScope": "unspecified",
+            "valueGrain": "productLevel"
+          }
+        ],
+        "unitDimensions": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "physicalQuantity"
+          }
+        ],
+        "requestedUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": "unspecified"
+          }
+        ],
+        "effectiveSourceUnits": [
+          {
+            "conceptId": "productionQuantity",
+            "value": null,
+            "evidence": "unresolved"
+          }
+        ],
+        "operation": "rank",
+        "comparison": "none",
+        "period": "relativePeriods:month:3",
+        "entityScope": "namedCompanies",
+        "aggregation": "sum:acrossPeriods",
+        "ranking": "descending:productionQuantity",
+        "output": "rankedList"
+      },
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "aggregation",
+        "ranking",
+        "output"
+      ],
+      "expectedOptionBFailureCategory": null
+    }
+  ]
+}

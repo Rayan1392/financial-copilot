@@ -1,0 +1,221 @@
+{
+  "id": "tbl_579cba8d3bc2fd17",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundEquityPositionSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "PositionState",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SecurityType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "RawSecurityName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedSecurityName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "Quantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "UnitMarketPrice",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketOrNetSaleValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "WeightOfTotalAssetsPercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MonetaryUnit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PercentageScale",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false,
+        "DefaultValue": "'-infinity'::timestamp with time zone"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundEquityPositionSnapshots_ExternalCompanyId_PeriodEndDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPositionSnapshots_ExternalCompanyId_PeriodEndDate\" ON public.\"FundEquityPositionSnapshots\" USING btree (\"ExternalCompanyId\", \"PeriodEndDate\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "PeriodEndDate"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPositionSnapshots_FundId_PeriodEndDate_PositionSt~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPositionSnapshots_FundId_PeriodEndDate_PositionSt~\" ON public.\"FundEquityPositionSnapshots\" USING btree (\"FundId\", \"PeriodEndDate\", \"PositionState\")",
+        "Columns": [
+          "FundId",
+          "PeriodEndDate",
+          "PositionState"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPositionSnapshots_ReportId_PeriodContext_Position~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundEquityPositionSnapshots_ReportId_PeriodContext_Position~\" ON public.\"FundEquityPositionSnapshots\" USING btree (\"ReportId\", \"PeriodContext\", \"PositionState\", \"SourceLogicalRow\", \"NormalizedSecurityName\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "PositionState",
+          "SourceLogicalRow",
+          "NormalizedSecurityName"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPositionSnapshots_ResolutionStatus_SecurityType",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPositionSnapshots_ResolutionStatus_SecurityType\" ON public.\"FundEquityPositionSnapshots\" USING btree (\"ResolutionStatus\", \"SecurityType\")",
+        "Columns": [
+          "ResolutionStatus",
+          "SecurityType"
+        ]
+      },
+      {
+        "Name": "IX_FundEquityPositionSnapshots_TradingInstrumentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundEquityPositionSnapshots_TradingInstrumentId\" ON public.\"FundEquityPositionSnapshots\" USING btree (\"TradingInstrumentId\")",
+        "Columns": [
+          "TradingInstrumentId"
+        ]
+      },
+      {
+        "Name": "PK_FundEquityPositionSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundEquityPositionSnapshots\" ON public.\"FundEquityPositionSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundEquityPositionSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

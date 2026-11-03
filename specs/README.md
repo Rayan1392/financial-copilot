@@ -8,6 +8,28 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 ---
 
+## Financial Statement Value Search
+
+- `131-financial-statement-value-search` — internal Application service for exact values in the latest persisted financial statement.
+- `132-ai-financial-statement-value-search` — expose Feature 131 through the existing AI query facade for natural-language exact-value identification questions.
+
+## Schema-Aware Query and Catalog Lifecycle
+
+- `141-schema-aware-semantic-query-engine` — add a catalog-governed, structured-plan fallback for generic questions over explicitly approved persisted financial data; generate, enrich, validate, document, index, and maintain the version-controlled semantic database catalog before production query execution is enabled.
+
+## Manual Data Acquisition
+
+- `142-manual-noavaran-financial-statement-backfill` — add a DataAdmin-only, company/year/period/category scoped Noavaran current-API financial statement backfill to `/getCompanyId`, reusing provider acquisition and normalized persistence.
+- `143-telegram-financial-statement-report-trigger` — recognize authorized CodalMirror financial-statement announcements and invoke Feature 142's application service through Feature 130/133's existing Telegram channel boundary.
+
+## Financial Statement Reporting
+
+- `144-quarterly-financial-reports-table` — proposed, read-only quarterly income-statement comparison table over persisted statement observations, with standalone-quarter normalization, typed comparisons, and traceable source/calculation evidence.
+
+## Mobile Experience
+
+- `153-mobile-pwa-workspace` — mobile-first workspace at `/m` (chat, history, market, watchlist, account), device routing behind a rollout flag, and an installable PWA that caches static assets only.
+
 ## Phase 1 Scanner MVP Specs
 
 1. `001-project-foundation`
@@ -79,6 +101,8 @@ These specs implement concrete financial-data providers behind the `004` abstrac
 
 ### CyclicalWaves
 
+- `148-cyclicalwaves-v2-independent-financial-data-provider` — **current CyclicalWaves integration.** TahlilApp API v2 (auth `auth.cycfx.com`, data `api.tahlilapp.com`; all 7 documented endpoints) persisted independently in schema `cyclicalwaves` (latest-state screener, reported quarterly income statements, comprehensive-analysis articles), daily Worker sync (23:30 UTC, configurable) plus DataAdmin console page, and Chat provider selection `FinancialData:ChatProvider = NoavaranAmin | CyclicalWaves` without fallback. It retires every legacy `back1.cyclicalwaves.com` endpoint, schedule and trigger below (data retained), applies C1 (legacy-derived `DerivedMetrics` excluded from NoavaranAmin reads), C2 (comprehensive analysis disabled in NoavaranAmin mode) and N1 (legacy-dependent financial-metric alerts not evaluated).
+- The entries below (020, 065, 067, 070, 071, 073, 114, 126, 127) are **superseded** and 115/125 are **disabled** by Feature 148.
 - `020-cyclicalwaves-data-provider` — CyclicalWaves HTTP API provider for financial statements, monthly observations, and valuation ratios. **No longer writes to the `Companies` catalog** (change request, order 48); resolves linkage through existing NADPCO-backed company/symbol metadata.
 - CyclicalWaves sales and valuation fields are provider-precomputed company-level facts. Monetary sales fields are source-unit Rials and must be persisted as-is under passthrough/source policies; PE/PS ratios are unitless and must also be stored as-is. Do not apply Noavaran million-Rial conversion or raw line-item aggregation rules to CyclicalWaves values.
 - `070-cyclicalwaves-monthly-sales-average-snapshot` — CyclicalWaves-only monthly/latest sales snapshots default to `MONTHLY_SALES`, `AVG_12M_MONTHLY_SALES`, YTD, and YTD-to-previous-month, with the mandatory Persian average header `متوسط فروش ۱۲ ماهه`; explicit same-period requests use prior-year same-month sales instead. This does not modify Noavaran spec 069 behavior.
@@ -108,7 +132,7 @@ Noavaran monthly activity is raw product/service line-item data. Monetary monthl
 
 1. `038-nadpco-api-provider-foundation` — token authentication, secrets, resilience, health, raw payload capture, and provider routing.
 2. `039-nadpco-api-company-catalog-sync` — `/api/v3/BaseInfo/Companies` normalization and cross-provider canonical symbol linkage. Authoritative company catalog: clean-slate backfill via `CompanyCatalogCleanSlate` DataAdmin operation; non-destructive daily `CompanyCatalogRefresh` scheduled run. Every NADPCO company field persisted in `Companies` or related normalized tables; no field remains evidence-only.
-3. `040-nadpco-api-financial-statement-sync` — balance sheet, income statement, and cash flow API ingestion with curated item mappings and corrected `StatementType`.
+3. `040-nadpco-api-financial-statement-sync` — balance sheet, income statement, and cash flow API ingestion with curated item mappings, corrected `StatementType`, and DataAdmin fiscal-year/period-scoped queueing.
 4. `041-nadpco-api-fundamental-index-sync` — curated vendor-precomputed fundamental indexes persisted as source-marked scannable metrics.
 5. `042-nadpco-api-monthly-activity-sync` — product-sales and service-sales monthly activity normalization.
 6. `043-nadpco-api-sync-orchestration` — bounded full/incremental orchestration, per-dataset progress, overlap reconciliation, `CompanyCatalogCleanSlate`/`CompanyCatalogRefresh` run modes, DataAdmin operations, telemetry, and cache invalidation.
@@ -118,6 +142,7 @@ Noavaran monthly activity is raw product/service line-item data. Monetary monthl
 10. `057-nadpco-monthly-activity-freshness-and-sales-lookup` — two-phase monthly-activity acquisition: Phase A DataAdmin-only reverse backfill walking Shamsi months newest-first with durable per-month progress and a completion marker; Phase B steady-state scheduled refresh of the previous Shamsi month only after the marker exists; governed `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` metrics with Persian aliases so AI answers monthly sales questions from normalized data. Monthly production/sales lookup responses intentionally omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
 11. `059-monthly-activity-output-type-segmentation` — fetch all 5 `outputTypeId` variants (0–4) per company-month from `ProductSales`; persist each as a separate `MonthlyReports` row with `OutputType` column; `MonthlyActivityOutputTypeResolver` routes AI queries to single-month or YTD rows, and grouped monthly production/sales views suppress market quote context.
 12. `082-noavaran-financial-statement-full-item-and-variant-persistence` — expand current-API financial-statement ingestion so statement requests may use `items: []`, all returned vendor items are persisted, and same-period standalone (`IsComposing = false`) and consolidated (`IsComposing = true`) variants remain separately retrievable instead of being collapsed before persistence.
+13. `134-noavaran-service-sales-fallback` — for each eligible company-month, use ProductSales first and call ServiceSales only after a successful empty/no-usable-data response; persist service line items idempotently and refresh the existing monthly trend snapshot/chart. This is a per-period endpoint fallback, not permanent company classification.
 
 ---
 
@@ -192,6 +217,7 @@ These specs add a separate bounded context for CyclicalWaves تحلیل جامع
 - `035` exposes controlled admin APIs over `031` Identity and `013` Billing boundaries. It does not duplicate entitlement logic, mutate wallet projections directly, or authorize by hardcoded role or plan names.
 - `037` consumes `035` through the existing `031` frontend auth bridge. Frontend permission checks control navigation and actions for usability only; backend policies remain authoritative.
 - `038`–`044`, `050`, `053`, `057`, `059` add `NoavaranCurrentApi` as the recurring financial-data source. Remote payload DTOs remain Infrastructure concerns; normalized PostgreSQL rows, governed metric semantics, deterministic recalculation, and scanner reads remain provider-neutral. All per-company current-API requests target only `NoavaranEligibleCompanies` (`PrecedencyRight = 0`, بورس/فرابورس/پایه); the company-catalog sync stays unscoped.
+- `134` extends the existing Noavaran monthly-activity path: `NoavaranEligibleCompanies` remains the bounded scope, ProductSales-first/ServiceSales-on-successful-empty is evaluated per company-month, and service-sales chart data must flow through the existing normalized persistence and trend snapshot pipeline. Do not add permanent company-type inference or query-time provider calls.
 - `044` schedules automatic NADPCO incremental synchronization only by invoking the bounded orchestration from `043`; it must not introduce a second ingestion, normalization, recalculation, or scanner-cache invalidation path.
 - `045` adds a `SymbolLookup` intent branch to the existing AI facade; it must not add a new public endpoint, duplicate billing accounting logic, or introduce a separate conversation persistence path. The scanner screener path (`007`/`008`) remains unaffected.
 - `046` adds aliases only; it must never create metric definitions, formulas, calculators, SQL, or billing behavior from user prompts or LLM output.
@@ -398,7 +424,9 @@ public `POST /api/ai/v1/query` facade.
   without making feedback part of the critical answer path.
 - The LLM may propose a schema-constrained interpretation but cannot create executable metrics,
   formulas, SQL, entities, routes, or capabilities.
-- V1 rollback and native MAF V2 must share capability, slot, entity, outcome, and Billing semantics.
+- V1 is frozen for new work: see [`specs/POLICY-V1-FREEZE.md`](./POLICY-V1-FREEZE.md). New capability,
+  slot, entity, outcome, and Billing semantics ship on native MAF V2 only; the V1↔V2 config toggle is
+  kept only for emergency rollback of already-migrated features, not as an ongoing parity contract.
 - Web and Telegram may render differently but must preserve the same semantic outcome and actions.
 - No spec in this pack introduces a public parser/tool endpoint or synchronous external provider
   call from the AI response path.

@@ -1,0 +1,233 @@
+{
+  "id": "tbl_e9e9540c69c705a0",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryWatchEvaluations",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "EvaluationKind",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Outcome",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvaluatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "PreviousState",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "NewState",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PreviousEntryStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "NewEntryStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PreviousExitStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "NewExitStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "TransitionReason",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "AlgorithmVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsEffective",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "GroupId",
+        "Type": "uuid",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "IndustryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Industries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "GroupId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryGroups",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "CalculationId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryRelativeValuationCalculations",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryWatchEvaluations_CalculationId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryWatchEvaluations_CalculationId\" ON public.\"IndustryWatchEvaluations\" USING btree (\"CalculationId\")",
+        "Columns": [
+          "CalculationId"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchEvaluations_GroupId_CalculationDate_IsEffective",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryWatchEvaluations_GroupId_CalculationDate_IsEffective\" ON public.\"IndustryWatchEvaluations\" USING btree (\"GroupId\", \"CalculationDate\", \"IsEffective\") WHERE (\"GroupId\" IS NOT NULL)",
+        "Columns": [
+          "GroupId",
+          "CalculationDate",
+          "IsEffective"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchEvaluations_GroupId_CalculationId_EvaluationKi~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryWatchEvaluations_GroupId_CalculationId_EvaluationKi~\" ON public.\"IndustryWatchEvaluations\" USING btree (\"GroupId\", \"CalculationId\", \"EvaluationKind\") WHERE (\"GroupId\" IS NOT NULL)",
+        "Columns": [
+          "GroupId",
+          "CalculationId",
+          "EvaluationKind"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchEvaluations_IndustryId_CalculationDate_IsEffec~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryWatchEvaluations_IndustryId_CalculationDate_IsEffec~\" ON public.\"IndustryWatchEvaluations\" USING btree (\"IndustryId\", \"CalculationDate\", \"IsEffective\") WHERE (\"GroupId\" IS NULL)",
+        "Columns": [
+          "IndustryId",
+          "CalculationDate",
+          "IsEffective"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchEvaluations_IndustryId_CalculationId_Evaluatio~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryWatchEvaluations_IndustryId_CalculationId_Evaluatio~\" ON public.\"IndustryWatchEvaluations\" USING btree (\"IndustryId\", \"CalculationId\", \"EvaluationKind\") WHERE (\"GroupId\" IS NULL)",
+        "Columns": [
+          "IndustryId",
+          "CalculationId",
+          "EvaluationKind"
+        ]
+      },
+      {
+        "Name": "PK_IndustryWatchEvaluations",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryWatchEvaluations\" ON public.\"IndustryWatchEvaluations\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IndustryWatchEvaluations_Industries_IndustryId",
+        "Type": "f",
+        "Columns": [
+          "IndustryId"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryWatchEvaluations_IndustryGroups_GroupId",
+        "Type": "f",
+        "Columns": [
+          "GroupId"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryWatchEvaluations_IndustryRelativeValuationCalculati~",
+        "Type": "f",
+        "Columns": [
+          "CalculationId"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_IndustryWatchEvaluations",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "id": "tbl_5a2cabee72344ed2",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundEquitySectionTotals",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawLabel",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "Quantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketOrNetSaleValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "WeightOfTotalAssetsPercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundEquitySectionTotals_ReportId_PeriodContext_SourceLogica~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundEquitySectionTotals_ReportId_PeriodContext_SourceLogica~\" ON public.\"FundEquitySectionTotals\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow"
+        ]
+      },
+      {
+        "Name": "PK_FundEquitySectionTotals",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundEquitySectionTotals\" ON public.\"FundEquitySectionTotals\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundEquitySectionTotals",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,611 @@
+> CURRENT CREDIT CONTRACT: See the final "Current confirmed product contract" section and pending T-40-T-43. Earlier monthly grant and recurring Free descriptions are implementation history.
+
+# قرارداد یکپارچه‌سازی TahlilApp و SapioAI
+
+**وضعیت سند:** قرارداد پیشنهادی برای هماهنگی و آماده‌سازی staging؛ این سند وجود یا دسترس‌پذیری endpointهای TahlilApp را تأیید نمی‌کند.
+
+**منبع رفتار فعلی SapioAI:** پیاده‌سازی موجود Feature 139. هر موردی که با وضعیت «پیشنهادی»، «تأییدنشده» یا «نیازمند تغییر هماهنگ» مشخص شده، هنوز قرارداد اجرایی مشترک محسوب نمی‌شود.
+
+## ۱. دامنه و نقش سامانه‌ها
+
+جریان ورود بدون ورود مجدد باید به این ترتیب کار کند:
+
+- **TahlilApp Frontend:** کاربر را احراز می‌کند و از Backend خود برای ساخت یک `LaunchCode` یک‌بارمصرف درخواست می‌کند.
+- **TahlilApp Backend:** مالک نشست TahlilApp، صدور و مصرف اتمیک `LaunchCode`، منبع حقیقت اشتراک TahlilApp و endpointهای server-to-server است.
+- **SapioAI Frontend:** مسیر `/launch` را باز می‌کند، `code` را به SapioAI Backend می‌فرستد و فقط نشست صادرشده SapioAI را نگه می‌دارد.
+- **SapioAI Backend:** کد را با TahlilApp Backend exchange می‌کند، هویت محلی را provision یا resolve می‌کند، اشتراک را در Billing همگام می‌کند و نشست SapioAI می‌سازد.
+- **SapioAI Identity:** نگاشت پایدار `(Provider=TahlilApp, ExternalUserId)` به یک local user و tenant، پروفایل، refresh token و access token SapioAI را نگه می‌دارد.
+- **SapioAI Billing:** plan، پنجره انقضا و wallet/ledger را نگه می‌دارد. TahlilApp منبع wallet balance یا credit مصرف‌شده SapioAI نیست.
+
+### توالی اولین ورود
+
+```mermaid
+sequenceDiagram
+    participant U as کاربر
+    participant TF as TahlilApp Frontend
+    participant TB as TahlilApp Backend
+    participant SF as SapioAI Frontend
+    participant SB as SapioAI Backend
+    participant I as SapioAI Identity
+    participant B as SapioAI Billing
+
+    U->>TF: ورود به TahlilApp
+    TF->>TB: POST /api/financial-copilot/launch
+    TB-->>TF: launchUrl شامل LaunchCode یک‌بارمصرف
+    TF->>SF: باز کردن launchUrl (/launch?code=...)
+    SF->>SB: POST /api/auth/v1/tahlilapp/launch { code }
+    SB->>TB: POST /api/financial-copilot/session-exchange
+    TB->>TB: مصرف اتمیک کد و ثبت audit
+    TB-->>SB: هویت، پروفایل، اشتراک و revision
+    SB->>I: resolve/create بر اساس ExternalUserId
+    I-->>SB: localUserId و tenantId
+    SB->>B: همگام‌سازی plan و expiry، بدون grant اعتبار
+    SB-->>SF: access token و refresh cookie SapioAI
+    SF-->>U: SapioAI بدون login مجدد
+```
+
+## ۲. شمارش endpointهای قرارداد
+
+این سند چهار endpoint اصلی یکپارچه‌سازی را مستند می‌کند:
+
+1. `POST /api/financial-copilot/launch` در TahlilApp Backend — پیشنهادی و متعلق به تیم TahlilApp.
+2. `POST /api/financial-copilot/session-exchange` در TahlilApp Backend — قرارداد server-to-server پیشنهادی/نیازمند تأیید TahlilApp.
+3. `GET /api/partners/users/{user_id}/status` در TahlilApp Backend — قرارداد پیشنهادی برای refresh.
+4. `POST /api/auth/v1/tahlilapp/launch` در SapioAI Backend — endpoint پیاده‌سازی‌شده SapioAI.
+
+Endpointهای native احراز هویت SapioAI مانند `login`، `refresh`، `logout`، enrollment ایمیل و password reset بخشی از قرارداد TahlilApp نیستند؛ در checklist برای E2E پوشش داده می‌شوند.
+
+## ۳. صدور LaunchCode در TahlilApp
+
+### `POST /api/financial-copilot/launch`
+
+این endpoint باید فقط در TahlilApp Backend پیاده‌سازی و منتشر شود. در repository فعلی SapioAI وجود ندارد؛ بنابراین آدرس، availability و جزئیات احراز هویت آن هنوز باید توسط TahlilApp تأیید شود.
+
+**احراز هویت و CSRF**
+
+- فقط برای کاربر دارای نشست معتبر TahlilApp قابل فراخوانی باشد.
+- درخواست مرورگر باید تحت CSRF protection همان TahlilApp باشد؛ استفاده از cookie احراز هویت به‌تنهایی کافی نیست.
+- CORS، origin و SameSite policy باید با frontend واقعی TahlilApp هماهنگ شود.
+- این endpoint نباید credential یا cookie مشترک با SapioAI صادر کند.
+
+**درخواست و پاسخ پیشنهادی**
+
+درخواست، در ساده‌ترین حالت، body ندارد یا body خالی دارد. شناسه کاربر از نشست احراز‌شده TahlilApp استخراج می‌شود.
+
+```json
+{}
+```
+
+پاسخ موفق پیشنهادی:
+
+```json
+{
+  "launchUrl": "https://sapioai.example.com/launch?code=K6m...",
+  "expiresAt": "2026-10-18T10:00:30Z"
+}
+```
+
+`launchUrl` باید به SapioAI Frontend (`/launch`) ختم شود و `code` را به صورت query parameter حمل کند. URL نباید token نشست، API key، refresh token یا داده PII داشته باشد.
+
+**الزامات LaunchCode**
+
+- حداقل ۳۲ بایت randomness رمزنگاری‌شده با CSPRNG؛ encoding URL-safe مانند Base64URL.
+- طول عمر پیشنهادی حداکثر ۱۲۰ ثانیه؛ مقدار هدف برای staging برابر ۶۰ ثانیه است.
+- در TahlilApp فقط hash کد ذخیره شود، نه مقدار خام آن.
+- مصرف باید single-use و اتمیک باشد: هم‌زمانی دو درخواست فقط یک مصرف موفق ایجاد کند.
+- رکورد باید شامل hash، `externalUserId`، زمان صدور، زمان انقضا، زمان مصرف، نتیجه و correlation id باشد.
+- کد منقضی، مصرف‌شده، ناشناخته یا malformed باید پاسخ یکنواخت بدهد تا oracle ایجاد نشود.
+
+**خطاهای پیشنهادی**
+
+| وضعیت | معنا | داده قابل نمایش به کاربر |
+|---|---|---|
+| `401` | نشست TahlilApp معتبر نیست | ورود دوباره به TahlilApp |
+| `403` | کاربر اجازه launch ندارد | دسترسی در دسترس نیست |
+| `409` | درخواست هم‌زمان یا سیاست مصرف نقض شده | دوباره تلاش کنید |
+| `429` | rate limit | بعداً تلاش کنید |
+| `5xx` | خطای موقت TahlilApp | بعداً تلاش کنید |
+
+کدهای داخلی، hash و PII نباید در پاسخ frontend یا لاگ عمومی قرار گیرند.
+
+## ۴. Session Exchange
+
+### `POST /api/financial-copilot/session-exchange`
+
+این endpoint متعلق به TahlilApp Backend است و SapioAI Backend آن را server-to-server فراخوانی می‌کند. در کد SapioAI، path پیش‌فرض همین مقدار است و از `Authentication:TahlilApp:ExchangePath` قابل تنظیم است؛ availability واقعی آن در TahlilApp هنوز تأیید نشده است.
+
+### احراز هویت ارتباط
+
+- ارتباط فقط روی HTTPS با TLS معتبر انجام شود؛ redirect پذیرفته نشود.
+- SapioAI header زیر را ارسال می‌کند: `X-Api-Key: <service credential>`.
+- SapioAI همچنین `X-Correlation-Id` را ارسال می‌کند.
+- کلید در environment/secret store با نام پیکربندی‌شده `ApiKeyEnvironmentVariable` خوانده می‌شود؛ مقدار پیش‌فرض `TAHLILAPP_EXCHANGE_API_KEY` است و در repository یا browser قرار نمی‌گیرد.
+- TahlilApp باید API key را با زمان‌بندی rotation و امکان overlap کوتاه برای تعویض امن مدیریت کند.
+- پاسخ باید `Content-Type: application/json` داشته باشد.
+
+### DTO درخواست
+
+```json
+{
+  "code": "K6m..."
+}
+```
+
+در SapioAI فقط property `code` خوانده می‌شود؛ propertyهای ناشناخته نباید در تعیین هویت اثر بگذارند. کد خالی، کوتاه‌تر از ۱۶ یا بلندتر از ۲۵۶ کاراکتر، یا دارای کاراکتر خارج از `[A-Za-z0-9_-]` قبل از فراخوانی TahlilApp رد می‌شود.
+
+### DTO پاسخ فعلی که SapioAI مصرف می‌کند
+
+```json
+{
+  "user": {
+    "externalUserId": "ta-user-1001",
+    "firstName": "Sara",
+    "lastName": "Test",
+    "nationalId": "0012345678",
+    "mobile": "+989121234567",
+    "status": "Active"
+  },
+  "subscription": {
+    "plan": "Plus",
+    "isActive": true,
+    "expiresAt": "2026-11-18T00:00:00Z",
+    "revision": 42
+  },
+  "permissions": ["financial-copilot"]
+}
+```
+
+### وضعیت دقیق فیلدها
+
+| مسیر | اجباری/اختیاری | validation و رفتار فعلی SapioAI |
+|---|---|---|
+| `user.externalUserId` | اجباری | رشته ۱ تا ۱۲۸ کاراکتر؛ فقط `[A-Za-z0-9._:-]`. تنها کلید cross-system است. |
+| `user.firstName` | اختیاری | رشته معتبر پروفایل؛ مقدار غایب/نامعتبر مقدار قبلی را حفظ می‌کند. |
+| `user.lastName` | اختیاری | همان سیاست `firstName`. |
+| `user.nationalId` | اختیاری | در exchange قابل دریافت و در SapioAI با Data Protection رمزنگاری می‌شود؛ مقدار خام و مقدار کامل در log/JWT قرار نمی‌گیرد؛ مقدار نامعتبر نادیده گرفته می‌شود. |
+| `user.mobile` | اختیاری | در exchange قابل دریافت و رمزنگاری می‌شود؛ مقدار خام و مقدار کامل در log/JWT قرار نمی‌گیرد؛ مقدار نامعتبر نادیده گرفته می‌شود. |
+| `user.status` | اجباری | فقط `Active` یا `Suspended`. `Suspended` باعث عدم صدور session می‌شود. |
+| `subscription.plan` | اختیاری | رشته، به صورت exact با `PlanMap` مقایسه می‌شود؛ plan ناشناخته به `Free` می‌رود. |
+| `subscription.isActive` | از نظر JSON اختیاری، از نظر تصمیم‌گیری | فقط مقدار boolean `true` فعال تلقی می‌شود؛ فقدان یا نوع اشتباه fail-closed و inactive است. |
+| `subscription.expiresAt` | اختیاری | ISO 8601؛ نامعتبر یا خارج از افق حداکثر ۵ سال null می‌شود؛ plan paid بدون expiry به `Free` می‌رود. |
+| `subscription.revision` | اختیاری | `Int64`؛ برای audit/sync state استفاده می‌شود. |
+| `permissions` در root | اختیاری | اگر array باشد فقط تعداد آن (`ExternalPermissionCount`) شمرده و log می‌شود؛ نام permissionها دور ریخته می‌شوند و هیچ capability ایجاد نمی‌کنند. |
+
+`Email` در این DTO وجود ندارد و نباید برای correlation یا identity استفاده شود. در اولین provision، local user بدون email و بدون password ساخته می‌شود. سپس کاربر می‌تواند از native enrollment استفاده کند.
+
+### semantics پاسخ و timeout فعلی SapioAI
+
+| پاسخ TahlilApp | رفتار gateway SapioAI |
+|---|---|
+| `2xx` + JSON معتبر | ادامه provisioning/sync/session |
+| `400` | `InvalidCode`؛ به کاربر `401 launch-invalid` داده می‌شود |
+| `3xx` | redirect دنبال نمی‌شود و unavailable تلقی می‌شود |
+| `401/403/404/409/429/5xx` | unavailable، به جز `400` که invalid است |
+| timeout/transport/content-type/JSON نامعتبر | unavailable |
+| body بزرگ‌تر از ۸ KB | unavailable |
+
+timeout exchange از ۱ تا ۱۰ ثانیه معتبر است و مقدار پیش‌فرض فعلی ۵ ثانیه است. exchange retry ندارد، چون مصرف کد non-idempotent است. Rate limit روی endpoint عمومی SapioAI با policy `PublicAuthentication` اعمال می‌شود؛ عدد نهایی آن باید در staging با configuration واقعی ثبت شود.
+
+TahlilApp باید مصرف کد را قبل از پاسخ موفق، اتمیک و concurrency-safe انجام دهد. SapioAI نیز hash کد و outcome را در `auth_tahlilapp_launch_attempts` با correlation ثبت و replay را در سمت خود قبل از exchange مسدود می‌کند.
+
+## ۵. هویت، پروفایل و نشست SapioAI
+
+- نگاشت با `(Provider = "TahlilApp", ExternalUserId)` انجام می‌شود؛ `nationalId`، `mobile` و `Email` کلید نگاشت نیستند.
+- اولین ورود یک local user بدون email/password، tenant پیش‌فرض و role پایه `User` ایجاد می‌کند.
+- ورود بعدی همان `externalUserId` همان local user و tenant را resolve می‌کند.
+- profile field معتبر جدید جایگزین مقدار قبلی می‌شود؛ field غایب یا نامعتبر مقدار قبلی را حفظ می‌کند.
+- `nationalId` و `mobile` در Data Protection با key ring پایدار رمزنگاری می‌شوند؛ UI فقط masked view دارد.
+- پاسخ موفق SapioAI از `POST /api/auth/v1/tahlilapp/launch` شامل `AccessToken`، `AccessTokenExpiresAt` و user profile/roles/permissions داخلی SapioAI است. refresh token در cookie `financial_copilot_refresh` با `HttpOnly`، `Secure` در production و `SameSite=Strict` در path `/api/auth/v1` قرار می‌گیرد.
+- access token فعلی ۱۵ دقیقه عمر دارد. logout refresh token را revoke می‌کند؛ access token stateless صادرشده تا پایان همین عمر کوتاه ممکن است معتبر بماند.
+
+## ۶. Subscription، Billing و permissions
+
+### منبع حقیقت و نگاشت plan
+
+TahlilApp برای کاربران TahlilApp-origin منبع حقیقت `status`، plan، active بودن و expiry است. SapioAI با `PlanMap` آن را به plan canonical داخلی نگاشت می‌کند:
+
+| TahlilApp plan | SapioAI plan | Monthly AI Credits |
+|---|---|---:|
+| `Free` | `Free` | 25 |
+| `Plus` | `Plus` | 260 |
+| `Pro` | `Pro` | 2600 |
+
+اگر plan ناشناخته/خالی باشد، `isActive=false` باشد، expiry غایب/نامعتبر باشد یا expiry گذشته باشد، تصمیم `Free` است. plan paid فقط وقتی پذیرفته می‌شود که mapping معتبر، active و expiry آینده داشته باشد.
+
+Revision 5 historical note, superseded by the Revision 6 contract section below: Plus→Pro transfers the remaining Plus balance into a new Pro period with 2600 new credits; `effectiveFrom` is required for paid credit allocation.
+
+Revision 5 historical note, superseded by Revision 6: the new contract requires `subscription.effectiveFrom` in launch exchange and status responses. SapioAI retains legacy response parsing for eligibility, but does not grant or renew paid credits from first observation time.
+
+### تفکیک وضعیت واقعی فیلدها
+
+**A — امروز در SapioAI پیاده‌سازی و مصرف می‌شود**
+
+- `externalUserId`، `firstName`، `lastName`، `nationalId`، `mobile`، `status` در exchange.
+- `plan`، `isActive`، `expiresAt` و `revision` در exchange و سیاست اشتراک.
+- `permissions` فقط به شکل root-level array پذیرفته و count می‌شود؛ نام‌ها مصرف یا ذخیره capability نمی‌شوند.
+- `Free/Plus/Pro` و credit catalog برابر ۲۵/۲۶۰/۲۶۰۰ در مدل و migration تأییدشده repository هستند؛ migration `20261018092758_UpdateApprovedMonthlyAiCredits` هنوز روی live database اجرا نشده است.
+- status refresh با GET تکی، TTL پیش‌فرض ۱۵ دقیقه، stale grace پیش‌فرض ۶ ساعت و downgrade امن به Free پیاده‌سازی شده است.
+
+**B — برای نیاز محصول لازم است ولی امروز پیاده‌سازی نشده است**
+
+- مصرف نام permissionها و تبدیل آن‌ها به capability/role داخلی SapioAI.
+- قراردادن permissionهای قابل اتکا در status response و اعمال تغییر permission بدون login مجدد.
+- تعریف mapping مصوب بین permissionهای TahlilApp و capabilityهای Billing/feature authorization SapioAI.
+- اثبات واقعی availability و SLA endpointهای TahlilApp در staging.
+
+**C — extension پیشنهادی و نیازمند تغییر هماهنگ**
+
+قرارداد پیشنهادی برای permissionها باید با توافق دو تیم به شکل versioned و explicit اضافه شود؛ مثلاً:
+
+```json
+{
+  "permissions": [
+    { "code": "financial-copilot", "active": true, "expiresAt": null }
+  ]
+}
+```
+
+این DTO فعلاً قرارداد اجرایی SapioAI نیست. پیش از استفاده باید schema نهایی، مالکیت تصمیم، case-sensitivity، expiry، رفتار revoke، mapping table و تست backward-compatible تصویب و در parser، persistence، authorization و status worker هر دو سمت تغییر داده شود. تغییر `permissions` به object به جای array نیز breaking change برای parser فعلی است و باید version یا rollout هماهنگ داشته باشد.
+
+## ۷. Status endpoint و revalidation
+
+### `GET /api/partners/users/{user_id}/status`
+
+این endpoint برای login-path و background revalidation طراحی شده و در SapioAI با `StatusPathTemplate` پیش‌فرض فراخوانی می‌شود. endpoint و schema هنوز از TahlilApp تأیید نشده‌اند.
+
+احراز هویت همان `X-Api-Key` روی HTTPS و `X-Correlation-Id` است. timeout پیش‌فرض فعلی ۳ ثانیه، بدون retry، بدون redirect و با body limit هشت کیلوبایت است.
+
+پاسخ فعلی مورد قبول parser SapioAI:
+
+```json
+{
+  "user": {
+    "externalUserId": "ta-user-1001",
+    "status": "Active"
+  },
+  "subscription": {
+    "plan": "Pro",
+    "isActive": true,
+    "expiresAt": "2026-12-31T23:59:59Z",
+    "revision": 43
+  }
+}
+```
+
+`nationalId` و `mobile` در status ممنوع‌اند؛ parser در صورت مشاهده آن‌ها response را رد می‌کند. permission field در status فعلی پشتیبانی نمی‌شود. status فقط `Active`/`Suspended`، plan، isActive، expiry و revision را منتقل می‌کند.
+
+رفتار خطا:
+
+- `200` با JSON معتبر: اعمال snapshot.
+- `404`: identity در TahlilApp دیگر وجود ندارد؛ local identity به `Revoked` می‌رود.
+- سایر non-2xx، timeout، transport، content-type یا validation error: `Unavailable`.
+- status `Suspended`: local identity به `Suspended` می‌رود و launch بعدی از مسیر TahlilApp session صادر نمی‌کند. access token stateless قبلی به‌صورت خودکار revoke نمی‌شود؛ اثر روی native login، refresh و نشست‌های موجود باید در staging تأیید و با Product/Security تصمیم‌گیری شود.
+- در unavailable، plan paid تا پایان stale grace شش‌ساعته با last-known state حفظ می‌شود؛ پس از آن به Free downgrade می‌شود.
+
+worker فعلی batch داخلی تا ۱۰۰ identity را claim می‌کند، اما برای هر identity یک GET جداگانه به status endpoint می‌زند؛ به endpoint batch خارجی وابسته نیست. endpoint batch TahlilApp در این repository پیاده‌سازی یا لازم نشده است. اگر scale یا SLA نیازمند batch باشد، باید یک extension جداگانه و coordinated contract change با ownership، pagination، partial failure و idempotency تعریف شود.
+
+## ۸. قرارداد خطا
+
+جدول زیر semantics مورد انتظار را از failureهای قابل نمایش به کاربر جدا می‌کند. جزئیات transport، body خارجی و credential فقط در diagnostics محدود و redacted باقی می‌ماند.
+
+| وضعیت/شرایط | رفتار یکپارچه‌سازی | خطای قابل نمایش به کاربر |
+|---|---|---|
+| LaunchCode نامعتبر | TahlilApp و SapioAI باید invalid را بدون oracle رد کنند؛ session صادر نشود | `401 launch-invalid` |
+| LaunchCode منقضی | مانند invalid؛ زمان انقضا افشا نشود | `401 launch-invalid` |
+| LaunchCode مصرف‌شده | مانند invalid؛ exchange دوم انجام نشود | `401 launch-invalid` |
+| user disabled یا local account disabled | SapioAI provision/session را متوقف کند | `403 launch-account-disabled` |
+| user suspended | exchange موفق با `status=Suspended` session launch نمی‌گیرد؛ status refresh local identity را suspended می‌کند | `403 launch-account-disabled` در launch |
+| credential سرویس نامعتبر/ناقص | TahlilApp باید unauthorized بدهد؛ SapioAI آن را unavailable و redacted ثبت کند | `503 launch-unavailable` |
+| subscription منقضی | identity برقرار می‌ماند، plan به `Free` می‌رود و capability paid grant نمی‌شود | login موفق با Free؛ خطای auth نیست |
+| plan ناشناخته/فاقد expiry معتبر | fail-closed به `Free`؛ هیچ plan بالاتری grant نمی‌شود | login موفق با Free؛ خطای auth نیست |
+| rate limit | endpoint عمومی یا external service باید `429` بدهد؛ client نباید با retry خودکار مصرف را تکرار کند | `429` یا پیام کوتاه retry-later |
+| timeout/transport/5xx موقت | no session از launch، بدون افشای stack/body؛ status path stale-grace را اعمال می‌کند | `503 launch-unavailable` |
+| خطای داخلی provisioning/Billing | در کد فعلی handler عمومی ممکن است `500` بدهد؛ این مورد با `503` یکسان نیست و باید در staging observe شود | پیام عمومی بدون جزئیات |
+
+این distinction مهم است: «subscription expired» و «unknown plan» داده معتبر اما کم‌امتیاز هستند و باید به Free تبدیل شوند؛ «service unavailable» خطای موقت ارتباط است و نباید plan را بی‌دلیل overwrite کند تا stale grace تمام شود.
+
+## ۹. endpoint داخلی SapioAI برای launch
+
+### `POST /api/auth/v1/tahlilapp/launch`
+
+درخواست:
+
+```json
+{ "code": "K6m..." }
+```
+
+موفقیت `200`:
+
+```json
+{
+  "accessToken": "<opaque-to-documentation>",
+  "accessTokenExpiresAt": "2026-10-18T10:15:00Z",
+  "user": {
+    "userId": "00000000-0000-0000-0000-000000000001",
+    "email": "",
+    "tenantId": "00000000-0000-0000-0000-000000000002",
+    "roles": ["User"],
+    "permissions": []
+  }
+}
+```
+
+refresh token در response JSON نیست و در cookie امن نوشته می‌شود.
+
+| HTTP | error code | نمایش امن |
+|---:|---|---|
+| `404` | feature disabled | endpoint در محیط فعال نیست |
+| `401` | `launch-invalid` | کد نامعتبر، منقضی یا replay شده است |
+| `403` | `launch-account-disabled` | حساب در دسترس نیست |
+| `503` | `launch-unavailable` | TahlilApp موقتاً در دسترس نیست |
+| `429` | rate limit policy | بعداً تلاش کنید |
+
+کدهای invalid، expired و reused عمداً یک پاسخ کاربرمحور دارند تا oracle ایجاد نشود. `correlationId` در ProblemDetails برای پشتیبانی می‌آید؛ secret، code و response body خارجی هرگز در log قرار نمی‌گیرد.
+
+## ۱۰. هفت مثال JSON با داده مصنوعی
+
+همه مثال‌ها synthetic هستند و credential واقعی ندارند.
+
+### ۹.۱ کاربر Free برای اولین بار
+
+```json
+{
+  "user": { "externalUserId": "ta-free-001", "status": "Active" },
+  "subscription": { "plan": "Free", "isActive": true, "expiresAt": null, "revision": 1 },
+  "permissions": []
+}
+```
+
+نتیجه SapioAI: ساخت local identity در صورت نبودن، plan=`Free`، سهم catalog برابر ۲۵؛ sync اعتباری انجام نمی‌دهد.
+
+### ۹.۲ کاربر Plus فعال
+
+```json
+{
+  "user": { "externalUserId": "ta-plus-002", "firstName": "Plus", "lastName": "Tester", "status": "Active" },
+  "subscription": { "plan": "Plus", "isActive": true, "expiresAt": "2026-11-18T00:00:00Z", "revision": 20 },
+  "permissions": ["financial-copilot"]
+}
+```
+
+نتیجه: plan=`Plus` و expiry ثبت می‌شود؛ count permission برابر ۱ است ولی capability از نام آن ساخته نمی‌شود.
+
+### ۹.۳ کاربر Pro فعال
+
+```json
+{
+  "user": { "externalUserId": "ta-pro-003", "status": "Active" },
+  "subscription": { "plan": "Pro", "isActive": true, "expiresAt": "2027-01-31T00:00:00Z", "revision": 30 },
+  "permissions": ["financial-copilot", "advanced-analysis"]
+}
+```
+
+نتیجه: plan=`Pro`؛ catalog برابر ۲۶۰۰ و count permission برابر ۲ است، بدون mapping capability.
+
+### ۹.۴ کاربر suspended
+
+```json
+{
+  "user": { "externalUserId": "ta-suspended-004", "status": "Suspended" },
+  "subscription": { "plan": "Plus", "isActive": true, "expiresAt": "2026-12-01T00:00:00Z", "revision": 31 }
+}
+```
+
+نتیجه: SapioAI session صادر نمی‌کند و `403 launch-account-disabled` می‌دهد.
+
+### ۹.۵ subscription منقضی
+
+```json
+{
+  "user": { "externalUserId": "ta-expired-005", "status": "Active" },
+  "subscription": { "plan": "Pro", "isActive": true, "expiresAt": "2026-10-01T00:00:00Z", "revision": 32 }
+}
+```
+
+نتیجه: چون expiry گذشته است، تصمیم SapioAI `Free` با reason=`expired` است.
+
+### ۹.۶ کاربر returning
+
+```json
+{
+  "user": { "externalUserId": "ta-free-001", "status": "Active" },
+  "subscription": { "plan": "Free", "isActive": true, "expiresAt": null, "revision": 2 }
+}
+```
+
+نتیجه: `externalUserId` موجود همان local user قبلی را resolve می‌کند؛ local user، conversation و Billing account جدید ایجاد نمی‌شود.
+
+### ۹.۷ LaunchCode نامعتبر
+
+درخواست SapioAI Frontend به SapioAI Backend:
+
+```json
+{ "code": "already-used-or-invalid" }
+```
+
+پاسخ عمومی SapioAI:
+
+```json
+{
+  "type": "https://financialcopilot/errors/launch-invalid",
+  "title": "The launch request is invalid or has expired.",
+  "status": 401,
+  "correlationId": "synthetic-correlation-007"
+}
+```
+
+در این حالت session صادر نمی‌شود و جزئیات invalid/expired/reused بودن در پاسخ افشا نمی‌شود.
+
+## ۱۱. الزامات امنیتی و حریم خصوصی
+
+- LaunchCode باید CSPRNG، کوتاه‌عمر، hash‌شده و single-use باشد؛ browser URL محل credential بلندمدت نیست.
+- exchange و status فقط server-to-server روی HTTPS/TLS معتبر با `X-Api-Key` انجام می‌شود.
+- API key باید در secret store/environment، قابل rotation و بدون چاپ در log باشد؛ نبودن key در SapioAI fail closed و unavailable است.
+- هیچ shared authentication cookie بین TahlilApp و SapioAI وجود ندارد.
+- SapioAI قبل از exchange replay محلی را با hash و unique constraint کنترل می‌کند؛ TahlilApp نیز باید مصرف اتمیک خود را تضمین کند.
+- exchange و status retry ندارند؛ timeout و body limit از حمله و مصرف منابع جلوگیری می‌کند.
+- لاگ فقط outcome، status code، latency، count permission و correlation را ثبت می‌کند؛ code، API key، nationalId، mobile، email و response body ثبت نمی‌شوند.
+- key ring Data Protection باید persistent، مشترک بین replicaها و با permission محدود باشد.
+- `nationalId` و `mobile` حداقل داده موردنیاز هستند، رمزنگاری‌شده ذخیره می‌شوند و در status نباید برگردند.
+- access token کوتاه‌عمر ۱۵ دقیقه است؛ refresh cookie `HttpOnly` و `SameSite=Strict` است.
+
+## ۱۲. ماتریس مالکیت و acceptance criteria
+
+| موضوع | TahlilApp team | SapioAI team | DevOps/Operations | Product Owner | معیار پذیرش |
+|---|---|---|---|---|---|
+| Launch issuance | پیاده‌سازی و انتشار endpoint | مصرف launchUrl | DNS/TLS و routing | تأیید UX | کاربر signed-in کد کوتاه‌عمر می‌گیرد و هر کد فقط یک بار مصرف می‌شود |
+| Session exchange | ارائه schema و atomic consume | gateway، parser، mapping و session | secret، firewall و observability | تأیید identity contract | first launch همان local identity را می‌سازد و replay session نمی‌دهد |
+| Status | endpoint، auth، SLA و عدم PII | parser، refresh worker و safe downgrade | availability/alerts | تأیید suspension/expiry | `Active`/`Suspended` و expiry در login و worker قابل راستی‌آزمایی است |
+| Subscription | plan/status/expiry/revision | PlanMap و Billing sync | migration/backup | تأیید catalog | Free=25، Plus=260، Pro=2600؛ sync اعتبار grant نمی‌کند |
+| Permissions | schema و semantics | parser/authorization/Billing mapping | rollout و audit | تصویب mapping | تا پیش از توافق C، permission نام‌دار به capability تبدیل نمی‌شود |
+| Profile/PII | فیلدهای مجاز | encryption/masking/native enrollment | key ring backup/restore | privacy approval | PII در log/JWT نیست و پس از restart قابل decrypt است |
+
+## ۱۳. تصمیم‌های باز برای integration
+
+### Blocking
+
+1. base URL و availability واقعی `POST /api/financial-copilot/session-exchange` در staging.
+2. base URL و availability واقعی `POST /api/financial-copilot/launch` و redirect به SapioAI `/launch`.
+3. schema نهایی، مالکیت و rotation برای `X-Api-Key`.
+4. staging DNS، TLS certificate، trusted proxy و مسیر network دو Backend.
+5. تأیید schema و SLA برای `GET /api/partners/users/{user_id}/status`.
+6. اجرای کنترل‌شده auth/billing migrations در staging و ثبت evidence؛ migration credit در live هنوز اجرا نشده است.
+
+### Non-blocking
+
+1. متن دقیق UI برای expired/temporary unavailable.
+2. ظاهر دکمه یا لینک «ورود به SapioAI» در TahlilApp.
+3. نام‌گذاری نهایی dashboard و alertها، تا زمانی که correlation و outcome حفظ شوند.
+
+### Requires coordinated contract change
+
+1. permission DTO نام‌دار، mapping به capability و رفتار revoke/expiry.
+2. افزودن permission به status response.
+3. endpoint batch status در صورت نیاز scale؛ شامل pagination، partial failure، rate limit و idempotency.
+4. هر تغییر در envelope فعلی `user`/`subscription` یا تبدیل root-level `permissions` از array به object.
+
+تا زمان بسته‌شدن موارد blocking، وضعیت Feature 139 برای production integration «آماده تحویل مستندات، آماده اجرای staging نیست» است.
+
+
+## 9. Proposed SapioAI/TahlilApp permission and Billing boundary
+
+This section records the current SapioAI contract boundary for coordinated approval:
+
+- TahlilApp owns user eligibility and the external identity status returned by launch/status endpoints.
+- SapioAI Identity consumes the approved plan code and expiry. SapioAI Billing owns plan-to-capability mapping, wallet balances, credit consumption and immutable ledgers.
+- The internal permission admin.users.pii.read is registered for a possible later audited admin reveal. It is not a TahlilApp permission, is not assigned to default roles, and authorizes no current endpoint.
+- SapioAI currently parses the permissions array as informational metadata only. It does not store or authorize by external permission names.
+- TahlilApp and SapioAI Product/Security must approve a versioned list of exact external permission codes and their SapioAI-owned mapping before permission-dependent authorization is enabled in staging. Until then, external permission values cannot add or remove internal capabilities.
+- Subscription sync and repeated authentication grant no credits. The approved plan catalog values do not define the period anchor, carryover, expiry treatment or mid-period plan-change allocation. Product/Billing approval is required before monthly wallet grants or upgrade/downgrade proration are implemented.
+
+## Contract version 2: authoritative paid activation timestamp
+
+SapioAI sends `X-SapioAI-Contract-Version: 2` on both launch exchange and subscription status requests. TahlilApp must include `subscription.effectiveFrom` as an ISO 8601 UTC timestamp for an active paid subscription. `revision` remains monotonic per external user and changes whenever subscription eligibility, plan, activation or expiry changes.
+
+Launch exchange response and status response both use:
+
+```json
+{
+  "user": { "externalUserId": "user-123", "status": "Active" },
+  "subscription": {
+    "plan": "plus",
+    "isActive": true,
+    "effectiveFrom": "2026-10-01T12:00:00Z",
+    "expiresAt": "2026-10-31T12:00:00Z",
+    "revision": 42
+  },
+  "permissions": []
+}
+```
+
+`effectiveFrom` must be present, parseable, UTC (`Z` or `+00:00`), not in the future, and earlier than `expiresAt`. SapioAI keeps the deployed response parser compatible during rollout. A legacy response without a valid `effectiveFrom` may still establish TahlilApp eligibility, but never creates a paid credit period or substitutes SapioAI's observation time. A previously verified anchor is retained only for the same plan and subscription window. Joint staging contract tests must pass before contract version 2 is considered enabled.
+
+TahlilApp remains authoritative for purchases and external eligibility. SapioAI owns internal capabilities, monthly credit allocation, wallet balances, consumption and accounting. External permission names remain informational until a coordinated contract approval supplies an authoritative mapping.
+
+Plus→Pro creates a fresh Pro period at `effectiveFrom`, grants 2600 credits, and transfers the unused Plus remainder into it. Paired append-only ledger adjustments record the transfer. The transferred amount expires with that Pro period and does not roll forward. Duplicate or out-of-order revisions cannot replay the transfer. Pro→Plus is not accepted as a paid downgrade; loss or expiry of Pro eligibility resolves to Free.
+
+### Rollout compatibility
+
+| Contract | Behavior |
+| --- | --- |
+| Currently deployed response | `effectiveFrom` may be absent. SapioAI accepts the response for eligibility; paid credit grants and paid period renewals require a previously verified activation anchor. |
+| Version 2 response | `effectiveFrom` is required for active paid subscriptions; `revision` is monotonic; exchange and status responses use the same subscription shape. |
+| Cutover | TahlilApp and SapioAI coordinate response deployment and test fixtures. Do not enable staging allocation until both endpoints return the field and launch/status contract tests pass. |
+## Revision 7 — Official TahlilApp contract and approved independent subscriptions
+
+This revision supersedes conflicting assumptions in Revisions 1–6. Those sections remain as implementation history only.
+
+The confirmed API uses HTTP Basic Auth with client ID `financial-copilot` and an environment supplied secret. The base is `https://api.tahlilapp.com/api`; exchange is `POST /partners/exchange` with `{ "code": "..." }`; status is `GET /partners/users/{user_id}/status`. Responses identify the account by root `user_id`, allow nullable `name`, and contain `subscription.plans[]` entries with `slug`, `starts_at`, and `expires_at`. Supported slugs are `sapio_plus` and `sapio_pro`. The contract does not supply `effectiveFrom`, subscription IDs, or revisions. Prior `effectiveFrom` and revision requirements are superseded. The new `starts_at` field is pending external contract delivery; no historical activation time may be inferred.
+
+Each paid plan is an independent subscription. Plus and Pro can be active together; the effective plan is Pro whenever Pro is active, otherwise Plus when Plus is active, otherwise Free. Both valid paid purchases contribute grants. A Pro activation transfers only remaining eligible Plus credits, paired in the append-only ledger; consumed Plus credits are never granted again. Each plan-period grant is idempotent by account plus `slug + starts_at + expires_at` identity and 30-day period number. Consumption is attributed to source periods and uses earliest-expiry-first ordering. The wallet remains an aggregate projection; source period rows, grant references, charge allocations, refunds, expiry, and transfer ledger rows preserve accounting provenance. No migration rewrites historical wallet or ledger entries.
+
+Paid access is computed from the active per-plan windows, independently from credit accounting. The last paid subscription expires at the greatest authoritative `expires_at` among the user's paid subscriptions when no paid window remains active. At that timestamp effective plan becomes Free and the 30-day Free-credit cooldown begins, even if SapioAI observes expiry later. The durable cooldown row is separate from authentication and plan state; repeat login/status sync cannot extend it. Reservation authorization denies AI usage during cooldown even if a balance remains. Authentication stays available. Reactivation permits paid reservations immediately; a later last-paid expiry uses the later authoritative expiry. Tracked Free credits are forfeited on paid activation; unexpired paid balances remain held during cooldown and expire by their own source period. No Free grant occurs during cooldown. Free allocation resumes after it, with a durable period identity to prevent duplicate historical grants.
+
+Implementation adds per-plan subscription state, credit-period identity, immutable usage-source allocations, and cooldown persistence. The EF migration is `20261028104343_Feature139OfficialPlanSubscriptionsAndCooldown`; it has not been applied. A legacy period-key backfill preserves existing period uniqueness without altering wallet totals or ledger history. Existing legacy wallets still require a separately approved reconciliation before new subscription grants can be attributed.
+
+Verification: focused Feature 139/Billing tests pass (121 unit tests; 20 integration tests pass and one PostgreSQL concurrency test is skipped because its database infrastructure is unavailable). The backend Release solution build passes with zero warnings and errors. The full unit suite has 20 unrelated failures: 18 match failures in the saved baseline TRX and two are in Nadpco/Telegram tests; details are in `ImplementationReport.md`. No production API call, deployment, or database migration was performed. TahlilApp delivery of `starts_at`, joint staging exchange/status verification, migration application, and operational readiness remain unverified.
+
+Revision 7 acceptance criteria AC-100 through AC-106 are defined in tasks.md and apply to this document. Revision 7 controls over conflicting earlier assumptions.
+
+## Revision 9 — Official `name` field
+
+The official exchange response (`POST /partners/exchange`) identifies the user by root `user_id` and may carry the user's full name in the optional root `name`:
+
+```json
+{
+  "user_id": "d647420371eb1270418f59c20d6c7d02",
+  "name": "کامران عبدی",
+  "subscription": {
+    "active": true,
+    "expires_at": "2026-11-27T08:22:04.000Z",
+    "plans": [
+      { "slug": "sapio_pro", "starts_at": "2026-10-28T08:22:04.000Z", "expires_at": "2026-11-27T08:22:04.000Z" }
+    ]
+  }
+}
+```
+
+| Field | Required | SapioAI handling |
+| --- | --- | --- |
+| `user_id` | Yes | Stable identity key, stored only in `auth_external_identities.ExternalUserId` with `Provider = TahlilApp`. Never derived from or replaced by `name`. |
+| `name` | No | String, trimmed, 1–100 characters, no control characters. Stored as `auth_user_profiles.DisplayName`, exactly as one value; SapioAI never splits it into first and last name. |
+
+`name` outcomes:
+
+- **Valid string:** stored on first launch; on a later launch it overwrites only when it differs from the stored value.
+- **Missing key or JSON `null`:** the stored value is kept. Absence or `null` never clears a name.
+- **Any other type, empty or whitespace-only string, control character, or more than 100 characters:** the field is ignored and the stored value is kept. The launch is **not** rejected and the user still receives a session.
+
+The `name` value is never logged by SapioAI. The status endpoint (`GET /partners/users/{user_id}/status`) is not read for profile data and does not change the stored name. The earlier `user.firstName`/`user.lastName` fields in this document are not part of the official response; values already stored from them remain as a display fallback. Clearing a stored name requires a future explicit contract operation.
+
+## Revision 8 � Revocation and status refresh
+
+The status endpoint's official URL is `GET /api/partners/users/{user_id}/status`, where `{user_id}` comes only from `auth_external_identities.ExternalUserId` for Provider `TahlilApp`. The existing Basic Auth client is reused; credentials and external identity values are not returned to the browser or logged.
+
+An authoritative inactive response with an empty plan list revokes all previously stored still-future TahlilApp paid windows regardless of their recorded future expiry. Persist `RevokedAtUtc` as the first successfully observed revocation time and keep the source's contractual `ExpiresAtUtc` unchanged. Natural expiry remains anchored to the authoritative contractual expiry. Forfeit each affected source's unused balance with one idempotent ledger adjustment, preserve earlier grants/charges, and release pending reservations atomically before forfeiture. No Free grant occurs until 30 days after the final paid entitlement ends. Repeated inactive responses preserve the original revocation and cooldown times.
+
+The 15-minute successful-verification TTL bounds request-time refresh frequency. Login and credit reservation call the same refresher; fresh state makes no external request. Per-user single-flight and a 1.1-second per-process request pace reduce duplicates and stay below 60/minute per process. A deployment with multiple API processes must provide shared rate limiting to meet the partner-wide limit. Status 401/404/429, timeout, and 5xx are unavailable, not positive entitlement: preserve a last-known paid plan only within the configured six-hour grace, otherwise fail closed to Free. Do not retry exchange codes.
+
+Migration `Feature139SubscriptionRevocation` adds source revocation state and a distinct observed-revocation cooldown timestamp. Apply it only through the normal reviewed staging/production migration process; it was not applied as part of this change.
+
+## Pending linked Feature 152 — Max subscription contract
+
+This section is a pending extension; completed Feature 139 criteria and history above are unchanged. See `../152-tahlilapp-unlimited-subscription/spec.md` for admission, accounting, API and UI work. TahlilApp will offer a separate Max subscription alongside Plus and Pro. The official `subscription.plans[]` entry continues to supply `slug`, `starts_at`, and `expires_at`; SapioAI uses those authoritative dates and never computes a 90-day expiry. The exact Max slug requires partner confirmation; `sapio_max` is a proposed mapping name, not an observed contract value. Add the agreed slug to both exchange/status parsers and plan mapping, persist it as an independent external window, and select its active entitlement only while `starts_at <= now < expires_at` and the source is not revoked. Include it in paid-expiry cooldown, renewal and revocation handling. Proposed overlap precedence: Max > Pro > Plus > Free, subject to Product approval. Max is an explicit quota mode, not a numeric credit grant or sentinel. Its operation capabilities and limits require an approved matrix; Pro capability inheritance is not assumed. Do not accept an upstream Max plan until Billing reservation/finalization and usage responses implement the explicit mode. Feature 151 paid top-ups remain independently scoped.
+
+## Current confirmed product contract — pending implementation (supersedes earlier monthly credit policy)
+
+The earlier 25-credit Free and 30-day Free/Plus/Pro credit-cycle descriptions in this document are implementation history, not the target product rule. Current required entitlements: Free 250 credits once per local user, valid only to its assigned expiration; Plus 260 credits once for the entire authoritative subscription window; Pro 2600 credits once for the entire authoritative window; Max explicit Unlimited quota until its authoritative window expiration. There is no monthly allocation, refill or reset at day 30/day 60. Paid commercial terms are currently 90 days and displayed TahlilApp prices are Plus 1,000,000, Pro 5,000,000 and Max 25,000,000 TOMAN. SapioAI uses only TahlilApp's authoritative starts_at/expires_at and never calculates a 90-day expiry or validates those prices in the top-up webhook. Free does not inherit a 90-day duration.
+
+The official paid-window identity is the existing (slug, starts_at, expires_at) tuple used by TahlilAppSubscriptionPolicy and ExternalPlanSubscriptionRow. One initial finite grant is unique per account and authoritative paid window, with no period-number cycle. A genuine renewal with a distinct tuple gets one new initial grant; prior unused credits expire at their own source expiration and never carry. Duplicate launch, login, status sync, worker restart or retry cannot regrant. A Free grant is unique per local user for life, independent of current plan; exhaustion, expiry, paid-plan expiry and cooldown completion cannot generate a second one. The current official status payload allows an empty plan list and nullable expires_at, so it does not reliably supply an assigned Free expiration. TahlilApp must confirm an authoritative Free expiration field (proposed free_expires_at in exchange and status) or the Product owner must define an explicit separately persisted assignment source before a new Free grant is issued. No duration is inferred from observation time.
+
+The shared Billing migration/reconciliation must mark every existing historical Free grant as already issued, including legacy 25-credit grants, without automatically adding 225 credits. A durable unique per-user Free-grant marker (or equivalent uniqueness anchored to the canonical local user) survives plan changes. Existing wallet/ledger/period data is preserved for reviewed reconciliation; no old 30-day row is silently interpreted as a fresh full-window grant. Source-attributed reservation, charge, expiry and refund processing excludes expired credits from spendable balance immediately, even if cleanup is delayed; an expired-source usage refund cannot make credits spendable. Feature 139 T-40–T-43 own this shared foundation. Feature 151 owns top-up source grants; Feature 152 owns Max quota-mode usage.
+
+For Max, `sapio_max` is a proposed external slug pending TahlilApp verification, mapped configurably to the canonical Max plan. Add Max as an independent paid window using the same official dates. Max is Unlimited quota mode, never a numeric credit grant or sentinel. Its exact capability matrix and overlap precedence remain pending Product decisions. At Max expiration/revocation, new requests lose Unlimited immediately and no Free grant is created. Existing valid finite sources remain governed by their own windows. Active Max forbids new top-up checkout; a verified earlier Plus/Pro purchase delivered after transition retains its original window as specified by Feature 151.
+
+## Current correction (2026-11-02): Free is internal Billing state
+
+This section supersedes the preceding pending Free-expiration requirement. The TahlilApp contract has paid subscription windows only (Plus, Pro, Max), each with authoritative start and expiration dates. With no paid plan, the external subscription value is null. A Free plan and Free expiration date are not part of the contract, and no contract extension is required for Free provisioning.
+
+On first eligible local wallet provisioning, Billing uses the persisted account provisioning anchor (`CustomerAccount.SubscriptionEffectiveFrom`) to assign one internal Free period ending 30 days later. The unique `billing_free_credit_grant_evidence` row is durable across expiry, exhaustion, plan changes, login, and sync. Absence of a paid subscription alone is not proof of first-time eligibility: Billing checks the durable marker and historical period/grant/account history. An existing 25-credit Free grant is evidence of prior receipt; do not issue 250 or the 225 difference.
+
+Paid grants read the existing database plan catalog and snapshot the allowance for each authoritative `(slug, starts_at, expires_at)` window. The 90-day commercial duration is informational; TahlilApp dates govern validity. Free is never created after paid expiry or cooldown. No monthly refill occurs. This contract correction removes the external Free-expiry blocker; local PostgreSQL migration/race verification remains an infrastructure-gated QA check.

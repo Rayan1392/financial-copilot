@@ -26,6 +26,11 @@ public interface IWalletService
         CancellationToken cancellationToken);
 }
 
+public interface IExpiryAwareWalletReadService
+{
+    Task<WalletSnapshot> GetSpendableSnapshotAsync(Guid customerAccountId, CancellationToken cancellationToken);
+}
+
 public interface ICustomerAccountRepository
 {
     Task<CustomerAccount?> FindAsync(Guid customerAccountId, CancellationToken cancellationToken);
@@ -137,8 +142,31 @@ public interface ICreditReservationService
         string idempotencyKey,
         CancellationToken cancellationToken);
 
+    Task<UsageReservation> ReserveAsync(
+        CustomerAccount account,
+        WalletSnapshot wallet,
+        string operationCode,
+        decimal maximumCredits,
+        string idempotencyKey,
+        CancellationToken cancellationToken,
+        string? requestFingerprint) =>
+        ReserveAsync(account, wallet, operationCode, maximumCredits, idempotencyKey, cancellationToken);
+
     Task<int> ExpireAbandonedAsync(
         int maximumCount,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Atomically increases an existing reservation before a more expensive execution path starts.
+/// Implementations update the reservation and wallet projection in one persistence unit.
+/// </summary>
+public interface IUsageReservationUpgradeService
+{
+    Task<UsageReservation> EnsureReservedCapacityAsync(
+        CustomerAccount account,
+        string reservationIdempotencyKey,
+        decimal requiredCredits,
         CancellationToken cancellationToken);
 }
 

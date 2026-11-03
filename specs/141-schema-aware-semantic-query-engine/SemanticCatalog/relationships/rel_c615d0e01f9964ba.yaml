@@ -1,0 +1,28 @@
+{
+  "id": "rel_c615d0e01f9964ba",
+  "from": {
+    "schema": "public",
+    "table": "MonthlyActivityBackfillOutbox",
+    "columns": [
+      "BatchId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "MonthlyActivityBackfillBatches",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"BatchId\") REFERENCES \"MonthlyActivityBackfillBatches\"(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -9,24 +9,78 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEnrollmentRouteImport } from './routes/verify-enrollment'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as MRouteImport } from './routes/m'
+import { Route as LaunchFailedRouteImport } from './routes/launch-failed'
+import { Route as LaunchRouteImport } from './routes/launch'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MIndexRouteImport } from './routes/m.index'
+import { Route as MWatchlistRouteImport } from './routes/m.watchlist'
+import { Route as MMarketRouteImport } from './routes/m.market'
+import { Route as MHistoryRouteImport } from './routes/m.history'
+import { Route as AdminGetCompanyIdRouteImport } from './routes/admin_.getCompanyId'
+import { Route as AppTopUpRouteImport } from './routes/_app.top-up'
 import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppGetCompanyIdRouteImport } from './routes/_app.getCompanyId'
 import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
 import { Route as AppDisclosuresRouteImport } from './routes/_app.disclosures'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as MAccountIndexRouteImport } from './routes/m.account.index'
 import { Route as AdminDataIndexRouteImport } from './routes/admin_.data.index'
 import { Route as TelegramLinkConfirmRouteImport } from './routes/telegram.link.confirm'
+import { Route as MCThreadIdRouteImport } from './routes/m.c.$threadId'
+import { Route as MAccountProfileRouteImport } from './routes/m.account.profile'
 import { Route as AdminDataStockmarketRouteImport } from './routes/admin_.data.stockmarket'
 import { Route as AdminDataReconciliationRouteImport } from './routes/admin_.data.reconciliation'
 import { Route as AdminDataNoavaranRouteImport } from './routes/admin_.data.noavaran'
 import { Route as AdminDataMonitorRouteImport } from './routes/admin_.data.monitor'
+import { Route as AdminDataCyclicalwavesV2RouteImport } from './routes/admin_.data.cyclicalwaves-v2'
 import { Route as AdminDataArchiveRouteImport } from './routes/admin_.data.archive'
 import { Route as AdminDataManagementFundReportsRouteImport } from './routes/admin_.data-management.fund-reports'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
 
+const VerifyEnrollmentRoute = VerifyEnrollmentRouteImport.update({
+  id: '/verify-enrollment',
+  path: '/verify-enrollment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MRoute = MRouteImport.update({
+  id: '/m',
+  path: '/m',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchFailedRoute = LaunchFailedRouteImport.update({
+  id: '/launch-failed',
+  path: '/launch-failed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchRoute = LaunchRouteImport.update({
+  id: '/launch',
+  path: '/launch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -46,9 +100,49 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MIndexRoute = MIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MRoute,
+} as any)
+const MWatchlistRoute = MWatchlistRouteImport.update({
+  id: '/watchlist',
+  path: '/watchlist',
+  getParentRoute: () => MRoute,
+} as any)
+const MMarketRoute = MMarketRouteImport.update({
+  id: '/market',
+  path: '/market',
+  getParentRoute: () => MRoute,
+} as any)
+const MHistoryRoute = MHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => MRoute,
+} as any)
+const AdminGetCompanyIdRoute = AdminGetCompanyIdRouteImport.update({
+  id: '/admin_/getCompanyId',
+  path: '/admin/getCompanyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppTopUpRoute = AppTopUpRouteImport.update({
+  id: '/top-up',
+  path: '/top-up',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTelegramLinkRoute = AppTelegramLinkRouteImport.update({
   id: '/telegram-link',
   path: '/telegram-link',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGetCompanyIdRoute = AppGetCompanyIdRouteImport.update({
+  id: '/getCompanyId',
+  path: '/getCompanyId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFollowedSymbolsRoute = AppFollowedSymbolsRouteImport.update({
@@ -66,6 +160,11 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const MAccountIndexRoute = MAccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
+  getParentRoute: () => MRoute,
+} as any)
 const AdminDataIndexRoute = AdminDataIndexRouteImport.update({
   id: '/admin_/data/',
   path: '/admin/data/',
@@ -75,6 +174,16 @@ const TelegramLinkConfirmRoute = TelegramLinkConfirmRouteImport.update({
   id: '/telegram/link/confirm',
   path: '/telegram/link/confirm',
   getParentRoute: () => rootRouteImport,
+} as any)
+const MCThreadIdRoute = MCThreadIdRouteImport.update({
+  id: '/c/$threadId',
+  path: '/c/$threadId',
+  getParentRoute: () => MRoute,
+} as any)
+const MAccountProfileRoute = MAccountProfileRouteImport.update({
+  id: '/account/profile',
+  path: '/account/profile',
+  getParentRoute: () => MRoute,
 } as any)
 const AdminDataStockmarketRoute = AdminDataStockmarketRouteImport.update({
   id: '/admin_/data/stockmarket',
@@ -96,6 +205,12 @@ const AdminDataMonitorRoute = AdminDataMonitorRouteImport.update({
   path: '/admin/data/monitor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDataCyclicalwavesV2Route =
+  AdminDataCyclicalwavesV2RouteImport.update({
+    id: '/admin_/data/cyclicalwaves-v2',
+    path: '/admin/data/cyclicalwaves-v2',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminDataArchiveRoute = AdminDataArchiveRouteImport.update({
   id: '/admin_/data/archive',
   path: '/admin/data/archive',
@@ -117,37 +232,74 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/launch': typeof LaunchRoute
+  '/launch-failed': typeof LaunchFailedRoute
+  '/m': typeof MRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/verify-enrollment': typeof VerifyEnrollmentRoute
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/getCompanyId': typeof AppGetCompanyIdRoute
+  '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
+  '/top-up': typeof AppTopUpRoute
+  '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
+  '/m/history': typeof MHistoryRoute
+  '/m/market': typeof MMarketRoute
+  '/m/watchlist': typeof MWatchlistRoute
+  '/m/': typeof MIndexRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
+  '/admin/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/m/account/profile': typeof MAccountProfileRoute
+  '/m/c/$threadId': typeof MCThreadIdRoute
   '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin/data/': typeof AdminDataIndexRoute
+  '/m/account/': typeof MAccountIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/launch': typeof LaunchRoute
+  '/launch-failed': typeof LaunchFailedRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/verify-enrollment': typeof VerifyEnrollmentRoute
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/getCompanyId': typeof AppGetCompanyIdRoute
+  '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
+  '/top-up': typeof AppTopUpRoute
+  '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
+  '/m/history': typeof MHistoryRoute
+  '/m/market': typeof MMarketRoute
+  '/m/watchlist': typeof MWatchlistRoute
+  '/m': typeof MIndexRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
+  '/admin/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/m/account/profile': typeof MAccountProfileRoute
+  '/m/c/$threadId': typeof MCThreadIdRoute
   '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin/data': typeof AdminDataIndexRoute
+  '/m/account': typeof MAccountIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -155,19 +307,38 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/launch': typeof LaunchRoute
+  '/launch-failed': typeof LaunchFailedRoute
+  '/m': typeof MRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/verify-enrollment': typeof VerifyEnrollmentRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/disclosures': typeof AppDisclosuresRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/_app/getCompanyId': typeof AppGetCompanyIdRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
+  '/_app/top-up': typeof AppTopUpRoute
+  '/admin_/getCompanyId': typeof AdminGetCompanyIdRoute
+  '/m/history': typeof MHistoryRoute
+  '/m/market': typeof MMarketRoute
+  '/m/watchlist': typeof MWatchlistRoute
+  '/m/': typeof MIndexRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
   '/admin_/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin_/data/archive': typeof AdminDataArchiveRoute
+  '/admin_/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
   '/admin_/data/monitor': typeof AdminDataMonitorRoute
   '/admin_/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin_/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin_/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/m/account/profile': typeof MAccountProfileRoute
+  '/m/c/$threadId': typeof MCThreadIdRoute
   '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin_/data/': typeof AdminDataIndexRoute
+  '/m/account/': typeof MAccountIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -175,56 +346,112 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/forgot-password'
+    | '/launch'
+    | '/launch-failed'
+    | '/m'
+    | '/reset-password'
+    | '/verify-email'
+    | '/verify-enrollment'
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
+    | '/getCompanyId'
+    | '/profile'
     | '/telegram-link'
+    | '/top-up'
+    | '/admin/getCompanyId'
+    | '/m/history'
+    | '/m/market'
+    | '/m/watchlist'
+    | '/m/'
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
+    | '/admin/data/cyclicalwaves-v2'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
     | '/admin/data/stockmarket'
+    | '/m/account/profile'
+    | '/m/c/$threadId'
     | '/telegram/link/confirm'
     | '/admin/data/'
+    | '/m/account/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
     | '/auth'
+    | '/forgot-password'
+    | '/launch'
+    | '/launch-failed'
+    | '/reset-password'
+    | '/verify-email'
+    | '/verify-enrollment'
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
+    | '/getCompanyId'
+    | '/profile'
     | '/telegram-link'
+    | '/top-up'
+    | '/admin/getCompanyId'
+    | '/m/history'
+    | '/m/market'
+    | '/m/watchlist'
+    | '/m'
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
+    | '/admin/data/cyclicalwaves-v2'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
     | '/admin/data/stockmarket'
+    | '/m/account/profile'
+    | '/m/c/$threadId'
     | '/telegram/link/confirm'
     | '/admin/data'
+    | '/m/account'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/admin'
     | '/auth'
+    | '/forgot-password'
+    | '/launch'
+    | '/launch-failed'
+    | '/m'
+    | '/reset-password'
+    | '/verify-email'
+    | '/verify-enrollment'
     | '/_app/chat'
     | '/_app/disclosures'
     | '/_app/followed-symbols'
+    | '/_app/getCompanyId'
+    | '/_app/profile'
     | '/_app/telegram-link'
+    | '/_app/top-up'
+    | '/admin_/getCompanyId'
+    | '/m/history'
+    | '/m/market'
+    | '/m/watchlist'
+    | '/m/'
     | '/_app/c/$threadId'
     | '/admin_/data-management/fund-reports'
     | '/admin_/data/archive'
+    | '/admin_/data/cyclicalwaves-v2'
     | '/admin_/data/monitor'
     | '/admin_/data/noavaran'
     | '/admin_/data/reconciliation'
     | '/admin_/data/stockmarket'
+    | '/m/account/profile'
+    | '/m/c/$threadId'
     | '/telegram/link/confirm'
     | '/admin_/data/'
+    | '/m/account/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -232,8 +459,17 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LaunchRoute: typeof LaunchRoute
+  LaunchFailedRoute: typeof LaunchFailedRoute
+  MRoute: typeof MRouteWithChildren
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
+  VerifyEnrollmentRoute: typeof VerifyEnrollmentRoute
+  AdminGetCompanyIdRoute: typeof AdminGetCompanyIdRoute
   AdminDataManagementFundReportsRoute: typeof AdminDataManagementFundReportsRoute
   AdminDataArchiveRoute: typeof AdminDataArchiveRoute
+  AdminDataCyclicalwavesV2Route: typeof AdminDataCyclicalwavesV2Route
   AdminDataMonitorRoute: typeof AdminDataMonitorRoute
   AdminDataNoavaranRoute: typeof AdminDataNoavaranRoute
   AdminDataReconciliationRoute: typeof AdminDataReconciliationRoute
@@ -244,6 +480,55 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-enrollment': {
+      id: '/verify-enrollment'
+      path: '/verify-enrollment'
+      fullPath: '/verify-enrollment'
+      preLoaderRoute: typeof VerifyEnrollmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/m': {
+      id: '/m'
+      path: '/m'
+      fullPath: '/m'
+      preLoaderRoute: typeof MRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch-failed': {
+      id: '/launch-failed'
+      path: '/launch-failed'
+      fullPath: '/launch-failed'
+      preLoaderRoute: typeof LaunchFailedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch': {
+      id: '/launch'
+      path: '/launch'
+      fullPath: '/launch'
+      preLoaderRoute: typeof LaunchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -272,11 +557,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/m/': {
+      id: '/m/'
+      path: '/'
+      fullPath: '/m/'
+      preLoaderRoute: typeof MIndexRouteImport
+      parentRoute: typeof MRoute
+    }
+    '/m/watchlist': {
+      id: '/m/watchlist'
+      path: '/watchlist'
+      fullPath: '/m/watchlist'
+      preLoaderRoute: typeof MWatchlistRouteImport
+      parentRoute: typeof MRoute
+    }
+    '/m/market': {
+      id: '/m/market'
+      path: '/market'
+      fullPath: '/m/market'
+      preLoaderRoute: typeof MMarketRouteImport
+      parentRoute: typeof MRoute
+    }
+    '/m/history': {
+      id: '/m/history'
+      path: '/history'
+      fullPath: '/m/history'
+      preLoaderRoute: typeof MHistoryRouteImport
+      parentRoute: typeof MRoute
+    }
+    '/admin_/getCompanyId': {
+      id: '/admin_/getCompanyId'
+      path: '/admin/getCompanyId'
+      fullPath: '/admin/getCompanyId'
+      preLoaderRoute: typeof AdminGetCompanyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/top-up': {
+      id: '/_app/top-up'
+      path: '/top-up'
+      fullPath: '/top-up'
+      preLoaderRoute: typeof AppTopUpRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/telegram-link': {
       id: '/_app/telegram-link'
       path: '/telegram-link'
       fullPath: '/telegram-link'
       preLoaderRoute: typeof AppTelegramLinkRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/getCompanyId': {
+      id: '/_app/getCompanyId'
+      path: '/getCompanyId'
+      fullPath: '/getCompanyId'
+      preLoaderRoute: typeof AppGetCompanyIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/followed-symbols': {
@@ -300,6 +641,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/m/account/': {
+      id: '/m/account/'
+      path: '/account'
+      fullPath: '/m/account/'
+      preLoaderRoute: typeof MAccountIndexRouteImport
+      parentRoute: typeof MRoute
+    }
     '/admin_/data/': {
       id: '/admin_/data/'
       path: '/admin/data'
@@ -313,6 +661,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/telegram/link/confirm'
       preLoaderRoute: typeof TelegramLinkConfirmRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/m/c/$threadId': {
+      id: '/m/c/$threadId'
+      path: '/c/$threadId'
+      fullPath: '/m/c/$threadId'
+      preLoaderRoute: typeof MCThreadIdRouteImport
+      parentRoute: typeof MRoute
+    }
+    '/m/account/profile': {
+      id: '/m/account/profile'
+      path: '/account/profile'
+      fullPath: '/m/account/profile'
+      preLoaderRoute: typeof MAccountProfileRouteImport
+      parentRoute: typeof MRoute
     }
     '/admin_/data/stockmarket': {
       id: '/admin_/data/stockmarket'
@@ -340,6 +702,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/data/monitor'
       fullPath: '/admin/data/monitor'
       preLoaderRoute: typeof AdminDataMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/data/cyclicalwaves-v2': {
+      id: '/admin_/data/cyclicalwaves-v2'
+      path: '/admin/data/cyclicalwaves-v2'
+      fullPath: '/admin/data/cyclicalwaves-v2'
+      preLoaderRoute: typeof AdminDataCyclicalwavesV2RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin_/data/archive': {
@@ -370,7 +739,10 @@ interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppDisclosuresRoute: typeof AppDisclosuresRoute
   AppFollowedSymbolsRoute: typeof AppFollowedSymbolsRoute
+  AppGetCompanyIdRoute: typeof AppGetCompanyIdRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppTelegramLinkRoute: typeof AppTelegramLinkRoute
+  AppTopUpRoute: typeof AppTopUpRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
 }
 
@@ -378,19 +750,53 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppDisclosuresRoute: AppDisclosuresRoute,
   AppFollowedSymbolsRoute: AppFollowedSymbolsRoute,
+  AppGetCompanyIdRoute: AppGetCompanyIdRoute,
+  AppProfileRoute: AppProfileRoute,
   AppTelegramLinkRoute: AppTelegramLinkRoute,
+  AppTopUpRoute: AppTopUpRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+interface MRouteChildren {
+  MHistoryRoute: typeof MHistoryRoute
+  MMarketRoute: typeof MMarketRoute
+  MWatchlistRoute: typeof MWatchlistRoute
+  MIndexRoute: typeof MIndexRoute
+  MAccountProfileRoute: typeof MAccountProfileRoute
+  MCThreadIdRoute: typeof MCThreadIdRoute
+  MAccountIndexRoute: typeof MAccountIndexRoute
+}
+
+const MRouteChildren: MRouteChildren = {
+  MHistoryRoute: MHistoryRoute,
+  MMarketRoute: MMarketRoute,
+  MWatchlistRoute: MWatchlistRoute,
+  MIndexRoute: MIndexRoute,
+  MAccountProfileRoute: MAccountProfileRoute,
+  MCThreadIdRoute: MCThreadIdRoute,
+  MAccountIndexRoute: MAccountIndexRoute,
+}
+
+const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  LaunchRoute: LaunchRoute,
+  LaunchFailedRoute: LaunchFailedRoute,
+  MRoute: MRouteWithChildren,
+  ResetPasswordRoute: ResetPasswordRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
+  VerifyEnrollmentRoute: VerifyEnrollmentRoute,
+  AdminGetCompanyIdRoute: AdminGetCompanyIdRoute,
   AdminDataManagementFundReportsRoute: AdminDataManagementFundReportsRoute,
   AdminDataArchiveRoute: AdminDataArchiveRoute,
+  AdminDataCyclicalwavesV2Route: AdminDataCyclicalwavesV2Route,
   AdminDataMonitorRoute: AdminDataMonitorRoute,
   AdminDataNoavaranRoute: AdminDataNoavaranRoute,
   AdminDataReconciliationRoute: AdminDataReconciliationRoute,

@@ -24,6 +24,90 @@ public sealed class CanonicalQueryEntityResolverTests
     }
 
     [Fact]
+    public async Task NewlyPersistedCompany_IsDiscoverableWithoutResolverRegistryChanges()
+    {
+        await using var db = CreateDb();
+        var resolver = CreateResolver(db);
+        Assert.IsType<EntityResolutionResult.NotFound>(await resolver.ResolveMentionAsync("fresh-company"));
+
+        var company = AddCompany(db, "NEWCO", "Fresh Company", "fresh-company");
+        await db.SaveChangesAsync();
+
+        var result = Assert.IsType<EntityResolutionResult.Resolved>(await resolver.ResolveMentionAsync("fresh-company"));
+        Assert.Equal(company.Id, result.Entity.CanonicalId);
+    }
+
+    [Fact]
+    public async Task ExactKegahrTicker_ResolvesDeterministically()
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+
+        var result = await CreateResolver(db).ResolveMentionAsync("\u06a9\u06af\u0647\u0631");
+
+        var resolved = Assert.IsType<EntityResolutionResult.Resolved>(result);
+        Assert.Equal(company.Id, resolved.Entity.CanonicalId);
+        Assert.Equal("\u06a9\u06af\u0647\u0631", resolved.Entity.DisplaySymbol);
+        Assert.Equal("exact_ticker", resolved.Evidence.MatchKind);
+        Assert.Equal(1m, resolved.Evidence.Confidence);
+    }
+
+    [Fact]
+    public async Task ExactTickerTextResolution_ExtractsSymbolWhenModelSpanIsBroad()
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+        const string query = "\u06a9\u06af\u0647\u0631 \u0631\u0627 \u0628\u0627 \u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634 \u0645\u0642\u0627\u06cc\u0633\u0647 \u06a9\u0646";
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret(query) with
+        {
+            EntityMentions = [new EntityMention(query, 0, query.Length, QueryValueProvenance.ModelProposed, "company")]
+        };
+
+        var result = await CreateResolver(db).ResolveExactTickerFromTextAsync(interpretation.OriginalText);
+
+        var resolved = Assert.IsType<EntityResolutionResult.Resolved>(result);
+        Assert.Equal(company.Id, resolved.Entity.CanonicalId);
+        Assert.Equal("exact_ticker", resolved.Evidence.MatchKind);
+    }
+
+    [Theory]
+    [InlineData("\u06a9\u06af\u0647\u0631")]
+    [InlineData("\u0627\u0637\u0644\u0627\u0639\u0627\u062a \u06a9\u06af\u0647\u0631")]
+    [InlineData("P/E \u06a9\u06af\u0647\u0631")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u06af\u0647\u0631")]
+    public async Task IsolatedAndExistingIntentQueries_StillResolveKegahr(string query)
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret(query);
+
+        var result = await CreateResolver(db).ResolveFromInterpretationAsync(interpretation);
+
+        Assert.Equal(company.Id, Assert.IsType<EntityResolutionResult.Resolved>(result).Entity.CanonicalId);
+    }
+
+    [Theory]
+    [InlineData("P/E \u06a9\u06af\u0647\u0631", "symbol_metric_lookup")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u06af\u0647\u0631", "monthly_activity_trend")]
+    public async Task MetricAndTrendIntents_KeepTheirRoutesAndResolveTheTicker(string query, string expectedCapability)
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret(query);
+
+        Assert.Equal(expectedCapability, interpretation.CapabilityCandidates.First().CapabilityCode);
+        var resolution = await CreateResolver(db).ResolveFromInterpretationAsync(interpretation);
+        Assert.Equal(company.Id, Assert.IsType<EntityResolutionResult.Resolved>(resolution).Entity.CanonicalId);
+    }
+
+    [Fact]
     public async Task PresentationTerms_AreMissingAndNeverEntities()
     {
         await using var db = CreateDb();
@@ -49,6 +133,21 @@ public sealed class CanonicalQueryEntityResolverTests
 
         Assert.Equal(2, result.Candidates.Count);
         Assert.Equal(["AAA", "BBB"], result.Candidates.Select(candidate => candidate.Entity.DisplaySymbol));
+    }
+
+    [Fact]
+    public async Task CanonicalProviderTickerWinsOverDuplicateAuxiliaryProviderTicker()
+    {
+        await using var db = CreateDb();
+        var canonical = AddCompany(db, "کگل", "گل گهر", "kgol");
+        var auxiliary = AddCompany(db, "کگل", "گل گهر قدیمی", "kgol-old");
+        auxiliary.ProviderName = "AuxiliaryProvider";
+        canonical.ProviderName = "NoavaranCurrentApi";
+        await db.SaveChangesAsync();
+
+        var result = await CreateResolver(db).ResolveMentionAsync("کگل");
+
+        Assert.Equal(canonical.Id, Assert.IsType<EntityResolutionResult.Resolved>(result).Entity.CanonicalId);
     }
 
     [Fact]
@@ -225,7 +324,7 @@ public sealed class CanonicalQueryEntityResolverTests
 
     [Theory]
     [InlineData(typeof(EntityResolutionResult.Missing), DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.RequiredInputMissing)]
-    [InlineData(typeof(EntityResolutionResult.NotFound), DialogueOutcome.DisambiguationNeeded, DialogueOutcomeReasonCodes.EntityNotFound)]
+    [InlineData(typeof(EntityResolutionResult.NotFound), DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.EntityNotFound)]
     public void OutcomeMapper_DistinguishesMissingAndNotFound(Type resolutionType, DialogueOutcome expected, string reason)
     {
         EntityResolutionResult resolution = resolutionType == typeof(EntityResolutionResult.Missing)
@@ -236,6 +335,20 @@ public sealed class CanonicalQueryEntityResolverTests
 
         Assert.Equal(expected, outcome.Outcome);
         Assert.Equal(reason, outcome.ReasonCode);
+    }
+
+    [Fact]
+    public async Task CanonicalIndustryResolver_ReturnsResolvedAmbiguousAndNotFoundOutcomes()
+    {
+        await using var db = CreateDb();
+        db.Industries.AddRange(
+            new NormalizedIndustryRow { Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalId = "steel", Name = "Steel" },
+            new NormalizedIndustryRow { Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalId = "steel-2", Name = "Steel" });
+        await db.SaveChangesAsync();
+        var resolver = CreateResolver(db);
+
+        Assert.IsType<IndustryResolutionResult.Ambiguous>(await resolver.ResolveIndustryMentionAsync("Steel"));
+        Assert.IsType<IndustryResolutionResult.NotFound>(await resolver.ResolveIndustryMentionAsync("Unknown industry"));
     }
 
     private static FinancialIngestionDbContext CreateDb() => new(

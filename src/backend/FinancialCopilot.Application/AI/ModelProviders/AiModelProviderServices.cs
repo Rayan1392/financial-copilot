@@ -150,10 +150,11 @@ public sealed class AiModelExecutionService(
         {
             attempt++;
             var startedAt = timeProvider.GetUtcNow();
+            AiModelResult? result = null;
 
             try
             {
-                var result = await client.CompleteAsync(request, cancellationToken);
+                result = await client.CompleteAsync(request, cancellationToken);
 
                 if (request.StructuredOutput is not null)
                 {
@@ -170,12 +171,13 @@ public sealed class AiModelExecutionService(
                     Status = AiExecutionStatus.Completed
                 };
                 await telemetrySink.RecordAttemptAsync(facts, cancellationToken);
-                usageAccumulator?.Record(facts);
+                RecordUsageSafely(facts);
                 return result with { Usage = facts };
             }
             catch (AiModelProviderException exception)
             {
                 lastFailure = exception;
+                var failedUsage = result?.Usage;
                 await telemetrySink.RecordAttemptAsync(
                     new AiExecutionUsageFacts(
                         selection.CorrelationId,
@@ -184,11 +186,50 @@ public sealed class AiModelExecutionService(
                         exception.Status,
                         timeProvider.GetUtcNow() - startedAt,
                         attempt,
+                        failedUsage?.InputTokens,
+                        failedUsage?.OutputTokens,
+                        failedUsage?.CacheHit ?? false,
+                        failedUsage?.UsedTools ?? false,
+                        failedUsage?.EmbeddingOperation ?? false,
+                        failedUsage?.ProviderReportedCost,
+                        failedUsage?.ProviderReportedCurrency,
                         FailureCode: exception.Code),
                     cancellationToken);
+                if (string.Equals(exception.Code, "ModelOutputTruncated", StringComparison.Ordinal))
+                    throw new AiModelProviderException(exception.Status, exception.Code, exception.Message, exception,
+                        exception.HttpStatusCode, exception.ProviderErrorCode, exception.ProviderRequestId,
+                        exception.RequestHost, exception.ProviderQuotaMetadata, exception.ProviderResponseId,
+                        exception.ProviderReportedInputTokens, exception.ProviderReportedOutputTokens,
+                        exception.ProviderCompletionReason, timeProvider.GetUtcNow() - startedAt);
+                if (failedUsage is not null)
+                {
+                    RecordUsageSafely(failedUsage with
+                    {
+                        CorrelationId = selection.CorrelationId,
+                        ProviderKey = client.Descriptor.ProviderKey,
+                        ModelKey = client.Descriptor.ModelKey,
+                        AttemptNumber = attempt,
+                        Duration = timeProvider.GetUtcNow() - startedAt,
+                        Status = exception.Status,
+                        FailureCode = exception.Code
+                    });
+                }
             }
         }
 
         throw lastFailure!;
+    }
+
+    private void RecordUsageSafely(AiExecutionUsageFacts facts)
+    {
+        try
+        {
+            usageAccumulator?.Record(facts);
+        }
+        catch (Exception)
+        {
+            // Usage aggregation is best-effort; the provider result and provider-attempt
+            // telemetry must remain usable if this optional observer fails.
+        }
     }
 }

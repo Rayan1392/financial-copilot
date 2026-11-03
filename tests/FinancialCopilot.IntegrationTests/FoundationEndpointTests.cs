@@ -18,7 +18,8 @@ public sealed class FoundationEndpointTests : IClassFixture<WebApplicationFactor
             builder.ConfigureAppConfiguration((_, configuration) =>
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Database:ApplyMigrationsOnStartup"] = "false"
+                    ["Database:ApplyMigrationsOnStartup"] = "false",
+                    ["Authentication:JwtBearer:SigningKey"] = "integration-test-signing-key-with-more-than-32-characters"
                 }));
         });
     }

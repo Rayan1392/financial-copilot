@@ -2,6 +2,7 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Application.FinancialData;
 
 namespace FinancialCopilot.Application.Conversations;
 
@@ -60,7 +61,10 @@ public sealed record AssistantMessagePayload(
     bool LanguageGuardApplied = false,
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
-    int? SemanticRegistryVersion = null);
+    int? SemanticRegistryVersion = null,
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

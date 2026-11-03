@@ -1,0 +1,132 @@
+{
+  "id": "tbl_b89e78627832b88a",
+  "physical": {
+    "Schema": "public",
+    "Name": "CodalAlertSubscriptions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "AnnouncementTypesJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "MinimumImportance",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "RawAlertEnabled",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "AiSummaryEnabled",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "State",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_CodalAlertSubscriptions_Actor",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CodalAlertSubscriptions_Actor\" ON public.\"CodalAlertSubscriptions\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType"
+        ]
+      },
+      {
+        "Name": "IX_CodalAlertSubscriptions_Company_State",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CodalAlertSubscriptions_Company_State\" ON public.\"CodalAlertSubscriptions\" USING btree (\"ExternalCompanyId\", \"State\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "State"
+        ]
+      },
+      {
+        "Name": "PK_CodalAlertSubscriptions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CodalAlertSubscriptions\" ON public.\"CodalAlertSubscriptions\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_CodalAlertSubscriptions_Actor_Company",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_CodalAlertSubscriptions_Actor_Company\" ON public.\"CodalAlertSubscriptions\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"ExternalCompanyId\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "ExternalCompanyId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_CodalAlertSubscriptions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

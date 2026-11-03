@@ -1,52 +1,47 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, LogOut, Settings, Send, Upload } from "lucide-react";
-import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
-import { getUsage, getWatchlist } from "@/lib/market-view.functions";
+import { Plus, Trash2, LogOut, Settings, Send, RefreshCw } from "lucide-react";
+import { createThread } from "@/lib/chat.functions";
+import { useConversations, useDeleteConversation, useUsage } from "@/lib/workspace/queries";
 import {
   getStoredAuthenticatedUser,
   logout,
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
-import { adminPermissions, canAccessAdmin, hasPermission } from "@/integrations/financial-copilot/admin-permissions";
-import { formatPercent, toPersianDigits } from "@/lib/format/persian";
+import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
+import { formatNumber } from "@/lib/format/persian";
+import { computeCreditProgress, creditQuotaLabel, type CreditTone } from "@/lib/credit-progress";
+
+const CREDIT_TONE_CLASS: Record<CreditTone, string> = {
+  healthy: "bg-emerald",
+  warning: "bg-gold",
+  danger: "bg-rose",
+};
 
 export function ConversationSidebar() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const params = useParams({ strict: false });
   const activeId = (params as { threadId?: string }).threadId;
-  const fetchThreads = useServerFn(listThreads);
-  const fetchUsage = useServerFn(getUsage);
-  const fetchWatchlist = useServerFn(getWatchlist);
   const create = useServerFn(createThread);
-  const del = useServerFn(deleteThread);
-  const qOpts = { retry: false, throwOnError: false, refetchOnWindowFocus: false } as const;
-  const { data: threads = [] } = useQuery({
-    queryKey: ["threads"],
-    queryFn: () => fetchThreads(),
-    ...qOpts,
-  });
+  const { data: threads = [] } = useConversations();
   const {
     data: usage,
     isLoading: usageLoading,
     isError: usageError,
-  } = useQuery({
-    queryKey: ["usage"],
-    queryFn: () => fetchUsage(),
-    ...qOpts,
-  });
-  const {
-    data: watchlist,
-    isLoading: watchlistLoading,
-    isError: watchlistError,
-  } = useQuery({
-    queryKey: ["watchlist"],
-    queryFn: () => fetchWatchlist(),
-    ...qOpts,
-  });
+    isFetching: usageFetching,
+    refetch: refetchUsage,
+  } = useUsage();
+  const [usageRefreshing, setUsageRefreshing] = useState(false);
+  async function refreshUsage() {
+    if (usageRefreshing) return;
+    setUsageRefreshing(true);
+    // Keep the spin visible for a minimum time so fast responses still feel like a click.
+    await Promise.allSettled([refetchUsage(), new Promise((resolve) => setTimeout(resolve, 700))]);
+    setUsageRefreshing(false);
+  }
   const newChat = useMutation({
     mutationFn: () => create(),
     onSuccess: (thread) => {
@@ -54,27 +49,19 @@ export function ConversationSidebar() {
       navigate({ to: "/c/$threadId", params: { threadId: thread.id } });
     },
   });
-  const removeChat = useMutation({
-    mutationFn: (id: string) => del({ data: { threadId: id } }),
-    onSuccess: (_data, id) => {
-      qc.invalidateQueries({ queryKey: ["threads"] });
+  const removeChat = useDeleteConversation({
+    onDeleted: (id) => {
       if (activeId === id) navigate({ to: "/chat" });
     },
   });
-  const percentage = usage
-    ? Math.round(
-        (usage.availableSpendingCapacity /
-          Math.max(usage.availableSpendingCapacity + usage.reservedCredits, 1)) *
-          100,
-      )
-    : 0;
+  const credit = usage && usage.creditQuotaMode !== "Unlimited"
+    ? computeCreditProgress(usage.availableSpendingCapacity, usage.planIncludedCredits)
+    : null;
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showFundPortfolioUpload, setShowFundPortfolioUpload] = useState(false);
   useEffect(() => {
     const updateAccess = () => {
       const user = getStoredAuthenticatedUser();
       setShowAdmin(canAccessAdmin(user));
-      setShowFundPortfolioUpload(hasPermission(user, adminPermissions.dataSyncManage));
     };
     updateAccess();
     return subscribeToAuthChanges(updateAccess);
@@ -104,32 +91,11 @@ export function ConversationSidebar() {
           <span>گفتگوی جدید</span>
           <Plus className="size-4" />
         </button>
-        <Link
-          to="/followed-symbols"
-          className="mb-6 rounded-lg border border-hairline bg-background/50 px-3 py-2 text-sm text-muted-foreground transition hover:border-emerald/30 hover:text-foreground"
-        >
-        دیده‌بان
-        </Link>
-        <Link
-          to="/disclosures"
-          className="mb-6 rounded-lg border border-hairline bg-background/50 px-3 py-2 text-sm text-muted-foreground transition hover:border-emerald/30 hover:text-foreground"
-        >
-          اطلاعیه‌ها
-        </Link>
-        {showFundPortfolioUpload && (
-          <Link
-            to="/admin/data-management/fund-reports"
-            className="mb-6 flex items-center gap-2 rounded-lg border border-emerald/30 bg-emerald-soft/40 px-3 py-2 text-sm text-foreground transition hover:border-emerald hover:bg-emerald-soft"
-          >
-            <Upload className="size-4 text-emerald" />
-            <span>آپلود اکسل پرتفوی صندوق</span>
-          </Link>
-        )}
         <div className="flex min-h-0 flex-1 flex-col">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
             گفتگوهای اخیر
           </p>
-          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 scrollbar-thin">
             {threads.length === 0 && (
               <p className="text-xs text-muted-foreground px-3 py-2">گفتگویی نیست.</p>
             )}
@@ -163,54 +129,53 @@ export function ConversationSidebar() {
             ))}
           </nav>
         </div>
-        <div className="space-y-3 pt-6">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2">
-            دیده‌بان من
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {watchlistLoading && (
-              <p className="col-span-2 text-xs text-muted-foreground">در حال بارگذاری...</p>
-            )}
-            {watchlistError && <p className="col-span-2 text-xs text-rose">داده در دسترس نیست.</p>}
-            {!watchlistLoading && !watchlistError && watchlist?.symbols.length === 0 && (
-              <p className="col-span-2 text-xs text-muted-foreground">دیده‌بان خالی است.</p>
-            )}
-            {watchlist?.symbols.slice(0, 4).map((quote) => (
-              <div
-                key={quote.symbol}
-                className="p-2 rounded border border-hairline bg-background/50"
-              >
-                <div className="text-[10px] text-muted-foreground">
-                  {quote.symbol}
-                  {quote.isStale ? " *" : ""}
-                </div>
-                <div
-                  className={`text-xs ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
-                >
-                  {quote.changePercent == null ? "-" : formatPercent(quote.changePercent)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
       <div className="mt-auto shrink-0 border-t border-hairline p-5 space-y-4">
         {usageLoading && <p className="text-xs text-muted-foreground">در حال بارگذاری اعتبار...</p>}
         {usageError && <p className="text-xs text-rose">اعتبار در دسترس نیست.</p>}
         {usage && (
           <div className="p-3 rounded-xl bg-background/50 ring-1 ring-hairline">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] text-muted-foreground">اعتبار هوش مصنوعی</span>
-              <span className="text-[11px] text-foreground">
-                {toPersianDigits(usage.availableSpendingCapacity)}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                اعتبار هوش مصنوعی
+                <button
+                  type="button"
+                  onClick={() => void refreshUsage()}
+                  disabled={usageRefreshing || usageFetching}
+                  className="p-0.5 text-muted-foreground hover:text-foreground transition disabled:opacity-60"
+                  aria-label="به‌روزرسانی اعتبار"
+                  title="به‌روزرسانی اعتبار"
+                >
+                  <RefreshCw
+                    className={`size-3 ${usageRefreshing || usageFetching ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-foreground">
+                {creditQuotaLabel(usage.creditQuotaMode, credit?.limit != null
+                    ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
+                    : formatNumber(credit?.remaining ?? 0))}
               </span>
             </div>
-            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+            {usage.creditQuotaMode === "Unlimited" ? (
+              usage.subscriptionExpiresAtUtc && (
+                <div className="text-[11px] text-muted-foreground">
+                  تا {new Date(usage.subscriptionExpiresAtUtc).toLocaleDateString("fa-IR")}
+                </div>
+              )
+            ) : <div
+              className="h-1 w-full bg-muted rounded-full overflow-hidden"
+              role="progressbar"
+              aria-label="اعتبار باقی‌مانده هوش مصنوعی"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={credit?.percentage != null ? Math.round(credit.percentage) : undefined}
+            >
               <div
-                className="h-full bg-emerald transition-all"
-                style={{ width: `${percentage}%` }}
+                className={`h-full transition-all ${credit?.tone ? CREDIT_TONE_CLASS[credit.tone] : "bg-muted"}`}
+                style={{ width: `${credit?.percentage ?? 0}%` }}
               />
-            </div>
+            </div>}
           </div>
         )}
         <div className="flex items-center justify-between px-1">
@@ -229,16 +194,6 @@ export function ConversationSidebar() {
               aria-label="پنل مدیریت"
             >
               <Settings className="size-4" />
-            </Link>
-          )}
-          {showFundPortfolioUpload && (
-            <Link
-              to="/admin/data-management/fund-reports"
-              className="p-1.5 text-muted-foreground hover:text-foreground transition"
-              aria-label="آپلود اکسل پرتفوی صندوق"
-              title="آپلود اکسل پرتفوی صندوق"
-            >
-              <Upload className="size-4" />
             </Link>
           )}
           <button

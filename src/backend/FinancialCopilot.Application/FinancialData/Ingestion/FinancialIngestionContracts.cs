@@ -21,7 +21,14 @@ public sealed record DataSyncRequest(
     /// the request so the override reaches the worker scope that performs the fetch; null means use
     /// the configured boundary. Ignored by providers that have no Shamsi-year boundary.
     /// </summary>
-    int? FromShamsiYearOverride = null);
+    int? FromShamsiYearOverride = null,
+    /// <summary>
+    /// Restricts a NADPCO monthly-activity request to one ProductSales output type (0-4). Null
+    /// means the provider may fetch the complete output-type envelope.
+    /// </summary>
+    int? MonthlyActivityOutputType = null,
+    int? StatementFiscalYear = null,
+    int? StatementPeriodMonths = null);
 
 public enum DataSyncRunStatus
 {
@@ -65,6 +72,16 @@ public sealed record DerivedMetricRecalculationRequested(
 public interface IDataSyncRequestPublisher
 {
     Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken);
+
+    async Task PublishBatchAsync(
+        IReadOnlyCollection<DataSyncRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        foreach (var request in requests)
+        {
+            await PublishAsync(request, cancellationToken);
+        }
+    }
 }
 
 public interface IDataSyncRequestConsumer
@@ -84,6 +101,12 @@ public interface IFinancialDataSyncProcessor
         DataSyncRequest request,
         ProviderRawPayload payload,
         CancellationToken cancellationToken);
+
+    Task<DataSyncProcessingResult> ProcessProviderAsync(
+        DataSyncRequest request,
+        Func<Task<ProviderRawPayload>> payloadFactory,
+        CancellationToken cancellationToken,
+        bool rethrowProviderExceptions = false);
 }
 
 public interface IDataSyncRunReader

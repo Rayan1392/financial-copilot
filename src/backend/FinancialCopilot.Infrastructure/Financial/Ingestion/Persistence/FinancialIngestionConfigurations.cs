@@ -35,6 +35,8 @@ public sealed class NormalizedCompanyRowConfiguration : IEntityTypeConfiguration
         builder.HasIndex(row => row.GroupId);
         builder.HasIndex(row => row.MarketId);
 
+        builder.Property(row => row.ReportingType).HasColumnType("integer");
+
         // Spec 067: Persian/English ticker lookup. Partial indexes exclude the common null case
         // (only NADPCO-linked rows ever carry a Ticker/EnTicker value).
         builder.Property(row => row.Ticker).HasMaxLength(64);
@@ -58,6 +60,7 @@ public sealed class NoavaranEligibleCompanyRowConfiguration : IEntityTypeConfigu
         builder.Property(row => row.ExternalCompanyId).HasMaxLength(128);
         builder.Property(row => row.Name).HasMaxLength(512);
         builder.Property(row => row.CompanySymbol).HasMaxLength(128);
+        builder.Property(row => row.SymbolIsin).HasMaxLength(128);
         builder.Property(row => row.TseSymbol).HasMaxLength(128);
     }
 }
@@ -206,15 +209,23 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
     {
         builder.ToTable("MonthlyReports");
         builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.ProviderName, row.ExternalReportId }).IsUnique();
+        // A provider may reuse an activity/report id for a correction.  Revision candidates are
+        // immutable, so uniqueness is report-id + payload revision, not report-id alone.
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalReportId, row.RevisionFingerprint })
+            .IsUnique();
         // Feature 112 disclosure-feed provider/receipt ordering and company filtering.
         builder.HasIndex(row => new { row.ProviderName, row.LastSynchronizedAt });
         builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.LastSynchronizedAt });
         // Prevent duplicate report rows for the same logical period when activityId is absent.
-        builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.PeriodStart, row.OutputType, row.ReportType })
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.PeriodStart, row.PeriodEnd, row.OutputType, row.ReportType, row.IsAccepted })
             .IsUnique()
             .HasDatabaseName("IX_MonthlyReports_LogicalPeriod")
-            .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL");
+            .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL AND \"IsAccepted\" = TRUE");
+        builder.Property(row => row.LogicalReportKey).HasMaxLength(512).IsRequired();
+        builder.Property(row => row.RevisionFingerprint).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.RevisionStatus).HasMaxLength(32).IsRequired().HasDefaultValue("Accepted");
+        builder.Property(row => row.IsAccepted).HasDefaultValue(true);
+        builder.Property(row => row.ProviderPublishedAtUtc);
         builder.Property(row => row.LogicalVendor).HasMaxLength(64);
         builder.Property(row => row.SourceMode).HasMaxLength(32);
         builder.Property(row => row.OutputType);
@@ -236,7 +247,17 @@ public sealed class NormalizedMonthlyReportLineItemRowConfiguration :
     {
         builder.ToTable("MonthlyReportLineItems");
         builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.MonthlyReportId, row.ProductCode }).IsUnique();
+        // ProductCode is a product identity candidate, not a source-row identity.  Same-code
+        // economic rows must remain distinct until the product read path safely aggregates them.
+        builder.HasIndex(row => new { row.MonthlyReportId, row.SourceRowKey })
+            .IsUnique()
+            .HasFilter("\"SourceRowKey\" IS NOT NULL");
+        builder.HasIndex(row => new { row.MonthlyReportId, row.SourceRowFingerprint, row.SourceMultiplicity }).IsUnique();
+        builder.Property(row => row.SourceRowKey).HasMaxLength(256);
+        builder.Property(row => row.SourceRowFingerprint).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.SourceMultiplicity).HasDefaultValue(1);
+        builder.Property(row => row.SourcePayloadChecksum).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.ProviderProductCode).HasMaxLength(256);
         builder.Property(row => row.Title).HasMaxLength(512);
         builder.Property(row => row.Unit).HasMaxLength(128);
     }
@@ -251,6 +272,47 @@ public sealed class MonthlyActivityBackfillStateRowConfiguration :
         builder.HasKey(row => row.SourceName);
         builder.Property(row => row.SourceName).HasMaxLength(64);
         builder.Property(row => row.RequestedBy).HasMaxLength(256);
+    }
+}
+
+public sealed class MonthlyActivityBackfillBatchRowConfiguration :
+    IEntityTypeConfiguration<MonthlyActivityBackfillBatchRow>
+{
+    public void Configure(EntityTypeBuilder<MonthlyActivityBackfillBatchRow> builder)
+    {
+        builder.ToTable("MonthlyActivityBackfillBatches");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.SourceName).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.RequestedBy).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(40).IsRequired();
+        builder.Property(row => row.LastError).HasMaxLength(1000);
+        builder.HasIndex(row => row.CreatedAt);
+        builder.HasIndex(row => row.Status);
+        builder.HasIndex(row => row.ActiveSlot)
+            .IsUnique()
+            .HasFilter("\"ActiveSlot\" IS NOT NULL");
+    }
+}
+
+public sealed class MonthlyActivityBackfillOutboxRowConfiguration :
+    IEntityTypeConfiguration<MonthlyActivityBackfillOutboxRow>
+{
+    public void Configure(EntityTypeBuilder<MonthlyActivityBackfillOutboxRow> builder)
+    {
+        builder.ToTable("MonthlyActivityBackfillOutbox");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.IdempotencyKey).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.PayloadJson).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.LeaseOwner).HasMaxLength(256);
+        builder.Property(row => row.LastError).HasMaxLength(1000);
+        builder.HasOne<MonthlyActivityBackfillBatchRow>()
+            .WithMany()
+            .HasForeignKey(row => row.BatchId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(row => new { row.BatchId, row.IdempotencyKey }).IsUnique();
+        builder.HasIndex(row => new { row.BatchId, row.Sequence }).IsUnique();
+        builder.HasIndex(row => new { row.Status, row.LeaseExpiresAt, row.CreatedAt });
     }
 }
 

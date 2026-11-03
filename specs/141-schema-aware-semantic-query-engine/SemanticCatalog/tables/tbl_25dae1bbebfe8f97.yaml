@@ -1,0 +1,107 @@
+{
+  "id": "tbl_25dae1bbebfe8f97",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_user_tenants",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "UserId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IsDefault",
+        "Type": "boolean",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "UserId",
+      "TenantId"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TenantId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_tenants",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "UserId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_user_tenants_TenantId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_user_tenants_TenantId\" ON public.auth_user_tenants USING btree (\"TenantId\")",
+        "Columns": [
+          "TenantId"
+        ]
+      },
+      {
+        "Name": "PK_auth_user_tenants",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_user_tenants\" ON public.auth_user_tenants USING btree (\"UserId\", \"TenantId\")",
+        "Columns": [
+          "UserId",
+          "TenantId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_user_tenants_auth_tenants_TenantId",
+        "Type": "f",
+        "Columns": [
+          "TenantId"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_auth_user_tenants_auth_users_UserId",
+        "Type": "f",
+        "Columns": [
+          "UserId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_user_tenants",
+        "Type": "p",
+        "Columns": [
+          "UserId",
+          "TenantId"
+        ],
+        "Definition": "PRIMARY KEY (\"UserId\", \"TenantId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

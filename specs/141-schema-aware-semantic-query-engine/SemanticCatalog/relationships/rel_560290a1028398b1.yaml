@@ -1,0 +1,28 @@
+{
+  "id": "rel_560290a1028398b1",
+  "from": {
+    "schema": "public",
+    "table": "MarketReports",
+    "columns": [
+      "SupersedesReportId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "MarketReports",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"SupersedesReportId\") REFERENCES \"MarketReports\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

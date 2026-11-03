@@ -1,0 +1,59 @@
+{
+  "id": "metric_net_working_capital",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "NET_WORKING_CAPITAL"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Net Working Capital",
+    "Description": "Governed semantic definition for Net Working Capital.",
+    "Category": 5,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "net working capital",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "NET_WORKING_CAPITAL"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "سرمایه در گردش خالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_WORKING_CAPITAL"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

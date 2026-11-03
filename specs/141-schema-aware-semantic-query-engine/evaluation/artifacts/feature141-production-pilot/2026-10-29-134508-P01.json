@@ -1,0 +1,60 @@
+{
+  "id": "P01",
+  "run": {
+    "Question": "سود خالص کگل در آخرین دوره چقدر است؟",
+    "Enabled": true,
+    "Answer": "برای کگل در آخرین دورهٔ گزارش واجد شرایط دادهٔ واجد شرایطی پیدا نشد.",
+    "PersistedUserMessage": "سود خالص کگل در آخرین دوره چقدر است؟",
+    "PersistedAssistantMessage": "برای کگل در آخرین دورهٔ گزارش واجد شرایط دادهٔ واجد شرایطی پیدا نشد.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e Fingerprint=dd03b72a1503990941e1c1bd9222690abd008e8b506b6e860608bf07efc12cec Status=NoData Rows=0 ElapsedMs=2.3305",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:دوره RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:symbol_metric_lookup:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 8234,
+      "CompletionTokens": 939,
+      "TotalTokens": 9173,
+      "EstimatedCost": null
+    },
+    "Reservations": [
+      {
+        "IdempotencyKey": "feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e:feature141:reservation",
+        "Status": "Committed",
+        "ReservedCredits": 1.0000,
+        "CommittedCredits": 1.0000
+      }
+    ],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 196.0000,
+    "WalletBalanceAfter": 195.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols=کگل Products= RequestedMeasures=netProfit PeriodKind=LatestAvailable PeriodCount=(null) ComparisonMode=None Presentation=Scalar",
+      "Feature141 statement shape classified. Shape=SingleCompanyValue Diagnostic=none Operation=Retrieve Ranking=none Constraints= RequestedFields= Filters=none CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e",
+      "Feature141 query completed. CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e Fingerprint=dd03b72a1503990941e1c1bd9222690abd008e8b506b6e860608bf07efc12cec Status=NoData Rows=0 ElapsedMs=2.3305"
+    ],
+    "ElapsedMs": 18682.5835,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:دوره RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:symbol_metric_lookup:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-aa691aac6c0a4979a88587a0edfe3f9e RolloutMode=Shadow LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.88 ExtractedCompany=خالص ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) ResolvedCompany=ک"
+    ]
+  }
+}

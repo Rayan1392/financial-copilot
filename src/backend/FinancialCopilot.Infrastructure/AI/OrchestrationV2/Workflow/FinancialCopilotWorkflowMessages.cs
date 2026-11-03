@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
@@ -15,7 +16,8 @@ internal sealed record WorkflowStartMessage(
     AiQueryRequest Request,
     Guid ConversationId,
     bool CreateConversation,
-    DateTimeOffset Now);
+    DateTimeOffset Now,
+    BillingReservationHandle? Reservation = null);
 
 internal sealed record MemoryRetrievedMessage(
     AiQueryRequest Request,
@@ -23,7 +25,8 @@ internal sealed record MemoryRetrievedMessage(
     bool CreateConversation,
     DateTimeOffset Now,
     AuthorizedMemoryContext MemoryContext,
-    string EnrichedMessage);
+    string EnrichedMessage,
+    BillingReservationHandle? Reservation = null);
 
 internal sealed record BillingReservedMessage(
     AiQueryRequest Request,
@@ -58,7 +61,11 @@ internal sealed record AgentExecutedMessage(
     PsVisualizationResult? PsVisualizationResult = null,
     DialogueOutcome? SemanticOutcome = null,
     string? SemanticOutcomeReasonCode = null,
-    string? SemanticReplyLanguage = null);
+    string? SemanticReplyLanguage = null,
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+     ValidatedQueryFrame? ExecutedFrame = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -92,7 +99,11 @@ internal sealed record ResultsComputedMessage(
     bool LanguageGuardApplied = false,
     DisclosureListingResult? DisclosureListingResult = null,
     PsVisualizationResult? PsVisualizationResult = null,
-    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null);
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+    bool DeterministicSuggestionsApplied = false);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -123,4 +134,8 @@ internal sealed record PersistenceCompletedMessage(
     bool LanguageGuardApplied = false,
     DisclosureListingResult? DisclosureListingResult = null,
     PsVisualizationResult? PsVisualizationResult = null,
-    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null);
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+    bool DeterministicSuggestionsApplied = false);

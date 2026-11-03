@@ -1,0 +1,179 @@
+{
+  "id": "tbl_9fedf658d16ac889",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_telegram_membership_revalidations",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramUserId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "ChannelId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "NextDueAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LeaseExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseOwner",
+        "Type": "character varying(160)",
+        "Nullable": true
+      },
+      {
+        "Name": "AttemptCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastAttemptedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "DeadLetteredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastFailureCategory",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "LastError",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TenantId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_tenants",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "ActorId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_telegram_membership_revalidations_ActorId_TenantId_Cha~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_telegram_membership_revalidations_ActorId_TenantId_Cha~\" ON public.auth_telegram_membership_revalidations USING btree (\"ActorId\", \"TenantId\", \"ChannelId\")",
+        "Columns": [
+          "ActorId",
+          "TenantId",
+          "ChannelId"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_membership_revalidations_NextDueAtUtc_DeadLet~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_membership_revalidations_NextDueAtUtc_DeadLet~\" ON public.auth_telegram_membership_revalidations USING btree (\"NextDueAtUtc\", \"DeadLetteredAtUtc\", \"LeaseExpiresAtUtc\")",
+        "Columns": [
+          "NextDueAtUtc",
+          "DeadLetteredAtUtc",
+          "LeaseExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_membership_revalidations_TenantId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_membership_revalidations_TenantId\" ON public.auth_telegram_membership_revalidations USING btree (\"TenantId\")",
+        "Columns": [
+          "TenantId"
+        ]
+      },
+      {
+        "Name": "PK_auth_telegram_membership_revalidations",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_telegram_membership_revalidations\" ON public.auth_telegram_membership_revalidations USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_telegram_membership_revalidations_auth_tenants_TenantId",
+        "Type": "f",
+        "Columns": [
+          "TenantId"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_auth_telegram_membership_revalidations_auth_users_ActorId",
+        "Type": "f",
+        "Columns": [
+          "ActorId"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_telegram_membership_revalidations",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

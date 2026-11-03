@@ -6,6 +6,7 @@ public static class AuthorizationPolicies
     public const string ApiClientOnly = "ApiClientOnly";
     public const string BillingAdmin = "BillingAdmin";
     public const string DataAdmin = "DataAdmin";
+    public const string NoavaranMonthlyBackfill = "NoavaranMonthlyBackfill";
     public const string UsageReadSelf = "UsageReadSelf";
     public const string WatchlistReadSelf = "WatchlistReadSelf";
     public const string WatchlistWriteSelf = "WatchlistWriteSelf";

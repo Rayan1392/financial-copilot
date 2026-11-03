@@ -1,0 +1,109 @@
+{
+  "id": "metric_revenue_growth_qoq",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "REVENUE_GROWTH_QOQ"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Revenue Growth QoQ",
+    "Description": "Governed semantic definition for Revenue Growth QoQ.",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "revenue growth qoq",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "REVENUE_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد درآمد فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد فروش فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد فروش نسبت به فصل قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد فروش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

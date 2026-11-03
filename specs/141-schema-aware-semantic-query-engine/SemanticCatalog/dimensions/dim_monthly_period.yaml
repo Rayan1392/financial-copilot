@@ -1,0 +1,10 @@
+{
+  "id": "dim_monthly_period",
+  "physicalTableId": "tbl_8e759d70dada6bd8",
+  "columns": [
+    "PeriodStart",
+    "PeriodEnd"
+  ],
+  "status": "unapproved",
+  "runtimeQueryable": false
+}

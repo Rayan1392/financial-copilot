@@ -1,0 +1,218 @@
+{
+  "id": "tbl_2fb685aa761349e2",
+  "physical": {
+    "Schema": "public",
+    "Name": "CyclicalWavesMetricSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SymbolIsin",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricType",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "RawResponseJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ResponseHash",
+        "Type": "character(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "AcquisitionDateUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEndpoint",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "PreviousSnapshotId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderObservationDate",
+        "Type": "date",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "PreviousSnapshotId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "CyclicalWavesMetricSnapshots",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"PreviousSnapshotId\") REFERENCES \"CyclicalWavesMetricSnapshots\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_CyclicalWavesMetricSnapshots_Hash",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CyclicalWavesMetricSnapshots_Hash\" ON public.\"CyclicalWavesMetricSnapshots\" USING btree (\"CompanyId\", \"ProviderName\", \"MetricType\", \"ResponseHash\")",
+        "Columns": [
+          "CompanyId",
+          "ProviderName",
+          "MetricType",
+          "ResponseHash"
+        ]
+      },
+      {
+        "Name": "IX_CyclicalWavesMetricSnapshots_Latest",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CyclicalWavesMetricSnapshots_Latest\" ON public.\"CyclicalWavesMetricSnapshots\" USING btree (\"CompanyId\", \"ProviderName\", \"MetricType\", \"AcquisitionDateUtc\" DESC, \"CreatedAtUtc\" DESC)",
+        "Columns": [
+          "CompanyId",
+          "ProviderName",
+          "MetricType",
+          "AcquisitionDateUtc",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_CyclicalWavesMetricSnapshots_PreviousSnapshotId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CyclicalWavesMetricSnapshots_PreviousSnapshotId\" ON public.\"CyclicalWavesMetricSnapshots\" USING btree (\"PreviousSnapshotId\")",
+        "Columns": [
+          "PreviousSnapshotId"
+        ]
+      },
+      {
+        "Name": "PK_CyclicalWavesMetricSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CyclicalWavesMetricSnapshots\" ON public.\"CyclicalWavesMetricSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UX_CyclicalWavesMetricSnapshots_Predecessor",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UX_CyclicalWavesMetricSnapshots_Predecessor\" ON public.\"CyclicalWavesMetricSnapshots\" USING btree (\"CompanyId\", \"ProviderName\", \"MetricType\", \"PreviousSnapshotId\") NULLS NOT DISTINCT",
+        "Columns": [
+          "CompanyId",
+          "ProviderName",
+          "MetricType",
+          "PreviousSnapshotId"
+        ]
+      },
+      {
+        "Name": "UX_CyclicalWavesMetricSnapshots_ProviderObservationDate",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UX_CyclicalWavesMetricSnapshots_ProviderObservationDate\" ON public.\"CyclicalWavesMetricSnapshots\" USING btree (\"CompanyId\", \"ProviderName\", \"MetricType\", \"ProviderObservationDate\")",
+        "Columns": [
+          "CompanyId",
+          "ProviderName",
+          "MetricType",
+          "ProviderObservationDate"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "CK_CyclicalWavesMetricSnapshots_MetricType",
+        "Type": "c",
+        "Columns": [
+          "MetricType"
+        ],
+        "Definition": "CHECK (((\"MetricType\")::text = ANY ((ARRAY['PS'::character varying, 'LastPS'::character varying, 'PE'::character varying, 'LastPE'::character varying, 'Equilibrium'::character varying])::text[])))"
+      },
+      {
+        "Name": "CK_CyclicalWavesMetricSnapshots_ProviderName",
+        "Type": "c",
+        "Columns": [
+          "ProviderName"
+        ],
+        "Definition": "CHECK (((\"ProviderName\")::text = 'CyclicalWaves'::text))"
+      },
+      {
+        "Name": "CK_CyclicalWavesMetricSnapshots_ResponseHash",
+        "Type": "c",
+        "Columns": [
+          "ResponseHash"
+        ],
+        "Definition": "CHECK ((\"ResponseHash\" ~ '^[0-9a-f]{64}$'::text))"
+      },
+      {
+        "Name": "FK_CyclicalWavesMetricSnapshots_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_CyclicalWavesMetricSnapshots_CyclicalWavesMetricSnapshots_P~",
+        "Type": "f",
+        "Columns": [
+          "PreviousSnapshotId"
+        ],
+        "Definition": "FOREIGN KEY (\"PreviousSnapshotId\") REFERENCES \"CyclicalWavesMetricSnapshots\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_CyclicalWavesMetricSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

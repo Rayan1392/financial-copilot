@@ -1,0 +1,28 @@
+{
+  "id": "rel_eaf8050b2df51619",
+  "from": {
+    "schema": "public",
+    "table": "UserAlertRecords",
+    "columns": [
+      "AlertRuleTriggerId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "AlertRuleTriggers",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"AlertRuleTriggerId\") REFERENCES \"AlertRuleTriggers\"(\"Id\") ON DELETE SET NULL",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

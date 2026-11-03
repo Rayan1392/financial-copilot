@@ -1,0 +1,52 @@
+{
+  "id": "tbl_f70ad016eba25d58",
+  "physical": {
+    "Schema": "public",
+    "Name": "__EFMigrationsHistory",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "MigrationId",
+        "Type": "character varying(150)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductVersion",
+        "Type": "character varying(32)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "MigrationId"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK___EFMigrationsHistory",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK___EFMigrationsHistory\" ON public.\"__EFMigrationsHistory\" USING btree (\"MigrationId\")",
+        "Columns": [
+          "MigrationId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK___EFMigrationsHistory",
+        "Type": "p",
+        "Columns": [
+          "MigrationId"
+        ],
+        "Definition": "PRIMARY KEY (\"MigrationId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

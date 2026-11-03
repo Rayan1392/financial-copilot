@@ -643,7 +643,7 @@ public sealed class TelegramMembershipService(
             PromptTokens = entry.PromptTokens,
             CompletionTokens = entry.CompletionTokens,
             TotalTokens = entry.TotalTokens,
-            EstimatedCost = entry.EstimatedCost,
+            EstimatedCost = null,
             AllocationSource = entry.AllocationSource,
             AllowanceDateKey = entry.AllowanceDateKey
         };

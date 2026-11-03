@@ -10,6 +10,8 @@ public sealed class CompanyPsGaugeSnapshotRow
     public decimal TtmPsRatio { get; set; }
     public decimal ForwardPsRatio { get; set; }
     public decimal GaugeClose { get; set; }
+    /// <summary>Provider circle-gauge avg; separate from the visualization BoundaryAverage fact.</summary>
+    public decimal GaugeAverage { get; set; }
     public decimal BoundaryStart { get; set; }
     public decimal BoundaryMin { get; set; }
     public decimal BoundaryAverage { get; set; }

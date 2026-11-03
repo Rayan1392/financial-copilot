@@ -1,0 +1,63 @@
+{
+  "testCase": {
+    "Id": "C8",
+    "Question": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "Refusal": false,
+    "Contains": [
+      "کگل",
+      "۲۵ تن",
+      "کگهر",
+      "۴۰ تن",
+      "جزئی"
+    ],
+    "Excludes": [
+      "فملی",
+      "فولاد"
+    ],
+    "SpecialistContains": null,
+    "ExpectedQueryStatus": "Incomplete"
+  },
+  "run": {
+    "Question": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "Enabled": true,
+    "Answer": "در گزارش‌های ماهانهٔ واجد شرایط شهریور ۱۴۰۵، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: Fixture کگل (کگل): تولید ثبت‌شدهٔ گندله ۲۵ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش f141chat-kgol-1405-06؛ Fixture کگهر (کگهر): تولید ثبت‌شدهٔ گندله ۴۰ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش f141chat-kgehr-1405-06. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+    "PersistedUserMessage": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "PersistedAssistantMessage": "در گزارش‌های ماهانهٔ واجد شرایط شهریور ۱۴۰۵، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: Fixture کگل (کگل): تولید ثبت‌شدهٔ گندله ۲۵ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش f141chat-kgol-1405-06؛ Fixture کگهر (کگهر): تولید ثبت‌شدهٔ گندله ۴۰ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش f141chat-kgehr-1405-06. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64 Fingerprint=3e26068f5aae60ad4635299034a1bef596a90642c365bfe13f5c0c96cb787957 Status=Incomplete Rows=2 ElapsedMs=47.6",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64 | Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False | Chat Feature 141 fallback evaluated. PreviousRoute=direct_metric_lookup_without_answer Definitive=True CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64",
+    "SemanticCapability": null,
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 12994,
+      "CompletionTokens": 1533,
+      "TotalTokens": 14527,
+      "EstimatedCost": null,
+      "ExecutionRoute": null
+    },
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols= Products=گندله RequestedMeasures=productionQuantity PeriodKind=ExplicitMonth PeriodCount=1 ComparisonMode=None Presentation=Table",
+      "Feature141 statement shape classified. Shape=none Diagnostic=none Operation=DiscoverPopulation Ranking=none Constraints= RequestedFields= Filters=none CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64",
+      "Feature141 query completed. CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64 Fingerprint=3e26068f5aae60ad4635299034a1bef596a90642c365bfe13f5c0c96cb787957 Status=Incomplete Rows=2 ElapsedMs=47.6"
+    ],
+    "ElapsedMs": 35193.6905,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=controlled_fallback Capability=none Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64",
+      "Chat route selected. Route=agent_tool_selection ExtractedCompanySymbol=(null) ExtractedProduct=(null) RequestedMetric=(null) RequestedPeriod=not_structured_by_legacy_route ChartRequested=False GrowthCalculationRequested=False",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=direct_metric_lookup_without_answer Definitive=True CorrelationId=feature141-chat-mvp-9e71e2de08ff411684f4ed57650e2c64"
+    ]
+  }
+}

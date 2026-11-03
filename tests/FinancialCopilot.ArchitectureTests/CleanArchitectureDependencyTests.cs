@@ -144,6 +144,100 @@ public sealed class CleanArchitectureDependencyTests
     }
 
     [Fact]
+    public void IndustryRelativeValuationRuntime_ConsumesPersistedCyclicalWavesSnapshots()
+    {
+        var root = FindSolutionRoot();
+        var workerProgram = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Worker", "Program.cs"));
+        var registrations = File.ReadAllText(Path.Combine(
+            root,
+            "FinancialCopilot.Infrastructure",
+            "ServiceCollectionExtensions.cs"));
+        var acquisitionWorker = File.ReadAllText(Path.Combine(
+            root,
+            "FinancialCopilot.Worker",
+            "CyclicalWavesDataAcquisitionWorker.cs"));
+        var calculationWorker = File.ReadAllText(Path.Combine(
+            root,
+            "FinancialCopilot.Worker",
+            "IndustryRelativeValuationCalculationWorker.cs"));
+
+        // Feature 148 retired the legacy CyclicalWaves integration: both workers remain as classes but are unhosted.
+        Assert.DoesNotContain("AddHostedService<CyclicalWavesDataAcquisitionWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddHostedService<IndustryRelativeValuationCalculationWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddHostedService<CyclicalWavesRelativeValuationWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.Contains("ICyclicalWavesMetricSnapshotReader, CyclicalWavesMetricSnapshotReader", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<ICyclicalWavesRelativeValuationProviderClient>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<IFeature126RelativeValuationPipeline>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<IFeature125HandoffSubmissionBoundary>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<IIndustryRelativeValuationSourceIngestionService>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("IIndustryRelativeValuationOrchestrationService", acquisitionWorker, StringComparison.Ordinal);
+        Assert.Contains("IIndustryRelativeValuationOrchestrationService", calculationWorker, StringComparison.Ordinal);
+        Assert.DoesNotContain("CyclicalWavesTokenCache", calculationWorker, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICyclicalWavesDataAcquisitionService", calculationWorker, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICyclicalWavesRelativeValuationProviderClient", calculationWorker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Feature148_LegacyCyclicalWavesSchedulesAreUnhostedAndV2WorkerIsHosted()
+    {
+        var root = FindSolutionRoot();
+        var workerProgram = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Worker", "Program.cs"));
+
+        foreach (var retired in new[]
+                 {
+                     "ComprehensiveAnalysisDailySyncWorker", "CyclicalWavesDataAcquisitionWorker",
+                     "IndustryRelativeValuationCalculationWorker", "CyclicalWavesPsSyncWorker", "CyclicalWavesRelativeValuationWorker"
+                 })
+        {
+            Assert.DoesNotContain($"AddHostedService<{retired}>", workerProgram, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("AddHostedService<CyclicalWavesV2SyncWorker>", workerProgram, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Feature148_EveryLegacyCyclicalWavesClientCarriesTheRetirementGuard()
+    {
+        var root = FindSolutionRoot();
+        var registrations = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "ServiceCollectionExtensions.cs"));
+        var retirement = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "CyclicalWavesV2ServiceCollectionExtensions.cs"));
+        var legacyClients = System.Text.RegularExpressions.Regex.Matches(
+                registrations,
+                @"AddHttpClient<(?:[A-Za-z]+, )?((?:CyclicalWaves|ComprehensiveAnalysis)[A-Za-z]*Client)>")
+            .Select(match => match.Groups[1].Value)
+            .Distinct()
+            .ToArray();
+
+        Assert.NotEmpty(legacyClients);
+        Assert.All(legacyClients, client =>
+            Assert.Contains($"nameof({client})", retirement, StringComparison.Ordinal));
+        Assert.Contains("handlers.Insert(0, new LegacyCyclicalWavesCallBlockingHandler(", retirement, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Feature148_CyclicalWavesV2CoreHasNoInfrastructureOrFrameworkReferences()
+    {
+        var root = FindSolutionRoot();
+        var failures = new[]
+            {
+                Path.Combine(root, "FinancialCopilot.Domain", "Financial", "CyclicalWavesV2"),
+                Path.Combine(root, "FinancialCopilot.Application", "FinancialData", "CyclicalWavesV2"),
+                Path.Combine(root, "FinancialCopilot.Application", "Scanner", "CyclicalWavesV2")
+            }
+            .SelectMany(directory => Directory.GetFiles(directory, "*.cs", SearchOption.AllDirectories))
+            .SelectMany(file => File.ReadAllLines(file)
+                .Where(line => line.TrimStart().StartsWith("using ", StringComparison.Ordinal) &&
+                               (line.Contains("Infrastructure", StringComparison.Ordinal) ||
+                                line.Contains("Microsoft.EntityFrameworkCore", StringComparison.Ordinal) ||
+                                line.Contains("System.Net.Http", StringComparison.Ordinal) ||
+                                line.Contains("Microsoft.AspNetCore", StringComparison.Ordinal)))
+                .Select(line => $"{Path.GetFileName(file)}: {line.Trim()}"))
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
     public void StockMarketDb_IsModeledAsMigrationBridge()
     {
         // Spec 054 AC #2/#7: StockMarketDB must remain classified as MigrationBridge, not as
@@ -215,7 +309,7 @@ public sealed class CleanArchitectureDependencyTests
         {
             var source = File.ReadAllText(file);
             var semanticBranch = source.IndexOf("SemanticFrame is", StringComparison.Ordinal);
-            var semanticExecution = source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
+            var semanticExecution = FindSemanticCoordinatorCall(source);
             Assert.True(semanticBranch >= 0 && semanticExecution > semanticBranch,
                 $"{Path.GetFileName(file)} must execute validated semantic frames through the coordinator.");
         }
@@ -223,10 +317,41 @@ public sealed class CleanArchitectureDependencyTests
         foreach (var file in files.Skip(1))
         {
             var source = File.ReadAllText(file);
-            var semanticExecution = source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
+            var semanticExecution = FindSemanticCoordinatorCall(source);
             var modelResolution = source.IndexOf("ResolveModelClient(request)", StringComparison.Ordinal);
             Assert.True(modelResolution > semanticExecution,
                 $"{Path.GetFileName(file)} must not require an AI model before deterministic semantic execution.");
+        }
+    }
+
+    private static int FindSemanticCoordinatorCall(string source)
+    {
+        var reservedCall = source.IndexOf("semanticExecutionCoordinator.ExecuteWithReservationAsync", StringComparison.Ordinal);
+        return reservedCall >= 0
+            ? reservedCall
+            : source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Feature125SemanticPayload_IsHandledByBothV2ExecutionPaths()
+    {
+        var root = FindSolutionRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "AI", "OrchestrationV2", "Workflow", "FinancialCopilotWorkflowDefinition.cs"));
+        var fallback = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "AI", "OrchestrationV2", "FinancialCopilotAgentWorkflowRunner.cs"));
+        var capabilityCodes = new[]
+        {
+            "symbol_vs_industry_relative_valuation",
+            "industry_relative_valuation_ranking",
+            "industry_relative_valuation_summary",
+            "symbol_pair_within_industry"
+        };
+
+        Assert.Contains("IndustryRelativeValuationPayload relative => relative.PresentationText", workflow, StringComparison.Ordinal);
+        Assert.Contains("IndustryRelativeValuationPayload relative => relative.PresentationText", fallback, StringComparison.Ordinal);
+        foreach (var capabilityCode in capabilityCodes)
+        {
+            Assert.Contains($"\"{capabilityCode}\"", workflow, StringComparison.Ordinal);
+            Assert.Contains($"\"{capabilityCode}\"", fallback, StringComparison.Ordinal);
         }
     }
 

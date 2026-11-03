@@ -1,0 +1,174 @@
+{
+  "id": "tbl_736affab6b01192a",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundDividendIncomeDetails",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawSecurityName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "MeetingDateJalali",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "MeetingDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "EntitledQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "DividendPerShare",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "GrossDividendIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "DiscountCost",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "NetDividendIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundDividendIncomeDetails_ExternalCompanyId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDividendIncomeDetails_ExternalCompanyId\" ON public.\"FundDividendIncomeDetails\" USING btree (\"ExternalCompanyId\")",
+        "Columns": [
+          "ExternalCompanyId"
+        ]
+      },
+      {
+        "Name": "IX_FundDividendIncomeDetails_FundId_PeriodContext",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundDividendIncomeDetails_FundId_PeriodContext\" ON public.\"FundDividendIncomeDetails\" USING btree (\"FundId\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundDividendIncomeDetails_ReportId_PeriodContext_SourceLogi~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundDividendIncomeDetails_ReportId_PeriodContext_SourceLogi~\" ON public.\"FundDividendIncomeDetails\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow"
+        ]
+      },
+      {
+        "Name": "PK_FundDividendIncomeDetails",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundDividendIncomeDetails\" ON public.\"FundDividendIncomeDetails\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundDividendIncomeDetails",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

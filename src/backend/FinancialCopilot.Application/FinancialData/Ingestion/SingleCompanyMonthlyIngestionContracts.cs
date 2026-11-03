@@ -10,7 +10,16 @@ public interface ISingleCompanyMonthlyIngestionService
     Task<SingleCompanyMonthlyIngestionResult> EnqueueAsync(
         SingleCompanyMonthlyIngestionRequest request,
         CancellationToken cancellationToken);
+
+    Task<DataSyncProcessingResult> ExecuteDirectAsync(
+        SingleCompanyMonthlyDirectIngestionRequest request,
+        CancellationToken cancellationToken);
 }
+
+public sealed record SingleCompanyMonthlyDirectIngestionRequest(
+    int ExternalCompanyId,
+    int ShamsiYear,
+    int ShamsiMonth);
 
 public sealed record SingleCompanyMonthlyIngestionRequest(
     int ExternalCompanyId,
@@ -18,7 +27,8 @@ public sealed record SingleCompanyMonthlyIngestionRequest(
     int FromShamsiMonth,
     int ToShamsiYear,
     int ToShamsiMonth,
-    string RequestedBy);
+    string RequestedBy,
+    int? OutputType = null);
 
 public sealed record SingleCompanyMonthlyIngestionResult(
     string Outcome,

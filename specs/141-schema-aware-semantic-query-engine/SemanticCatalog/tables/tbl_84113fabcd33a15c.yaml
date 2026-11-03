@@ -1,0 +1,91 @@
+{
+  "id": "tbl_84113fabcd33a15c",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationSymbolPreferences",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PreferenceId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Muted",
+        "Type": "boolean",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "PreferenceId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationPreferences",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"PreferenceId\") REFERENCES \"NotificationPreferences\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationSymbolPreferences_PreferenceId_ExternalCompanyId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_NotificationSymbolPreferences_PreferenceId_ExternalCompanyId\" ON public.\"NotificationSymbolPreferences\" USING btree (\"PreferenceId\", \"ExternalCompanyId\")",
+        "Columns": [
+          "PreferenceId",
+          "ExternalCompanyId"
+        ]
+      },
+      {
+        "Name": "PK_NotificationSymbolPreferences",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationSymbolPreferences\" ON public.\"NotificationSymbolPreferences\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_NotificationSymbolPreferences_NotificationPreferences_Prefe~",
+        "Type": "f",
+        "Columns": [
+          "PreferenceId"
+        ],
+        "Definition": "FOREIGN KEY (\"PreferenceId\") REFERENCES \"NotificationPreferences\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_NotificationSymbolPreferences",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

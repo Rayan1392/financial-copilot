@@ -1,0 +1,106 @@
+{
+  "id": "tbl_a365336194989511",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationPreferenceAudits",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PreferenceId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Action",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Source",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SnapshotJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationPreferenceAudits_PreferenceId_OccurredAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationPreferenceAudits_PreferenceId_OccurredAtUtc\" ON public.\"NotificationPreferenceAudits\" USING btree (\"PreferenceId\", \"OccurredAtUtc\")",
+        "Columns": [
+          "PreferenceId",
+          "OccurredAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_NotificationPreferenceAudits",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationPreferenceAudits\" ON public.\"NotificationPreferenceAudits\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_NotificationPreferenceAudits",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

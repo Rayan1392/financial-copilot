@@ -3,11 +3,13 @@ using System.Data;
 using FinancialCopilot.Application.Administration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 namespace FinancialCopilot.Infrastructure.Administration;
 
@@ -19,6 +21,7 @@ public sealed class EfCoreAdminManagementService(
     ICreditAdjustmentService adjustments,
     TimeProvider timeProvider) : IAdminManagementService
 {
+    private static readonly string[] CanonicalPlanCodes = ["Free", "Plus", "Pro", "Max"];
     private const string SuperAdminRole = "SuperAdmin";
 
     public async Task<IReadOnlyCollection<AdminUserView>> SearchUsersAsync(
@@ -48,6 +51,30 @@ public sealed class EfCoreAdminManagementService(
     }
 
     public async Task<AdminUserView> ChangeUserStatusAsync(
+        Guid userId,
+        AdminUserStatusChange change,
+        AdminMutationContext context,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await ChangeUserStatusOnceAsync(userId, change, context, cancellationToken);
+            }
+            catch (Exception exception) when
+                (attempt < maxAttempts && IsSerializationFailure(exception))
+            {
+                // Retry the whole serializable transaction after PostgreSQL aborts it for a
+                // concurrent write. Clear tracked entities so the retry reads fresh values.
+                auth.ChangeTracker.Clear();
+                await Task.Delay(TimeSpan.FromMilliseconds(75 * attempt), cancellationToken);
+            }
+        }
+    }
+
+    private async Task<AdminUserView> ChangeUserStatusOnceAsync(
         Guid userId,
         AdminUserStatusChange change,
         AdminMutationContext context,
@@ -208,9 +235,24 @@ public sealed class EfCoreAdminManagementService(
         return await (
             from membership in auth.UserTenants.AsNoTracking()
             join user in auth.Users.AsNoTracking() on membership.UserId equals user.Id
+            join profile in auth.UserProfiles.AsNoTracking() on user.Id equals profile.UserId into profiles
+            from profile in profiles.DefaultIfEmpty()
             where membership.TenantId == tenantId
             orderby user.Email
-            select new AdminTenantMemberView(user.Id, user.Email!, membership.IsDefault))
+            select new AdminTenantMemberView(
+                user.Id,
+                user.Email,
+                membership.IsDefault,
+                profile == null
+                    ? null
+                    : profile.DisplayName != null && profile.DisplayName.Trim() != ""
+                        ? profile.DisplayName
+                        : ((profile.FirstName ?? "") + " " + (profile.LastName ?? "")).Trim(),
+                auth.TahlilAppExternalIdentities.Any(link =>
+                    link.TenantId == tenantId &&
+                    link.LocalUserId == user.Id &&
+                    link.Provider == ExternalUserId.Provider &&
+                    link.Status == "Active")))
             .Take(limit)
             .ToArrayAsync(cancellationToken);
     }
@@ -253,15 +295,17 @@ public sealed class EfCoreAdminManagementService(
     }
 
     public async Task<IReadOnlyCollection<AdminPlanView>> GetPlansAsync(CancellationToken cancellationToken) =>
-        await billing.SubscriptionPlans.AsNoTracking().OrderBy(row => row.Code)
-            .Select(row => new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion))
+        await billing.SubscriptionPlans.AsNoTracking()
+            .Where(row => CanonicalPlanCodes.Contains(row.Code))
+            .OrderBy(row => row.Code)
+            .Select(row => new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion, row.QuotaMode))
             .ToArrayAsync(cancellationToken);
 
     public async Task<AdminPlanView> UpsertPlanAsync(AdminPlanUpsert change, AdminMutationContext context, CancellationToken cancellationToken)
     {
         RequireReason(change.Reason);
         var code = change.Code.Trim();
-        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(change.Name) || change.IncludedCredits < 0 || string.IsNullOrWhiteSpace(change.PricingPolicyVersion))
+        if (!CanonicalPlanCodes.Contains(code, StringComparer.Ordinal) || string.IsNullOrWhiteSpace(change.Name) || change.IncludedCredits < 0 || string.IsNullOrWhiteSpace(change.PricingPolicyVersion))
             throw Invalid("Plan values are invalid.");
         var row = await billing.SubscriptionPlans.SingleOrDefaultAsync(item => item.Code == code, cancellationToken);
         if (row is not null)
@@ -273,7 +317,37 @@ public sealed class EfCoreAdminManagementService(
         AddBillingAudit(context with { Reason = change.Reason }, "billing.plan.published", "SubscriptionPlan", code, null, row);
         await billing.SaveChangesAsync(cancellationToken);
         await AuditAsync(context with { Reason = change.Reason }, "billing.plan.published", "SubscriptionPlan", code, null, row, cancellationToken);
-        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion);
+        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion, row.QuotaMode);
+    }
+
+    public async Task<AdminPlanView> UpdatePlanIncludedCreditsAsync(
+        string planCode,
+        AdminPlanIncludedCreditsChange change,
+        AdminMutationContext context,
+        CancellationToken cancellationToken)
+    {
+        RequireReason(change.Reason);
+        var code = planCode.Trim();
+        if (!CanonicalPlanCodes.Contains(code, StringComparer.Ordinal) ||
+            change.IncludedCredits < 0 ||
+            string.IsNullOrWhiteSpace(change.PricingPolicyVersion))
+        {
+            throw Invalid("Plan included-credit values are invalid.");
+        }
+
+        var row = await billing.SubscriptionPlans.SingleOrDefaultAsync(item => item.Code == code, cancellationToken)
+            ?? throw Missing("Plan");
+        if (row.QuotaMode == "Unlimited")
+            throw Invalid("Unlimited plans do not have a numeric included-credit allowance.");
+        var before = new { row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion };
+        row.IncludedCredits = change.IncludedCredits;
+        row.PricingPolicyVersion = change.PricingPolicyVersion.Trim();
+        var after = new { row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion };
+
+        AddBillingAudit(context with { Reason = change.Reason }, "billing.plan.included-credits.updated", "SubscriptionPlan", code, before, after);
+        await billing.SaveChangesAsync(cancellationToken);
+        await AuditAsync(context with { Reason = change.Reason }, "billing.plan.included-credits.updated", "SubscriptionPlan", code, before, after, cancellationToken);
+        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion, row.QuotaMode);
     }
 
     public async Task<IReadOnlyCollection<AdminPlanCapabilityView>> GetPlanCapabilitiesAsync(string planCode, CancellationToken cancellationToken) =>
@@ -344,7 +418,7 @@ public sealed class EfCoreAdminManagementService(
         await RequireAccountAsync(tenantId, customerAccountId, cancellationToken);
         return await billing.UsageLedgerEntries.AsNoTracking().Where(row => row.TenantId == tenantId && row.CustomerAccountId == customerAccountId)
             .OrderByDescending(row => row.OccurredAt).ThenBy(row => row.Id).Take(limit)
-            .Select(row => new AdminUsageLedgerView(row.Id, row.CustomerAccountId, row.ActorId, row.TenantId, row.ApiClientId, row.EntryType, row.OperationCode, row.CreditsCharged, row.PricingPolicyVersion, row.IdempotencyKey, row.OccurredAt, row.CompletionStatus, row.AuditDescription))
+            .Select(row => new AdminUsageLedgerView(row.Id, row.CustomerAccountId, row.ActorId, row.TenantId, row.ApiClientId, row.EntryType, row.OperationCode, row.CreditsCharged, row.PricingPolicyVersion, row.IdempotencyKey, row.OccurredAt, row.CompletionStatus, row.AuditDescription, row.QuotaMode, row.SourceSubscriptionId, row.SourceSubscriptionExpiresAtUtc))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -421,6 +495,19 @@ public sealed class EfCoreAdminManagementService(
             ? await auth.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
             : null;
 
+    private static bool IsSerializationFailure(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.SerializationFailure)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private async Task RejectLockoutAsync(
         AdminMutationContext context,
         string targetType,
@@ -434,7 +521,11 @@ public sealed class EfCoreAdminManagementService(
     }
 
     private static string? Serialize(object? value) => value is null ? null : JsonSerializer.Serialize(value);
-    private static AdminSubscriptionView MapSubscription(CustomerAccountRow row) => new(row.Id, row.TenantId, row.AccountType, row.BillingMode, row.SubscriptionPlanCode, row.SubscriptionEffectiveFrom, row.SubscriptionEffectiveTo, row.SubscriptionRevision);
+    private static AdminSubscriptionView MapSubscription(CustomerAccountRow row) => new(
+        row.Id, row.TenantId, row.AccountType, row.BillingMode, row.SubscriptionPlanCode,
+        row.SubscriptionEffectiveFrom, row.SubscriptionEffectiveTo, row.SubscriptionRevision,
+        row.SubscriptionPlanCode == "Max" && row.SubscriptionEffectiveTo > DateTimeOffset.UtcNow ? "Unlimited" : "Finite",
+        row.SubscriptionPlanCode == "Max" && row.SubscriptionEffectiveTo > DateTimeOffset.UtcNow ? row.SubscriptionEffectiveTo : null);
     private static void ValidateLimit(int limit) { if (limit is < 1 or > 100) throw Invalid("Limit must be between 1 and 100."); }
     private static void RequireReason(string? reason) { if (string.IsNullOrWhiteSpace(reason)) throw Invalid("An audit reason is required."); }
     private static void RequireSameTenant(Guid requested, Guid effective) { if (requested != effective) throw TenantViolation(); }

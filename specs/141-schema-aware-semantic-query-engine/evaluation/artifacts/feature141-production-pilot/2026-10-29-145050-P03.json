@@ -1,0 +1,56 @@
+{
+  "id": "P03",
+  "run": {
+    "Question": "سود هر سهم فملی چقدر است؟",
+    "Enabled": true,
+    "Answer": "واحد: میلیون ریال\r\nبرای نماد فملی مقدار قابل اتکایی برای EPS در داده‌های فعلی موجود نیست.",
+    "PersistedUserMessage": "سود هر سهم فملی چقدر است؟",
+    "PersistedAssistantMessage": "واحد: میلیون ریال\r\nبرای نماد فملی مقدار قابل اتکایی برای EPS در داده‌های فعلی موجود نیست.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=DeterministicFallback CorrelationId=feature141-pilot-f1ec1f3354414836bac7ad10c7120d87 | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:هر,entity:فملی RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=Executed ReasonCode=none PayloadType=SymbolLookupTableResult",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "SymbolLookup",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 24.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 591,
+      "CompletionTokens": 219,
+      "TotalTokens": 810,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:symbol_metric_lookup"
+    },
+    "Reservations": [
+      {
+        "IdempotencyKey": "feature141-pilot-f1ec1f3354414836bac7ad10c7120d87:reservation",
+        "Status": "Committed",
+        "ReservedCredits": 1.0000,
+        "CommittedCredits": 1.0000
+      }
+    ],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 75.0000,
+    "WalletBalanceAfter": 74.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [],
+    "ElapsedMs": 6320.4188,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=DeterministicFallback CorrelationId=feature141-pilot-f1ec1f3354414836bac7ad10c7120d87",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:هر,entity:فملی RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=Executed ReasonCode=none PayloadType=SymbolLookupTableResult",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-f1ec1f3354414836bac7ad10c7120d87 RolloutMode=Shadow LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.88 ExtractedCompany=هر ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) ResolvedCompany=فمل"
+    ],
+    "ExecutedQueries": []
+  }
+}

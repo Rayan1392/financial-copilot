@@ -28,7 +28,8 @@ public enum AiWorkloadKind
     SuggestedQuestions,
     Summarization,
     Embeddings,
-    ResearchTool
+    ResearchTool,
+    SchemaNavigation
 }
 
 public enum AiMessageRole
@@ -55,7 +56,8 @@ public sealed record AiToolDefinition(string Name, string Description, string Pa
 
 public sealed record AiStructuredOutputContract(
     string SchemaName,
-    IReadOnlyCollection<string> RequiredRootProperties);
+    IReadOnlyCollection<string> RequiredRootProperties,
+    string? JsonSchema = null);
 
 public sealed record AiModelRequest(
     string CorrelationId,
@@ -65,7 +67,8 @@ public sealed record AiModelRequest(
     AiStructuredOutputContract? StructuredOutput = null,
     IReadOnlyCollection<AiToolDefinition>? Tools = null,
     bool Stream = false,
-    string? PreviousResponseId = null);
+    string? PreviousResponseId = null,
+    int? MaxOutputTokens = null);
 
 public sealed record AiToolCall(string Id, string Name, string ArgumentsJson, string? ItemId = null);
 
@@ -83,7 +86,15 @@ public sealed record AiExecutionUsageFacts(
     bool EmbeddingOperation = false,
     decimal? ProviderReportedCost = null,
     string? ProviderReportedCurrency = null,
-    string? FailureCode = null);
+    string? FailureCode = null,
+    // Provider-reported prompt-cache hits; a subset of InputTokens.
+    int? CachedInputTokens = null,
+    // Cache writes are separate billing categories, also subsets of InputTokens.
+    // Null means the provider did not report the field; explicit zero remains distinguishable.
+    int? CacheWriteInputTokens = null,
+    int? CacheWrite30mInputTokens = null,
+    int? CacheWrite12hInputTokens = null,
+    AiWorkloadKind? Workload = null);
 
 public sealed record AiExecutionUsageSummary(
     string ProviderKey,
@@ -91,11 +102,62 @@ public sealed record AiExecutionUsageSummary(
     int? InputTokens,
     int? OutputTokens,
     decimal? ProviderReportedCost = null,
-    string? ProviderReportedCurrency = null)
+    string? ProviderReportedCurrency = null,
+    int? CachedInputTokens = null,
+    int? CacheWriteInputTokens = null,
+    int? CacheWrite30mInputTokens = null,
+    int? CacheWrite12hInputTokens = null)
 {
     public int? TotalTokens => InputTokens is null && OutputTokens is null
         ? null
         : (InputTokens ?? 0) + (OutputTokens ?? 0);
+
+    // Provider and model keys are listed once each in first-seen order, which keeps the
+    // persisted ledger values bounded however many calls a turn makes.
+    public static AiExecutionUsageSummary? From(IReadOnlyCollection<AiExecutionUsageFacts> calls)
+    {
+        if (calls.Count == 0)
+        {
+            return null;
+        }
+
+        return new AiExecutionUsageSummary(
+            string.Join(",", calls.Select(call => call.ProviderKey).Distinct(StringComparer.OrdinalIgnoreCase)),
+            string.Join(",", calls.Select(call => call.ModelKey).Distinct(StringComparer.OrdinalIgnoreCase)),
+            Sum(calls.Select(call => call.InputTokens)),
+            Sum(calls.Select(call => call.OutputTokens)),
+            HasCompatibleReportedCurrency(calls) ? Sum(calls.Select(call => call.ProviderReportedCost)) : null,
+            CompatibleReportedCurrency(calls),
+            SumIfAllReported(calls.Select(call => call.CachedInputTokens)),
+            SumIfAllReported(calls.Select(call => call.CacheWriteInputTokens)),
+            SumIfAllReported(calls.Select(call => call.CacheWrite30mInputTokens)),
+            SumIfAllReported(calls.Select(call => call.CacheWrite12hInputTokens)));
+    }
+
+    private static int? Sum(IEnumerable<int?> values) =>
+        values.Aggregate((int?)null, (total, value) => total is null && value is null ? null : (total ?? 0) + (value ?? 0));
+
+    private static int? SumIfAllReported(IEnumerable<int?> values)
+    {
+        var materialized = values.ToArray();
+        return materialized.All(value => value.HasValue)
+            ? materialized.Sum(value => value!.Value)
+            : null;
+    }
+
+    private static decimal? Sum(IEnumerable<decimal?> values) =>
+        values.Aggregate((decimal?)null, (total, value) => total is null && value is null ? null : (total ?? 0m) + (value ?? 0m));
+
+    private static bool HasCompatibleReportedCurrency(IReadOnlyCollection<AiExecutionUsageFacts> calls) =>
+        calls.Where(call => call.ProviderReportedCost.HasValue)
+            .Select(call => call.ProviderReportedCurrency)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() <= 1;
+
+    private static string? CompatibleReportedCurrency(IReadOnlyCollection<AiExecutionUsageFacts> calls) =>
+        HasCompatibleReportedCurrency(calls)
+            ? calls.Select(call => call.ProviderReportedCurrency).FirstOrDefault(currency => currency is not null)
+            : null;
 }
 
 public sealed record AiModelResult(
@@ -153,6 +215,8 @@ public static class AiWorkloadCapabilities
         {
             AiWorkloadKind.ScannerParsing =>
                 AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput,
+            AiWorkloadKind.SchemaNavigation =>
+                AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput,
             AiWorkloadKind.ExplanationGeneration or AiWorkloadKind.SuggestedQuestions or AiWorkloadKind.Summarization =>
                 AiModelCapability.ChatCompletion,
             AiWorkloadKind.Embeddings => AiModelCapability.Embeddings,
@@ -166,11 +230,56 @@ public sealed class AiModelProviderException(
     AiExecutionStatus status,
     string code,
     string message,
-    Exception? innerException = null) : Exception(message, innerException)
+    Exception? innerException = null,
+    int? httpStatusCode = null,
+    string? providerErrorCode = null,
+    string? providerRequestId = null,
+    string? requestHost = null,
+    IReadOnlyDictionary<string, string>? providerQuotaMetadata = null,
+    string? providerResponseId = null,
+    int? providerReportedInputTokens = null,
+    int? providerReportedOutputTokens = null,
+    string? providerCompletionReason = null,
+    TimeSpan? providerLatency = null,
+    int? evaluationModelCalls = null,
+    int? accumulatedProviderInputTokens = null,
+    int? accumulatedProviderOutputTokens = null,
+    TimeSpan? evaluationLatency = null,
+    int? evaluationRetryAttempts = null) : Exception(message, innerException)
 {
     public AiExecutionStatus Status { get; } = status;
 
     public string Code { get; } = code;
+
+    public int? HttpStatusCode { get; } = httpStatusCode;
+
+    public string? ProviderErrorCode { get; } = providerErrorCode;
+
+    public string? ProviderRequestId { get; } = providerRequestId;
+
+    public string? RequestHost { get; } = requestHost;
+
+    public IReadOnlyDictionary<string, string>? ProviderQuotaMetadata { get; } = providerQuotaMetadata;
+
+    public string? ProviderResponseId { get; } = providerResponseId;
+
+    public int? ProviderReportedInputTokens { get; } = providerReportedInputTokens;
+
+    public int? ProviderReportedOutputTokens { get; } = providerReportedOutputTokens;
+
+    public string? ProviderCompletionReason { get; } = providerCompletionReason;
+
+    public TimeSpan? ProviderLatency { get; } = providerLatency;
+
+    public int? EvaluationModelCalls { get; } = evaluationModelCalls;
+
+    public int? AccumulatedProviderInputTokens { get; } = accumulatedProviderInputTokens;
+
+    public int? AccumulatedProviderOutputTokens { get; } = accumulatedProviderOutputTokens;
+
+    public TimeSpan? EvaluationLatency { get; } = evaluationLatency;
+
+    public int? EvaluationRetryAttempts { get; } = evaluationRetryAttempts;
 }
 
 public interface IAiModelClient
@@ -220,6 +329,13 @@ public interface IAiExecutionUsageAccumulator
     void Record(AiExecutionUsageFacts facts);
 
     AiExecutionUsageSummary? GetSummary(string correlationId);
+
+    IReadOnlyList<AiExecutionUsageFacts> GetUnbilled(string correlationId) => [];
+
+    // Returns the completed model calls of the correlation id that no earlier claim took, so a
+    // turn settled on more than one reservation never bills a call twice. A repeated claim key
+    // returns its original calls, which keeps a replayed finalization deterministic.
+    IReadOnlyList<AiExecutionUsageFacts> ClaimUnbilled(string correlationId, string claimKey);
 }
 
 public interface IAiExecutionTelemetrySink

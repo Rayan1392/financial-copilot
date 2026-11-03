@@ -60,6 +60,9 @@ public sealed class NormalizedCompanyRow
 
     public int? PrecedencyRight { get; set; }
 
+    /// <summary>Authoritative Noavaran monthly-report classification code.</summary>
+    public int? ReportingType { get; set; }
+
     public string? AcceptionDateJalali { get; set; }
 
     public string? AcceptionDateGregorian { get; set; }
@@ -135,7 +138,7 @@ public sealed class NormalizedCompanyRow
 
 /// <summary>
 /// Read model for the operator-facing Noavaran eligibility view.
-/// The view is the authoritative universe for Noavaran monthly-activity data.
+/// The view is the authoritative universe for eligible per-company acquisitions.
 /// </summary>
 public sealed class NoavaranEligibleCompanyRow
 {
@@ -157,7 +160,10 @@ public sealed class NoavaranEligibleCompanyRow
 
     public string? CompanySymbol { get; set; }
 
+    public string? SymbolIsin { get; set; }
+
     public string? TseSymbol { get; set; }
+
 }
 
 
@@ -324,6 +330,25 @@ public sealed class NormalizedMonthlyReportRow
 
     public DateTimeOffset LastSynchronizedAt { get; set; }
 
+    /// <summary>
+    /// Stable logical identity for all provider candidates for one company/month/report/output
+    /// period.  It is deliberately independent from the provider activity/report id so a
+    /// correction can be retained as an immutable candidate.
+    /// </summary>
+    public string LogicalReportKey { get; set; } = string.Empty;
+
+    /// <summary>Checksum/fingerprint of this immutable candidate revision.</summary>
+    public string RevisionFingerprint { get; set; } = string.Empty;
+
+    /// <summary>Provider publication timestamp normalized to UTC when available.</summary>
+    public DateTimeOffset? ProviderPublishedAtUtc { get; set; }
+
+    /// <summary>Whether this candidate is the authoritative revision for its logical key.</summary>
+    public bool IsAccepted { get; set; } = true;
+
+    /// <summary>Accepted, Pending, or RejectedOlder. Kept as data for audit/replay diagnostics.</summary>
+    public string RevisionStatus { get; set; } = "Accepted";
+
     public string WarningsJson { get; set; } = "[]";
 
     /// <summary>Logical vendor name (<c>LogicalVendor</c>) that owns this monthly report (spec 051).</summary>
@@ -363,6 +388,24 @@ public sealed class NormalizedMonthlyReportLineItemRow
     public Guid Id { get; set; }
 
     public Guid MonthlyReportId { get; set; }
+
+    /// <summary>Provider row identity, when the provider supplies one.</summary>
+    public string? SourceRowKey { get; set; }
+
+    /// <summary>Canonical economic-row fingerprint; never used as a ProductKey.</summary>
+    public string SourceRowFingerprint { get; set; } = string.Empty;
+
+    /// <summary>Report-local occurrence for identical rows without a provider row id.</summary>
+    public int SourceMultiplicity { get; set; } = 1;
+
+    /// <summary>Provider product id retained separately from the display ProductCode.</summary>
+    public long? ProviderProductId { get; set; }
+
+    /// <summary>Provider/product-code provenance used by company-scoped resolution.</summary>
+    public string? ProviderProductCode { get; set; }
+
+    /// <summary>Checksum of the accepted report revision that produced this row.</summary>
+    public string SourcePayloadChecksum { get; set; } = string.Empty;
 
     public string ProductCode { get; set; } = string.Empty;
 
@@ -617,6 +660,44 @@ public sealed class MonthlyActivityBackfillStateRow
 
     /// <summary>JSON array of planned months: [{"y":1405,"m":2,"companies":700}, …] newest first.</summary>
     public string PlannedMonthsJson { get; set; } = "[]";
+}
+
+public sealed class MonthlyActivityBackfillBatchRow
+{
+    public Guid Id { get; set; }
+    public string SourceName { get; set; } = string.Empty;
+    public string RequestedBy { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int? ActiveSlot { get; set; }
+    public int? TargetShamsiYear { get; set; }
+    public int? TargetShamsiMonth { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? PublishingStartedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public int PlannedCount { get; set; }
+    public int PublishedCount { get; set; }
+    public int ProcessedCount { get; set; }
+    public int FailedCount { get; set; }
+    public int RetryableCount { get; set; }
+    public string? LastError { get; set; }
+}
+
+public sealed class MonthlyActivityBackfillOutboxRow
+{
+    public Guid Id { get; set; }
+    public Guid BatchId { get; set; }
+    public int Sequence { get; set; }
+    public string IdempotencyKey { get; set; } = string.Empty;
+    public string PayloadJson { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
+    public DateTimeOffset? LastAttemptAt { get; set; }
+    public int AttemptCount { get; set; }
+    public string? LeaseOwner { get; set; }
+    public DateTimeOffset? LeaseExpiresAt { get; set; }
+    public string? LastError { get; set; }
 }
 
 /// <summary>

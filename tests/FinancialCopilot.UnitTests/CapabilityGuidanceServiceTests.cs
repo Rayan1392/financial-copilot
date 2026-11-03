@@ -36,6 +36,22 @@ public sealed class CapabilityGuidanceServiceTests
         Assert.Equal("monthly_activity_trend", prompt.CapabilityCode);
     }
 
+    [Fact]
+    public void StarterPrompts_ExcludeCapabilitiesDisabledForGuidance()
+    {
+        var prompts = Create().StarterPrompts("fa");
+
+        Assert.DoesNotContain(prompts, prompt => prompt.CapabilityCode is
+            "financial_statement_value_search" or
+            "ps_gauge_visualization" or
+            "personalized_insight_explanation" or
+            "symbol_vs_industry_relative_valuation" or
+            "industry_relative_valuation_ranking" or
+            "industry_relative_valuation_summary" or
+            "symbol_pair_within_industry");
+        Assert.Contains(prompts, prompt => prompt.CapabilityCode == "monthly_sales_quality_ranking");
+    }
+
     [Theory]
     [InlineData(DialogueOutcome.PartialAnswer, DialogueOutcomeReasonCodes.PartialEvidence)]
     [InlineData(DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.RequiredInputMissing)]
@@ -79,6 +95,72 @@ public sealed class CapabilityGuidanceServiceTests
         var action = Assert.Single(actions);
         Assert.Equal("symbol_metric_lookup", action.CapabilityCode);
         Assert.DoesNotContain(actions, item => item.CapabilityCode == "not_registered");
+    }
+
+    [Fact]
+    public void NoMonthlyData_OffersTheQuarterlyReportForTheSameSymbolInsteadOfGenericExamples()
+    {
+        var actions = Create().Suggest(new(
+            "روند فروش ماهانه فاراک", "fa", DialogueOutcome.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows,
+            Symbol: "فاراک", AttemptedCapability: "monthly_activity_trend"));
+
+        var action = Assert.Single(actions);
+        Assert.Equal("گزارش فصلی فاراک", action.Message);
+        Assert.Equal("گزارش فصلی فاراک", action.LocalizedLabel);
+        Assert.Equal(SuggestedActionKind.RunRelatedCapability, action.Kind);
+        Assert.Equal("financial_statement_table", action.CapabilityCode);
+        Assert.Equal("فاراک", action.PresetSlots["symbol"]);
+    }
+
+    [Fact]
+    public void UnsupportedQuestionAboutASymbol_OffersSalesTrendAndQuarterlyReportForIt()
+    {
+        var actions = Create().Suggest(new(
+            "سهامداران عمده فاراک", "fa", DialogueOutcome.Unsupported, DialogueOutcomeReasonCodes.CapabilityNotRecognized,
+            Symbol: "فاراک"));
+
+        Assert.Equal(["روند فروش فاراک", "گزارش فصلی فاراک"], actions.Select(action => action.Message));
+    }
+
+    [Fact]
+    public void UnansweredQuestionWithoutASymbol_ShowsTheTwoExamplesOnly()
+    {
+        var actions = Create().Suggest(new(
+            "سهام با P/E زیر ۵", "fa", DialogueOutcome.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows,
+            AttemptedCapability: "stock_screening"));
+
+        Assert.Equal(["مثال: روند فروش فولاد", "مثال: گزارش فصلی فولاد"], actions.Select(action => action.LocalizedLabel));
+        Assert.DoesNotContain(actions, action => action.CapabilityCode == "stock_screening");
+    }
+
+    [Theory]
+    [InlineData("روند فروش فاراک", "monthly_activity_trend")]
+    [InlineData("گزارش فصلی فاراک", "financial_statement_table")]
+    public void SuggestedFollowUps_RouteToTheirCapability(string message, string capability)
+    {
+        var interpretation = new DeterministicCapabilityInterpreter(
+            new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create())).Interpret(message);
+
+        Assert.Equal(capability, interpretation.CapabilityCandidates.First().CapabilityCode);
+    }
+
+    [Fact]
+    public void FollowUpTexts_MatchTheLegacyIntentRules()
+    {
+        Assert.True(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery("روند فروش فاراک"));
+        Assert.Equal("فاراک", MonthlyActivityTrendIntentRules.ExtractCompanySymbol("روند فروش فاراک"));
+        Assert.True(FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery("گزارش فصلی فاراک"));
+        Assert.Equal("فاراک", FinancialStatementTableIntentRules.BuildQuarterlyQuery("گزارش فصلی فاراک").CompanyQuery);
+    }
+
+    [Fact]
+    public void Subject_UsesTheSymbolTheRoutedIntentExtracted()
+    {
+        var (symbol, attempted) = CapabilityGuidanceSubject.From(null, DetectedIntent.MonthlyActivityTrend, "روند فروش ماهانه فاراک را نشان بده");
+
+        Assert.Equal("فاراک", symbol);
+        Assert.Equal("monthly_activity_trend", attempted);
+        Assert.Equal((null, null), CapabilityGuidanceSubject.From(null, DetectedIntent.Unknown, "سهام با P/E زیر ۵"));
     }
 
     private static CapabilityGuidanceService Create() => new(new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create()));

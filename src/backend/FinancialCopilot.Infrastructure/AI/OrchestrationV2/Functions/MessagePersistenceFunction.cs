@@ -2,6 +2,7 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
@@ -42,7 +43,12 @@ internal sealed class MessagePersistenceFunction(
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null,
         DisclosureListingResult? disclosureListingResult = null,
-        PsVisualizationResult? psVisualizationResult = null)
+        PsVisualizationResult? psVisualizationResult = null,
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null,
+        MonthlyProductTrendResult? monthlyProductTrendResult = null,
+        IReadOnlyCollection<SuggestedAction>? deterministicSuggestedActions = null,
+        bool deterministicSuggestionsApplied = false)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -51,17 +57,28 @@ internal sealed class MessagePersistenceFunction(
                 intent, scannerPlan, scannerTable, symbolLookupTable,
                 explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
                 comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
-                monthlySalesQualityRankingResult);
+                monthlySalesQualityRankingResult, monthlyProductComparisonResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
-        var suggestions = guidanceService.Suggest(new CapabilityGuidanceRequest(
-            request.OriginalUserMessage ?? request.Message,
-            replyLanguage,
-            outcome,
-            outcomeReasonCode,
-            request.SemanticFrame?.Interpretation,
-            CorrelationId: request.CorrelationId,
-            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
+        var malformedProductComposition =
+            ProductSemanticIntentRules.LooksLikeProductRevenueComposition(request.Message) &&
+            !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message) &&
+            outcome == DialogueOutcome.Unsupported;
+        var guidanceSubject = CapabilityGuidanceSubject.From(request.SemanticFrame, intent, request.Message);
+        IReadOnlyCollection<SuggestedAction> suggestions = deterministicSuggestionsApplied
+            ? deterministicSuggestedActions?.ToArray() ?? Array.Empty<SuggestedAction>()
+            : malformedProductComposition
+                ? Array.Empty<SuggestedAction>()
+                : guidanceService.Suggest(new CapabilityGuidanceRequest(
+                request.OriginalUserMessage ?? request.Message,
+                replyLanguage,
+                outcome,
+                outcomeReasonCode,
+                request.SemanticFrame?.Interpretation,
+                CorrelationId: request.CorrelationId,
+                Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+                Symbol: guidanceSubject.Symbol,
+                AttemptedCapability: guidanceSubject.AttemptedCapability));
 
         var persisted = await repository.PersistExchangeAsync(
             new ConversationExchange(
@@ -94,13 +111,20 @@ internal sealed class MessagePersistenceFunction(
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
                     DisclosureListingResult: disclosureListingResult,
                     PsVisualizationResult: psVisualizationResult,
+                    MonthlyProductComparisonResult: monthlyProductComparisonResult,
+                    FinancialStatementValueSearchResult: financialStatementValueSearchResult,
+                    MonthlyProductTrendResult: monthlyProductTrendResult,
                     Outcome: outcome,
                     OutcomeReasonCode: outcomeReasonCode,
                     ReplyLanguage: replyLanguage,
                     LanguageGuardApplied: languageGuardApplied,
                     SuggestedActions: suggestions,
-                    SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
-                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
+                    SemanticCapabilityCode: intent == DetectedIntent.MonthlyProductComparison
+                        ? "monthly_product_comparison"
+                        : request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
+                    SemanticRegistryVersion: intent == DetectedIntent.MonthlyProductComparison
+                        ? 1
+                        : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
             createConversation,
             cancellationToken);
         return persisted with { SuggestedActions = suggestions };
@@ -129,7 +153,8 @@ internal sealed class MessagePersistenceFunction(
         FinancialStatementTableResult? financialStatementTableResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
-        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null)
+        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null,
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
@@ -139,6 +164,9 @@ internal sealed class MessagePersistenceFunction(
 
         if (monthlySalesQualityRankingResult is not null)
             return BuildMonthlySalesQualityRankingContent(monthlySalesQualityRankingResult);
+
+        if (monthlyProductComparisonResult is not null)
+            return BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
 
         if (financialStatementAnalysisResult?.RenderedAnswer is { Length: > 0 } rendered)
             return rendered;
@@ -171,6 +199,17 @@ internal sealed class MessagePersistenceFunction(
                 : "تحلیل جامعی برای معیارهای درخواستی یافت نشد.";
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
+    }
+
+    private static string BuildMonthlyProductComparisonContent(MonthlyProductComparisonResponse result)
+    {
+        if (result.BlockingReason is not null)
+            return result.ClarificationMessage ?? "Monthly product comparison is unavailable.";
+
+        var totals = result.Totals;
+        var lines = new List<string> { $"Monthly product comparison for {result.CompanyText} ({result.CurrentPeriod} vs {result.ComparisonPeriod})" };
+        lines.Add($"Sales: {totals?.Current.ToString("0.##") ?? "n/a"} vs {totals?.Comparison.ToString("0.##") ?? "n/a"} ({totals?.ChangePercent?.ToString("0.##") ?? "n/a"}%)");
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)
@@ -214,34 +253,6 @@ internal sealed class MessagePersistenceFunction(
             sb.AppendLine("**نکات تحلیلی:**");
             foreach (var insight in result.Insights)
                 sb.AppendLine($"- {insight.TextFa}");
-        }
-
-        if (result.ChartPoints.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("**داده نمودار ماهانه:**");
-            sb.AppendLine();
-
-            var firstPoint = result.ChartPoints.First(p => p.PreviousFiscalYear.HasValue || p.CurrentFiscalYear.HasValue);
-            var prevYearLabel = firstPoint.PreviousFiscalYear.HasValue ? $"فروش {firstPoint.PreviousFiscalYear}" : "فروش سال قبل";
-            var currYearLabel = firstPoint.CurrentFiscalYear.HasValue ? $"فروش {firstPoint.CurrentFiscalYear}" : "فروش سال جاری";
-
-            sb.AppendLine($"| ماه | {prevYearLabel} | {currYearLabel} | میانگین ۱۲ ماهه |");
-            sb.AppendLine("|-----|------------:|-------------:|----------------:|");
-
-            foreach (var pt in result.ChartPoints)
-            {
-                var prevVal = pt.PreviousFiscalYearSalesAmount.HasValue
-                    ? FormatTrendAmount(pt.PreviousFiscalYearSalesAmount.Value)
-                    : "—";
-                var currVal = pt.IsCurrentYearReported && pt.CurrentFiscalYearSalesAmount.HasValue
-                    ? FormatTrendAmount(pt.CurrentFiscalYearSalesAmount.Value)
-                    : "—";
-                var avgVal = pt.Average12MonthSalesAmount.HasValue
-                    ? FormatTrendAmount(pt.Average12MonthSalesAmount.Value)
-                    : "—";
-                sb.AppendLine($"| {pt.FiscalMonthNameFa} | {prevVal} | {currVal} | {avgVal} |");
-            }
         }
 
         if (result.MissingDataPoints.Count > 0)
@@ -289,15 +300,18 @@ internal sealed class MessagePersistenceFunction(
             ? $"{result.CompanyName} ({result.CompanySymbol})"
             : result.CompanySymbol;
         sb.AppendLine($"### ترکیب درآمد محصولات — {companyLabel}");
-        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2} | کل فروش: {result.TotalSalesAmount:N0} ریال");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2}");
         sb.AppendLine();
-        sb.AppendLine("| ردیف | محصول | فروش (ریال) | سهم (٪) | غالب |");
+        sb.AppendLine("| ردیف | محصول | فروش (تومان) | سهم (٪) | غالب |");
         sb.AppendLine("|------|-------|------------|---------|------|");
         foreach (var p in result.Products)
         {
             var dominant = p.IsDominantProduct ? "✓" : "";
-            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {p.SalesAmount:N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
+            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {ToToman(p.SalesAmount):N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
         }
         return sb.ToString().TrimEnd();
     }
+
+    // Persisted product sales are in million rials; display them as tomans.
+    private static decimal ToToman(decimal millionRial) => millionRial * 100_000m;
 }

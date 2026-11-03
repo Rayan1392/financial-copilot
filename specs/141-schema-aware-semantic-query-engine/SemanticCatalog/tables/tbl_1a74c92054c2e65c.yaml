@@ -1,0 +1,81 @@
+{
+  "id": "tbl_1a74c92054c2e65c",
+  "physical": {
+    "Schema": "public",
+    "Name": "MetricDependencies",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "DependencyMetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequiredDefinitionVersion",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "Required",
+        "Type": "boolean",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MetricDependencies_MetricCode_MetricVersion",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MetricDependencies_MetricCode_MetricVersion\" ON public.\"MetricDependencies\" USING btree (\"MetricCode\", \"MetricVersion\")",
+        "Columns": [
+          "MetricCode",
+          "MetricVersion"
+        ]
+      },
+      {
+        "Name": "PK_MetricDependencies",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MetricDependencies\" ON public.\"MetricDependencies\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MetricDependencies",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -11,6 +11,18 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     public DbSet<UsageReservationRow> UsageReservations => Set<UsageReservationRow>();
 
     public DbSet<UsageLedgerEntryRow> UsageLedgerEntries => Set<UsageLedgerEntryRow>();
+    public DbSet<SubscriptionCreditPeriodRow> SubscriptionCreditPeriods => Set<SubscriptionCreditPeriodRow>();
+    public DbSet<FreeCreditGrantEvidenceRow> FreeCreditGrantEvidence => Set<FreeCreditGrantEvidenceRow>();
+    public DbSet<UsageCreditAllocationRow> UsageCreditAllocations => Set<UsageCreditAllocationRow>();
+    public DbSet<UsageCreditHoldRow> UsageCreditHolds => Set<UsageCreditHoldRow>();
+    public DbSet<TopUpCreditSourceRow> TopUpCreditSources => Set<TopUpCreditSourceRow>();
+    public DbSet<TahlilAppTopUpPurchaseRow> TahlilAppTopUpPurchases => Set<TahlilAppTopUpPurchaseRow>();
+    public DbSet<ConsumedPartnerTokenRow> ConsumedPartnerTokens => Set<ConsumedPartnerTokenRow>();
+    public DbSet<TopUpUsageCreditAllocationRow> TopUpUsageCreditAllocations => Set<TopUpUsageCreditAllocationRow>();
+    public DbSet<TopUpUsageCreditHoldRow> TopUpUsageCreditHolds => Set<TopUpUsageCreditHoldRow>();
+    public DbSet<TopUpOfferRow> TopUpOffers => Set<TopUpOfferRow>();
+    public DbSet<ExternalPlanSubscriptionRow> ExternalPlanSubscriptions => Set<ExternalPlanSubscriptionRow>();
+    public DbSet<PaidExpiryCooldownRow> PaidExpiryCooldowns => Set<PaidExpiryCooldownRow>();
     public DbSet<DailyFreeAllowanceGrantRow> DailyFreeAllowanceGrants => Set<DailyFreeAllowanceGrantRow>();
 
     public DbSet<FinancialTransactionRow> FinancialTransactions => Set<FinancialTransactionRow>();

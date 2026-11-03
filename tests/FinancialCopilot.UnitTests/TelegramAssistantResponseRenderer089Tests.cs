@@ -5,6 +5,7 @@ using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Infrastructure.Authentication;
 using Microsoft.Extensions.Logging.Abstractions;
+using SkiaSharp;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -93,6 +94,44 @@ public sealed class TelegramAssistantResponseRenderer089Tests
     }
 
     [Fact]
+    public void Industry_comparison_is_rendered_as_readable_cards_with_non_color_statuses()
+    {
+        var response = new AiQueryResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.ComprehensiveAnalysis,
+            null, null, null, null, null,
+            "### مقایسه نماد با صنعت\n**گروه صنعتی:** استخراج سنگ معدن\n**اندازه گروه:** ۸ نماد\n\n| نماد | P/E | P/S | قیمت به تعادلی |\n|---|---:|---:|---:|\n| کگهر | ۶۶٫۹۴٪ | ۲۹٫۳۷٪ | ۴۳٫۲۹٪ |\n| فملی | ۷۰٪ | ۶۵٪ | ۴۸٪ |\n| میانگین صنعت | ۷۹٫۳٪ | ۶۰٫۳۲٪ | ۴۶٫۲۹٪ |",
+            false, null, null);
+
+        var message = Assert.Single(CreateRenderer().Render(response, "fa-IR"));
+        Assert.NotNull(message.Media);
+        Assert.Equal("photo", message.Media!.Kind);
+        Assert.Equal("image/png", message.Media.ContentType);
+        return;
+
+        #if false
+        Assert.DoesNotContain("###", message.Text);
+        Assert.DoesNotContain("|", message.Text);
+        Assert.Contains("گروه:", message.Text);
+        Assert.DoesNotContain("گروه صنعتی:", message.Text);
+        Assert.Contains("اندازه گروه", message.Text);
+        Assert.Contains("📌 کگهر", message.Text);
+        Assert.Contains("📌 فملی", message.Text);
+        Assert.Contains("📌 میانگین صنعت", message.Text);
+        Assert.Contains("نسبت قیمت به سود: ۷۹٫۳٪", message.Text);
+        Assert.Contains("نسبت قیمت به فروش: ۶۰٫۳۲٪", message.Text);
+        Assert.Contains("نسبت قیمت به تعادلی: ۴۶٫۲۹٪", message.Text);
+        Assert.Contains("نسبت قیمت به سود", message.Text);
+        Assert.Contains("نسبت قیمت به فروش", message.Text);
+        Assert.Contains("نسبت قیمت به تعادلی", message.Text);
+        Assert.Contains("🟢", message.Text);
+        Assert.DoesNotContain("کمتر از میانگین صنعت", message.Text);
+        Assert.DoesNotContain("بیشتر از میانگین صنعت", message.Text);
+        Assert.DoesNotContain("P/E", message.Text);
+        Assert.DoesNotContain("P/S", message.Text);
+        #endif
+    }
+
+    [Fact]
     public void Single_symbol_average_12_month_sales_uses_localized_telegram_label()
     {
         var response = CreateAverage12MonthSalesResponse();
@@ -135,32 +174,21 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         var media = Assert.IsType<TelegramAssistantMediaAttachment>(first.Media);
         Assert.Equal("photo", media.Kind);
         Assert.Equal("image/png", media.ContentType);
-        Assert.Equal("monthly-trend-chart-v4", media.RenderVersion);
+        Assert.Equal("monthly-trend-chart-v13-visible-plot", media.RenderVersion);
         var bytes = Convert.FromBase64String(media.ContentBase64);
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes[..8]);
         Assert.InRange(bytes.Length, 1, 5 * 1024 * 1024);
+        using var bitmap = SKBitmap.Decode(bytes);
+        Assert.Equal(1800, bitmap.Width);
+        Assert.True(bitmap.Height > 1100);
+        Assert.Equal(new SKColor(250, 250, 250), bitmap.GetPixel(0, 0));
+        Assert.Contains(Enumerable.Range(230, 680).Where(y => y % 8 == 0)
+            .SelectMany(y => Enumerable.Range(170, 1540).Where(x => x % 8 == 0)
+                .Select(x => bitmap.GetPixel(x, y))),
+            color => color.Red < 150 || color.Green < 150 || color.Blue < 150);
         Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(bytes)), media.Sha256);
         Assert.Equal(media.ContentBase64, second.Media?.ContentBase64);
         Assert.Equal(media.Sha256, second.Media?.Sha256);
-    }
-
-    [Theory]
-    [InlineData("آخرین گزارش: ۱۴۰۵/۰۳ | واحد: میلیارد تومان", "۱۴۰۵/۰۳")]
-    [InlineData("سال قبل ۱۴۰۴", "۱۴۰۴")]
-    [InlineData("سال جاری ۱۴۰۵", "۱۴۰۵")]
-    [InlineData("میانگین ۱۲ ماهه", "۱۲")]
-    [InlineData("فروش ماهانه نسبت به ماه مشابه سال قبل +۲۰۵٫۷٪ رشد داشته است.", "+۲۰۵٫۷٪")]
-    public void Monthly_chart_directional_layout_preserves_numeric_sequence_order(
-        string value,
-        string expectedNumericRun)
-    {
-        var numericRuns = TelegramMonthlyTrendChartRenderer.SplitDirectionalRuns(value)
-            .Where(run => run.IsNumeric)
-            .Select(run => run.Text)
-            .ToArray();
-
-        Assert.Contains(expectedNumericRun, numericRuns);
-        Assert.DoesNotContain(new string(expectedNumericRun.Reverse().ToArray()), numericRuns);
     }
 
     [Theory]

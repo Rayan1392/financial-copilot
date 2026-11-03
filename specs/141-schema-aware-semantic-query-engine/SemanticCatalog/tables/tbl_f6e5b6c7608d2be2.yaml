@@ -1,0 +1,158 @@
+{
+  "id": "tbl_f6e5b6c7608d2be2",
+  "physical": {
+    "Schema": "public",
+    "Name": "CompanyProductRevenueMix",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanySymbol",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyName",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportYear",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportMonth",
+        "Type": "smallint",
+        "Nullable": false
+      },
+      {
+        "Name": "FiscalEndDate",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProductName",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductionQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesRate",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesAmount",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "TotalCompanySalesAmount",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "RevenueSharePercentage",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductRank",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "IsDominantProduct",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_CompanyProductRevenueMix_CompanyPeriod",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyProductRevenueMix_CompanyPeriod\" ON public.\"CompanyProductRevenueMix\" USING btree (\"ExternalCompanyId\", \"ReportYear\", \"ReportMonth\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "ReportYear",
+          "ReportMonth"
+        ]
+      },
+      {
+        "Name": "IX_CompanyProductRevenueMix_CompanySymbol",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyProductRevenueMix_CompanySymbol\" ON public.\"CompanyProductRevenueMix\" USING btree (\"CompanySymbol\")",
+        "Columns": [
+          "CompanySymbol"
+        ]
+      },
+      {
+        "Name": "IX_CompanyProductRevenueMix_ProductRank",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyProductRevenueMix_ProductRank\" ON public.\"CompanyProductRevenueMix\" USING btree (\"ProductRank\")",
+        "Columns": [
+          "ProductRank"
+        ]
+      },
+      {
+        "Name": "PK_CompanyProductRevenueMix",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CompanyProductRevenueMix\" ON public.\"CompanyProductRevenueMix\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_CompanyProductRevenueMix",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,352 @@
+{
+  "runAt": "2026-10-29T15:48:56.7054257+00:00",
+  "catalogHash": "c4abd7f4f1d0bdc5376e12fa04a8f5fa94aff2eef36725373821607902a55536",
+  "fixtureOnlyColumnApproval": [
+    "Companies.Name",
+    "Companies.Ticker"
+  ],
+  "scenarios": [
+    {
+      "id": "D1",
+      "description": "exact label; multiple producers; zero, NULL, other-month, other-product and unauthorized producers excluded",
+      "product": "گندله",
+      "month": "شهریور ۱۴۰۵",
+      "window": "2026-08-23..2026-09-22",
+      "expected": "Producers",
+      "expectedSymbols": [
+        "کگل",
+        "کگهر",
+        "شپنا"
+      ],
+      "expectedDiagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "productConcept": "product_iron_ore_pellets",
+      "scope": "feature141-isolated-fixture-company-discovery-scope",
+      "planEligible": true,
+      "planDiagnostics": [],
+      "normalization": [
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "sqlExecuted": true,
+      "status": "Incomplete",
+      "diagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "symbols": [
+        "شپنا",
+        "کگل",
+        "کگهر"
+      ],
+      "rows": [
+        {
+          "CompanySymbol": "شپنا",
+          "ProductTitle": "گندله",
+          "Value": 12000,
+          "SourceUnit": "kg",
+          "PeriodEnd": "9/22/2026"
+        },
+        {
+          "CompanySymbol": "کگل",
+          "ProductTitle": "گندله",
+          "Value": 25,
+          "SourceUnit": "ton",
+          "PeriodEnd": "9/22/2026"
+        },
+        {
+          "CompanySymbol": "کگهر",
+          "ProductTitle": "گندله سنگ‌آهن",
+          "Value": 47,
+          "SourceUnit": "ton",
+          "PeriodEnd": "9/22/2026"
+        }
+      ],
+      "grantAllowedCompanies": 8,
+      "persianAnswerStatus": "Incomplete",
+      "persianAnswer": "در گزارش‌های ماهانهٔ واجد شرایط شهریور ۱۴۰۵، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: Fixture شپنا (شپنا): تولید ثبت‌شدهٔ گندله ۱۲۰۰۰ کیلوگرم در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-شپنا-1405-06؛ Fixture کگل (کگل): تولید ثبت‌شدهٔ گندله ۲۵ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-کگل-1405-06؛ Fixture کگهر (کگهر): تولید ثبت‌شدهٔ گندله ۴۷ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-کگهر-1405-06. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+      "deterministic": true
+    },
+    {
+      "id": "D2",
+      "description": "equivalent label resolves to the same approved concept and producer set",
+      "product": "گندله سنگ‌آهن",
+      "month": "شهریور ۱۴۰۵",
+      "window": "2026-08-23..2026-09-22",
+      "expected": "Producers",
+      "expectedSymbols": [
+        "کگل",
+        "کگهر",
+        "شپنا"
+      ],
+      "expectedDiagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "productConcept": "product_iron_ore_pellets",
+      "scope": "feature141-isolated-fixture-company-discovery-scope",
+      "planEligible": true,
+      "planDiagnostics": [],
+      "normalization": [
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "sqlExecuted": true,
+      "status": "Incomplete",
+      "diagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "symbols": [
+        "شپنا",
+        "کگل",
+        "کگهر"
+      ],
+      "rows": [
+        {
+          "CompanySymbol": "شپنا",
+          "ProductTitle": "گندله",
+          "Value": 12000,
+          "SourceUnit": "kg",
+          "PeriodEnd": "9/22/2026"
+        },
+        {
+          "CompanySymbol": "کگل",
+          "ProductTitle": "گندله",
+          "Value": 25,
+          "SourceUnit": "ton",
+          "PeriodEnd": "9/22/2026"
+        },
+        {
+          "CompanySymbol": "کگهر",
+          "ProductTitle": "گندله سنگ‌آهن",
+          "Value": 47,
+          "SourceUnit": "ton",
+          "PeriodEnd": "9/22/2026"
+        }
+      ],
+      "grantAllowedCompanies": 8,
+      "persianAnswerStatus": "Incomplete",
+      "persianAnswer": "در گزارش‌های ماهانهٔ واجد شرایط شهریور ۱۴۰۵، تولید مثبت گندله سنگ‌آهن برای شرکت‌های زیر مشاهده شد: Fixture شپنا (شپنا): تولید ثبت‌شدهٔ گندله سنگ‌آهن ۱۲۰۰۰ کیلوگرم در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-شپنا-1405-06؛ Fixture کگل (کگل): تولید ثبت‌شدهٔ گندله سنگ‌آهن ۲۵ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-کگل-1405-06؛ Fixture کگهر (کگهر): تولید ثبت‌شدهٔ گندله سنگ‌آهن ۴۷ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-کگهر-1405-06. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+      "deterministic": true
+    },
+    {
+      "id": "D3",
+      "description": "a second accepted report of the producer with a different window is not counted as the month",
+      "product": "گندله",
+      "month": "مهر ۱۴۰۵",
+      "window": "2026-09-23..2026-10-22",
+      "expected": "Producers",
+      "expectedSymbols": [
+        "شستا"
+      ],
+      "expectedDiagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "productConcept": "product_iron_ore_pellets",
+      "scope": "feature141-isolated-fixture-company-discovery-scope",
+      "planEligible": true,
+      "planDiagnostics": [],
+      "normalization": [
+        "persian_period_normalized:1405-07:2026-09-23..2026-10-22",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "sqlExecuted": true,
+      "status": "Incomplete",
+      "diagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "symbols": [
+        "شستا"
+      ],
+      "rows": [
+        {
+          "CompanySymbol": "شستا",
+          "ProductTitle": "گندله",
+          "Value": 5,
+          "SourceUnit": "ton",
+          "PeriodEnd": "10/22/2026"
+        }
+      ],
+      "grantAllowedCompanies": 8,
+      "persianAnswerStatus": "Incomplete",
+      "persianAnswer": "در گزارش‌های ماهانهٔ واجد شرایط مهر ۱۴۰۵، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: Fixture شستا (شستا): تولید ثبت‌شدهٔ گندله ۵ تن در مهر ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-شستا-1405-07-a. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+      "deterministic": true
+    },
+    {
+      "id": "D4",
+      "description": "no matching companies in the requested month",
+      "product": "گندله",
+      "month": "آبان ۱۴۰۵",
+      "window": "2026-10-23..2026-11-21",
+      "expected": "NoMatch",
+      "expectedSymbols": null,
+      "expectedDiagnostic": null,
+      "productConcept": "product_iron_ore_pellets",
+      "scope": "feature141-isolated-fixture-company-discovery-scope",
+      "planEligible": true,
+      "planDiagnostics": [],
+      "normalization": [
+        "persian_period_normalized:1405-08:2026-10-23..2026-11-21",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "sqlExecuted": true,
+      "status": "Incomplete",
+      "diagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "symbols": [],
+      "rows": [],
+      "grantAllowedCompanies": 8,
+      "persianAnswerStatus": "Incomplete",
+      "persianAnswer": "در داده‌های قابل دسترسی در آبان ۱۴۰۵، مشاهده‌ای با برچسب‌های محصول تأییدشده پیدا نشد. به دلیل کامل نبودن پوشش نگاشت یا دسترسی، نبود تولید برای سایر شرکت‌ها قابل نتیجه‌گیری نیست.",
+      "deterministic": true
+    },
+    {
+      "id": "D5",
+      "description": "incorrect reporting period (no reports at all)",
+      "product": "گندله",
+      "month": "اسفند ۱۴۰۴",
+      "window": "2026-02-20..2026-03-20",
+      "expected": "NoMatch",
+      "expectedSymbols": null,
+      "expectedDiagnostic": null,
+      "productConcept": "product_iron_ore_pellets",
+      "scope": "feature141-isolated-fixture-company-discovery-scope",
+      "planEligible": true,
+      "planDiagnostics": [],
+      "normalization": [
+        "persian_period_normalized:1404-12:2026-02-20..2026-03-20",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "sqlExecuted": true,
+      "status": "Incomplete",
+      "diagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "symbols": [],
+      "rows": [],
+      "grantAllowedCompanies": 8,
+      "persianAnswerStatus": "Incomplete",
+      "persianAnswer": "در داده‌های قابل دسترسی در اسفند ۱۴۰۴، مشاهده‌ای با برچسب‌های محصول تأییدشده پیدا نشد. به دلیل کامل نبودن پوشش نگاشت یا دسترسی، نبود تولید برای سایر شرکت‌ها قابل نتیجه‌گیری نیست.",
+      "deterministic": true
+    },
+    {
+      "id": "D6",
+      "description": "no approved discovery scope for the tenant: plan refused, no SQL",
+      "product": "گندله",
+      "month": "شهریور ۱۴۰۵",
+      "window": "2026-08-23..2026-09-22",
+      "expected": "NoScope",
+      "expectedSymbols": null,
+      "expectedDiagnostic": null,
+      "productConcept": "product_iron_ore_pellets",
+      "scope": null,
+      "planEligible": false,
+      "planDiagnostics": [
+        "company_population_discovery_scope_or_unbound_entity_invalid"
+      ],
+      "normalization": [
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "company_discovery_scope_not_authorized",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "compiled": false,
+      "compileDiagnostics": null,
+      "sqlExecuted": false
+    },
+    {
+      "id": "D7",
+      "description": "unauthorized producer inside the universe would be listed; outside it is not (scope boundary)",
+      "product": "گندله",
+      "month": "شهریور ۱۴۰۵",
+      "window": "2026-08-23..2026-09-22",
+      "expected": "Producers",
+      "expectedSymbols": [
+        "کگل",
+        "کگهر",
+        "شپنا",
+        "UNAUTH"
+      ],
+      "expectedDiagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "productConcept": "product_iron_ore_pellets",
+      "scope": "feature141-isolated-fixture-company-discovery-scope",
+      "planEligible": true,
+      "planDiagnostics": [],
+      "normalization": [
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "sqlExecuted": true,
+      "status": "Incomplete",
+      "diagnostic": "population_discovery_authorized_company_coverage_incomplete",
+      "symbols": [
+        "UNAUTH",
+        "شپنا",
+        "کگل",
+        "کگهر"
+      ],
+      "rows": [
+        {
+          "CompanySymbol": "UNAUTH",
+          "ProductTitle": "گندله",
+          "Value": 80,
+          "SourceUnit": "ton",
+          "PeriodEnd": "9/22/2026"
+        },
+        {
+          "CompanySymbol": "شپنا",
+          "ProductTitle": "گندله",
+          "Value": 12000,
+          "SourceUnit": "kg",
+          "PeriodEnd": "9/22/2026"
+        },
+        {
+          "CompanySymbol": "کگل",
+          "ProductTitle": "گندله",
+          "Value": 25,
+          "SourceUnit": "ton",
+          "PeriodEnd": "9/22/2026"
+        },
+        {
+          "CompanySymbol": "کگهر",
+          "ProductTitle": "گندله سنگ‌آهن",
+          "Value": 47,
+          "SourceUnit": "ton",
+          "PeriodEnd": "9/22/2026"
+        }
+      ],
+      "grantAllowedCompanies": 9,
+      "persianAnswerStatus": "Incomplete",
+      "persianAnswer": "در گزارش‌های ماهانهٔ واجد شرایط شهریور ۱۴۰۵، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: Fixture UNAUTH (UNAUTH): تولید ثبت‌شدهٔ گندله ۸۰ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-UNAUTH-1405-06؛ Fixture شپنا (شپنا): تولید ثبت‌شدهٔ گندله ۱۲۰۰۰ کیلوگرم در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-شپنا-1405-06؛ Fixture کگل (کگل): تولید ثبت‌شدهٔ گندله ۲۵ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-کگل-1405-06؛ Fixture کگهر (کگهر): تولید ثبت‌شدهٔ گندله ۴۷ تن در شهریور ۱۴۰۵؛ \nمنبع: NoavaranCurrentApi، گزارش cd-کگهر-1405-06. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+      "deterministic": true
+    },
+    {
+      "id": "D8",
+      "description": "product without an approved concept cannot be discovered",
+      "product": "کنسانتره",
+      "month": "شهریور ۱۴۰۵",
+      "window": "2026-08-23..2026-09-22",
+      "expected": "ProductNotApproved",
+      "expectedSymbols": null,
+      "expectedDiagnostic": null,
+      "productConcept": null,
+      "scope": null,
+      "planEligible": false,
+      "planDiagnostics": [
+        "monthly_product_binding_required",
+        "retrieval_requirements_incomplete"
+      ],
+      "normalization": [
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22"
+      ],
+      "compiled": false,
+      "compileDiagnostics": null,
+      "sqlExecuted": false
+    }
+  ],
+  "failures": []
+}

@@ -1,0 +1,121 @@
+{
+  "id": "tbl_880da91c63bbbd6f",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_security_admin_audits",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PermissionCode",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "ActionCode",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "TargetType",
+        "Type": "character varying(80)",
+        "Nullable": false
+      },
+      {
+        "Name": "TargetId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "Before",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      },
+      {
+        "Name": "After",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(160)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_auth_security_admin_audits_TenantId_OccurredAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_security_admin_audits_TenantId_OccurredAt\" ON public.auth_security_admin_audits USING btree (\"TenantId\", \"OccurredAt\")",
+        "Columns": [
+          "TenantId",
+          "OccurredAt"
+        ]
+      },
+      {
+        "Name": "PK_auth_security_admin_audits",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_security_admin_audits\" ON public.auth_security_admin_audits USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_auth_security_admin_audits",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

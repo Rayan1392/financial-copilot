@@ -1,0 +1,130 @@
+{
+  "id": "tbl_b278ebfd08e45a80",
+  "physical": {
+    "Schema": "public",
+    "Name": "AlertRuleEvaluationStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "RuleId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "LastValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "LastObservedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastEvidenceIdentity",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "Armed",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "TriggerSequence",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastTriggeredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CooldownEndsAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastEvaluatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastDecision",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSkipReason",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "ConcurrencyToken",
+        "Type": "uuid",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "RuleId"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "RuleId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "AlertRules",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"RuleId\") REFERENCES \"AlertRules\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_AlertRuleEvaluationStates_LastEvaluated",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_AlertRuleEvaluationStates_LastEvaluated\" ON public.\"AlertRuleEvaluationStates\" USING btree (\"LastEvaluatedAtUtc\")",
+        "Columns": [
+          "LastEvaluatedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_AlertRuleEvaluationStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_AlertRuleEvaluationStates\" ON public.\"AlertRuleEvaluationStates\" USING btree (\"RuleId\")",
+        "Columns": [
+          "RuleId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_AlertRuleEvaluationStates_AlertRules_RuleId",
+        "Type": "f",
+        "Columns": [
+          "RuleId"
+        ],
+        "Definition": "FOREIGN KEY (\"RuleId\") REFERENCES \"AlertRules\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_AlertRuleEvaluationStates",
+        "Type": "p",
+        "Columns": [
+          "RuleId"
+        ],
+        "Definition": "PRIMARY KEY (\"RuleId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

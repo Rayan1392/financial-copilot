@@ -1,0 +1,17 @@
+{
+  "catalogId": "product-catalog-v1",
+  "version": "product-catalog-v1",
+  "reviewStatus": "approved",
+  "approvalReference": "owner-confirmed:feature141-product-equivalence:2026-10-09",
+  "concepts": [
+    {
+      "catalogId": "product_iron_ore_pellets",
+      "canonicalLabel": "گندله سنگ‌آهن",
+      "aliases": ["گندله", "گندله سنگ‌آهن"],
+      "reviewStatus": "approved",
+      "approvalReference": "owner-confirmed:feature141-product-equivalence:2026-10-09",
+      "mappingCoverageStatus": "approved-aliases-only",
+      "equivalenceScope": "monthly production and sales report product titles"
+    }
+  ]
+}

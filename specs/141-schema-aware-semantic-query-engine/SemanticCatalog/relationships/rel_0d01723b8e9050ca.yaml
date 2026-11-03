@@ -1,0 +1,28 @@
+{
+  "id": "rel_0d01723b8e9050ca",
+  "from": {
+    "schema": "public",
+    "table": "auth_telegram_channel_membership_verifications",
+    "columns": [
+      "ActorId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "auth_users",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

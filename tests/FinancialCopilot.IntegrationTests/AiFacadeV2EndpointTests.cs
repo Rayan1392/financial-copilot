@@ -2,7 +2,13 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Billing;
+using FinancialCopilot.Billing.Accounts;
+using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -12,6 +18,52 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FinancialCopilot.IntegrationTests;
+
+public sealed class V2CooldownDenialEndpointTests : IClassFixture<V2CooldownDenialApiFactory>
+{
+    private readonly V2CooldownDenialApiFactory _factory;
+
+    public V2CooldownDenialEndpointTests(V2CooldownDenialApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureBillingSeeded();
+    }
+
+    [Fact]
+    public async Task V2AiQuery_BillingCooldownDenial_ReturnsTyped402InsteadOfGeneric500()
+    {
+        var cooldownUntil = DateTimeOffset.UtcNow.AddDays(1);
+        using var client = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ICreditReservationService>();
+            services.AddSingleton<ICreditReservationService>(new CooldownDenialReservationService(cooldownUntil));
+        })).CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message = "P/E below 6" });
+        var responseBody = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(responseBody);
+
+        Assert.True(response.StatusCode == HttpStatusCode.PaymentRequired, $"{response.StatusCode}: {responseBody}");
+        Assert.Equal("SUBSCRIPTION_COOLDOWN_ACTIVE", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(cooldownUntil, document.RootElement.GetProperty("cooldownUntilUtc").GetDateTimeOffset());
+        Assert.Equal(25m, document.RootElement.GetProperty("freePlanCredits").GetDecimal());
+    }
+}
+
+public sealed class V2CooldownDenialApiFactory : AiFacadeApiFactory
+{
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+        }));
+    }
+}
 
 // â”€â”€â”€ V2 Scanner tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -516,6 +568,236 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.DoesNotContain("Clarification needed", textAnswer);
     }
 
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644", "\u06a9\u06af\u0644", "\u06af\u0646\u062f\u0644\u0647")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc \u06a9\u0686\u0627\u062f", "\u06a9\u0686\u0627\u062f", "\u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc")]
+    public async Task V2AiQuery_ExactProductTrendQueries_SelectTypedProductUseCase(
+        string message, string expectedCompany, string expectedProduct)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyProductTrend", root.GetProperty("intent").GetString());
+        Assert.Equal("product_sales_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var result = root.GetProperty("monthlyProductTrendResult");
+        Assert.Equal("monthly_product_trend", result.GetProperty("resultDiscriminator").GetString());
+        Assert.Equal("Resolved", result.GetProperty("resolutionState").GetString());
+        Assert.Equal(expectedCompany, result.GetProperty("companySymbol").GetString());
+        Assert.Equal(expectedProduct, result.GetProperty("productTitle").GetString());
+        Assert.NotEmpty(result.GetProperty("points").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 12 \u0645\u0627\u0647\u0647 \u0627\u062e\u06cc\u0631 \u0686\u0637\u0648\u0631 \u0628\u0648\u062f\u0647\u061f")]
+    [InlineData("\u062f\u0631 \u06f1\u06f2 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631 \u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644")]
+    public async Task V2AiQuery_ExplicitDefaultProductTrendWindowMatchesImplicitDefault(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        async Task<JsonDocument> Query(string query)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/ai/v1/query", new { message = query }, CancellationToken.None);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return await ReadJsonAsync(response);
+        }
+
+        using var baseline = await Query("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644");
+        using var explicitWindow = await Query(message);
+
+        var expectedRoot = baseline.RootElement;
+        var actualRoot = explicitWindow.RootElement;
+        Assert.Equal("MonthlyProductTrend", actualRoot.GetProperty("intent").GetString());
+        Assert.Equal("product_sales_trend", actualRoot.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(expectedRoot.GetProperty("intent").GetString(), actualRoot.GetProperty("intent").GetString());
+        Assert.Equal(expectedRoot.GetProperty("semanticCapabilityCode").GetString(), actualRoot.GetProperty("semanticCapabilityCode").GetString());
+
+        var expected = expectedRoot.GetProperty("monthlyProductTrendResult");
+        var actual = actualRoot.GetProperty("monthlyProductTrendResult");
+        Assert.Equal(expected.GetProperty("resolutionState").GetString(), actual.GetProperty("resolutionState").GetString());
+        Assert.Equal(expected.GetProperty("externalCompanyId").GetString(), actual.GetProperty("externalCompanyId").GetString());
+        Assert.Equal(expected.GetProperty("companySymbol").GetString(), actual.GetProperty("companySymbol").GetString());
+        Assert.Equal(expected.GetProperty("productKey").GetString(), actual.GetProperty("productKey").GetString());
+        Assert.Equal(expected.GetProperty("productTitle").GetString(), actual.GetProperty("productTitle").GetString());
+        Assert.Equal(expected.GetProperty("points").GetRawText(), actual.GetProperty("points").GetRawText());
+        Assert.Equal(12, actual.GetProperty("points").GetArrayLength());
+    }
+
+    [Theory]
+    [InlineData("روند فروش گندله کگل")]
+    [InlineData("روند فروش گندله کگل در ۱۲ ماهه اخیر چطور بوده؟")]
+    public async Task V2AiQuery_ProductTrend_ReturnsFeature138DeterministicCompanyContextActions(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyProductTrend", root.GetProperty("intent").GetString());
+        var actions = root.GetProperty("suggestedActions").EnumerateArray().ToArray();
+        Assert.Equal(
+            ["product_revenue_mix", "monthly_activity_trend"],
+            actions.Select(action => action.GetProperty("capabilityCode").GetString()));
+        Assert.Equal(
+            ["ترکیب فروش محصولات کگل", "روند فروش ماهانه کگل"],
+            actions.Select(action => action.GetProperty("message").GetString()));
+        Assert.All(actions, action => Assert.StartsWith("feature138:", action.GetProperty("id").GetString()));
+    }
+
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 6 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 \u06f3 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    public async Task V2AiQuery_DifferentProductTrendWindowsReturnTypedClarification(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.True(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal("unsupported_time_window", root.GetProperty("outcomeReasonCode").GetString());
+        Assert.Equal("monthly_product_trend", root.GetProperty("monthlyProductTrendResult").GetProperty("resultDiscriminator").GetString());
+        Assert.Equal("NotFound", root.GetProperty("monthlyProductTrendResult").GetProperty("resolutionState").GetString());
+        Assert.Equal("unsupported_time_window", root.GetProperty("monthlyProductTrendResult").GetProperty("blockingReason").GetString());
+    }
+
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06a9\u06af\u0644", "\u06a9\u06af\u0644")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u0686\u0627\u062f", "\u06a9\u0686\u0627\u062f")]
+    public async Task V2AiQuery_ExactCompanyTrendQueries_DoNotEnterProductUseCase(
+        string message, string expectedCompany)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyActivityTrend", root.GetProperty("intent").GetString());
+        Assert.Equal("monthly_activity_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("monthlyProductTrendResult").ValueKind);
+        Assert.Equal(expectedCompany, root.GetProperty("monthlyActivityTrendResult").GetProperty("companySymbol").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ProductTrend_PersistsTypedResultForConversationReplay()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var conversationId = document.RootElement.GetProperty("conversationId").GetGuid();
+        using var history = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var historyDocument = await ReadJsonAsync(history);
+        var messages = historyDocument.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+        var replayed = messages[^1].GetProperty("assistantContent").GetProperty("monthlyProductTrendResult");
+
+        Assert.Equal("monthly_product_trend", replayed.GetProperty("resultDiscriminator").GetString());
+        Assert.Equal("Resolved", replayed.GetProperty("resolutionState").GetString());
+        Assert.Equal("\u06af\u0646\u062f\u0644\u0647", replayed.GetProperty("productTitle").GetString());
+        Assert.NotEmpty(replayed.GetProperty("points").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ProductSalesValue_UsesCompanyScopedSemanticRoute()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0641\u0648\u0644\u0627\u062f \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645\u0634 \u0686\u0642\u062f\u0631 \u0641\u0631\u0648\u062e\u062a\u0647\u061f" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("product_sales_value", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        var textAnswer = root.GetProperty("textAnswer").GetString()!;
+        Assert.Contains("فروش", textAnswer);
+        Assert.Contains("محصولات گرم", textAnswer);
+        Assert.Contains("فولاد", textAnswer);
+        Assert.Contains("۱۴۰۵/۰۳", textAnswer);
+        Assert.Contains("میلیارد تومان", textAnswer);
+        Assert.DoesNotContain("Product sales", textAnswer, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("million rial", textAnswer, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("250", textAnswer, StringComparison.Ordinal);
+        Assert.DoesNotContain("product_revenue_mix", root.GetProperty("textAnswer").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ProductSalesTrend_UsesCompanyScopedSemanticRoute()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645 \u0641\u0648\u0644\u0627\u062f\u061f" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("product_sales_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        var trend = root.GetProperty("monthlyProductTrendResult");
+        Assert.Equal("Resolved", trend.GetProperty("resolutionState").GetString());
+        Assert.Equal("\u0641\u0648\u0644\u0627\u062f", trend.GetProperty("companySymbol").GetString());
+        Assert.Equal("\u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645", trend.GetProperty("productTitle").GetString());
+        Assert.NotEmpty(trend.GetProperty("points").EnumerateArray());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+    }
+
+    [Theory]
+    [InlineData("\u0641\u0648\u0644\u0627\u062f \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u0646\u0627\u0634\u0646\u0627\u062e\u062a\u0647 \u0686\u0642\u062f\u0631 \u0641\u0631\u0648\u062e\u062a\u0647\u061f")]
+    [InlineData("\u0634\u0631\u06a9\u062a \u0646\u0627\u0634\u0646\u0627\u062e\u062a\u0647 \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645 \u0686\u0642\u062f\u0631 \u0641\u0631\u0648\u062e\u062a\u0647\u061f")]
+    public async Task V2AiQuery_UnknownProductOrCompany_DoesNotFallbackToCompanyWideMix(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("product_sales_value", root.GetProperty("semanticCapabilityCode").GetString());
+        var outcome = root.GetProperty("outcome").GetString();
+        Assert.Contains(outcome, new[] { "ClarificationNeeded", "DisambiguationNeeded", "NoData", "EntityNotFound" });
+        Assert.DoesNotContain("product_revenue_mix", root.GetProperty("textAnswer").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -585,7 +867,7 @@ public sealed class V2ShgolDirectPriceRegressionEndpointTests : IClassFixture<V2
     }
 }
 
-public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
+public class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"v2-monthly-sales-routing-{Guid.NewGuid():N}";
     private bool _seeded;
@@ -653,6 +935,16 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
                 CompanySymbol = "\u06a9\u06af\u0644",
                 TseSymbol = "\u06a9\u06af\u0644",
                 LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("52000000-0000-0000-0000-000000000003"),
+                Name = "\u0641\u0648\u0644\u0627\u062f \u0645\u0628\u0627\u0631\u06a9\u0647 \u0627\u06cc\u0631\u0627\u0646",
+                ProviderName = "CyclicalWaves",
+                ExternalCompanyId = "7",
+                CompanySymbol = "\u0641\u0648\u0644\u0627\u062f",
+                TseSymbol = "\u0641\u0648\u0644\u0627\u062f",
+                LastSynchronizedAt = now
             });
 
         db.DerivedMetrics.AddRange(
@@ -664,6 +956,77 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
             MonthlyMetric("AVG_12M_MONTHLY_SALES", "avg-12m-monthly-sales-source-v1", 48_765_432_000_000m, now, externalCompanyId: "5"),
             MonthlyMetric("MONTHLY_SALES_YTD", "monthly-sales-ytd-source-v1", 512_345_678_000_000m, now, externalCompanyId: "5"),
             MonthlyMetric("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1", 430_123_456_000_000m, now, externalCompanyId: "5"));
+
+        SeedProductTrendData(db, "3", "\u06a9\u0686\u0627\u062f", "\u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc", now);
+        SeedProductTrendData(db, "5", "\u06a9\u06af\u0644", "\u06af\u0646\u062f\u0644\u0647", now);
+        SeedProductTrendData(db, "7", "\u0641\u0648\u0644\u0627\u062f", "\u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645", now);
+    }
+
+    private static void SeedProductTrendData(
+        FinancialIngestionDbContext db,
+        string externalCompanyId,
+        string symbol,
+        string productTitle,
+        DateTimeOffset now)
+    {
+        var calendar = new System.Globalization.PersianCalendar();
+        var start = DateOnly.FromDateTime(calendar.ToDateTime(1405, 3, 1, 0, 0, 0, 0));
+        var end = DateOnly.FromDateTime(calendar.ToDateTime(1405, 3, 31, 0, 0, 0, 0));
+        var reportId = Guid.NewGuid();
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = reportId,
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = externalCompanyId,
+            ExternalReportId = $"feature136-{externalCompanyId}",
+            ReportType = "ProductSales",
+            OutputType = 0,
+            PeriodStart = start,
+            PeriodEnd = end,
+            LogicalReportKey = $"feature136-{externalCompanyId}-1405-03",
+            RevisionFingerprint = $"feature136-{externalCompanyId}-revision-1",
+            SourcePayloadChecksum = $"feature136-{externalCompanyId}-checksum",
+            LastSynchronizedAt = now,
+            IsAccepted = true,
+            RevisionStatus = "Accepted"
+        });
+        db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+        {
+            Id = Guid.NewGuid(),
+            MonthlyReportId = reportId,
+            ProductCode = $"PRODUCT:NATURAL:period-{externalCompanyId}",
+            ProviderProductCode = null,
+            ProviderProductId = null,
+            Title = productTitle,
+            Unit = "ton",
+            SalesQuantity = 100m,
+            SalesAmount = 250m,
+            SourceRowKey = $"feature136-row-{externalCompanyId}",
+            SourceRowFingerprint = $"feature136-fingerprint-{externalCompanyId}",
+            SourcePayloadChecksum = $"feature136-{externalCompanyId}-checksum"
+        });
+
+        db.CompanyMonthlyActivityTrendSnapshots.Add(new CompanyMonthlyActivityTrendSnapshotRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = externalCompanyId,
+            CompanySymbol = symbol,
+            CompanyName = symbol,
+            ReportYear = 1405,
+            ReportMonth = 3,
+            FiscalYear = 1405,
+            FiscalMonthIndex = 3,
+            FiscalMonthNameFa = "\u062e\u0631\u062f\u0627\u062f",
+            MonthlySalesAmount = 250m,
+            Average12MonthSalesAmount = 250m,
+            Average12MonthPeriodCount = 1,
+            YtdSalesAmount = 250m,
+            SourceProviderName = "NoavaranCurrentApi",
+            IsComparablePreviousYearAvailable = false,
+            IsAverage12MonthComplete = false,
+            DataCompletenessScore = 1m,
+            CalculatedAtUtc = now
+        });
     }
 
     private static DerivedMetricRow MonthlyMetric(
@@ -692,6 +1055,399 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
         };
 }
 
+public sealed class Feature128CanaryEndpointTests : IClassFixture<V2Feature128CanaryApiFactory>
+{
+    private readonly V2Feature128CanaryApiFactory _factory;
+
+    public Feature128CanaryEndpointTests(V2Feature128CanaryApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Theory]
+    [InlineData("فولاد محصولات گرمش چقدر فروخته؟", "product_sales_value")]
+    [InlineData("روند فروش محصولات گرم فولاد؟", "product_sales_trend")]
+    public async Task Feature128_Canary_ExecutesTheResolvedFrameWithoutLegacyReparse(
+        string message,
+        string expectedCapability)
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+        var usageEntriesBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadUsageReservationCount();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal(expectedCapability, root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+        Assert.DoesNotContain("نام نماد یا شرکت", root.GetProperty("textAnswer").GetString());
+
+        var invocation = _factory.ExecutorProbe.LastInvocation
+            ?? throw new Xunit.Sdk.XunitException("No governed product-sales executor invocation was observed.");
+        Assert.Equal(expectedCapability, invocation.CapabilityCode);
+        var companySlot = invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var productSlot = invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product);
+        Assert.Equal(QuerySlotValidationState.Valid, companySlot.ValidationState);
+        Assert.Equal(QuerySlotValidationState.Valid, productSlot.ValidationState);
+        Assert.Equal("فولاد", companySlot.Value);
+        Assert.Equal("محصولات گرم", productSlot.Value);
+        Assert.NotNull(companySlot.CanonicalEntity);
+        Assert.NotNull(productSlot.CanonicalProduct);
+
+        var diagnostic = _factory.DiagnosticSink.LastDiagnostic
+            ?? throw new Xunit.Sdk.XunitException("No Feature 128 routing diagnostic was recorded.");
+        Assert.Equal(expectedCapability, diagnostic.FinalFrameCapability);
+        Assert.Equal("Resolved", diagnostic.FinalFrameCompanyState);
+        Assert.Equal("Resolved", diagnostic.FinalFrameProductState);
+        Assert.Equal(expectedCapability, diagnostic.ExecutorCapability);
+        Assert.Equal("فولاد", diagnostic.ExecutorCompany);
+        Assert.Equal("محصولات گرم", diagnostic.ExecutorProduct);
+        Assert.Equal(companySlot.CanonicalEntity!.CanonicalId, diagnostic.FinalFrameCompanyId);
+        Assert.Equal(productSlot.CanonicalProduct!.ProductKey, diagnostic.FinalFrameProductKey);
+        Assert.Equal(diagnostic.FinalFrameCompanyId, diagnostic.ExecutorCompanyId);
+        Assert.Equal(diagnostic.FinalFrameProductKey, diagnostic.ExecutorProductKey);
+
+        var usageEntries = _factory.ReadUsageEntries();
+        Assert.Equal(usageEntriesBefore + 1, usageEntries.Count);
+        Assert.Equal("Completed", usageEntries.OrderBy(item => item.OccurredAt).Last().CompletionStatus);
+        var reservations = _factory.ReadBillingReservations();
+        Assert.Equal(reservationsBefore + 1, reservations.Count);
+        Assert.Equal("Committed", reservations.OrderBy(item => item.ExpiresAt).Last().Status);
+
+        if (expectedCapability == "product_sales_value")
+        {
+            Assert.Contains("محصولات گرم", root.GetProperty("textAnswer").GetString());
+            Assert.DoesNotContain("بیش از یک محصول", root.GetProperty("textAnswer").GetString());
+        }
+        else
+        {
+            var trend = root.GetProperty("monthlyProductTrendResult");
+            Assert.Equal("Resolved", trend.GetProperty("resolutionState").GetString());
+            Assert.Equal("فولاد", trend.GetProperty("companySymbol").GetString());
+            Assert.Equal("محصولات گرم", trend.GetProperty("productTitle").GetString());
+        }
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public class V2Feature128CanaryApiFactory : V2MonthlySalesRoutingApiFactory
+{
+    public Feature128ExecutorProbe ExecutorProbe { get; } = new();
+    public Feature128DiagnosticSink DiagnosticSink { get; } = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                // Test-only override: production remains at the configured 10%.
+                ["SemanticRouting:CanaryPercentage"] = "100"
+            }));
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ISemanticCapabilityExecutionObserver>();
+            services.AddSingleton<ISemanticCapabilityExecutionObserver>(ExecutorProbe);
+            services.RemoveAll<ISemanticRoutingDiagnosticSink>();
+            services.AddSingleton<ISemanticRoutingDiagnosticSink>(DiagnosticSink);
+        });
+    }
+
+    public int ReadUsageReservationCount()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider
+            .GetRequiredService<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>();
+        return db.UsageReservations.Count();
+    }
+}
+
+public sealed class Feature128ShadowLegacyEndpointTests : IClassFixture<V2Feature128ShadowApiFactory>
+{
+    private readonly V2Feature128ShadowApiFactory _factory;
+
+    public Feature128ShadowLegacyEndpointTests(V2Feature128ShadowApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task Feature128_Shadow_ExecutesLegacyProductTrendWithCanonicalIdentity()
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadUsageReservationCount();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var trendUseCase = scope.ServiceProvider.GetRequiredService<IMonthlyProductTrendQueryUseCase>();
+            var titleOnlyResult = await trendUseCase.ExecuteAsync(new MonthlyProductTrendQuery("فولاد", "محصولات گرم"));
+            Assert.Equal(MonthlyProductTrendResolutionState.Ambiguous, titleOnlyResult.ResolutionState);
+            Assert.Equal(2, titleOnlyResult.Candidates.Count);
+            Assert.Equal(2, titleOnlyResult.Candidates.Select(candidate => candidate.ProductKey).Distinct().Count());
+            Assert.Contains(titleOnlyResult.Candidates, candidate => candidate.Unit == "ton");
+            Assert.Contains(titleOnlyResult.Candidates, candidate => candidate.Unit == "هزار تن");
+        }
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "روند فروش محصولات گرم فولاد؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.DoesNotContain("بیش از یک محصول", root.GetProperty("textAnswer").GetString());
+        Assert.Equal("Resolved", root.GetProperty("monthlyProductTrendResult").GetProperty("resolutionState").GetString());
+
+        var invocation = _factory.ExecutorProbe.LastInvocation
+            ?? throw new Xunit.Sdk.XunitException("No legacy product executor invocation was observed.");
+        Assert.Equal("product_sales_trend", invocation.CapabilityCode);
+        AssertCanonicalProductFrame(invocation.Frame);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).CanonicalProduct!.ProductKey,
+            root.GetProperty("monthlyProductTrendResult").GetProperty("productKey").GetString());
+
+        var diagnostic = _factory.DiagnosticSink.LastDiagnostic
+            ?? throw new Xunit.Sdk.XunitException("No legacy routing diagnostic was recorded.");
+        Assert.Equal(SemanticRoutingMode.Shadow, diagnostic.RolloutMode);
+        Assert.Equal("product_sales_trend", diagnostic.LegacyCapability);
+        Assert.Equal("product_sales_trend", diagnostic.ActualExecutedCapability);
+        Assert.Equal("Legacy", diagnostic.ExecutionSource);
+        Assert.Equal("product_sales_trend", diagnostic.ExecutorCapability);
+        Assert.Equal("فولاد", diagnostic.ExecutorCompany);
+        Assert.Equal("محصولات گرم", diagnostic.ExecutorProduct);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).CanonicalEntity!.CanonicalId, diagnostic.ExecutorCompanyId);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).CanonicalProduct!.ProductKey, diagnostic.ExecutorProductKey);
+
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        var reservations = _factory.ReadBillingReservations();
+        Assert.Equal(reservationsBefore + 1, reservations.Count);
+        Assert.Equal("Committed", reservations.OrderBy(item => item.ExpiresAt).Last().Status);
+    }
+
+    [Fact]
+    public async Task Feature128_Shadow_KeepsWorkingProductSalesValueCanonicalHandoff()
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message = "فولاد محصولات گرمش چقدر فروخته؟" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("۰٫۰۲۵ میلیارد تومان", root.GetProperty("textAnswer").GetString());
+        var invocation = Assert.IsType<Feature128ExecutorInvocation>(_factory.ExecutorProbe.LastInvocation);
+        Assert.Equal("product_sales_value", invocation.CapabilityCode);
+        AssertCanonicalProductFrame(invocation.Frame);
+        var diagnostic = Assert.IsType<SemanticRoutingDiagnostic>(_factory.DiagnosticSink.LastDiagnostic);
+        Assert.Equal(SemanticRoutingMode.Shadow, diagnostic.RolloutMode);
+        Assert.Equal("Legacy", diagnostic.ExecutionSource);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).CanonicalEntity!.CanonicalId,
+            diagnostic.ExecutorCompanyId);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).CanonicalProduct!.ProductKey,
+            diagnostic.ExecutorProductKey);
+    }
+
+    private static void AssertCanonicalProductFrame(ValidatedQueryFrame frame)
+    {
+        var company = frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var product = frame.Slots.Single(slot => slot.Type == QuerySlotType.Product);
+        Assert.Equal(QuerySlotValidationState.Valid, company.ValidationState);
+        Assert.Equal(QuerySlotValidationState.Valid, product.ValidationState);
+        Assert.Equal("فولاد", company.Value);
+        Assert.Equal("محصولات گرم", product.Value);
+        Assert.NotNull(company.CanonicalEntity);
+        Assert.NotNull(product.CanonicalProduct);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class Feature128TimeoutFallbackEndpointTests : IClassFixture<V2Feature128TimeoutApiFactory>
+{
+    private readonly V2Feature128TimeoutApiFactory _factory;
+
+    public Feature128TimeoutFallbackEndpointTests(V2Feature128TimeoutApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task Feature128_CanarySemanticTimeout_FallsBackToLegacyProductValue()
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadUsageReservationCount();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فولاد محصولات گرمش چقدر فروخته؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Contains("محصولات گرم", root.GetProperty("textAnswer").GetString());
+        Assert.DoesNotContain("بیش از یک محصول", root.GetProperty("textAnswer").GetString());
+        Assert.DoesNotContain("نام نماد یا شرکت", root.GetProperty("textAnswer").GetString());
+
+        var invocation = _factory.ExecutorProbe.LastInvocation
+            ?? throw new Xunit.Sdk.XunitException("No timeout-fallback product executor invocation was observed.");
+        Assert.Equal("product_sales_value", invocation.CapabilityCode);
+        Assert.Equal(QuerySlotValidationState.Valid, invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).ValidationState);
+        Assert.Equal(QuerySlotValidationState.Valid, invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).ValidationState);
+
+        var diagnostic = _factory.DiagnosticSink.LastDiagnostic
+            ?? throw new Xunit.Sdk.XunitException("No timeout-fallback routing diagnostic was recorded.");
+        Assert.Equal("product_sales_value", diagnostic.ActualExecutedCapability);
+        Assert.Equal("Legacy", diagnostic.ExecutionSource);
+        Assert.Equal("Timeout", diagnostic.SemanticStatus);
+        Assert.Equal("product_sales_value", diagnostic.ExecutorCapability);
+        Assert.NotNull(diagnostic.ExecutorCompanyId);
+        Assert.NotNull(diagnostic.ExecutorProductKey);
+
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        var reservations = _factory.ReadBillingReservations();
+        Assert.Equal(reservationsBefore + 1, reservations.Count);
+        Assert.Equal("Committed", reservations.OrderBy(item => item.ExpiresAt).Last().Status);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class V2Feature128ShadowApiFactory : V2Feature128CanaryApiFactory
+{
+    private bool _collisionSeeded;
+    private readonly object _collisionSeedLock = new();
+
+    public new void EnsureSeeded()
+    {
+        base.EnsureSeeded();
+        lock (_collisionSeedLock)
+        {
+            if (_collisionSeeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            var reportId = db.MonthlyReports.Single(report => report.ExternalCompanyId == "7" && report.ReportType == "ProductSales").Id;
+            db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+            {
+                Id = Guid.NewGuid(),
+                MonthlyReportId = reportId,
+                ProductCode = "PRODUCT:NATURAL:second-hot-products",
+                Title = "محصولات گرم",
+                Unit = "هزار تن",
+                SalesQuantity = 10m,
+                SalesAmount = 50m,
+                SourceRowKey = "feature128-shadow-collision",
+                SourceRowFingerprint = "feature128-shadow-collision",
+                SourcePayloadChecksum = "feature128-shadow-collision"
+            });
+            db.SaveChanges();
+            _collisionSeeded = true;
+        }
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SemanticRouting:Capabilities:product_sales_value"] = "Shadow",
+                ["SemanticRouting:Capabilities:product_sales_trend"] = "Shadow"
+            }));
+    }
+}
+
+public sealed class V2Feature128TimeoutApiFactory : V2Feature128CanaryApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IQueryInterpretationProposalProvider>();
+            services.AddSingleton<IQueryInterpretationProposalProvider, Feature128TimeoutProposalProvider>();
+        });
+    }
+}
+
+internal sealed class Feature128TimeoutProposalProvider : IQueryInterpretationProposalProvider
+{
+    public Task<QueryInterpretationProposal?> ProposeAsync(
+        string originalText,
+        Guid tenantId,
+        string correlationId,
+        CancellationToken cancellationToken) =>
+        Task.FromException<QueryInterpretationProposal?>(new AiModelProviderException(
+            AiExecutionStatus.TimedOut,
+            "feature128_test_timeout",
+            "Feature 128 semantic timeout test."));
+}
+
+public sealed class Feature128ExecutorProbe : ISemanticCapabilityExecutionObserver
+{
+    public Feature128ExecutorInvocation? LastInvocation { get; private set; }
+
+    public void BeforeExecute(string capabilityCode, ValidatedQueryFrame frame, QueryExecutionContext context) =>
+        LastInvocation = new Feature128ExecutorInvocation(capabilityCode, frame);
+
+    public void Reset() => LastInvocation = null;
+}
+
+public sealed record Feature128ExecutorInvocation(
+    string CapabilityCode,
+    ValidatedQueryFrame Frame);
+
+public sealed class Feature128DiagnosticSink : ISemanticRoutingDiagnosticSink
+{
+    public SemanticRoutingDiagnostic? LastDiagnostic { get; private set; }
+
+    public void Record(SemanticRoutingDiagnostic diagnostic) => LastDiagnostic = diagnostic;
+
+    public void Reset() => LastDiagnostic = null;
+}
+
 public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRevenueMixApiFactory>
 {
     private readonly V2ProductRevenueMixApiFactory _factory;
@@ -709,8 +1465,9 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
     [InlineData("پرفروش‌ترین محصولات کچاد؟", "کچاد")]
     [InlineData("مهم‌ترین محصول کچاد چیست؟", "کچاد")]
     [InlineData("کگل بیشتر از چه محصولی درآمد دارد؟", "کگل")]
+    [InlineData("ترکیب فروش محصولات کچاد", "کچاد")]
+    [InlineData("ترکیب درآمد محصولات کچاد", "کچاد")]
     [InlineData("ترکیب فروش محصولات فملی را نشان بده", "فملی")]
-    [InlineData("رکیب فروش محصولات کچاد؟", "کچاد")]
     public async Task V2AiQuery_ProductRevenueMixQueries_ReturnProductRevenueMixAndChargeCredits(
         string message,
         string expectedSymbol)
@@ -737,6 +1494,79 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
     }
 
     [Fact]
+    public async Task V2AiQuery_TypoProductRevenueMixQuery_ReturnsDeterministicUnsupportedWithoutPayload()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "رکیب فروش محصولات کچاد؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("Unknown", root.GetProperty("intent").GetString());
+        Assert.Equal("Unsupported", root.GetProperty("outcome").GetString());
+        Assert.Equal("capability_not_recognized", root.GetProperty("outcomeReasonCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.False(root.TryGetProperty("productRevenueMixResult", out _));
+        Assert.True(!root.TryGetProperty("suggestedActions", out var actions) ||
+                    actions.ValueKind == JsonValueKind.Null ||
+                    actions.ValueKind == JsonValueKind.Array && !actions.EnumerateArray().Any(),
+            root.GetRawText());
+        Assert.DoesNotContain("کچاد", root.GetProperty("textAnswer").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ProductRevenueMixSuggestedActions_RoundTripThroughNormalApi()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var mixResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "ترکیب فروش محصولات کچاد" },
+            CancellationToken.None);
+        using var mixDocument = await ReadJsonAsync(mixResponse);
+
+        Assert.Equal(HttpStatusCode.OK, mixResponse.StatusCode);
+        var mixRoot = mixDocument.RootElement;
+        Assert.Equal("ProductRevenueMix", mixRoot.GetProperty("intent").GetString());
+        var actions = mixRoot.GetProperty("suggestedActions").EnumerateArray().ToArray();
+        Assert.Equal(3, actions.Length);
+        Assert.Equal(
+            ["روند فروش گندله سنگ آهن کچاد", "روند فروش کنسانتره سنگ آهن کچاد", "روند فروش ماهانه کچاد"],
+            actions.Select(action => action.GetProperty("message").GetString()));
+
+        using var productResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = actions[0].GetProperty("message").GetString() },
+            CancellationToken.None);
+        using var productDocument = await ReadJsonAsync(productResponse);
+        Assert.Equal(HttpStatusCode.OK, productResponse.StatusCode);
+        var productRoot = productDocument.RootElement;
+        Assert.Equal("MonthlyProductTrend", productRoot.GetProperty("intent").GetString());
+        var productTrend = productRoot.GetProperty("monthlyProductTrendResult");
+        Assert.Equal("Resolved", productTrend.GetProperty("resolutionState").GetString());
+        Assert.Equal("کچاد", productTrend.GetProperty("companySymbol").GetString());
+        Assert.Equal("گندله سنگ آهن", productTrend.GetProperty("productTitle").GetString());
+
+        using var companyResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = actions[2].GetProperty("message").GetString() },
+            CancellationToken.None);
+        using var companyDocument = await ReadJsonAsync(companyResponse);
+        Assert.Equal(HttpStatusCode.OK, companyResponse.StatusCode);
+        var companyRoot = companyDocument.RootElement;
+        Assert.Equal("MonthlyActivityTrend", companyRoot.GetProperty("intent").GetString());
+        Assert.Equal("کچاد", companyRoot.GetProperty("monthlyActivityTrendResult").GetProperty("companySymbol").GetString());
+    }
+
+    [Fact]
+    // Feature 148 decision C2: in NoavaranAmin mode comprehensive analysis is disabled; no analysis table is read.
     public async Task V2AiQuery_FundamentalAnalysis_ReturnsPersistedAnalysisWhenLiveMetricsFail()
     {
         using var client = _factory.CreateClient();
@@ -750,19 +1580,33 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
-        Assert.Equal("ComprehensiveAnalysis", root.GetProperty("intent").GetString());
         Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
-        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
-        Assert.True(root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal() > 0m);
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+        Assert.Equal(
+            FinancialCopilot.Application.AI.Orchestration.ChatCapabilityAvailability.ComprehensiveAnalysisUnavailableMessageFa,
+            root.GetProperty("textAnswer").GetString());
+        Assert.True(root.GetProperty("comprehensiveAnalysisResult").ValueKind == JsonValueKind.Null, root.ToString());
+    }
 
-        var analyses = root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray();
-        var analysis = Assert.Single(analyses);
-        Assert.Equal("تحلیل بنیادی فولاژ", analysis.GetProperty("title").GetString());
-        Assert.Equal("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", analysis.GetProperty("plainTextSummary").GetString());
-        var textAnswer = root.GetProperty("textAnswer").GetString();
-        Assert.Contains("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", textAnswer);
-        Assert.DoesNotContain("Found metric data for 0 symbol(s)", textAnswer);
+    [Fact]
+    public async Task V2AiQuery_ProductComparisonTakesPrecedenceOverMisclassifiedRevenueMixFrame()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش محصولات کچاد بین 1403/03 و 1403/02 را مقایسه کن" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyProductComparison", root.GetProperty("intent").GetString());
+        Assert.Equal("monthly_product_comparison", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.True(root.GetProperty("monthlyProductComparisonResult").ValueKind != JsonValueKind.Null);
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+        Assert.DoesNotContain("ترکیب درآمد محصولات", root.GetProperty("textAnswer").GetString());
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -783,13 +1627,20 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
     }
 
     [Theory]
-    [InlineData("روند فروش ماهانه کهمدا را نشان بده")]
+    [InlineData("روند فروش ماهانه کهمدا؟")]
     [InlineData("چارت فروش ماهانه کهمدا")]
     [InlineData("روند فروش کهمدا")]
+    [InlineData("روند فروش ماهانه کهمدا را نشان بده")]
     [InlineData("روند تولید و فروش کهمدا")]
     [InlineData("نمودار تولید و فروش ماهانه کهمدا")]
     [InlineData("نمودار فروش کهمدا")]
     [InlineData("نمودار فروش ماهانه کهمدا")]
+    [InlineData("روند فروش ماهانه کهمدا را نمایش بده")]
+    [InlineData("روند فروش ماهانه کهمدا را نشون بده")]
+    [InlineData("روند فروش ماهانه کهمدا را نشونم بده")]
+    [InlineData("روند فروش ماهانه کهمدا را بهم نشون بده")]
+    [InlineData("روند فروش ماهانه کهمدا بهم نشون بده")]
+    [InlineData("روند فروش ماهانه کهمدا رو نشون بده")]
     public async Task V2AiQuery_MonthlyActivityTrendQueries_ReturnChartPayloadWithoutToolLoop(string message)
     {
         using var client = _factory.CreateClient();
@@ -824,10 +1675,29 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.Contains("روند فروش ماهانه", textAnswer);
         Assert.Contains("منبع: نوآوران امین", textAnswer);
         Assert.Contains("محاسبه: 1405/04/03", textAnswer);
+        Assert.DoesNotContain("داده نمودار ماهانه", textAnswer);
+        Assert.DoesNotContain("| ماه |", textAnswer);
         Assert.DoesNotContain("NoavaranCurrentApi", textAnswer);
         Assert.DoesNotContain("محاسبه: 2026/07/07", textAnswer);
         Assert.DoesNotContain("آخرین قیمت", textAnswer);
         Assert.DoesNotContain("DAILY_CHANGE_PCT", textAnswer);
+
+        var action = Assert.Single(root.GetProperty("suggestedActions").EnumerateArray());
+        Assert.Equal("RunRelatedCapability", action.GetProperty("kind").GetString());
+        Assert.Equal("monthly_product_trend", action.GetProperty("capabilityCode").GetString());
+        Assert.Equal("روند فروش آهن اسفنجی کهمدا", action.GetProperty("message").GetString());
+        Assert.Equal(action.GetProperty("message").GetString(), action.GetProperty("label").GetString());
+        Assert.Equal("کهمدا", action.GetProperty("presetSlots").GetProperty("company").GetString());
+        Assert.Equal("آهن اسفنجی", action.GetProperty("presetSlots").GetProperty("product").GetString());
+
+        using var followUp = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = action.GetProperty("message").GetString() },
+            CancellationToken.None);
+        using var followUpDocument = await ReadJsonAsync(followUp);
+        Assert.Equal(HttpStatusCode.OK, followUp.StatusCode);
+        Assert.Equal("MonthlyProductTrend", followUpDocument.RootElement.GetProperty("intent").GetString());
+        Assert.Equal("آهن اسفنجی", followUpDocument.RootElement.GetProperty("monthlyProductTrendResult").GetProperty("productTitle").GetString());
     }
 
     [Theory]
@@ -931,6 +1801,40 @@ public sealed class V2MonthlyActivityTrendApiFactory : AiFacadeApiFactory
             CompanySymbol = "کهمدا",
             TseSymbol = "کهمدا",
             LastSynchronizedAt = now
+        });
+
+        var productReportId = Guid.NewGuid();
+        var productStart = DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(1404, 3, 1, 0, 0, 0, 0));
+        var productEnd = DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(1404, 3, 31, 0, 0, 0, 0));
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = productReportId,
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "EXT-001",
+            ExternalReportId = "feature137-khemda-1404-03",
+            ReportType = "ProductSales",
+            OutputType = 0,
+            PeriodStart = productStart,
+            PeriodEnd = productEnd,
+            SourcePayloadChecksum = "feature137-seed",
+            LastSynchronizedAt = now,
+            LogicalReportKey = "feature137-khemda-1404-03",
+            RevisionFingerprint = "feature137-khemda-1404-03-r1",
+            IsAccepted = true,
+            RevisionStatus = "Accepted"
+        });
+        db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+        {
+            Id = Guid.NewGuid(),
+            MonthlyReportId = productReportId,
+            ProductCode = "FEATURE137:SPONGE-IRON",
+            Title = "آهن اسفنجی",
+            Unit = "ton",
+            SalesQuantity = 100m,
+            SalesAmount = 250m,
+            SourceRowKey = "feature137-khemda-row",
+            SourceRowFingerprint = "feature137-khemda-row-fingerprint",
+            SourcePayloadChecksum = "feature137-seed"
         });
 
         for (byte month = 1; month <= 12; month++)
@@ -1092,6 +1996,200 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         Assert.Contains("| ردیف | شرح | مبلغ |", root.GetProperty("textAnswer").GetString());
     }
 
+    [Fact]
+    public async Task V2QuarterlyTable_PersistsStructuredResult_ReplaysIt_AndChargesOnlyOnce()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadBillingReservations().Count;
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "جدول صورت سود و زیان 5 فصل اخیر غالبر" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("FinancialStatementTableLookup", root.GetProperty("intent").GetString());
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+        var quarterly = root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(15, quarterly.GetProperty("rows").GetArrayLength());
+        Assert.Equal("IncomeStatement", quarterly.GetProperty("statementType").GetString());
+        var period = quarterly.GetProperty("periodsNewestFirst")[0].GetProperty("label").GetString()!;
+        var rows = quarterly.GetProperty("rows").EnumerateArray().ToArray();
+        var zeroCell = rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number &&
+                row.GetProperty("sourceItemId").GetInt32() == 15)
+            .GetProperty("cells").GetProperty(period);
+        Assert.Equal(0m, zeroCell.GetProperty("value").GetDecimal());
+        Assert.Equal((int)QuarterlyCellState.Available, zeroCell.GetProperty("state").GetInt32());
+        var missingCell = rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number &&
+                row.GetProperty("sourceItemId").GetInt32() == 5)
+            .GetProperty("cells").GetProperty(period);
+        Assert.Equal(JsonValueKind.Null, missingCell.GetProperty("value").ValueKind);
+        Assert.Equal((int)QuarterlyCellState.MissingObservation, missingCell.GetProperty("state").GetInt32());
+        var comparableEps = rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number &&
+                row.GetProperty("sourceItemId").GetInt32() == 160)
+            .GetProperty("cells").GetProperty(period);
+        Assert.Equal(100m, comparableEps.GetProperty("value").GetDecimal());
+        Assert.Equal("سود هر سهم پس از کسر مالیات", rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number && row.GetProperty("sourceItemId").GetInt32() == 160)
+            .GetProperty("labelFa").GetString());
+        Assert.Equal("تعداد سهام شرکت (هزار سهم)", rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number && row.GetProperty("sourceItemId").GetInt32() == 153)
+            .GetProperty("labelFa").GetString());
+        Assert.Equal("latest_selected_quarter", comparableEps.GetProperty("comparableEvidence")
+            .GetProperty("method").GetString());
+        Assert.Equal(143, comparableEps.GetProperty("comparableEvidence")
+            .GetProperty("attributableProfitSourceItemId").GetInt32());
+        Assert.Equal(200_000m, comparableEps.GetProperty("comparableEvidence")
+            .GetProperty("shareBasisThousand").GetDecimal());
+        Assert.Contains("-", root.GetProperty("textAnswer").GetString());
+        Assert.Contains("(", root.GetProperty("textAnswer").GetString());
+
+        using var replayResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var replay = await ReadJsonAsync(replayResponse);
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        var assistant = replay.RootElement.GetProperty("messages").EnumerateArray().Last()
+            .GetProperty("assistantContent").GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(quarterly.GetRawText(), assistant.GetRawText());
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        Assert.Equal(reservationsBefore + 1, _factory.ReadBillingReservations().Count);
+
+        using var unauthorized = await _factory.CreateClient().PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "جدول صورت سود و زیان 5 فصل اخیر غالبر" }, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+    }
+
+    [Fact]
+    public async Task V2QuarterlyBankingTable_PersistsAndReplaysBothOperatingIncomeRows()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+        var companyId = Guid.Parse("57000000-0000-0000-0000-000000000006");
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId, Name = "بانک ملت", ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "FS-BANK", Ticker = "وبملت", CompanySymbol = "وبملت", TseSymbol = "وبملت",
+            LastSynchronizedAt = DateTimeOffset.UtcNow
+        });
+        db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow
+        {
+            Id = companyId, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "FS-BANK",
+            Name = "بانک ملت", CompanySymbol = "وبملت", TseSymbol = "وبملت",
+            GroupId = Guid.Parse("c96520f9-1d2e-444a-ab46-5bdffd3797d2")
+        });
+        await db.SaveChangesAsync();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadBillingReservations().Count;
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "گزارش فصلی وبملت" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+        var quarterly = root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal("BankingIncomeStatement", quarterly.GetProperty("templateId").GetString());
+        Assert.Equal(22, quarterly.GetProperty("rows").GetArrayLength());
+        var rows = quarterly.GetProperty("rows").EnumerateArray().ToArray();
+        Assert.Equal(new[] { "source_61", "source_27", "source_194", "banking_operating_income", "source_40" },
+            rows.Skip(8).Take(5).Select(row => row.GetProperty("rowId").GetString()));
+        Assert.Equal(17m, rows.Single(row => row.GetProperty("rowId").GetString() == "source_194")
+            .GetProperty("cells").EnumerateObject().Single().Value.GetProperty("value").GetDecimal());
+        Assert.Equal(141m, rows.Single(row => row.GetProperty("rowId").GetString() == "banking_operating_income")
+            .GetProperty("cells").EnumerateObject().Single().Value.GetProperty("value").GetDecimal());
+
+        using var replayResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var replay = await ReadJsonAsync(replayResponse);
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        var replayedQuarterly = replay.RootElement.GetProperty("messages").EnumerateArray().Last()
+            .GetProperty("assistantContent").GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(quarterly.GetRawText(), replayedQuarterly.GetRawText());
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        Assert.Equal(reservationsBefore + 1, _factory.ReadBillingReservations().Count);
+    }
+
+    [Theory]
+    [InlineData("جدول گزارشات فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("گزارشات فصلی چخزر؟", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("گزارشات فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("جدول گزارشات فصلی کگل", "کگل", "FS-KGL")]
+    [InlineData("جدول گزارش‌های فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("گزارشهای فصلی غبهنوش؟", "غبهنوش", "FS-GHABNOOSH")]
+    [InlineData("گزارش فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("صورت سود و زیان فصلی کگل", "کگل", "FS-KGL")]
+    public async Task V2AiQuery_QuarterlyReportAliasesResolveCanonicalCompanyAndReturnStructuredTable(
+        string message,
+        string expectedSymbol,
+        string expectedCompanyId)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("FinancialStatementTableLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var quarterly = root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(expectedSymbol, quarterly.GetProperty("companySymbol").GetString());
+        Assert.Equal(expectedCompanyId, quarterly.GetProperty("externalCompanyId").GetString());
+        Assert.Equal((int)CompanyResolutionStatus.Resolved,
+            quarterly.GetProperty("companyResolutionStatus").GetInt32());
+        Assert.Equal("Partial", quarterly.GetProperty("status").GetString());
+        Assert.Equal((int)QuarterlyFinancialReportOutcome.PartialTable,
+            quarterly.GetProperty("outcome").GetInt32());
+        Assert.Equal(15, quarterly.GetProperty("rows").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_UnknownQuarterlyTickerReturnsTypedCompanyNotFoundOutcome()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message = "جدول گزارشات فصلی نمادناموجود" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var quarterly = document.RootElement.GetProperty("financialStatementTableResult")
+            .GetProperty("quarterlyResult");
+        Assert.Equal("Unavailable", quarterly.GetProperty("status").GetString());
+        Assert.Equal("company_not_found", quarterly.GetProperty("reason").GetString());
+        Assert.Equal((int)CompanyResolutionStatus.NotFound,
+            quarterly.GetProperty("companyResolutionStatus").GetInt32());
+        Assert.Equal((int)QuarterlyFinancialReportOutcome.CompanyNotFound,
+            quarterly.GetProperty("outcome").GetInt32());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ResolvedCompanyWithoutPersistedReportsReturnsTypedUnavailableResult()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message = "جدول گزارش فصلی بدونگزارش" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var quarterly = document.RootElement.GetProperty("financialStatementTableResult")
+            .GetProperty("quarterlyResult");
+        Assert.Equal("Unavailable", quarterly.GetProperty("status").GetString());
+        Assert.Equal("no_compatible_reports", quarterly.GetProperty("reason").GetString()!.Split(':')[0]);
+        Assert.Equal((int)CompanyResolutionStatus.Resolved,
+            quarterly.GetProperty("companyResolutionStatus").GetInt32());
+        Assert.Equal((int)QuarterlyFinancialReportOutcome.CompanyFoundNoPersistedReports,
+            quarterly.GetProperty("outcome").GetInt32());
+    }
+
     [Theory]
     [InlineData("آخرین ترازنامه غالبر", "BalanceSheet")]
     [InlineData("آخرین جریان وجه نقد غالبر را نمایش بده", "CashFlow")]
@@ -1128,6 +2226,65 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     }
 }
 
+internal sealed class QuarterlyFinancialReports144RepositoryFake : IQuarterlyFinancialReportsRepository
+{
+    public Task<IReadOnlyList<Guid?>> GetEligibleCompanyGroupsAsync(Guid canonicalCompanyId,
+        string providerName, string externalCompanyId, CancellationToken cancellationToken = default)
+    {
+        var groupId = externalCompanyId == "FS-BANK"
+            ? Guid.Parse("c96520f9-1d2e-444a-ab46-5bdffd3797d2")
+            : Guid.Parse("11111111-2222-3333-4444-555555555555");
+        return Task.FromResult<IReadOnlyList<Guid?>>([groupId]);
+    }
+
+    public Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
+        QuarterlyFinancialReportSelection selection, CancellationToken cancellationToken = default)
+    {
+        if (selection.ExternalCompanyId == "FS-NO-REPORT")
+            return Task.FromResult<IReadOnlyList<QuarterlyReportObservation>>([]);
+
+        var start = new DateOnly(2025, 3, 21);
+        var end = DateOnly.FromDateTime(new System.Globalization.PersianCalendar()
+            .AddMonths(start.ToDateTime(TimeOnly.MinValue), 3).AddDays(-1));
+        var items = QuarterlyFinancialReportsNormalizer.RequiredMappings.Select(mapping =>
+        {
+            var unit = mapping.SourceItemId switch
+            {
+                153 => "thousand_shares",
+                160 or 317 => "rial_per_share",
+                _ => "million_rial"
+            };
+            decimal? value = mapping.SourceItemId switch
+            {
+                15 => 0m,
+                1 => -123.456789m,
+                143 => 20_000m,
+                153 => 200_000m,
+                160 or 317 => 100m,
+                _ => null
+            };
+            return new QuarterlySourceObservation(Guid.NewGuid(), Guid.Parse(mapping.CatalogId),
+                mapping.SourceItemId, null, unit, value);
+        }).Concat(new QuarterlySourceObservation[]
+        {
+            new(Guid.NewGuid(), Guid.NewGuid(), 304, null, "million_rial", 100m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 305, null, "million_rial", -20m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 306, null, "million_rial", 80m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 26, null, "million_rial", 50m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 7, null, "million_rial", -5m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 307, null, "million_rial", 45m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 61, null, "million_rial", -3m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 27, null, "million_rial", 2m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 194, null, "million_rial", 17m)
+        }).ToArray();
+        IReadOnlyList<QuarterlyReportObservation> reports =
+        [new(Guid.NewGuid(), "feature144-api-report", "NoavaranCurrentApi", selection.ExternalCompanyId, "IncomeStatement", 3,
+            start, end, false, false, false, "feature144-api-checksum", DateTimeOffset.UtcNow,
+            "1404/04/01", "1404/12/29", items, "MillionRials", "Rial", "IRR", "Accrual", "api-lineage")];
+        return Task.FromResult(reports);
+    }
+}
+
 public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"v2-financial-statement-analysis-{Guid.NewGuid():N}";
@@ -1154,6 +2311,8 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
         builder.ConfigureTestServices(services =>
         {
             ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IQuarterlyFinancialReportsRepository>();
+            services.AddSingleton<IQuarterlyFinancialReportsRepository, QuarterlyFinancialReports144RepositoryFake>();
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(Fake);
         });
@@ -1186,10 +2345,57 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
             Name = "غالبر",
             ProviderName = "NoavaranCurrentApi",
             ExternalCompanyId = "FS-001",
+            Ticker = "غالبر",
             CompanySymbol = "غالبر",
             TseSymbol = "غالبر",
             LastSynchronizedAt = now
         });
+
+        db.Companies.AddRange(
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000002"),
+                Name = "شرکت چخزر",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-CHAKHAZAR",
+                Ticker = "چخزر",
+                CompanySymbol = "چخزر",
+                TseSymbol = "چخزر",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000003"),
+                Name = "شرکت کگل",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-KGL",
+                Ticker = "کگل",
+                CompanySymbol = "کگل",
+                TseSymbol = "کگل",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000004"),
+                Name = "شرکت بدون گزارش",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-NO-REPORT",
+                Ticker = "بدونگزارش",
+                CompanySymbol = "بدونگزارش",
+                TseSymbol = "بدونگزارش",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000005"),
+                Name = "شرکت غبهنوش",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-GHABNOOSH",
+                Ticker = "غبهنوش",
+                CompanySymbol = "غبهنوش",
+                TseSymbol = "غبهنوش",
+                LastSynchronizedAt = now
+            });
 
         AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000001"), "inc-parent-1404", FinancialStatementType.IncomeStatement, false, "1404/12/29", "1405/04/09 09:23:24", new Dictionary<string, decimal?>
         {
@@ -1617,6 +2823,75 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
                 SourceProviderName = "NoavaranCurrentApi",
                 CalculatedAtUtc = now
             });
+
+        var reportId = Guid.Parse("54000000-0000-0000-0000-000000000303");
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = reportId,
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "3",
+            ExternalReportId = "product-revenue-mix-round-trip-1403-03",
+            PeriodStart = new DateOnly(2024, 5, 21),
+            PeriodEnd = new DateOnly(2024, 6, 20),
+            SourcePayloadChecksum = "product-revenue-mix-round-trip",
+            LastSynchronizedAt = now,
+            LogicalReportKey = "3:ProductSales:0:1403-03",
+            RevisionFingerprint = "product-revenue-mix-round-trip",
+            ProviderPublishedAtUtc = now,
+            IsAccepted = true,
+            RevisionStatus = "Accepted",
+            ReportType = "ProductSales",
+            OutputType = 0
+        });
+        db.MonthlyReportLineItems.AddRange(
+            new NormalizedMonthlyReportLineItemRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000311"),
+                MonthlyReportId = reportId,
+                SourceRowKey = "kchad-pellet",
+                SourceRowFingerprint = "kchad-pellet",
+                ProviderProductCode = "PELLET",
+                ProductCode = "PELLET",
+                Title = "گندله سنگ آهن",
+                Unit = "تن",
+                SalesQuantity = 880_000m,
+                SalesAmount = 60_000_000_000_000m,
+                SourcePayloadChecksum = "product-revenue-mix-round-trip"
+            },
+            new NormalizedMonthlyReportLineItemRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000312"),
+                MonthlyReportId = reportId,
+                SourceRowKey = "kchad-concentrate",
+                SourceRowFingerprint = "kchad-concentrate",
+                ProviderProductCode = "CONCENTRATE",
+                ProductCode = "CONCENTRATE",
+                Title = "کنسانتره سنگ آهن",
+                Unit = "تن",
+                SalesQuantity = 430_000m,
+                SalesAmount = 25_000_000_000_000m,
+                SourcePayloadChecksum = "product-revenue-mix-round-trip"
+            });
+        db.CompanyMonthlyActivityTrendSnapshots.Add(new CompanyMonthlyActivityTrendSnapshotRow
+        {
+            Id = Guid.Parse("54000000-0000-0000-0000-000000000321"),
+            ExternalCompanyId = "3",
+            CompanySymbol = "کچاد",
+            CompanyName = "معدنی و صنعتی چادرملو",
+            ReportYear = 1403,
+            ReportMonth = 3,
+            FiscalYear = 1403,
+            FiscalMonthIndex = 3,
+            FiscalMonthNameFa = "خرداد",
+            MonthlySalesAmount = 100_000_000_000_000m,
+            Average12MonthSalesAmount = 90_000_000_000_000m,
+            Average12MonthPeriodCount = 1,
+            CurrentMonthOutputType = 0,
+            SourceProviderName = "NoavaranCurrentApi",
+            SourceReportId = "product-revenue-mix-round-trip-1403-03",
+            DataCompletenessScore = 1m,
+            CalculatedAtUtc = now
+        });
     }
 
     private sealed class ThrowingSymbolMetricLookupService : ISymbolMetricLookupService
@@ -2476,6 +3751,7 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
 
         var json = request.StructuredOutput?.SchemaName switch
         {
+            "QueryInterpretationProposal_v2" when IsIndustryComparison(request) => BuildIndustryComparisonProposal(request),
             "SymbolLookupParseOutput" => BuildSymbolLookupParseJson(request),
             _ => "{}"
         };
@@ -2506,6 +3782,45 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
         new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
             AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
             InputTokens: 10, OutputTokens: 4, UsedTools: false);
+
+    private static string? UserMessage(AiModelRequest request) =>
+        request.Messages.LastOrDefault(message => message.Role == AiMessageRole.User)?.Content;
+
+    private static bool IsIndustryComparison(AiModelRequest request) =>
+        UserMessage(request)?.Contains("\u06a9\u06af\u0647\u0631", StringComparison.Ordinal) == true;
+
+    private static string BuildIndustryComparisonProposal(AiModelRequest request)
+    {
+        var message = UserMessage(request) ?? string.Empty;
+        var industryMention = message.Contains("\u0634\u0631\u06a9\u062a\u200c\u0647\u0627\u06cc", StringComparison.Ordinal)
+            ? message.Contains("\u0647\u0645\u200c\u06af\u0631\u0648\u0647", StringComparison.Ordinal)
+                ? "\u0634\u0631\u06a9\u062a\u200c\u0647\u0627\u06cc \u0647\u0645\u200c\u06af\u0631\u0648\u0647"
+                : "\u0634\u0631\u06a9\u062a\u200c\u0647\u0627\u06cc \u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634"
+            : message.Contains("\u0647\u0645\u200c\u0635\u0646\u0639\u062a", StringComparison.Ordinal)
+                ? "\u0647\u0645\u200c\u0635\u0646\u0639\u062a\u06cc\u200c\u0647\u0627"
+                : message.Contains("\u0635\u0646\u0639\u062a\u0634", StringComparison.Ordinal)
+                    ? "\u0635\u0646\u0639\u062a\u0634"
+                    : message.Contains("\u0647\u0645\u200c\u06af\u0631\u0648\u0647", StringComparison.Ordinal)
+                        ? "\u0647\u0645\u200c\u06af\u0631\u0648\u0647"
+                        : message.Contains("\u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634", StringComparison.Ordinal)
+                            ? "\u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634"
+                            : "\u0635\u0646\u0639\u062a";
+        return JsonSerializer.Serialize(new
+        {
+            capabilityCodes = new[] { "symbol_vs_industry_relative_valuation" },
+            missingSlots = Array.Empty<string>(),
+            presentation = "Table",
+            confidence = 0.99m,
+            evidence = new[] { "same-industry comparison intent" },
+            intent = "industry_comparison",
+            entities = new object[]
+            {
+                new { text = "\u06a9\u06af\u0647\u0631", entityType = "company", scope = (string?)null, confidence = 1m },
+                new { text = industryMention, entityType = "industry", scope = "same_industry", confidence = 0.99m }
+            },
+            metricHints = Array.Empty<string>()
+        });
+    }
 
     private static string BuildSymbolLookupParseJson(AiModelRequest request)
     {
@@ -2783,5 +4098,6 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
         return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"{{metricTerm}}"}],"clarificationRequired":false,"clarificationMessage":null}""";
     }
 }
+
 
 

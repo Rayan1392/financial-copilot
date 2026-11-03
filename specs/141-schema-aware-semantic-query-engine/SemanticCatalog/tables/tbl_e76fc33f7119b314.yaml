@@ -1,0 +1,87 @@
+{
+  "id": "tbl_e76fc33f7119b314",
+  "physical": {
+    "Schema": "public",
+    "Name": "StockMarketSyncStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Dataset",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Watermark",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastRunStartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastRunCompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ContinuationExternalId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ContinuationWatermark",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LogicalVendor",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "PhysicalSource",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceMode",
+        "Type": "character varying(32)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Dataset"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_StockMarketSyncStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_StockMarketSyncStates\" ON public.\"StockMarketSyncStates\" USING btree (\"Dataset\")",
+        "Columns": [
+          "Dataset"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_StockMarketSyncStates",
+        "Type": "p",
+        "Columns": [
+          "Dataset"
+        ],
+        "Definition": "PRIMARY KEY (\"Dataset\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

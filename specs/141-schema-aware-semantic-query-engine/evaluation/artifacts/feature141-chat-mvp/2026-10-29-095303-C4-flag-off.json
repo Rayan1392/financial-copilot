@@ -1,0 +1,45 @@
+{
+  "testCase": {
+    "Id": "C4-flag-off",
+    "Question": "سود خالص کگل و کگهر را مقایسه کن.",
+    "Refusal": false,
+    "Contains": [
+      "کگل",
+      "۱٬۲۰۰",
+      "کگهر",
+      "۹۰۰",
+      "۱۴۰۵/۰۳/۳۱"
+    ],
+    "Excludes": [
+      "فملی",
+      "فولاد"
+    ],
+    "SpecialistContains": null,
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "سود خالص کگل و کگهر را مقایسه کن.",
+    "Enabled": false,
+    "Answer": "نماد یا شرکت درخواست‌شده در فهرست شرکت‌های معتبر پیدا نشد.",
+    "PersistedUserMessage": "سود خالص کگل و کگهر را مقایسه کن.",
+    "PersistedAssistantMessage": "نماد یا شرکت درخواست‌شده در فهرست شرکت‌های معتبر پیدا نشد.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-chat-mvp-0fbf2380c7d64af5bf4a4ca2228967fe | Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:کگهر RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none",
+    "SemanticCapability": "symbol_metric_lookup",
+    "Intent": "SymbolLookup",
+    "Outcome": "ClarificationNeeded",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": null,
+    "Feature141Log": [],
+    "ElapsedMs": 8224.4287,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=symbol_metric_lookup Disposition=Clarification CorrelationId=feature141-chat-mvp-0fbf2380c7d64af5bf4a4ca2228967fe",
+      "Chat semantic route selected. Route=semantic_capability Capability=symbol_metric_lookup ExtractedEntities=entity:خالص,entity:کگل,entity:کگهر RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=symbol_metric_lookup Status=ClarificationRequired ReasonCode=entity_not_found PayloadType=none",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-chat-mvp-0fbf2380c7d64af5bf4a4ca2228967fe RolloutMode=Shadow LegacyCapability=symbol_metric_lookup LegacyConfidence=0.88 SemanticIntent=symbol_metric_lookup SemanticCapabilityCandidate=symbol_metric_lookup SemanticConfidence=0.88 ExtractedCompany=خالص ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=(null) ResolvedCompan"
+    ]
+  }
+}

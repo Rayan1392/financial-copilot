@@ -1,0 +1,65 @@
+{
+  "datasetVersion": 4,
+  "purpose": "Independent post-tuning holdout for monthly production and sales semantics. These questions were written after prompt and planner changes were frozen and are excluded from runtime prompts.",
+  "evaluationMode": "live navigator extraction and context completion only; no SQL compilation or database access",
+  "runtimePrompts": false,
+  "cases": [
+    {
+      "id": "holdout-v4-production-prior-month-growth",
+      "question": "نرخ افزایش حجم تولید کنسانتره کگل در مقایسه با ماه پیش چند درصد است؟",
+      "expectedFinancialValueReferences": [
+        { "referenceType": "MonthlyMeasure", "catalogId": "metric_monthly_production_quantity" }
+      ],
+      "expectedFinancialValueOperation": "ApprovedPeriodComparison"
+    },
+    {
+      "id": "holdout-v4-sales-tonnage",
+      "question": "کگل در شهریور چند تن گندله فروخت؟",
+      "expectedFinancialValueReferences": [
+        { "referenceType": "MonthlyMeasure", "catalogId": "metric_monthly_sales_quantity" }
+      ],
+      "expectedFinancialValueOperation": "DirectValueRetrieval"
+    },
+    {
+      "id": "holdout-v4-sales-amount",
+      "question": "مبلغ فروش ریالی کگهر در آخرین صورت ماهانه، به میلیون ریال چقدر ثبت شده؟",
+      "expectedFinancialValueReferences": [
+        { "referenceType": "MonthlyMeasure", "catalogId": "metric_monthly_sales" }
+      ],
+      "expectedFinancialValueOperation": "DirectValueRetrieval"
+    },
+    {
+      "id": "holdout-v4-production-series",
+      "question": "روند چهار گزارش پیاپی مقدار تولید کگل را کنار هم نشان بده.",
+      "expectedFinancialValueReferences": [
+        { "referenceType": "MonthlyMeasure", "catalogId": "metric_monthly_production_quantity" }
+      ],
+      "expectedFinancialValueOperation": "DirectValueRetrieval"
+    },
+    {
+      "id": "holdout-v4-ranked-production-growth",
+      "question": "برای محصولات کگهر، رشد تولید ماه اخیر را با ماه قبل بسنج و از بیشترین درصد به کمترین مرتب کن.",
+      "expectedFinancialValueReferences": [
+        { "referenceType": "MonthlyMeasure", "catalogId": "metric_monthly_production_quantity" }
+      ],
+      "expectedFinancialValueOperation": "ApprovedPeriodComparison"
+    },
+    {
+      "id": "holdout-v4-two-company-monthly-sales",
+      "question": "فروش ریالی مرداد کگل و کگهر را در یک جدول برای مقایسه بگذار.",
+      "expectedFinancialValueReferences": [
+        { "referenceType": "MonthlyMeasure", "catalogId": "metric_monthly_sales" }
+      ],
+      "expectedFinancialValueOperation": "DirectValueRetrieval"
+    },
+    {
+      "id": "holdout-v4-unverified-sales-rate",
+      "question": "نرخ ثبت‌شده فروش گندله کگهر را برای دو ماه پیاپی نشان بده.",
+      "expectedFinancialValueReferences": [
+        { "referenceType": "MonthlyMeasure", "catalogId": "metric_monthly_sales_rate" }
+      ],
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedExecutionOutcome": "typed unsupported until source unit verification"
+    }
+  ]
+}

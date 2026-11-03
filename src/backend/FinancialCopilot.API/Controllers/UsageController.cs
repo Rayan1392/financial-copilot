@@ -16,7 +16,9 @@ public sealed class UsageController(
     ICurrentActorContext actorContext,
     IBillableAccountResolver accountResolver,
     IWalletService wallets,
+    FinancialCopilot.Billing.Contracts.IExpiryAwareWalletReadService spendableWallets,
     IApiUsageReportService usageReports,
+    ISubscriptionPlanRepository subscriptionPlans,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpGet("me")]
@@ -43,14 +45,16 @@ public sealed class UsageController(
                 actor.ApiClientId,
                 ExternalUserId: null),
             cancellationToken);
-        var wallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
+        var wallet = await spendableWallets.GetSpendableSnapshotAsync(account.Id, cancellationToken);
         var entries = await usageReports.QueryUsageAsync(
             account.Id,
             periodFrom,
             periodTo,
             cancellationToken);
 
-        return Ok(MapResponse(account, wallet, periodFrom, periodTo, entries));
+        var plan = await subscriptionPlans.FindForCustomerAsync(account.Id, cancellationToken);
+
+        return Ok(MapResponse(account, wallet, periodFrom, periodTo, entries, plan));
     }
 
     [HttpGet("api-client/{clientId:guid}")]
@@ -101,7 +105,8 @@ public sealed class UsageController(
         FinancialCopilot.Billing.Accounts.WalletSnapshot wallet,
         DateTimeOffset periodFrom,
         DateTimeOffset periodTo,
-        IReadOnlyCollection<FinancialCopilot.Billing.Usage.UsageLedgerEntry> entries) =>
+        IReadOnlyCollection<FinancialCopilot.Billing.Usage.UsageLedgerEntry> entries,
+        FinancialCopilot.Billing.Accounts.SubscriptionPlan? plan = null) =>
         new(
             account.AccountType.ToString(),
             account.BillingMode.ToString(),
@@ -125,8 +130,16 @@ public sealed class UsageController(
                     entry.PromptTokens,
                     entry.CompletionTokens,
                     entry.TotalTokens,
-                    entry.EstimatedCost,
+                    EstimatedCost: null,
                     entry.AllocationSource,
-                    entry.AllowanceDateKey))
-                .ToArray());
+                    entry.AllowanceDateKey,
+                    entry.QuotaMode.ToString(),
+                    entry.SourceSubscriptionId,
+                    entry.SourceSubscriptionExpiresAtUtc))
+                .ToArray(),
+            plan?.Code,
+            plan?.Name,
+            plan?.IncludedCredits,
+            plan?.QuotaMode.ToString() ?? "Finite",
+            plan?.SubscriptionExpiresAtUtc);
 }

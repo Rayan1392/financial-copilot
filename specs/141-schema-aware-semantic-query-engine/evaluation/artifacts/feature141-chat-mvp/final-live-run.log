@@ -1,0 +1,52 @@
+﻿Test run for D:\Source\TahlilApp-AI\tests\FinancialCopilot.IntegrationTests\bin\Debug\net10.0\FinancialCopilot.IntegrationTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)
+[xUnit.net 00:00:00.39]   Discovering: FinancialCopilot.IntegrationTests
+[xUnit.net 00:00:00.49]   Discovered:  FinancialCopilot.IntegrationTests
+[xUnit.net 00:00:00.52]   Starting:    FinancialCopilot.IntegrationTests
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E22") [10 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E06") [13 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E25") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E27") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E23") [10 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E26") [10 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E05") [10 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E14") [17 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E24") [7 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E21") [13 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CrossCompanyComparisonRunsLiveEndToEnd(caseId: "F141-E28") [13 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E08") [20 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E01") [11 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E09") [21 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E02") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.AdditionalQuestionsRunLiveEndToEnd(caseId: "F141-E03") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.MonthlyProductionQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer [18 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E30") [14 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E17") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E32") [8 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E33") [19 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E29") [12 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E31") [17 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E15") [13 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.ThresholdFilterRunsLiveEndToEnd(caseId: "F141-E34") [9 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.CompanyDiscoveryQuestionRunsLiveLlmToIsolatedPostgreSqlAndReturnsTheProducerSet [20 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.TypedRejectionsStopBeforeSqlAndRecordTheirOutcome(caseId: "F141-E20") [2 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.TypedRejectionsStopBeforeSqlAndRecordTheirOutcome(caseId: "F141-E18") [8 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.TypedRejectionsStopBeforeSqlAndRecordTheirOutcome(caseId: "F141-E19") [8 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141EngineVerticalSliceTests.OperatingProfitPerShareQuestionRunsLiveLlmToIsolatedPostgreSqlAndPersianAnswer [10 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C9") [20 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C2") [27 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C6") [27 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C4") [21 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C3") [26 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C5") [22 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C1") [18 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C7") [25 s]
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.SupportedQuestionsAnswerThroughTheChatOrchestrationService(caseId: "C8") [28 s]
+[xUnit.net 00:10:18.30]   Finished:    FinancialCopilot.IntegrationTests
+  Passed FinancialCopilot.IntegrationTests.Feature141ChatMvpTests.DisablingTheFlagRestoresTheExistingChatRouting [9 s]
+
+Test Run Successful.
+Total tests: 40
+     Passed: 40
+ Total time: 10.3166 Minutes

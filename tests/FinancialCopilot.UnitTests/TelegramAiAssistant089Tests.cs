@@ -27,6 +27,24 @@ namespace FinancialCopilot.UnitTests;
 public sealed class TelegramAiAssistant089Tests
 {
     [Fact]
+    public async Task Start_shows_supported_natural_language_question_examples()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor));
+
+        var result = await adapter.HandleAsync(Update("/start", telegramUserId: 1001), CancellationToken.None);
+        var text = string.Join("\n", result.Messages.Select(message => message.Text));
+
+        Assert.Contains("روند فروش ماهانه کگهر را نشان بده", text);
+        Assert.Contains("روند تولید و فروش شگویا را در ۱۲ ماه اخیر بررسی کن", text);
+        Assert.Contains("شگویا را با گروه خودش مقایسه کن", text);
+        Assert.Contains("ترکیب فروش محصولات شغدیر را نشان بده", text);
+        Assert.DoesNotContain("/scanners", text);
+        Assert.DoesNotContain("/scanner FILTER_CODE", text);
+    }
+
+    [Fact]
     public async Task Unlinked_user_gets_link_message_without_ai_call()
     {
         await using var db = CreateDb();

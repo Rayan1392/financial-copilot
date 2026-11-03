@@ -3,9 +3,17 @@ using FinancialCopilot.Application.AI.ModelProviders;
 
 namespace FinancialCopilot.Infrastructure.AI.ModelProviders;
 
-public sealed class InMemoryAiExecutionUsageAccumulator : IAiExecutionUsageAccumulator
+// Request-scoped usage lives in process memory: every model call of one chat turn runs in the
+// process that serves the turn. Entries untouched for EntryLifetime are evicted so the
+// singleton stays bounded; a turn settles within its five-minute reservation window.
+public sealed class InMemoryAiExecutionUsageAccumulator(TimeProvider? timeProvider = null) : IAiExecutionUsageAccumulator
 {
-    private readonly ConcurrentDictionary<string, MutableUsageSummary> _usageByCorrelationId = new(StringComparer.Ordinal);
+    private static readonly TimeSpan EntryLifetime = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(1);
+
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly ConcurrentDictionary<string, UsageEntry> _usageByCorrelationId = new(StringComparer.Ordinal);
+    private long _nextSweepTicks;
 
     public void Record(AiExecutionUsageFacts facts)
     {
@@ -14,80 +22,103 @@ public sealed class InMemoryAiExecutionUsageAccumulator : IAiExecutionUsageAccum
             return;
         }
 
-        _usageByCorrelationId.AddOrUpdate(
-            facts.CorrelationId,
-            _ => MutableUsageSummary.From(facts),
-            (_, existing) => existing.Add(facts));
+        var now = _timeProvider.GetUtcNow();
+        _usageByCorrelationId.GetOrAdd(facts.CorrelationId, _ => new UsageEntry(now)).Add(facts, now);
+        SweepExpired(now);
     }
 
     public AiExecutionUsageSummary? GetSummary(string correlationId) =>
-        _usageByCorrelationId.TryGetValue(correlationId, out var summary)
-            ? summary.ToImmutable()
+        _usageByCorrelationId.TryGetValue(correlationId, out var entry)
+            ? entry.ToSummary()
             : null;
 
-    private sealed class MutableUsageSummary
+    public IReadOnlyList<AiExecutionUsageFacts> GetUnbilled(string correlationId) =>
+        _usageByCorrelationId.TryGetValue(correlationId, out var entry)
+            ? entry.GetUnclaimed()
+            : [];
+
+    public IReadOnlyList<AiExecutionUsageFacts> ClaimUnbilled(string correlationId, string claimKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(claimKey);
+
+        return _usageByCorrelationId.TryGetValue(correlationId, out var entry)
+            ? entry.Claim(claimKey, _timeProvider.GetUtcNow())
+            : [];
+    }
+
+    private void SweepExpired(DateTimeOffset now)
+    {
+        var nextSweep = Interlocked.Read(ref _nextSweepTicks);
+        if (now.UtcTicks < nextSweep ||
+            Interlocked.CompareExchange(ref _nextSweepTicks, now.Add(SweepInterval).UtcTicks, nextSweep) != nextSweep)
+        {
+            return;
+        }
+
+        foreach (var (correlationId, entry) in _usageByCorrelationId)
+        {
+            if (entry.IsExpired(now - EntryLifetime))
+            {
+                _usageByCorrelationId.TryRemove(correlationId, out _);
+            }
+        }
+    }
+
+    private sealed class UsageEntry(DateTimeOffset createdAt)
     {
         private readonly object _gate = new();
+        private readonly List<AiExecutionUsageFacts> _calls = [];
+        private readonly Dictionary<string, AiExecutionUsageFacts[]> _claims = new(StringComparer.Ordinal);
+        private int _claimedCount;
+        private DateTimeOffset _touchedAt = createdAt;
 
-        private string _providerKey;
-        private string _modelKey;
-        private int? _inputTokens;
-        private int? _outputTokens;
-        private decimal? _providerReportedCost;
-        private string? _providerReportedCurrency;
-
-        private MutableUsageSummary(AiExecutionUsageFacts facts)
-        {
-            _providerKey = facts.ProviderKey;
-            _modelKey = facts.ModelKey;
-            _inputTokens = facts.InputTokens;
-            _outputTokens = facts.OutputTokens;
-            _providerReportedCost = facts.ProviderReportedCost;
-            _providerReportedCurrency = facts.ProviderReportedCurrency;
-        }
-
-        public static MutableUsageSummary From(AiExecutionUsageFacts facts) => new(facts);
-
-        public MutableUsageSummary Add(AiExecutionUsageFacts facts)
+        public void Add(AiExecutionUsageFacts facts, DateTimeOffset now)
         {
             lock (_gate)
             {
-                if (!string.Equals(_providerKey, facts.ProviderKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    _providerKey = $"{_providerKey},{facts.ProviderKey}";
-                }
-
-                if (!string.Equals(_modelKey, facts.ModelKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    _modelKey = $"{_modelKey},{facts.ModelKey}";
-                }
-
-                _inputTokens = Sum(_inputTokens, facts.InputTokens);
-                _outputTokens = Sum(_outputTokens, facts.OutputTokens);
-                _providerReportedCost = Sum(_providerReportedCost, facts.ProviderReportedCost);
-                _providerReportedCurrency ??= facts.ProviderReportedCurrency;
-                return this;
+                _calls.Add(facts);
+                _touchedAt = now;
             }
         }
 
-        public AiExecutionUsageSummary ToImmutable()
+        public IReadOnlyList<AiExecutionUsageFacts> Claim(string claimKey, DateTimeOffset now)
         {
             lock (_gate)
             {
-                return new AiExecutionUsageSummary(
-                    _providerKey,
-                    _modelKey,
-                    _inputTokens,
-                    _outputTokens,
-                    _providerReportedCost,
-                    _providerReportedCurrency);
+                if (!_claims.TryGetValue(claimKey, out var claimed))
+                {
+                    claimed = _calls.Skip(_claimedCount).ToArray();
+                    _claims[claimKey] = claimed;
+                    _claimedCount = _calls.Count;
+                }
+
+                _touchedAt = now;
+                return claimed;
             }
         }
 
-        private static int? Sum(int? left, int? right) =>
-            left is null && right is null ? null : (left ?? 0) + (right ?? 0);
+        public IReadOnlyList<AiExecutionUsageFacts> GetUnclaimed()
+        {
+            lock (_gate)
+            {
+                return _calls.Skip(_claimedCount).ToArray();
+            }
+        }
 
-        private static decimal? Sum(decimal? left, decimal? right) =>
-            left is null && right is null ? null : (left ?? 0m) + (right ?? 0m);
+        public bool IsExpired(DateTimeOffset cutoff)
+        {
+            lock (_gate)
+            {
+                return _touchedAt < cutoff;
+            }
+        }
+
+        public AiExecutionUsageSummary? ToSummary()
+        {
+            lock (_gate)
+            {
+                return AiExecutionUsageSummary.From(_calls);
+            }
+        }
     }
 }

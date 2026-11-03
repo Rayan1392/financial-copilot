@@ -1,3 +1,6 @@
+> DEPRECATED / SUPERSEDED by Feature 148 (2026-10-31): legacy CyclicalWaves endpoints are retired at runtime; stored data retained.
+> NOTE (Feature 148): in NoavaranAmin mode, reads exclude legacy CyclicalWaves-derived rows (decision C1).
+
 # Tasks - CyclicalWaves Direct Period Metric Query Coverage
 
 ## Task 1 - Audit Existing Coverage

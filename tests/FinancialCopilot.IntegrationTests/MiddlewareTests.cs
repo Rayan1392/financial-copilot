@@ -55,5 +55,35 @@ public sealed class MiddlewareTests
         Assert.Equal(
             "Available spending capacity is insufficient.",
             document.RootElement.GetProperty("detail").GetString());
+        Assert.Equal(
+            InsufficientCreditException.InsufficientCreditsCode,
+            document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task GlobalExceptionMiddleware_SubscriptionCooldown_ReturnsAuthoritativeDetails()
+    {
+        var cooldownUntil = new DateTimeOffset(2026, 12, 12, 9, 0, 0, TimeSpan.Zero);
+        var middleware = new GlobalExceptionMiddleware(
+            _ => throw new InsufficientCreditException(
+                InsufficientCreditException.SubscriptionCooldownActiveCode,
+                cooldownUntil,
+                25m),
+            NullLogger<GlobalExceptionMiddleware>.Instance);
+        var context = new DefaultHttpContext();
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        Assert.Equal(StatusCodes.Status402PaymentRequired, context.Response.StatusCode);
+        Assert.Equal(
+            InsufficientCreditException.SubscriptionCooldownActiveCode,
+            document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(
+            cooldownUntil,
+            document.RootElement.GetProperty("cooldownUntilUtc").GetDateTimeOffset());
+        Assert.Equal(25m, document.RootElement.GetProperty("freePlanCredits").GetDecimal());
     }
 }

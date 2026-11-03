@@ -269,12 +269,14 @@ public sealed class NadpcoScheduledSyncCoordinator(
     INadpcoScheduledSyncAlertSink alertSink,
     IOptions<NadpcoScheduledSyncOptions> options,
     TimeProvider timeProvider,
-    ILogger<NadpcoScheduledSyncCoordinator> logger) : INadpcoScheduledSyncCoordinator
+    ILogger<NadpcoScheduledSyncCoordinator> logger,
+    IIndustryRelativeValuationOrchestrationService? industryRelativeValuation = null) : INadpcoScheduledSyncCoordinator
 {
     public async Task<NadpcoScheduledSyncRun> RunAsync(
         NadpcoScheduledSyncRunRequest request,
         CancellationToken cancellationToken)
     {
+        _ = industryRelativeValuation; // retained for compatibility; NADPCO no longer owns Feature 125 triggering.
         var settings = options.Value;
         var snapshot = JsonSerializer.Serialize(settings);
         var datasets = JsonSerializer.Serialize(settings.DatasetSelection);
@@ -338,6 +340,8 @@ public sealed class NadpcoScheduledSyncCoordinator(
             try
             {
                 result = await ExecuteSelectedDatasetsAsync(settings, timeout.Token);
+                // NADPCO no longer owns Feature 125 ingestion or calculation triggering.
+                // Feature 126 submits a fenced handoff directly to the downstream boundary.
                 lastException = null;
                 break;
             }

@@ -1,4 +1,6 @@
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 
@@ -16,7 +18,7 @@ public sealed class SymbolLookupToolAdapterTests
             [new SymbolLookupParsedPair("چادرملو", new MetricCode("MONTHLY_SALES_YTD"), "فروش YTD")],
             LookupParseStatus.Parsed));
         var lookup = new RecordingSymbolMetricLookupService();
-        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System, new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin));
 
         const string enrichedContext = """
             [Recent conversation]
@@ -61,7 +63,7 @@ public sealed class SymbolLookupToolAdapterTests
                 "pe")],
             LookupParseStatus.Parsed));
         var lookup = new RecordingSymbolMetricLookupService();
-        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System, new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin));
 
         await adapter.LookupAsync(
             "pe کچاد",
@@ -86,7 +88,7 @@ public sealed class SymbolLookupToolAdapterTests
             [new SymbolLookupParsedPair("کچاد", new MetricCode("LATEST_PRICE"), "آخرین قیمت")],
             LookupParseStatus.Parsed));
         var lookup = new RecordingSymbolMetricLookupService();
-        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System, new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin));
 
         const string enrichedContext = """
             [Recent conversation]
@@ -123,7 +125,7 @@ public sealed class SymbolLookupToolAdapterTests
             [new SymbolLookupParsedPair("شگل", new MetricCode("PE_TTM"), "pe")],
             LookupParseStatus.Parsed));
         var lookup = new RecordingSymbolMetricLookupService();
-        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System, new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin));
 
         const string enrichedContext = """
             [Recent conversation]
@@ -160,7 +162,7 @@ public sealed class SymbolLookupToolAdapterTests
             [new SymbolLookupParsedPair("کچاد", new MetricCode("PE_TTM"), "pe")],
             LookupParseStatus.Parsed));
         var lookup = new RecordingSymbolMetricLookupService();
-        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System, new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin));
 
         // enrichedMessage contains both turns; the most-recent User turn is كچاد
         const string enrichedContext = """
@@ -203,7 +205,7 @@ public sealed class SymbolLookupToolAdapterTests
             ],
             LookupParseStatus.Parsed));
         var lookup = new RecordingSymbolMetricLookupService();
-        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System, new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin));
 
         const string enrichedContext = """
             [Recent conversation]

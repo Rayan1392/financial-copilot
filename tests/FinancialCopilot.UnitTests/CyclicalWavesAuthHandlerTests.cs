@@ -3,6 +3,9 @@ using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.UnitTests;
@@ -80,6 +83,62 @@ public sealed class CyclicalWavesAuthHandlerTests
     }
 
     [Fact]
+    public async Task ValidRedisCachedToken_DoesNotCallLogin()
+    {
+        var loginCount = 0;
+        var tokenCache = CreateTokenCache();
+        var now = DateTimeOffset.UtcNow;
+        await tokenCache.SetTokenAsync(
+            new CyclicalWavesCachedToken(
+                "already-cached-token",
+                "Bearer",
+                now,
+                now.AddMinutes(10),
+                null),
+            CancellationToken.None);
+
+        var inner = new FakeHandler(request =>
+        {
+            if (request.RequestUri!.OriginalString.Contains("auth/login"))
+            {
+                Interlocked.Increment(ref loginCount);
+                return Task.FromResult(OkLoginResponse());
+            }
+
+            Assert.Equal("already-cached-token", request.Headers.Authorization?.Parameter);
+            return Task.FromResult(OkDataResponse());
+        });
+
+        var (client, _) = BuildClient(inner, tokenCache);
+        await client.GetAsync("custom-filtering/tickers");
+
+        Assert.Equal(0, loginCount);
+    }
+
+    [Fact]
+    public async Task ConcurrentRequests_UseSingleFlightLogin()
+    {
+        var loginCount = 0;
+        var inner = new FakeHandler(async request =>
+        {
+            if (request.RequestUri!.OriginalString.Contains("auth/login"))
+            {
+                Interlocked.Increment(ref loginCount);
+                await Task.Delay(25);
+                return OkLoginResponse();
+            }
+
+            return OkDataResponse();
+        });
+
+        var (client, _) = BuildClient(inner);
+        await Task.WhenAll(Enumerable.Range(0, 12)
+            .Select(_ => client.GetAsync("custom-filtering/tickers")));
+
+        Assert.Equal(1, loginCount);
+    }
+
+    [Fact]
     public async Task Response401_TriggersReloginAndRetry()
     {
         var loginCount = 0;
@@ -109,8 +168,16 @@ public sealed class CyclicalWavesAuthHandlerTests
     public async Task ExpiredToken_TriggersReloginOnNextRequest()
     {
         var loginCount = 0;
-        var tokenCache = new CyclicalWavesTokenCache();
-        tokenCache.SetToken("expired-token", DateTimeOffset.UtcNow.AddSeconds(-1));
+        var tokenCache = CreateTokenCache();
+        var now = DateTimeOffset.UtcNow;
+        await tokenCache.SetTokenAsync(
+            new CyclicalWavesCachedToken(
+                "expired-token",
+                "Bearer",
+                now.AddMinutes(-2),
+                now.AddSeconds(-1),
+                null),
+            CancellationToken.None);
 
         var inner = new FakeHandler(request =>
         {
@@ -159,19 +226,20 @@ public sealed class CyclicalWavesAuthHandlerTests
             () => client.GetAsync("custom-filtering/tickers"));
 
         Assert.Equal(FinancialProviderErrorCode.InvalidResponse, exception.Code);
-        Assert.Contains("non-JSON", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("Bad gateway", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("not valid JSON", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bad gateway", exception.Message, StringComparison.Ordinal);
     }
 
     private static (HttpClient Client, CyclicalWavesTokenCache Cache) BuildClient(
         HttpMessageHandler innerHandler,
         CyclicalWavesTokenCache? cache = null)
     {
-        var tokenCache = cache ?? new CyclicalWavesTokenCache();
+        var tokenCache = cache ?? CreateTokenCache();
         var authHandler = new CyclicalWavesAuthHandler(
             tokenCache,
             Microsoft.Extensions.Options.Options.Create(Options),
-            TimeProvider.System)
+            TimeProvider.System,
+            NullLogger<CyclicalWavesAuthHandler>.Instance)
         {
             InnerHandler = innerHandler
         };
@@ -181,6 +249,13 @@ public sealed class CyclicalWavesAuthHandlerTests
         };
         return (client, tokenCache);
     }
+
+    private static CyclicalWavesTokenCache CreateTokenCache() =>
+        new(
+            new MemoryDistributedCache(
+                Microsoft.Extensions.Options.Options.Create(new MemoryDistributedCacheOptions())),
+            Microsoft.Extensions.Options.Options.Create(Options),
+            NullLogger<CyclicalWavesTokenCache>.Instance);
 
     private sealed class FakeHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
         : HttpMessageHandler

@@ -1,0 +1,59 @@
+{
+  "id": "metric_current_assets_to_total_assets",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "CURRENT_ASSETS_TO_TOTAL_ASSETS"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Current Assets to Total Assets",
+    "Description": "Governed semantic definition for Current Assets to Total Assets.",
+    "Category": 5,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "current assets to total assets",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "CURRENT_ASSETS_TO_TOTAL_ASSETS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت دارایی‌های جاری به کل دارایی‌ها",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "CURRENT_ASSETS_TO_TOTAL_ASSETS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

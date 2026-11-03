@@ -1,0 +1,28 @@
+{
+  "id": "rel_de517d46b8e8921b",
+  "from": {
+    "schema": "public",
+    "table": "IndustryWatchEvaluations",
+    "columns": [
+      "IndustryId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "Industries",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -84,19 +84,27 @@ public sealed class SemanticRoutingEventTelemetrySink(
     ISemanticDialogueEventSink eventSink,
     IConversationalCapabilityRegistry registry,
     TimeProvider timeProvider) : ISemanticRoutingTelemetrySink
+    , ISemanticRoutingComparisonQuery
 {
+    private const int MaximumComparisons = 10_000;
+    private readonly ConcurrentQueue<SemanticRoutingComparison> comparisons = new();
+
     public void Record(SemanticRoutingComparison comparison)
     {
+        comparisons.Enqueue(comparison);
+        while (comparisons.Count > MaximumComparisons && comparisons.TryDequeue(out _)) { }
         eventSink.Record(new SemanticDialogueEvent(
             comparison.Agreement ? SemanticEventName.LegacySemanticRouteCompared : SemanticEventName.LegacySemanticRouteDisagreement,
             comparison.CorrelationId,
             comparison.CapabilityCode,
             registry.Version,
-            "legacy_semantic_route_disagreement",
+            comparison.Category.ToString(),
             "routing-shadow",
             timeProvider.GetUtcNow(),
             $"{comparison.LegacyRoute}->{comparison.SemanticRoute}"));
     }
+
+    public IReadOnlyCollection<SemanticRoutingComparison> Snapshot() => comparisons.ToArray();
 }
 
 public interface ISemanticDialogueOutcomeTelemetry
@@ -378,10 +386,14 @@ public sealed class SemanticOfflineRegressionRunner(
                 {
                     QuerySlotType.Conditions => interpretation.OriginalText,
                     QuerySlotType.CompanyOrSymbol => interpretation.EntityMentions.FirstOrDefault()?.Text,
+                    QuerySlotType.Product => interpretation.EntityMentions.FirstOrDefault(entity =>
+                        string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(entity.Scope, "product", StringComparison.OrdinalIgnoreCase))?.Text,
                     QuerySlotType.Metric => interpretation.Metrics.FirstOrDefault()?.MetricCode,
                     QuerySlotType.Period => interpretation.Period?.Value,
                     QuerySlotType.ComparisonBaseline => interpretation.Comparison?.Value,
                     QuerySlotType.Presentation => interpretation.Presentation?.Kind.ToString(),
+                    QuerySlotType.NumericClues when QueryNormalization.TryParseFinancialStatementClues(interpretation.OriginalText, out var clues, out _) => string.Join(',', clues.Select(clue => clue.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
                     _ => null
                 };
                 source = type switch
@@ -566,12 +578,29 @@ public static class SemanticEvaluationDatasetCatalog
         Case("lookup-fa", "P/E فولاد چقدر است؟", "fa", "symbol_metric_lookup", ["symbol_metric_lookup"], ["comprehensive_analysis"]),
         Case("analysis-fa", "فولاد را بررسی کن", "fa", "comprehensive_analysis", ["comprehensive_analysis"], ["symbol_metric_lookup"]),
         Case("scanner-en", "stocks with P/E below 5", "en", "stock_screening", ["stock_screening"], ["symbol_metric_lookup"]),
+        Case("value-search-en", "Which company has revenue 3300508?", "en", "financial_statement_value_search", ["financial_statement_value_search"], ["symbol_metric_lookup"],
+            new Dictionary<QuerySlotType, string> { [QuerySlotType.NumericClues] = "3300508" }),
+        Case("product-value-fa", "\u0641\u0648\u0644\u0627\u062f \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645\u0634 \u0686\u0642\u062f\u0631 \u0641\u0631\u0648\u062e\u062a\u0647\u061f", "fa", "product_sales_value", ["product_sales_value"], ["product_revenue_mix", "product_sales_trend"]),
+        Case("product-trend-fa", "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645 \u0641\u0648\u0644\u0627\u062f\u061f", "fa", "product_sales_trend", ["product_sales_trend"], ["product_revenue_mix", "product_sales_value"]),
         Case("product-fa", "ترکیب فروش محصولات فولاد", "fa", "product_revenue_mix", ["product_revenue_mix"], ["symbol_metric_lookup"]),
         Case("statement-table-fa", "جدول صورت سود و زیان فولاد", "fa", "financial_statement_table", ["financial_statement_table"], ["financial_statement_period_analysis"]),
         Case("statement-analysis-fa", "صورت مالی فولاد را تحلیل کن", "fa", "financial_statement_period_analysis", ["financial_statement_period_analysis"], ["comprehensive_analysis"]),
         Case("disclosure-fa", "آخرین اطلاعیه‌های فولاد", "fa", "disclosure_listing", ["disclosure_listing"], []),
         Case("ranking-fa", "رتبه‌بندی کیفیت فروش ماهانه", "fa", "monthly_sales_quality_ranking", ["monthly_sales_quality_ranking"], ["stock_screening"]),
         Case("gauge-fa", "گیج P/S فولاد", "fa", "ps_gauge_visualization", ["ps_gauge_visualization"], ["symbol_metric_lookup"]),
+        new("relative-symbol-en", Version, "compare symbol with its industry", "en", "symbol_vs_industry_relative_valuation",
+            new Dictionary<QuerySlotType, string> { [QuerySlotType.CompanyOrSymbol] = "AAA" }, DialogueOutcome.Answered, DialogueOutcomeReasonCodes.None,
+            ["symbol_vs_industry_relative_valuation"], ["symbol_metric_lookup"], 1,
+            InputSlots: new Dictionary<QuerySlotType, string> { [QuerySlotType.CompanyOrSymbol] = "AAA" }),
+        new("relative-ranking-en", Version, "industry relative valuation ranking", "en", "industry_relative_valuation_ranking",
+            new Dictionary<QuerySlotType, string> { [QuerySlotType.IndustryGroup] = "group-1" }, DialogueOutcome.Answered, DialogueOutcomeReasonCodes.None,
+            ["industry_relative_valuation_ranking"], ["symbol_metric_lookup"], 1,
+            InputSlots: new Dictionary<QuerySlotType, string> { [QuerySlotType.IndustryGroup] = "group-1" }),
+        Case("relative-summary-en", "industry relative valuation summary", "en", "industry_relative_valuation_summary", ["industry_relative_valuation_summary"], ["symbol_metric_lookup"]),
+        new("relative-pair-en", Version, "compare two symbols within their industry", "en", "symbol_pair_within_industry",
+            new Dictionary<QuerySlotType, string> { [QuerySlotType.CompaniesOrSymbols] = "AAA,BBB" }, DialogueOutcome.Answered, DialogueOutcomeReasonCodes.None,
+            ["symbol_pair_within_industry"], ["symbol_metric_lookup"], 1,
+            InputSlots: new Dictionary<QuerySlotType, string> { [QuerySlotType.CompaniesOrSymbols] = "AAA,BBB" }),
         new("personalized-insight-en", Version, "explain this alert", "en", "personalized_insight_explanation",
             new Dictionary<QuerySlotType, string> { [QuerySlotType.Insight] = "11111111-1111-1111-1111-111111111111" },
             DialogueOutcome.Answered, DialogueOutcomeReasonCodes.None, ["personalized_insight_explanation"], [], 1,

@@ -1,0 +1,143 @@
+{
+  "id": "tbl_36023aac37727344",
+  "physical": {
+    "Schema": "public",
+    "Name": "CompanyPsHistoryPoints",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceCompanyIsin",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderPointId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "ObservationDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "PsRatio",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsActiveInLatestSuccessfulSeries",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "FirstSeenAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSeenAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSeenInSuccessfulSeriesAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "SourcePayloadHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_CompanyPsHistoryPoints_CompanyId_IsActiveInLatestSuccessfulS",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyPsHistoryPoints_CompanyId_IsActiveInLatestSuccessfulS\" ON public.\"CompanyPsHistoryPoints\" USING btree (\"CompanyId\", \"IsActiveInLatestSuccessfulSeries\", \"ObservationDate\", \"ProviderPointId\")",
+        "Columns": [
+          "CompanyId",
+          "IsActiveInLatestSuccessfulSeries",
+          "ObservationDate",
+          "ProviderPointId"
+        ]
+      },
+      {
+        "Name": "IX_CompanyPsHistoryPoints_ProviderName_CompanyId_ProviderPointI",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_CompanyPsHistoryPoints_ProviderName_CompanyId_ProviderPointI\" ON public.\"CompanyPsHistoryPoints\" USING btree (\"ProviderName\", \"CompanyId\", \"ProviderPointId\")",
+        "Columns": [
+          "ProviderName",
+          "CompanyId",
+          "ProviderPointId"
+        ]
+      },
+      {
+        "Name": "PK_CompanyPsHistoryPoints",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CompanyPsHistoryPoints\" ON public.\"CompanyPsHistoryPoints\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_CompanyPsHistoryPoints_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_CompanyPsHistoryPoints",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

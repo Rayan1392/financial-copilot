@@ -1,0 +1,65 @@
+{
+  "testCase": {
+    "Id": "C5",
+    "Question": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "Refusal": false,
+    "Contains": [
+      "فملی",
+      "۱٬۶۰۰",
+      "کگل",
+      "۱٬۲۰۰",
+      "کگهر",
+      "۹۰۰"
+    ],
+    "Excludes": [
+      "فولاد",
+      "۹٬۹۹۹"
+    ],
+    "SpecialistContains": null,
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "Enabled": true,
+    "Answer": "رتبه‌بندی شرکت‌های دامنهٔ مجاز شما (۳ شرکت دارای داده) بر اساس سود خالص از بیشترین به کمترین، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n۱. فملی: ۱٬۶۰۰ میلیون ریال\n۲. کگل: ۱٬۲۰۰ میلیون ریال\n۳. کگهر: ۹۰۰ میلیون ریال\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد: میلیون ریال؛ منبع: NoavaranCurrentApi.\nاین رتبه‌بندی همهٔ شرکت‌های دامنهٔ مجاز شما را که در این دوره دادهٔ معتبر دارند پوشش می‌دهد.",
+    "PersistedUserMessage": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "PersistedAssistantMessage": "رتبه‌بندی شرکت‌های دامنهٔ مجاز شما (۳ شرکت دارای داده) بر اساس سود خالص از بیشترین به کمترین، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n۱. فملی: ۱٬۶۰۰ میلیون ریال\n۲. کگل: ۱٬۲۰۰ میلیون ریال\n۳. کگهر: ۹۰۰ میلیون ریال\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد: میلیون ریال؛ منبع: NoavaranCurrentApi.\nاین رتبه‌بندی همهٔ شرکت‌های دامنهٔ مجاز شما را که در این دوره دادهٔ معتبر دارند پوشش می‌دهد.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5 Fingerprint=fd12a1f34e800695b259a73c62a4c58474c9ed261f3ed868b668d0bcacef1062 Status=Succeeded Rows=3 ElapsedMs=164.7359",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_sales_quality_ranking Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5 | Chat semantic route selected. Route=semantic_capability Capability=monthly_sales_quality_ranking ExtractedEntities=entity:بر,entity:اساس,entity:خالص,entity:رتبه,entity:بندی RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=monthly_sales_quality_ranking Status=NoData ReasonCode=supported_but_no_rows PayloadType=MonthlySalesQualityRankingResponse | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:monthly_sales_quality_ranking:NoData Definitive=True CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5",
+    "SemanticCapability": "monthly_sales_quality_ranking",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "Completed",
+      "CreditsCharged": 1,
+      "RemainingSpendingCapacity": 23.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": null,
+      "ModelName": null,
+      "PromptTokens": null,
+      "CompletionTokens": null,
+      "TotalTokens": null,
+      "EstimatedCost": null
+    },
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols= Products= RequestedMeasures=netProfit PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=None Presentation=RankedList",
+      "Feature141 statement shape classified. Shape=Ranking Diagnostic=none Operation=Rank Ranking=descending:netProfit: Constraints= RequestedFields= Filters=none CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5",
+      "Feature141 query completed. CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5 Fingerprint=fd12a1f34e800695b259a73c62a4c58474c9ed261f3ed868b668d0bcacef1062 Status=Succeeded Rows=3 ElapsedMs=164.7359"
+    ],
+    "ElapsedMs": 20276.7642,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=monthly_sales_quality_ranking Disposition=DeterministicFallback CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5",
+      "Chat semantic route selected. Route=semantic_capability Capability=monthly_sales_quality_ranking ExtractedEntities=entity:بر,entity:اساس,entity:خالص,entity:رتبه,entity:بندی RequestedMetrics=سود RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=monthly_sales_quality_ranking Status=NoData ReasonCode=supported_but_no_rows PayloadType=MonthlySalesQualityRankingResponse",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:monthly_sales_quality_ranking:NoData Definitive=True CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-chat-mvp-481f091e7db647d8b9b0fb1d900748f5 RolloutMode=Shadow LegacyCapability=monthly_sales_quality_ranking LegacyConfidence=0.9 SemanticIntent=monthly_sales_quality_ranking SemanticCapabilityCandidate=monthly_sales_quality_ranking SemanticConfidence=0.9 ExtractedCompany=بر ExtractedProduct=(null) ExtractedMetric=سود ExtractedPerio"
+    ]
+  }
+}

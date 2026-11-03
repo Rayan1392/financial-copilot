@@ -11,6 +11,19 @@
    metric persistence, idempotency, cross-provider coexistence, malformed payloads, and
    recalculation publication.
 
+## Period-scoped admin extension (2026-10)
+
+- [x] Preserve the existing generic `data-sync/financial-statements` route and request contract.
+- [x] Add `POST /api/v1/admin/data-sync/financial-statements/by-period` under DataAdmin auth.
+- [x] Resolve internal `Companies.Id` (`Guid`) and all-company selection through the existing
+  `NoavaranEligibleCompanies` view; use `ExternalCompanyId` only for provider requests.
+- [x] Validate Persian fiscal year and optional 3/6/9/12-month period.
+- [x] Carry exact year and period in the queued request and make bounded provider requests for
+  all four periods when period is null.
+- [x] Add endpoint authorization/validation and exact-scope provider tests; run focused tests and
+  regression suite. Focused tests pass; the full suites retain unrelated existing failures (see
+  `ImplementationReport.md`).
+
 ## Implementation Status
 
 Implemented.

@@ -1,0 +1,172 @@
+{
+  "id": "tbl_8d57c84f23ff86b6",
+  "physical": {
+    "Schema": "public",
+    "Name": "RadarProfiles",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "State",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "EventTypesJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "MinimumSeverity",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "MinimumImportance",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "Sensitivity",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeliveryMode",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ConcurrencyToken",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RemovedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastEvaluatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSourceFreshnessUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseOwner",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "FailureCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "NextAttemptAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastFailure",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_RadarProfiles_EvaluationDue",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_RadarProfiles_EvaluationDue\" ON public.\"RadarProfiles\" USING btree (\"State\", \"NextAttemptAtUtc\", \"LeaseExpiresAtUtc\")",
+        "Columns": [
+          "State",
+          "NextAttemptAtUtc",
+          "LeaseExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_RadarProfiles",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_RadarProfiles\" ON public.\"RadarProfiles\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_RadarProfiles_Actor",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_RadarProfiles_Actor\" ON public.\"RadarProfiles\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_RadarProfiles",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

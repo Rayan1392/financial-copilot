@@ -1,0 +1,154 @@
+{
+  "id": "tbl_4ccdd6de23bfb5aa",
+  "physical": {
+    "Schema": "public",
+    "Name": "NadpcoScheduledSyncRuns",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TriggerSource",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "StartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSuccessfulExecutionAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ProcessedBatches",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "FailedBatches",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RetryAttempts",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Diagnostics",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      },
+      {
+        "Name": "ScheduleSnapshotJson",
+        "Type": "character varying(4000)",
+        "Nullable": false
+      },
+      {
+        "Name": "DatasetSelectionJson",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "LockOwner",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "LockLeaseExpiresAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "AlertEmitted",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "ManualReason",
+        "Type": "character varying(500)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_NadpcoScheduledSyncRuns_CompletedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NadpcoScheduledSyncRuns_CompletedAt\" ON public.\"NadpcoScheduledSyncRuns\" USING btree (\"CompletedAt\")",
+        "Columns": [
+          "CompletedAt"
+        ]
+      },
+      {
+        "Name": "IX_NadpcoScheduledSyncRuns_LockLeaseExpiresAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NadpcoScheduledSyncRuns_LockLeaseExpiresAt\" ON public.\"NadpcoScheduledSyncRuns\" USING btree (\"LockLeaseExpiresAt\")",
+        "Columns": [
+          "LockLeaseExpiresAt"
+        ]
+      },
+      {
+        "Name": "IX_NadpcoScheduledSyncRuns_StartedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NadpcoScheduledSyncRuns_StartedAt\" ON public.\"NadpcoScheduledSyncRuns\" USING btree (\"StartedAt\")",
+        "Columns": [
+          "StartedAt"
+        ]
+      },
+      {
+        "Name": "IX_NadpcoScheduledSyncRuns_Status",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NadpcoScheduledSyncRuns_Status\" ON public.\"NadpcoScheduledSyncRuns\" USING btree (\"Status\")",
+        "Columns": [
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_NadpcoScheduledSyncRuns",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NadpcoScheduledSyncRuns\" ON public.\"NadpcoScheduledSyncRuns\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_NadpcoScheduledSyncRuns",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

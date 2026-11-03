@@ -1,0 +1,28 @@
+{
+  "id": "rel_501a243348893de7",
+  "from": {
+    "schema": "public",
+    "table": "auth_telegram_conversation_bindings",
+    "columns": [
+      "TenantId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "auth_tenants",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

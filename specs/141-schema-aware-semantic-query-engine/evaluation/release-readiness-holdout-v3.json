@@ -1,0 +1,517 @@
+{
+  "datasetVersion": "feature141-post-change-untouched-holdout-v3",
+  "split": "untouched-holdout-v3",
+  "createdBeforeInference": true,
+  "expectedIntentSource": "independent annotations copied from the pre-existing frozen semantic oracle by matching task algebra; no v3 model predictions have been inspected",
+  "caseCount": 10,
+  "cases": [
+    {
+      "id": "readiness-holdout-v3-01",
+      "question": "در گزارش مرداد ۱۴۰۵، کدام شرکت‌ها گندله تولید مثبت داشته‌اند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "readinessCategory": "periodic-product-discovery",
+      "split": "untouched-holdout-v3"
+    },
+    {
+      "id": "readiness-holdout-v3-02",
+      "question": "کدام شرکت‌های صنعت معدن در تازه‌ترین گزارش، گندله تولید کرده‌اند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "readinessCategory": "industry-product-discovery",
+      "split": "untouched-holdout-v3"
+    },
+    {
+      "id": "readiness-holdout-v3-03",
+      "question": "در آخرین گزارش ماهانه، کدام تولیدکنندگان گندله بیش از ۳۰ تن فروش داشته‌اند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "readinessCategory": "sales-threshold-population",
+      "split": "untouched-holdout-v3"
+    },
+    {
+      "id": "readiness-holdout-v3-04",
+      "question": "شرکت‌های تولیدکننده گندله را بر پایه مجموع تولید سه ماه اخیر از بیشترین به کمترین مرتب کن.",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "readinessCategory": "population-production-ranking",
+      "split": "untouched-holdout-v3"
+    },
+    {
+      "id": "readiness-holdout-v3-05",
+      "question": "در سه ماه اخیر کدام محصولات کگهر بیشترین رشد مقدار تولید ماهانه را داشته‌اند؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "provider and period type must be explicit or governed",
+        "retain source item mapping and unit"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "value": false,
+        "provenance": "business-owner-confirmed",
+        "fallback": "no consolidated substitution"
+      },
+      "completeness": "requires net-profit definition, company binding, statement period, provider and separate-scope policy",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "catalog semantics available; query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "split": "untouched-holdout-v3",
+      "readinessCategory": "product-ranking-growth"
+    },
+    {
+      "id": "readiness-holdout-v3-06",
+      "question": "تولید گندله کگل در شهریور ۱۴۰۵ نسبت به شهریور سال قبل چند درصد تغییر داشته است؟",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports → MonthlyReportLineItems by report identity (application association)"
+      ],
+      "providerPeriodPolicies": [
+        "provider output type and accepted revision",
+        "explicit comparison baseline required"
+      ],
+      "statementScope": null,
+      "completeness": "incomplete unless baseline period and reviewed product identity are available",
+      "existingCapability": "product analytics precedence",
+      "genericSupport": "growth formula and product-category scope require review",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-monthly-activity",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_growth_yoy"
+      ],
+      "readinessCategory": "year-over-year",
+      "split": "untouched-holdout-v3"
+    },
+    {
+      "id": "readiness-holdout-v3-07",
+      "question": "مبلغ فروش ریالی کگل را برای شش گزارش ماهانه آخر به ترتیب ماه نشان بده.",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "CompanyMonthlyActivityTrendSnapshots"
+      ],
+      "metrics": [
+        "MONTHLY_SALES"
+      ],
+      "dimensions": [
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped ExternalCompanyId resolver policy"
+      ],
+      "providerPeriodPolicies": [
+        "persisted governed trend snapshot",
+        "report month; completeness and provider provenance retained",
+        "sales amounts in million IRR; existing response converts where contract requires"
+      ],
+      "statementScope": null,
+      "completeness": "required company, monthly series and snapshot policy",
+      "existingCapability": "Feature 076/077/136 monthly trend route takes precedence",
+      "genericSupport": "specialized response is authoritative",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "domain-monthly-activity",
+        "table-tbl_4f3dd93b63d1766f"
+      ],
+      "metricIds": [
+        "metric_monthly_sales"
+      ],
+      "split": "untouched-holdout-v3",
+      "readinessCategory": "monthly-sales-time-series"
+    },
+    {
+      "id": "readiness-holdout-v3-08",
+      "question": "مبلغ فروش ریالی کگل در مرداد ۱۴۰۵ چقدر ثبت شده است؟",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "CompanyMonthlyActivityTrendSnapshots"
+      ],
+      "metrics": [
+        "MONTHLY_SALES"
+      ],
+      "dimensions": [
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped ExternalCompanyId resolver policy"
+      ],
+      "providerPeriodPolicies": [
+        "persisted governed trend snapshot",
+        "report month; completeness and provider provenance retained",
+        "sales amounts in million IRR; existing response converts where contract requires"
+      ],
+      "statementScope": null,
+      "completeness": "required company, monthly series and snapshot policy",
+      "existingCapability": "Feature 076/077/136 monthly trend route takes precedence",
+      "genericSupport": "specialized response is authoritative",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "domain-monthly-activity",
+        "table-tbl_4f3dd93b63d1766f"
+      ],
+      "metricIds": [
+        "metric_monthly_sales"
+      ],
+      "readinessCategory": "monthly-sales-amount",
+      "split": "untouched-holdout-v3"
+    },
+    {
+      "id": "readiness-holdout-v3-09",
+      "question": "وجه نقد پایان سال مالی ۱۴۰۴ کگهر چقدر گزارش شده است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_b7bcc0f92e19ac4f",
+          "sourceItemCatalogId": "c7fff58f-d0f7-4120-8e11-dc50ec890a93",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "BalanceSheet",
+          "sourceItemId": 1,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported cash-balance item 1; balance sheet and explicit year-end 1404",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگهر"
+      ],
+      "expectedPeriodPolicies": [
+        "explicit-period"
+      ],
+      "split": "untouched-holdout-v3",
+      "readinessCategory": "financial-statement-direct-value"
+    },
+    {
+      "id": "readiness-holdout-v3-10",
+      "question": "آیا رشد تولید و مقدار فروش کگهر در دوره اخیر یکسان بوده است؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "readinessCategory": "cross-measure-ambiguity",
+      "split": "untouched-holdout-v3"
+    }
+  ]
+}

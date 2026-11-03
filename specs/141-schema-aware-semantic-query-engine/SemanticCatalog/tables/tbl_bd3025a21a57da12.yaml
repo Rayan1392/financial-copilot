@@ -1,0 +1,136 @@
+{
+  "id": "tbl_bd3025a21a57da12",
+  "physical": {
+    "Schema": "public",
+    "Name": "FeatureSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FeatureCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "FeatureVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodStart",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEnd",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "Value",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Unit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ObservedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "WarningsJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "DependencyEvidenceJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "InputFingerprint",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FeatureSnapshots_ExternalCompanyId_FeatureCode_FeatureVersi~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FeatureSnapshots_ExternalCompanyId_FeatureCode_FeatureVersi~\" ON public.\"FeatureSnapshots\" USING btree (\"ExternalCompanyId\", \"FeatureCode\", \"FeatureVersion\", \"PolicyVersion\", \"PeriodEnd\", \"InputFingerprint\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "FeatureCode",
+          "FeatureVersion",
+          "PolicyVersion",
+          "PeriodEnd",
+          "InputFingerprint"
+        ]
+      },
+      {
+        "Name": "PK_FeatureSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FeatureSnapshots\" ON public.\"FeatureSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FeatureSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

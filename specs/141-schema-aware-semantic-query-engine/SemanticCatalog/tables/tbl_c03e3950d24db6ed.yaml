@@ -1,0 +1,114 @@
+{
+  "id": "tbl_c03e3950d24db6ed",
+  "physical": {
+    "Schema": "public",
+    "Name": "Markets",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalId",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_Markets_ProviderName_ExternalId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_Markets_ProviderName_ExternalId\" ON public.\"Markets\" USING btree (\"ProviderName\", \"ExternalId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalId"
+        ]
+      },
+      {
+        "Name": "PK_Markets",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_Markets\" ON public.\"Markets\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_Markets",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Provider-scoped market reference dimension.",
+    "descriptionFa": "بُعد مرجع بازار به تفکیک ارائه‌دهنده.",
+    "purpose": "Label a company’s market through Companies.MarketId.",
+    "grain": "One provider market row.",
+    "columns": {
+      "Id": "Canonical market UUID",
+      "ExternalId": "Provider market key",
+      "Name": "Market label",
+      "ProviderName": "Source namespace",
+      "LastSynchronizedAt": "Last catalog synchronization time"
+    },
+    "units": "Identifiers and labels; no financial units.",
+    "relationships": [
+      "Companies.MarketId -> Markets.Id (physical FK; nullable on company)"
+    ],
+    "metricReferences": [],
+    "providerPolicy": "Keep provider provenance for external identifiers.",
+    "periodSemantics": "Current reference state.",
+    "examples": [
+      "شرکت‌های بازار بورس را فهرست کن",
+      "List companies by market"
+    ],
+    "cautions": [
+      "Market labels can vary by provider; do not infer cross-provider equivalence from names alone."
+    ],
+    "sourceVerification": "EF Core mapping and live PostgreSQL FK.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

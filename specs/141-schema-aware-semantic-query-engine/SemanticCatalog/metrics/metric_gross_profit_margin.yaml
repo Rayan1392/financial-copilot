@@ -1,0 +1,94 @@
+{
+  "id": "metric_gross_profit_margin",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "GROSS_PROFIT_MARGIN"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Gross Profit Margin",
+    "Description": "Governed semantic definition for Gross Profit Margin.",
+    "Category": 0,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "gross profit margin",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "حاشیه سود ناخالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مارجین ناخالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مارجین سود ناخالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_MARGIN"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_MARGIN"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -1,4 +1,5 @@
 using FinancialCopilot.Infrastructure;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
@@ -72,14 +73,10 @@ builder.Services
         "Telegram membership revalidation settings must be positive.")
     .ValidateOnStart();
 builder.Services
-    .AddOptions<TelegramDevPollingOptions>()
-    .BindConfiguration(TelegramDevPollingOptions.SectionName);
-builder.Services
     .AddOptions<StockMarketDbPollingOptions>()
     .BindConfiguration(StockMarketDbPollingOptions.SectionName);
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<TelegramMembershipRevalidationWorker>();
-builder.Services.AddHostedService<TelegramDevPollingWorker>();
 builder.Services.AddHostedService<NotificationDispatchWorker>();
 builder.Services.AddHostedService<AlertHistoryHandoffWorker>();
 builder.Services
@@ -111,6 +108,7 @@ builder.Services
     .BindConfiguration(ComprehensiveAnalysisBlogOptions.SectionName);
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
+builder.Services.AddHostedService<MonthlyActivityBackfillOutboxWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<ConditionalTrackerEvaluationWorker>();
@@ -123,8 +121,10 @@ builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
-builder.Services.AddHostedService<ComprehensiveAnalysisDailySyncWorker>();
-builder.Services.AddHostedService<CyclicalWavesPsVisualizationSyncWorker>();
+// Feature 148 retired the legacy CyclicalWaves integration: ComprehensiveAnalysisDailySyncWorker,
+// CyclicalWavesDataAcquisitionWorker and IndustryRelativeValuationCalculationWorker are no longer hosted
+// (their classes stay for history). CyclicalWaves v2 synchronization replaces them.
+builder.Services.AddHostedService<CyclicalWavesV2SyncWorker>();
 
 var host = builder.Build();
 host.Run();

@@ -77,6 +77,9 @@ internal sealed class ScannerToolAdapter(
             await cache.SetResultAsync(cacheScope, dataVersion, executionRequest, table, cancellationToken);
         }
 
+        if (table.Issue is { } issue)
+            return ScannerToolResult.Clarification(issue.Message);
+
         return ScannerToolResult.Success(parseResult.Plan, table, table.ExecutionFacts.FromCache);
     }
 }

@@ -11,6 +11,7 @@ using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Periods;
 using FinancialCopilot.Domain.Financial.ProfessionalScanners;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Scanner;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -147,11 +148,17 @@ public sealed class ProfessionalScannerUseCases(
         ProfessionalAccessMode accessMode, CancellationToken cancellationToken)
     {
         var metricCodes = definition.Conditions.Select(item => item.MetricCode).ToArray();
-        var evidence = await dbContext.DerivedMetrics.AsNoTracking()
+        // Feature 148 C1/C1-M: legacy and mixed CyclicalWaves-derived rows never count as available or fresh evidence.
+        var candidates = await dbContext.DerivedMetrics.AsNoTracking()
             .Where(row => metricCodes.Contains(row.MetricCode) && row.PeriodEnd <= toDate)
+            .Select(row => new { row.MetricCode, row.ObservedAt, row.SourceEvidenceJson, row.DependencyEvidenceJson, row.CalculationPolicyVersion })
+            .ToArrayAsync(cancellationToken);
+        var evidence = candidates
+            .Where(row => !LegacyCyclicalWavesDerivedMetricFilter.IsExcluded(
+                row.SourceEvidenceJson, row.DependencyEvidenceJson, row.CalculationPolicyVersion))
             .GroupBy(row => row.MetricCode)
             .Select(group => new { Metric = group.Key, Count = group.Count(), Freshness = group.Max(row => row.ObservedAt) })
-            .ToArrayAsync(cancellationToken);
+            .ToArray();
         var messages = metricCodes.Where(code => evidence.All(item => item.Metric != code))
             .Select(code => $"Required dataset DerivedMetrics/{code} is unavailable.").ToList();
         if (messages.Count > 0)

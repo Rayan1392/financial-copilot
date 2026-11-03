@@ -12,6 +12,14 @@
 10. Replace the context panel's market-wide top-movers list with the user's
     followed-symbol/watchlist quote list, with vertical scrolling after six visible symbols.
 
+11. Add a sidebar refresh icon next to the AI-credit label that refetches `GET /api/v1/usage/me`,
+    with in-flight disabled/spinner state and an accessible label.
+
+12. Extend `GET /api/v1/usage/me` with nullable `planCode`, `planName`, `planIncludedCredits` via
+    `ISubscriptionPlanRepository`, with an integration test.
+13. Add a pure, unit-tested credit-progress helper (percentage clamp, colour thresholds, unknown-plan
+    handling) and use it in the sidebar card (`X از Y` label, plan-relative bar, semantic colours).
+
 ## Implementation Status
 
 Completed on 2026-06-02. The sidebar and context panel now use backend-owned usage,
@@ -23,3 +31,9 @@ It displays the actor's followed-symbol watchlist with enriched latest price/cha
 `GET /api/v1/watchlists/me` prefers current `FollowedSymbols` rows when present and falls
 back to legacy `WatchlistSymbols` rows for backward compatibility. The context-panel
 watchlist list is vertically scrollable after six visible symbols.
+
+2026-10-07 update: the sidebar AI-credit card gained a manual refresh icon that refetches
+`/api/v1/usage/me` so `availableSpendingCapacity` can be refreshed on demand (task 11).
+
+2026-10-07 update: the sidebar credit bar is plan-relative (tasks 12-13); plan limits come from the
+Billing plan catalog, not frontend constants.

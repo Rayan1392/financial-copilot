@@ -1,0 +1,97 @@
+{
+  "id": "tbl_e395e693366c3bb8",
+  "physical": {
+    "Schema": "public",
+    "Name": "MemoryAuditEvents",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SubjectId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MemoryId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "Action",
+        "Type": "character varying(30)",
+        "Nullable": false
+      },
+      {
+        "Name": "Purpose",
+        "Type": "character varying(50)",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(100)",
+        "Nullable": true
+      },
+      {
+        "Name": "OccurredAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "text",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MemoryAuditEvents_TenantId_SubjectId_OccurredAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MemoryAuditEvents_TenantId_SubjectId_OccurredAt\" ON public.\"MemoryAuditEvents\" USING btree (\"TenantId\", \"SubjectId\", \"OccurredAt\")",
+        "Columns": [
+          "TenantId",
+          "SubjectId",
+          "OccurredAt"
+        ]
+      },
+      {
+        "Name": "PK_MemoryAuditEvents",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MemoryAuditEvents\" ON public.\"MemoryAuditEvents\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MemoryAuditEvents",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

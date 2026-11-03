@@ -1,0 +1,102 @@
+{
+  "id": "tbl_09b39938f37dc464",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_role_permissions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "RoleId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PermissionId",
+        "Type": "uuid",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "RoleId",
+      "PermissionId"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "PermissionId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_permissions",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"PermissionId\") REFERENCES auth_permissions(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "RoleId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_roles",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"RoleId\") REFERENCES auth_roles(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_role_permissions_PermissionId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_role_permissions_PermissionId\" ON public.auth_role_permissions USING btree (\"PermissionId\")",
+        "Columns": [
+          "PermissionId"
+        ]
+      },
+      {
+        "Name": "PK_auth_role_permissions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_role_permissions\" ON public.auth_role_permissions USING btree (\"RoleId\", \"PermissionId\")",
+        "Columns": [
+          "RoleId",
+          "PermissionId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_role_permissions_auth_permissions_PermissionId",
+        "Type": "f",
+        "Columns": [
+          "PermissionId"
+        ],
+        "Definition": "FOREIGN KEY (\"PermissionId\") REFERENCES auth_permissions(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_auth_role_permissions_auth_roles_RoleId",
+        "Type": "f",
+        "Columns": [
+          "RoleId"
+        ],
+        "Definition": "FOREIGN KEY (\"RoleId\") REFERENCES auth_roles(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_role_permissions",
+        "Type": "p",
+        "Columns": [
+          "RoleId",
+          "PermissionId"
+        ],
+        "Definition": "PRIMARY KEY (\"RoleId\", \"PermissionId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

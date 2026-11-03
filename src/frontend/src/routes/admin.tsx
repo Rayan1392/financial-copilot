@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AdminPage } from "@/components/admin/admin-page";
+import { ChatHeader } from "@/components/app/chat-header";
 import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
 import { getAuthenticatedUser, type AuthUser } from "@/integrations/financial-copilot/auth";
 import { useEffect, useState } from "react";
@@ -64,5 +65,10 @@ function AdminRoute() {
     );
   }
 
-  return <AdminPage user={state.user} />;
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-background">
+      <ChatHeader />
+      <AdminPage user={state.user} />
+    </div>
+  );
 }

@@ -84,13 +84,49 @@ export type AdminNadpcoScheduledSyncStatusResponse = {
 };
 
 export type AdminMonthlyActivityBackfillProgressResponse = {
-  isRunning: boolean;
-  isComplete: boolean;
-  lastMonth: string | null;
-  completedMonths: number;
-  failedMonths: number;
-  pendingMonths: number;
-  monthRows: { shamsiMonth: string; status: string; completedAt: string | null; errorMessage: string | null }[];
+  started: boolean;
+  isCompleted: boolean;
+  status: string;
+  completedAt: string | null;
+  lastStartedAt: string | null;
+  requestedBy: string | null;
+  months: {
+    shamsiYear: number;
+    shamsiMonth: number;
+    companiesPlanned: number;
+    companiesCompleted: number;
+    companiesNoDataYet: number;
+    companiesFailed: number;
+    status: string;
+  }[];
+  outputTypeCounts: Record<string, number> | null;
+};
+
+export type AdminMonthlyActivityBackfillStartResponse = {
+  batchId: string | null;
+  outcome: string;
+  monthsPlanned: number;
+  companiesPlanned: number;
+  requestsEnqueued: number;
+  progress: AdminMonthlyActivityBackfillProgressResponse;
+};
+
+export type AdminMonthlyActivityBackfillBatchResponse = {
+  batchId: string;
+  status: string;
+  requestedBy: string;
+  createdAt: string;
+  publishingStartedAt: string | null;
+  publishedAt: string | null;
+  completedAt: string | null;
+  targetShamsiYear: number | null;
+  targetShamsiMonth: number | null;
+  plannedCount: number;
+  publishedCount: number;
+  processedCount: number;
+  failedCount: number;
+  retryableCount: number;
+  lastError: string | null;
 };
 
 export type AdminFundamentalIndexCatchUpRunResponse = {
@@ -128,7 +164,10 @@ async function archiveAction(
 ): Promise<AdminArchiveImportRunResponse> {
   return financialCopilotApi<AdminArchiveImportRunResponse>(
     `/api/v1/admin/noavaran-archive/${action}`,
-    { method: "POST", body: JSON.stringify({ datasets: datasets ?? null, reason: reason ?? null }) },
+    {
+      method: "POST",
+      body: JSON.stringify({ datasets: datasets ?? null, reason: reason ?? null }),
+    },
   );
 }
 
@@ -144,7 +183,9 @@ export const runArchiveFreeze = (datasets?: string[], reason?: string) =>
   archiveAction("freeze", datasets, reason);
 
 export const getArchiveFreezeState = () =>
-  financialCopilotApi<AdminArchiveFreezeStateResponse>("/api/v1/admin/noavaran-archive/freeze-state");
+  financialCopilotApi<AdminArchiveFreezeStateResponse>(
+    "/api/v1/admin/noavaran-archive/freeze-state",
+  );
 
 export const getArchiveRuns = (limit = 20) =>
   financialCopilotApi<AdminArchiveImportRunResponse[]>(
@@ -152,7 +193,9 @@ export const getArchiveRuns = (limit = 20) =>
   );
 
 export const getArchiveCoverage = () =>
-  financialCopilotApi<AdminArchiveImportValidationResponse>("/api/v1/admin/noavaran-archive/coverage");
+  financialCopilotApi<AdminArchiveImportValidationResponse>(
+    "/api/v1/admin/noavaran-archive/coverage",
+  );
 
 // --------------------------------------------------------------------------
 // Spec 055 — Noavaran Current API functions
@@ -171,7 +214,9 @@ export const runNadpcoFullSync = () =>
   financialCopilotApi<{ runId: string }>("/api/v1/admin/nadpcoapi/full-sync", { method: "POST" });
 
 export const runNadpcoIncrementalSync = () =>
-  financialCopilotApi<{ runId: string }>("/api/v1/admin/nadpcoapi/incremental-sync", { method: "POST" });
+  financialCopilotApi<{ runId: string }>("/api/v1/admin/nadpcoapi/incremental-sync", {
+    method: "POST",
+  });
 
 export const runNadpcoScheduledSync = (reason?: string) =>
   financialCopilotApi<AdminNadpcoScheduledSyncRunResponse>(
@@ -190,13 +235,26 @@ export const getNadpcoScheduledSyncRuns = (limit = 20) =>
   );
 
 export const startMonthlyActivityBackfill = () =>
-  financialCopilotApi<{ started: boolean }>("/api/v1/admin/noavaran-current/monthly-backfill", {
-    method: "POST",
-  });
+  financialCopilotApi<AdminMonthlyActivityBackfillStartResponse>(
+    "/api/v1/admin/noavaran-current/monthly-backfill",
+    {
+      method: "POST",
+    },
+  );
 
 export const getMonthlyActivityBackfillProgress = () =>
   financialCopilotApi<AdminMonthlyActivityBackfillProgressResponse>(
     "/api/v1/admin/noavaran-current/monthly-backfill",
+  );
+
+export const getMonthlyActivityBackfillBatches = (limit = 20) =>
+  financialCopilotApi<AdminMonthlyActivityBackfillBatchResponse[]>(
+    `/api/v1/admin/noavaran-current/monthly-backfill/batches?limit=${limit}`,
+  );
+
+export const getMonthlyActivityBackfillBatch = (batchId: string) =>
+  financialCopilotApi<AdminMonthlyActivityBackfillBatchResponse>(
+    `/api/v1/admin/noavaran-current/monthly-backfill/batches/${batchId}`,
   );
 
 export const runFundamentalIndexCatchUp = (fromShamsiYear = 1403, toShamsiYear = 1405) =>
@@ -215,13 +273,116 @@ export const getFundamentalIndexCatchUpRuns = (limit = 20) =>
 // --------------------------------------------------------------------------
 
 export const getStockMarketSyncState = () =>
-  financialCopilotApi<AdminStockMarketSyncStateResponse[]>("/api/v1/admin/stockmarketdb/sync-state");
+  financialCopilotApi<AdminStockMarketSyncStateResponse[]>(
+    "/api/v1/admin/stockmarketdb/sync-state",
+  );
 
 export const runStockMarketSync = (dataset: string, fullReload = false) =>
   financialCopilotApi<{ rowsRead: number; rowsPersisted: number }>(
     `/api/v1/admin/stockmarketdb/${dataset}/sync?fullReload=${fullReload}`,
     { method: "POST" },
   );
+
+// --------------------------------------------------------------------------
+// Feature 148 — CyclicalWaves v2 (independent financial data provider)
+// --------------------------------------------------------------------------
+
+export type CyclicalWavesV2RunStatus =
+  | "Requested"
+  | "Running"
+  | "Succeeded"
+  | "CompletedWithErrors"
+  | "Failed"
+  | "SkippedAlreadyRunning";
+
+export type CyclicalWavesV2AnalysisMode = "incremental" | "full";
+
+export type CyclicalWavesV2RunCounts = {
+  total: number;
+  processed: number;
+  updated: number;
+  unchanged: number;
+  failed: number;
+};
+
+export type CyclicalWavesV2Run = {
+  runId: string;
+  scope: string;
+  ticker: string | null;
+  analysisMode: string | null;
+  trigger: string;
+  status: CyclicalWavesV2RunStatus | string;
+  requestedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  counts: CyclicalWavesV2RunCounts;
+  errorSummary: string | null;
+  requestedBy: string | null;
+};
+
+export type CyclicalWavesV2InlineRunResponse = {
+  runId: string | null;
+  status: CyclicalWavesV2RunStatus | string;
+  counts: CyclicalWavesV2RunCounts;
+  errorSummary: string | null;
+};
+
+export type CyclicalWavesV2QueuedRunResponse = {
+  runId: string;
+  status: "Requested" | string;
+};
+
+export type CyclicalWavesV2StatusResponse = {
+  ingestionEnabled: boolean;
+  dailySyncEnabled: boolean;
+  dailySyncCronUtc: string;
+  nextScheduledRunUtc: string | null;
+  credentialsConfigured: boolean;
+  chatProvider: string;
+  activeRun: CyclicalWavesV2Run | null;
+  lastSuccessByScope: { scope: string; completedAt: string }[];
+  recentRuns: CyclicalWavesV2Run[];
+};
+
+const CYCLICAL_WAVES_V2_BASE = "/api/v1/admin/cyclicalwaves-v2";
+
+export const getCyclicalWavesV2Status = (recent = 10) =>
+  financialCopilotApi<CyclicalWavesV2StatusResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/status?recent=${recent}`,
+  );
+
+export const runCyclicalWavesV2CatalogSync = () =>
+  financialCopilotApi<CyclicalWavesV2InlineRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/catalog/sync`, {
+    method: "POST",
+  });
+
+export const runCyclicalWavesV2TickerSync = (ticker: string) =>
+  financialCopilotApi<CyclicalWavesV2InlineRunResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/tickers/${encodeURIComponent(ticker.trim())}/sync`,
+    { method: "POST" },
+  );
+
+export const queueCyclicalWavesV2ScreenerSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/screener/sync`, {
+    method: "POST",
+  });
+
+export const queueCyclicalWavesV2IncomeStatementsSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/income-statements/sync`,
+    { method: "POST" },
+  );
+
+export const queueCyclicalWavesV2AnalysisSync = (mode: CyclicalWavesV2AnalysisMode) =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/analysis/sync?mode=${mode}`,
+    { method: "POST" },
+  );
+
+export const queueCyclicalWavesV2FullSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/sync`, {
+    method: "POST",
+  });
 
 // --------------------------------------------------------------------------
 // Spec 058 — live data sync monitor types
@@ -285,9 +446,7 @@ export function openDataSyncActivityStream(
 
   async function connect() {
     const token = await getAccessToken();
-    const fullUrl = token
-      ? `${url}?_token=${encodeURIComponent(token)}`
-      : url.toString();
+    const fullUrl = token ? `${url}?_token=${encodeURIComponent(token)}` : url.toString();
 
     es = new EventSource(fullUrl, { withCredentials: true });
 
@@ -295,28 +454,36 @@ export function openDataSyncActivityStream(
       try {
         const snapshot: DataSyncActivitySnapshot = JSON.parse((e as MessageEvent).data);
         onEvent({ kind: "Snapshot", snapshot });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
     });
 
     es.addEventListener("update", (e) => {
       try {
         const updatedItems: DataSyncActivityItem[] = JSON.parse((e as MessageEvent).data);
         onEvent({ kind: "Update", updatedItems });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
     });
 
     es.addEventListener("heartbeat", (e) => {
       try {
         const heartbeatAt: string = JSON.parse((e as MessageEvent).data);
         onEvent({ kind: "Heartbeat", heartbeatAt });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
     });
 
     es.addEventListener("close", (e) => {
       try {
         const closeReason: string = JSON.parse((e as MessageEvent).data) ?? "Server closed.";
         onEvent({ kind: "Close", closeReason });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
       es?.close();
     });
 
@@ -327,7 +494,10 @@ export function openDataSyncActivityStream(
 
   connect();
 
-  const cleanup = () => { es?.close(); es = null; };
+  const cleanup = () => {
+    es?.close();
+    es = null;
+  };
   signal.addEventListener("abort", cleanup);
   return cleanup;
 }

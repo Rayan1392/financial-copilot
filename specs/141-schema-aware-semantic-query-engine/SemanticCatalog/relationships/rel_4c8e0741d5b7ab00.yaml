@@ -1,0 +1,28 @@
+{
+  "id": "rel_4c8e0741d5b7ab00",
+  "from": {
+    "schema": "public",
+    "table": "Industries",
+    "columns": [
+      "ParentId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "Industries",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"ParentId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "rel_fc1307ed186a246e",
+  "from": {
+    "schema": "public",
+    "table": "UserAlertDeliveryTimeline",
+    "columns": [
+      "NotificationIntentId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "NotificationIntents",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

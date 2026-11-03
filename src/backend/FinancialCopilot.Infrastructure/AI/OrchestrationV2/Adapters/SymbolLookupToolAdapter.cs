@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Scanner;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
@@ -8,7 +9,8 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 internal sealed class SymbolLookupToolAdapter(
     ISymbolLookupParser parser,
     ISymbolMetricLookupService lookupService,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IChatCapabilityAvailability capabilityAvailability)
 {
     private static readonly string[] ConversationHistoryMarkers =
     [
@@ -71,6 +73,18 @@ internal sealed class SymbolLookupToolAdapter(
                 p.ResolvedMetricCode!,
                 p.PeriodSelector))
             .ToList();
+
+        if (capabilityAvailability.Provider == FinancialDataChatProvider.CyclicalWaves &&
+            lookupPairs.Any(pair => pair.MetricCode.Value == "MONTHLY_PRODUCTION_QUANTITY" &&
+                                    !string.IsNullOrWhiteSpace(pair.SymbolName)))
+        {
+            var persian = ContainsPersianText(latestUserMessage);
+            return SymbolLookupToolResult.Unsupported(
+                ChatCapabilityAvailability.UnavailableForProviderReasonCode,
+                ChatCapabilityAvailability.MessageForReasonCode(
+                    ChatCapabilityAvailability.UnavailableForProviderReasonCode, persian) ??
+                ChatCapabilityAvailability.UnavailableForProviderMessageEn);
+        }
 
         var lookupRequest = new SymbolLookupRequest(
             lookupPairs,
@@ -341,11 +355,14 @@ internal sealed record SymbolLookupToolResult
     public bool Succeeded { get; init; }
     public bool ClarificationRequired { get; init; }
     public string? ClarificationMessage { get; init; }
+    public string? UnsupportedMessage { get; init; }
     public SymbolLookupTableResult? Table { get; init; }
     public string CompletionStatus { get; init; } = "Completed";
 
     public string AgentSummary => ClarificationRequired
         ? $"Clarification needed: {ClarificationMessage}"
+        : UnsupportedMessage is not null
+            ? UnsupportedMessage
         : $"Found metric data for {Table?.ExecutionFacts.MatchingSymbolCount ?? 0} symbol(s)." +
           $"{(Table?.UnresolvedSymbols.Count > 0 ? $" {Table.UnresolvedSymbols.Count} unresolved." : string.Empty)}";
 
@@ -359,5 +376,13 @@ internal sealed record SymbolLookupToolResult
             ClarificationRequired = true,
             ClarificationMessage = message,
             CompletionStatus = "ClarificationRequired"
+        };
+
+    public static SymbolLookupToolResult Unsupported(string reasonCode, string message) =>
+        new()
+        {
+            Succeeded = false,
+            UnsupportedMessage = message,
+            CompletionStatus = reasonCode
         };
 }

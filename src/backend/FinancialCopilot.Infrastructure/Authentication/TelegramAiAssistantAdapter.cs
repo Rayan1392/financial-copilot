@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
@@ -152,7 +153,9 @@ public sealed class TelegramAiAssistantAdapter(
                 ExternalUserId: $"telegram:{update.TelegramUserId.ToString(CultureInfo.InvariantCulture)}",
                 DisclosurePageSize: 8,
                 ActorType: actor.ActorType,
-                AuthenticationMode: actor.AuthenticationMode),
+                AuthenticationMode: actor.AuthenticationMode,
+                OriginalUserMessage: text,
+                BillingOperationId: BuildBillingOperationId(update)),
             cancellationToken);
 
         await TouchConversationBindingAsync(update, actor, response.ConversationId, cancellationToken);
@@ -185,25 +188,13 @@ public sealed class TelegramAiAssistantAdapter(
                 """
                 دستیار مالی Financial Copilot آماده است.
 
-                سؤال خود را درباره نمادها، فیلتر سهام، نسبت‌های مالی یا تحلیل‌های منتشرشده ارسال کنید.
+                سؤال خود را به زبان طبیعی درباره نمادها بپرسید. برای مثال:
 
-                فرمان‌ها:
-                /credits وضعیت اعتبار و سهمیه تلگرام
-                /followed لینک واچ‌لیست در وب‌اپ
-                /market لینک نمای بازار در وب‌اپ
-                /scanners - professional filter catalog
-                /scanner FILTER_CODE key=value - run a filter
-                /save_scanner name | FILTER_CODE | key=value - save a filter
-                /saved_scanners - saved filters
-                /report - latest published market report
-                /digest - generate your evidence-bound followed-symbol digest
-                /notifications - notification mode, quiet hours, severity, categories, symbols and daily cap
-                /alerts - alert history and explanations
-                /alert ALERT_ID - alert detail
-                /plans - Telegram subscription and credit products
-                /buy PRODUCT_CODE - create a manual receipt checkout
-                /receipt CHECKOUT_ID VERSION Image|Document RECEIPT_REFERENCE - submit receipt metadata
-                /checkout CHECKOUT_ID - view checkout status
+                • روند فروش ماهانه کگهر را نشان بده
+                • روند تولید و فروش شگویا را در ۱۲ ماه اخیر بررسی کن
+                • شگویا را با گروه خودش مقایسه کن
+                • ترکیب فروش محصولات شغدیر را نشان بده
+                • نسبت‌های مالی فولاد را بگو
                 """),
             "/credits" => BuildCreditsResult(
                 actor,
@@ -1456,7 +1447,9 @@ public sealed class TelegramAiAssistantAdapter(
             ScannerPage: salesGrowth ? page : 1,
             ScannerPageSize: salesGrowth ? 20 : 20,
             ActorType: actor.ActorType,
-            AuthenticationMode: actor.AuthenticationMode), cancellationToken);
+            AuthenticationMode: actor.AuthenticationMode,
+            OriginalUserMessage: state.OriginalQuery,
+            BillingOperationId: BuildBillingOperationId(update)), cancellationToken);
         await TouchConversationBindingAsync(update, actor, response.ConversationId, cancellationToken);
         activity?.SetTag("disclosure.callback.outcome", "success");
         activity?.SetTag("correlation_id", update.CorrelationId);
@@ -1846,6 +1839,13 @@ public sealed class TelegramAiAssistantAdapter(
         string.IsNullOrWhiteSpace(update.CallbackQueryId)
             ? $"message:{update.TelegramUpdateId.ToString(CultureInfo.InvariantCulture)}"
             : $"callback:{update.TelegramUpdateId.ToString(CultureInfo.InvariantCulture)}:{update.CallbackQueryId.Trim()}";
+
+    private static Guid BuildBillingOperationId(TelegramAssistantUpdate update)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"financial-copilot:telegram:{BuildIdempotencyKey(update)}"));
+        return new Guid(hash.AsSpan(0, 16));
+    }
 
     private static int MessageThreadKey(TelegramAssistantUpdate update) =>
         update.MessageThreadId ?? 0;

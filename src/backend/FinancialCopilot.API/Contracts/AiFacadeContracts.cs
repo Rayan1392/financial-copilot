@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 
 namespace FinancialCopilot.API.Contracts;
 
@@ -10,7 +11,8 @@ public sealed record AiQueryHttpRequest(
     int ScannerPageSize = 20,
     int DisclosurePage = 1,
     AiQueryContextHttpRequest? Context = null,
-    string? SuggestedActionId = null);
+    string? SuggestedActionId = null,
+    Guid? IdempotencyKey = null);
 
 public sealed record CapabilityStarterPromptHttpResponse(
     string CapabilityCode,
@@ -55,7 +57,83 @@ public sealed record AiQueryHttpResponse(
     bool LanguageGuardApplied = false,
     IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
-    int? SemanticRegistryVersion = null);
+    int? SemanticRegistryVersion = null,
+    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null);
+
+public sealed record MonthlyProductTrendHttpResponse(
+    string ResultDiscriminator,
+    int ResultVersion,
+    string ResolutionState,
+    string CompanyText,
+    string? ExternalCompanyId,
+    string? CompanyName,
+    string? CompanySymbol,
+    string? ProductKey,
+    string? ProviderProductCode,
+    long? ProviderProductId,
+    string? ProductTitle,
+    string? ProductUnit,
+    IReadOnlyList<MonthlyProductTrendHttpPoint> Points,
+    IReadOnlyList<MonthlyProductTrendHttpCandidate> Candidates,
+    IReadOnlyCollection<MonthlyProductComparisonHttpEvidence> Evidence,
+    string? BlockingReason = null,
+    string? Message = null);
+
+public sealed record MonthlyProductTrendHttpPoint(
+    string Period,
+    string FiscalLabel,
+    string ProductKey,
+    string ProductTitle,
+    string? ProductUnit,
+    decimal? ProductionQuantity,
+    decimal? SaleQuantity,
+    decimal? SalesValueMillionRial,
+    decimal? SalesValueBillionToman,
+    decimal? CalculatedSaleRateToman,
+    string RateStatus,
+    bool IsGap);
+
+public sealed record MonthlyProductTrendHttpCandidate(
+    string DisplayTitle,
+    string? Unit,
+    string ProductKey,
+    string? ProviderProductCode,
+    long? ProviderProductId);
+
+public sealed record MonthlyProductComparisonHttpResponse(
+    string State,
+    string CompanyText,
+    string? ExternalCompanyId,
+    string? CurrentPeriod,
+    string? ComparisonPeriod,
+    decimal? CurrentTotalSales,
+    decimal? ComparisonTotalSales,
+    decimal? SalesChange,
+    decimal? SalesChangePercent,
+    string? PrimaryDriver,
+    IReadOnlyList<MonthlyProductComparisonHttpItem> Products,
+    IReadOnlyCollection<string> Warnings,
+    IReadOnlyCollection<MonthlyProductComparisonHttpEvidence> Evidence,
+    string? BlockingReason = null,
+    string? ClarificationMessage = null);
+
+public sealed record MonthlyProductComparisonHttpItem(
+    string Title,
+    string? Unit,
+    string Lifecycle,
+    decimal? CurrentSales,
+    decimal? ComparisonSales,
+    decimal? SalesChange,
+    decimal? ContributionPercent,
+    decimal? QuantityEffect,
+    decimal? PriceEffect,
+    decimal? Residual,
+    string Driver,
+    IReadOnlyCollection<string> Warnings);
+
+public sealed record MonthlyProductComparisonHttpEvidence(Guid ReportId, Guid RowId, string ProviderName, string ExternalReportId, string Period);
 
 public sealed record SuggestedActionHttpResponse(
     string Id,
@@ -263,7 +341,10 @@ public sealed record AssistantMessageContentResponse(
     bool LanguageGuardApplied = false,
     IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
-    int? SemanticRegistryVersion = null);
+    int? SemanticRegistryVersion = null,
+    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,
@@ -328,11 +409,12 @@ public sealed record FinancialStatementSourceReferenceResponse(
     bool IsComposing);
 
 public sealed record FinancialStatementTableHttpResponse(
-    FinancialStatementTableSourceHttpResponse Source,
+    FinancialStatementTableSourceHttpResponse? Source,
     IReadOnlyList<FinancialStatementTableLineItemHttpResponse> LineItems,
     IReadOnlyList<BalanceSheetTableRowHttpResponse> BalanceSheetRows,
     IReadOnlyList<string> Warnings,
-    DateTimeOffset GeneratedAtUtc);
+    DateTimeOffset GeneratedAtUtc,
+    QuarterlyFinancialReportTableResult? QuarterlyResult = null);
 
 public sealed record FinancialStatementTableSourceHttpResponse(
     Guid StatementId,

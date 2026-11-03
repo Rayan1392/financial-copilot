@@ -9,7 +9,12 @@ public sealed record UsageSummaryResponse(
     DateTimeOffset WalletUpdatedAt,
     DateTimeOffset PeriodFrom,
     DateTimeOffset PeriodTo,
-    IReadOnlyCollection<UsageEntryResponse> Entries);
+    IReadOnlyCollection<UsageEntryResponse> Entries,
+    string? PlanCode = null,
+    string? PlanName = null,
+    decimal? PlanIncludedCredits = null,
+    string CreditQuotaMode = "Finite",
+    DateTimeOffset? SubscriptionExpiresAtUtc = null);
 
 public sealed record UsageEntryResponse(
     string OperationCode,
@@ -26,4 +31,7 @@ public sealed record UsageEntryResponse(
     int? TotalTokens = null,
     decimal? EstimatedCost = null,
     string? AllocationSource = null,
-    string? AllowanceDateKey = null);
+    string? AllowanceDateKey = null,
+    string CreditQuotaMode = "Finite",
+    Guid? SourceSubscriptionId = null,
+    DateTimeOffset? SubscriptionExpiresAtUtc = null);

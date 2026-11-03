@@ -1,0 +1,88 @@
+{
+  "id": "tbl_3d3fb84c7736c89d",
+  "physical": {
+    "Schema": "public",
+    "Name": "Conversations",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "StartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "MessageCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Title",
+        "Type": "character varying(160)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_Conversations_TenantId_ActorId_UpdatedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Conversations_TenantId_ActorId_UpdatedAt\" ON public.\"Conversations\" USING btree (\"TenantId\", \"ActorId\", \"UpdatedAt\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "UpdatedAt"
+        ]
+      },
+      {
+        "Name": "PK_Conversations",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_Conversations\" ON public.\"Conversations\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_Conversations",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

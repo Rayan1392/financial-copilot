@@ -19,7 +19,9 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<RolePermissionRow> RolePermissions => Set<RolePermissionRow>();
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
     public DbSet<UserTenantRow> UserTenants => Set<UserTenantRow>();
+    public DbSet<UserOperationalMetadataRow> UserOperationalMetadata => Set<UserOperationalMetadataRow>();
     public DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
+    public DbSet<AuthEmailActionTokenRow> AuthEmailActionTokens => Set<AuthEmailActionTokenRow>();
     public DbSet<SecurityAdminAuditRow> SecurityAdminAudits => Set<SecurityAdminAuditRow>();
     public DbSet<TelegramAccountLinkRow> TelegramAccountLinks => Set<TelegramAccountLinkRow>();
     public DbSet<TelegramLinkTokenRow> TelegramLinkTokens => Set<TelegramLinkTokenRow>();
@@ -28,12 +30,16 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<TelegramMembershipRevalidationRow> TelegramMembershipRevalidations => Set<TelegramMembershipRevalidationRow>();
     public DbSet<TelegramConversationBindingRow> TelegramConversationBindings => Set<TelegramConversationBindingRow>();
     public DbSet<TelegramProcessedUpdateRow> TelegramProcessedUpdates => Set<TelegramProcessedUpdateRow>();
+    public DbSet<TahlilAppExternalIdentityRow> TahlilAppExternalIdentities => Set<TahlilAppExternalIdentityRow>();
+    public DbSet<TahlilAppLaunchAttemptRow> TahlilAppLaunchAttempts => Set<TahlilAppLaunchAttemptRow>();
+    public DbSet<UserProfileRow> UserProfiles => Set<UserProfileRow>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
         builder.Entity<FinancialCopilotUser>().ToTable("auth_users");
+        builder.Entity<FinancialCopilotUser>().HasIndex(user => new { user.IsEnabled, user.LockoutEnd, user.Id });
         builder.Entity<FinancialCopilotRole>().ToTable("auth_roles");
         builder.Entity<FinancialCopilotRole>().Property(role => role.IsEnabled).HasDefaultValue(true);
         builder.Entity<IdentityUserRole<Guid>>().ToTable("auth_user_roles");
@@ -66,8 +72,24 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         {
             entity.ToTable("auth_user_tenants");
             entity.HasKey(row => new { row.UserId, row.TenantId });
+            entity.HasIndex(row => new { row.TenantId, row.UserId });
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
             entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<UserOperationalMetadataRow>(entity =>
+        {
+            entity.ToTable("auth_user_operational_metadata", table =>
+                table.HasCheckConstraint(
+                    "CK_auth_user_operational_metadata_acquisition_source_code",
+                    "\"AcquisitionSourceCode\" IN ('native', 'tahlilapp', 'unknown')"));
+            entity.HasKey(row => row.UserId);
+            entity.HasIndex(row => new { row.RegisteredAtUtc, row.UserId }).IsDescending(true, false);
+            entity.HasIndex(row => new { row.AcquisitionSourceCode, row.RegisteredAtUtc, row.UserId }).IsDescending(false, true, false);
+            entity.HasIndex(row => new { row.LastSuccessfulLoginAtUtc, row.UserId });
+            entity.Property(row => row.AcquisitionSourceCode).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.LastLoginProviderCode).HasMaxLength(32);
+            entity.Property(row => row.ConcurrencyVersion).IsConcurrencyToken();
+            entity.HasOne<FinancialCopilotUser>().WithOne().HasForeignKey<UserOperationalMetadataRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<RefreshTokenRow>(entity =>
         {
@@ -77,6 +99,20 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.HasIndex(row => new { row.UserId, row.ExpiresAt });
             entity.Property(row => row.TokenHash).HasMaxLength(64).IsRequired();
             entity.Property(row => row.RevocationReason).HasMaxLength(250);
+            entity.Property(row => row.AuthenticationMethod).HasMaxLength(32);
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
+        });
+        builder.Entity<AuthEmailActionTokenRow>(entity =>
+        {
+            entity.ToTable("auth_email_action_tokens");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => row.TokenHash).IsUnique();
+            entity.HasIndex(row => new { row.EmailKeyHash, row.Purpose, row.CreatedAtUtc });
+            entity.HasIndex(row => new { row.UserId, row.Purpose, row.CreatedAtUtc });
+            entity.Property(row => row.Purpose).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.EmailKeyHash).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.PendingEmail).HasMaxLength(320);
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
         });
         builder.Entity<SecurityAdminAuditRow>(entity =>
@@ -99,6 +135,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         {
             entity.ToTable("auth_telegram_account_links");
             entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.TenantId, row.ActorId, row.RevokedAtUtc });
             entity.HasIndex(row => new { row.ActorId, row.TenantId })
                 .IsUnique()
                 .HasFilter("\"RevokedAtUtc\" IS NULL");
@@ -193,6 +230,48 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
             entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<TahlilAppExternalIdentityRow>(entity =>
+        {
+            entity.ToTable("auth_external_identities");
+            entity.HasKey(row => row.Id);
+            // Stable cross-system key (Design §10). Email, phone and national id are never keys.
+            entity.HasIndex(row => new { row.Provider, row.ExternalUserId }).IsUnique();
+            entity.HasIndex(row => new { row.Provider, row.LocalUserId }).IsUnique();
+            entity.HasIndex(row => new { row.TenantId, row.Provider, row.LocalUserId, row.Status });
+            entity.HasIndex(row => new { row.TenantId, row.Provider, row.ExternalUserId });
+            // Worker scan: due paid identities (Design §11 trigger 3).
+            entity.HasIndex(row => row.NextEntitlementSyncDueAtUtc);
+            entity.Property(row => row.Provider).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.ExternalUserId).HasMaxLength(128).IsRequired();
+            entity.Property(row => row.Status).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.LastSyncedPlanCode).HasMaxLength(32);
+            entity.Property(row => row.LeaseOwner).HasMaxLength(128);
+            entity.Property(row => row.LastSyncFailureCategory).HasMaxLength(64);
+            entity.Property(row => row.SyncAttemptCount).HasDefaultValue(0).IsRequired();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.LocalUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<TahlilAppLaunchAttemptRow>(entity =>
+        {
+            entity.ToTable("auth_tahlilapp_launch_attempts");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => row.CodeHash).IsUnique();
+            entity.HasIndex(row => row.CreatedAtUtc);
+            entity.Property(row => row.CodeHash).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.Outcome).HasMaxLength(32).IsRequired();
+        });
+        builder.Entity<UserProfileRow>(entity =>
+        {
+            entity.ToTable("auth_user_profiles");
+            entity.HasKey(row => row.UserId);
+            entity.Property(row => row.FirstName).HasMaxLength(100);
+            entity.Property(row => row.LastName).HasMaxLength(100);
+            entity.Property(row => row.DisplayName).HasMaxLength(100);
+            entity.Property(row => row.NationalIdLast4).HasMaxLength(4);
+            entity.Property(row => row.MobileLast4).HasMaxLength(4);
+            entity.HasOne<FinancialCopilotUser>().WithOne().HasForeignKey<UserProfileRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

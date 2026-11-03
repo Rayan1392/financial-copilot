@@ -1,0 +1,149 @@
+{
+  "id": "tbl_4dad576ed069c546",
+  "physical": {
+    "Schema": "public",
+    "Name": "ProviderSyncRuns",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Dataset",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalReference",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "Status",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "StartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ProcessedRecords",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ErrorCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ErrorMessage",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourcePayloadChecksum",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "LogicalVendor",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "PhysicalSource",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceDateRangeEndJalali",
+        "Type": "character varying(16)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceDateRangeStartJalali",
+        "Type": "character varying(16)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceMode",
+        "Type": "character varying(32)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_ProviderSyncRuns_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_ProviderSyncRuns_IdempotencyKey\" ON public.\"ProviderSyncRuns\" USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "IX_ProviderSyncRuns_LogicalVendor_PhysicalSource",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ProviderSyncRuns_LogicalVendor_PhysicalSource\" ON public.\"ProviderSyncRuns\" USING btree (\"LogicalVendor\", \"PhysicalSource\")",
+        "Columns": [
+          "LogicalVendor",
+          "PhysicalSource"
+        ]
+      },
+      {
+        "Name": "PK_ProviderSyncRuns",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ProviderSyncRuns\" ON public.\"ProviderSyncRuns\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_ProviderSyncRuns",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

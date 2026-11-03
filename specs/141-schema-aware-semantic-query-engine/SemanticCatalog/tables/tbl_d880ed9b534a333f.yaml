@@ -1,0 +1,118 @@
+{
+  "id": "tbl_d880ed9b534a333f",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioExtractionIssues",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SheetId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "Severity",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "IssueCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RawValue",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "Message",
+        "Type": "character varying(2000)",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioExtractionIssues_IssueCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioExtractionIssues_IssueCode\" ON public.\"FundPortfolioExtractionIssues\" USING btree (\"IssueCode\")",
+        "Columns": [
+          "IssueCode"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioExtractionIssues_ReportId_Severity",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioExtractionIssues_ReportId_Severity\" ON public.\"FundPortfolioExtractionIssues\" USING btree (\"ReportId\", \"Severity\")",
+        "Columns": [
+          "ReportId",
+          "Severity"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioExtractionIssues_Severity_IssueCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioExtractionIssues_Severity_IssueCode\" ON public.\"FundPortfolioExtractionIssues\" USING btree (\"Severity\", \"IssueCode\")",
+        "Columns": [
+          "Severity",
+          "IssueCode"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioExtractionIssues",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioExtractionIssues\" ON public.\"FundPortfolioExtractionIssues\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioExtractionIssues",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

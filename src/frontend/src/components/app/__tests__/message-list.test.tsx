@@ -14,6 +14,92 @@ function renderMessageList(ui: ReactElement) {
 }
 
 describe("MessageList", () => {
+  it("uses typed General financial rows for a fresh answer and its saved replay", () => {
+    const period = { fiscalYear: 1405, quarter: 1, start: "2026-03-21", end: "2026-06-21", label: "1405 Q1" };
+    const row = (rowId: string, sourceItemId: number | null, value: number) => ({
+      rowId, sourceItemId, order: 1, labelFa: rowId, policy: "CumulativeFlow", unit: "million_rial",
+      cells: { [period.label]: { value, state: "Available", unit: "million_rial", renderZeroAsDash: false } },
+    });
+    const quarterlyResult = {
+      templateId: "GeneralIncomeStatement", companySymbol: "TEST", status: "Available",
+      periodsNewestFirst: [period], comparisons: [],
+      rows: [row("source_15", 15, 100), row("source_139", 139, 40),
+        row("source_143", 143, 20), row("gross_margin", null, 40)],
+    };
+    const block: AssistantChatBlock = {
+      message: "Saved formatted table that lacks chart row metadata",
+      intent: "FinancialStatementTable", creditsUsed: 0, suggestedQuestions: [], suggestedActions: [],
+      filters: [], citations: [], financialStatementTableResult: { quarterlyResult },
+    };
+    const messages: ChatMessage[] = ["fresh", "replayed"].map((id) => ({
+      id, role: "assistant", content: block, created_at: "2026-10-24T00:00:00Z",
+    }));
+    const { container } = renderMessageList(<MessageList messages={messages} loading={false}
+      streaming={false} onSuggested={vi.fn()} />);
+    expect(container).not.toHaveTextContent(block.message);
+    expect(container.querySelectorAll("section > table")).toHaveLength(2);
+    expect(container).toHaveTextContent(new Intl.NumberFormat("fa-IR-u-nu-arabext").format(100));
+  });
+
+  it("renders the typed Feature 129 payload without recalculating or zeroing nulls", () => {
+    const comparison = {
+      state: "Partial",
+      companyText: "شغدیر",
+      currentPeriod: "1403/02",
+      comparisonPeriod: "1403/01",
+      currentTotalSales: 100,
+      comparisonTotalSales: 120,
+      salesChange: -20,
+      salesChangePercent: undefined,
+      products: Array.from({ length: 21 }, (_, index) => ({
+        title: index === 0 ? "محصول منفی" : `محصول ${index}`,
+        unit: "تن",
+        lifecycle: index === 1 ? "New" : index === 2 ? "Discontinued" : "Continuing",
+        currentSales: index === 0 ? -20 : 1,
+        comparisonSales: 1,
+        salesChange: index === 0 ? -20 : 0,
+        driver: "Mixed",
+        warnings: [],
+      })).concat([{ title: "zero-sales-product", unit: "ton", lifecycle: "Continuing", currentSales: 0, comparisonSales: 0, salesChange: 0, driver: "Unclassified", warnings: [] }]),
+      warnings: ["UnitChanged"],
+      evidence: [{ reportId: "r1", rowId: "l1", providerName: "test", externalReportId: "e1", period: "1403/02" }],
+    } satisfies NonNullable<AssistantChatBlock["monthlyProductComparisonResult"]>;
+
+    const block: AssistantChatBlock = {
+      message: "typed comparison",
+      intent: "MonthlyProductComparison",
+      replyLanguage: "fa",
+      creditsUsed: 0,
+      suggestedQuestions: [],
+      suggestedActions: [],
+      filters: [],
+      citations: [],
+      monthlyProductComparisonResult: comparison,
+    };
+
+    const { container } = renderMessageList(<MessageList
+      messages={[{ id: "comparison", role: "assistant", content: block, created_at: "2026-08-31T00:00:00Z" }]}
+      loading={false}
+      streaming={false}
+      onSuggested={vi.fn()}
+    />);
+
+    expect(container.querySelector("[dir='rtl']")).not.toBeNull();
+    expect(container).toHaveTextContent("شغدیر");
+    expect(container).toHaveTextContent("−۲۰");
+    expect(container).toHaveTextContent("—٪");
+    expect(container).toHaveTextContent("UnitChanged");
+    expect(container).toHaveTextContent("منبع: نوآوران امین");
+    expect(container).not.toHaveTextContent("test");
+    expect(container).not.toHaveTextContent("typed comparison");
+    expect(container).not.toHaveTextContent("چرخه");
+    expect(container).not.toHaveTextContent("محرک");
+    expect(container).not.toHaveTextContent("zero-sales-product");
+    expect(screen.getByRole("columnheader", { name: "فروش اردیبهشت ۱۴۰۳" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "فروش فروردین ۱۴۰۳" })).toBeInTheDocument();
+    expect(container).not.toHaveTextContent("محصول 20");
+  });
+
   it("uses reply language to right-align a Persian assistant answer that starts in English", () => {
     const assistantBlock: AssistantChatBlock = {
       message: "Found metric data for 0 symbol(s). 1 unresolved.\n\nتحلیل بنیادی فولاژ",
@@ -36,6 +122,7 @@ describe("MessageList", () => {
     expect(content).not.toBeNull();
     expect(content?.className).toContain("text-right");
     expect(container.querySelector("[dir='rtl'] .text-right")).not.toBeNull();
+    expect(screen.getByText("AI").parentElement?.getAttribute("dir")).toBe("rtl");
   });
 
   it("renders persisted suggested actions and submits the visible message once", () => {

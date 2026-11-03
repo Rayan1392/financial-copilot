@@ -1,0 +1,448 @@
+{
+  "reportVersion": "feature141-live-evaluation-v1",
+  "generatedAt": "2026-10-08",
+  "phaseStatus": "PARTIAL ? PROVIDER MISMATCH FIXED; FULL QUALITY EVALUATION BLOCKED",
+  "summary": "Configuration mismatch fixed: the evaluator now resolves Development settings like the API, including Development User Secrets. The old evaluator attempt used a different OPENAI_API_KEY environment credential and received hosted_provider_quota_exceeded. The corrected evaluator completed a real structured navigation smoke with OpenAI gpt-5.6-luna at api.openai.com. The full 21-case run then stopped at fa-02 because the provider truncated the navigation response at the existing 700-output-token cap. A dedicated fa-value-01 smoke stopped before inference because its compact catalog outline exceeded the configured character budget. No full-dataset score is available.",
+  "catalog": {
+    "catalogVersion": "1",
+    "canonicalSourcePackageSha256": "b7ce865504f0b2b78321cd15a17f64b3b11bebb2ea8182bd8709bdc9e71935f4",
+    "navigationHierarchySha256": "8b2af27988bc735dd448dfcfde345cfde40eb15a4ae1c0a50fcf4fd3ffde9496",
+    "manifestAndIndexValidation": "passed",
+    "runtimeIntegrityValidation": "passed",
+    "catalogIndexChanges": [
+      "tables",
+      "relationships",
+      "dictionaries",
+      "policies synchronized to existing package files"
+    ],
+    "liveAttemptIdentity": {
+      "canonicalSourcePackageSha256": "15a0643c24e5c441aca32c88f26ae0cc7328740bcced8551f676c539ec0c1155",
+      "navigationHierarchySha256": "9184d1678d6ec9f3f38589bf04623dac364ea81fc4576d4cbb8630b5855599e7",
+      "integrityValidation": "passed before the attempted first provider request"
+    },
+    "finalValidatedIdentity": {
+      "canonicalSourcePackageSha256": "b7ce865504f0b2b78321cd15a17f64b3b11bebb2ea8182bd8709bdc9e71935f4",
+      "navigationHierarchySha256": "8b2af27988bc735dd448dfcfde345cfde40eb15a4ae1c0a50fcf4fd3ffde9496",
+      "integrityValidation": "passed after the package-index repair and deterministic hierarchy rebuild"
+    }
+  },
+  "datasets": {
+    "baseline": {
+      "fixture": "navigation-golden-v1.yaml",
+      "datasetVersion": 1,
+      "caseCount": 21,
+      "sha256": "27c90d524ca623dcba8b4fd71c1d50bd24d93fab0511a978dbf4cae5cda979a7"
+    },
+    "heldOut": {
+      "fixture": "navigation-heldout-v1.yaml",
+      "caseCount": 3,
+      "uniqueCaseCount": 0,
+      "overlapsBaseline": true,
+      "evaluationStatus": "not_scored_provider_quota"
+    }
+  },
+  "provider": {
+    "apiEffectiveEnvironment": "Development",
+    "evaluatorEffectiveEnvironment": "Development",
+    "provider": "OpenAI",
+    "model": "gpt-5.6-luna",
+    "endpointHost": "api.openai.com",
+    "apiCredentialSource": "Development User Secrets",
+    "evaluatorCredentialSource": "Development User Secrets",
+    "credentialValuesPrintedOrPersisted": false,
+    "priorQuotaFailureCredentialSource": "Manually injected OPENAI_API_KEY environment variable; compared in memory and found different from API Development User Secret",
+    "rootCauseAssessment": "Verified first material mismatch was evaluator credential resolution. The previous evaluator used a different credential than the API. With API-equivalent configuration, live OpenAI requests succeeded; no quota response recurred.",
+    "providerRouting": "Existing provider-neutral IAiModelExecutionService and OpenAI adapter; configured hosted endpoint; no direct client or model fallback."
+  },
+  "execution": {
+    "smokeDataset": "navigation-smoke-fa-01-v1.json",
+    "smokeCaseId": "fa-01",
+    "smokeStatus": "real_structured_prediction_written_and_scored; catalog IDs validated; completeness Unsupported because catalog nodes are not approved/queryable",
+    "smokeModelCalls": 2,
+    "smokeInputTokens": 10662,
+    "smokeOutputTokens": 1081,
+    "smokeModelLatencyMs": 13257,
+    "smokeWallLatencyMs": 14098,
+    "smokeProviderReportedCost": null,
+    "smokeProviderReportedCurrency": null,
+    "financialSmokeCaseId": "fa-value-01",
+    "financialSmokeStatus": "blocked_before_inference_catalog_outline_budget_exceeded",
+    "fullDataset": "navigation-golden-v1.yaml",
+    "fullDatasetCaseCount": 21,
+    "fullRunCasesAttempted": 2,
+    "fullRunSuccessfulPredictionRows": 1,
+    "fullRunSuccessfulHttpRequests": 3,
+    "fullRunTruncatedHttpRequests": 1,
+    "fullRunFailureCaseId": "fa-02",
+    "fullRunFailureCode": "structured_output_truncated",
+    "fullRunFailurePhase": "schema_navigation",
+    "fullRunFailureOutputCapTokens": 700,
+    "fullRunScoredCaseCount": 0,
+    "fullDatasetScoreStatus": "not_available_incomplete_run",
+    "allLiveHttpRequestsThisTurn": 7,
+    "databaseQueriesExecuted": 0,
+    "genericQueryExecutionActivated": false,
+    "maximumLogicalCallsPerCase": 3,
+    "maximumLogicalCallsFullBaseline": 63,
+    "maximumConfiguredInputTokensFullBaseline": 1134000,
+    "maximumConfiguredOutputTokensFullBaseline": 44100
+  },
+  "metrics": {
+    "smokeReport": "scored-smoke-live-2026-10-08.json",
+    "smokeScoredCaseCount": 1,
+    "smokeNodeRecall": 0.75,
+    "smokeMetricRecall": 1.0,
+    "smokeDomainAccuracy": 0.0,
+    "fullGoldenScoredCaseCount": 0,
+    "fullGoldenQualityStatus": "not_measured_incomplete_run",
+    "providerReportedCost": null,
+    "p50LatencyMs": null,
+    "p95LatencyMs": null
+  },
+  "validation": {
+    "navigatorBuild": "passed",
+    "EvaluationConfigurationLoaderTests_and_SchemaNavigatorTests": "12 passed, 0 failed",
+    "OpenAiAdapterQuotaErrorNoRetry": "1 passed, 0 failed",
+    "canonicalCatalogAndHierarchyHashValidation": "passed",
+    "rootHelpAndVersionSideEffects": "passed; generated artifact hashes unchanged",
+    "fullGoldenEvaluation": "attempted; stopped at fa-02 structured_output_truncated",
+    "reportDoesNotExposeCredentials": true
+  },
+  "unresolvedItems": [
+    "Live quality metrics are unavailable until the configured OpenAI project has available quota/billing.",
+    "The separate held-out fixture contains three pre-marked cases also present in the baseline; it is a reporting split, not an independent unseen sample.",
+    "The source-item references in the golden set establish navigation identity only; no numeric observations were read or asserted.",
+    "Semantic discovery does not authorize query execution; all generated catalog entries remain non-queryable under current governance."
+  ],
+  "cases": [
+    {
+      "caseId": "fa-01",
+      "question": "کدام شرکت‌ها گندله تولید می‌کنند؟",
+      "evaluationStatus": "structured_prediction_written_smoke_scored; full-run prediction also written",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": "Unsupported",
+      "failureClassification": null
+    },
+    {
+      "caseId": "fa-02",
+      "question": "کدام محصولات کگل رشد تولید داشته‌اند؟",
+      "evaluationStatus": "provider_response_truncated_during_schema_navigation",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "structured_output_truncated"
+    },
+    {
+      "caseId": "fa-03",
+      "question": "روند فروش کگل را نمایش بده.",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-04",
+      "question": "سود خالص فولاد چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-05",
+      "question": "سود خالص تلفیقی فولاد چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-06",
+      "question": "مقایسه سود خالص اصلی و تلفیقی فولاد",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-07",
+      "question": "کدام شرکت‌های صنعت فلزات اساسی بیشترین رشد فروش را داشته‌اند؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-08",
+      "question": "نسبت P/E شرکت‌های یک صنعت را مقایسه کن.",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-09",
+      "question": "قیمت پایانی کگل در ماه گذشته",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-10",
+      "question": "روند شاخص کل در شش ماه گذشته",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-11-heldout",
+      "question": "فروش ماهانه شرکت‌های هر صنعت را بر اساس رشد سالانه رتبه‌بندی کن.",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-12-heldout",
+      "question": "تولید و مبلغ فروش محصولات هر شرکت را برای دو ماه متوالی مقایسه کن.",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-13-heldout-unsupported",
+      "question": "شاخص بنیادی نوآوران را مستقیماً از پایگاه داده جستجو کن.",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": null,
+      "expectedFinancialValueOperation": null,
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-01",
+      "question": "آخرین سود عملیاتی هر سهم کگل چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_682beceadddc1458",
+          "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 161,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-02",
+      "question": "آخرین سود عملیاتی کگل چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_9c617846fc7c5c13",
+          "sourceItemCatalogId": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 140,
+          "metricCode": "OPERATING_PROFIT",
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-03",
+      "question": "سود خالص هر سهم کگل چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_bb4b63de3c1ecfe9",
+          "sourceItemCatalogId": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 160,
+          "metricCode": "EPS",
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-04",
+      "question": "موجودی نقد کگهر در پایان سال ۱۴۰۴ چقدر بود؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_b7bcc0f92e19ac4f",
+          "sourceItemCatalogId": "c7fff58f-d0f7-4120-8e11-dc50ec890a93",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "BalanceSheet",
+          "sourceItemId": 1,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-05",
+      "question": "هزینه استهلاک فولاد در آخرین صورت سود و زیان چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_c3c0540b9de8f519",
+          "sourceItemCatalogId": "693cafce-bf83-4b39-9816-cfba9ddf4c3d",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 8,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-06",
+      "question": "سود خالص تلفیقی فولاد در آخرین گزارش چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_66fdf1090cbf96d3",
+          "sourceItemCatalogId": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 143,
+          "metricCode": "NET_PROFIT",
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-07",
+      "question": "رشد سود عملیاتی کگل نسبت به سال قبل چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "ApprovedPeriodComparison",
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_9c617846fc7c5c13",
+          "sourceItemCatalogId": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 140,
+          "metricCode": "OPERATING_PROFIT",
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    },
+    {
+      "caseId": "fa-value-08",
+      "question": "حاشیه سود خالص کگهر چقدر است؟",
+      "evaluationStatus": "not_started_after_fa-02_failure",
+      "expectedOutcome": "unsupported",
+      "expectedFinancialValueOperation": "UnsupportedDerivedFinancialMetric",
+      "expectedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "predictedFinancialValueReferences": null,
+      "completenessStatus": null,
+      "failureClassification": "not_evaluated"
+    }
+  ]
+}

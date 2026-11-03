@@ -1,3 +1,5 @@
+> DEPRECATED / SUPERSEDED by Feature 148 (2026-10-31): legacy CyclicalWaves endpoints are retired at runtime; stored data retained.
+
 # Tasks — ComprehensiveAnalysisSync
 **Feature Name:** `ComprehensiveAnalysisSync`
 **Epic:** دریافت و ذخیره‌سازی تحلیل‌های جامع بازار سرمایه

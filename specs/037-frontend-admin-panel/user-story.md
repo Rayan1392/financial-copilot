@@ -43,6 +43,10 @@ As a billing administrator, I want to inspect customer subscriptions and usage-l
 change subscriptions, and apply justified idempotent credit adjustments so support operations
 use Billing-owned workflows rather than direct wallet edits.
 
+The plan table shows only the canonical `Free`, `Plus`, and `Pro` subscriptions. An authorized
+administrator can edit each plan's included-credit allowance from the table. Saving publishes
+the audited server-side policy change; it does not directly edit a customer's wallet balance.
+
 ### Audit Visibility
 
 As an auditor, I want to inspect security and Billing administration audit records with
@@ -76,6 +80,8 @@ correlation identifiers so sensitive changes can be investigated from the admin 
 6. Billing screens support plan reads, plan publication, capability reads and publication,
    customer subscription reads and updates, usage-ledger reads, and credit adjustments when
    authorized.
+   The plan list contains exactly `Free`, `Plus`, and `Pro`, and actors with
+   `admin.plans.manage` can edit and save each plan's non-negative included-credit allowance.
 7. Credit adjustments require amount, reason, and a generated or user-visible idempotency key.
    The UI never exposes direct wallet-balance editing.
 8. Sensitive mutations require confirmation and collect a reason whenever the backend

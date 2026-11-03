@@ -1,0 +1,206 @@
+{
+  "id": "tbl_45c7c30ce87b0cf0",
+  "physical": {
+    "Schema": "public",
+    "Name": "TradingInstruments",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalInstrumentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "InstrumentCode",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "InstrumentIsin",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Symbol",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "MarketCode",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "InstrumentKind",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedCompanyId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "IsActive",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceChangedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "NormalizedCompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"NormalizedCompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_TradingInstruments_NormalizedCompanyId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_TradingInstruments_NormalizedCompanyId\" ON public.\"TradingInstruments\" USING btree (\"NormalizedCompanyId\")",
+        "Columns": [
+          "NormalizedCompanyId"
+        ]
+      },
+      {
+        "Name": "IX_TradingInstruments_ProviderName_ExternalInstrumentId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_TradingInstruments_ProviderName_ExternalInstrumentId\" ON public.\"TradingInstruments\" USING btree (\"ProviderName\", \"ExternalInstrumentId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalInstrumentId"
+        ]
+      },
+      {
+        "Name": "IX_TradingInstruments_ProviderName_InstrumentCode",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_TradingInstruments_ProviderName_InstrumentCode\" ON public.\"TradingInstruments\" USING btree (\"ProviderName\", \"InstrumentCode\")",
+        "Columns": [
+          "ProviderName",
+          "InstrumentCode"
+        ]
+      },
+      {
+        "Name": "PK_TradingInstruments",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_TradingInstruments\" ON public.\"TradingInstruments\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_TradingInstruments_Companies_NormalizedCompanyId",
+        "Type": "f",
+        "Columns": [
+          "NormalizedCompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"NormalizedCompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "PK_TradingInstruments",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "TSETMC-derived reference dimension for securities and instrument identities used by normalized trade and index observations; identity is separate from Companies.",
+    "descriptionFa": "بُعد مرجع ابزارهای معاملاتی برگرفته از TSETMC برای هویت ابزارهای به‌کاررفته در داده‌های معامله و شاخص؛ هویت آن از شرکت جداست.",
+    "purpose": "Resolve TSETMC instrument identifiers for market observations and optionally link an instrument to a canonical Companies.Id when the application mapping resolves it.",
+    "grain": "One provider + ExternalInstrumentId row; ProviderName + ExternalInstrumentId and ProviderName + InstrumentCode are unique in PostgreSQL.",
+    "columns": {
+      "Id": "Internal Financial Copilot instrument UUID; referenced by market observations",
+      "ProviderName": "Instrument-source namespace (current direct feed uses TsetmcWebService)",
+      "ExternalInstrumentId": "Deterministic UUID derived by the current TSETMC adapter from source InsCode; not the Companies UUID and not the source ISIN",
+      "InstrumentCode": "TSETMC InsCode stored as bigint; source instrument key",
+      "InstrumentIsin": "TSETMC InstrumentID (ISIN-like source identifier), kept separately from InsCode",
+      "Symbol/Name": "Source ticker/company-name labels; descriptive, not cross-provider identity keys",
+      "MarketCode/InstrumentKind": "TSETMC source classifications; code dictionaries are not included in this catalog",
+      "NormalizedCompanyId": "Nullable FK to Companies.Id (canonical company UUID)",
+      "IsActive": "Source Valid flag",
+      "SourceChangedAt/LastSynchronizedAt": "Current TSETMC adapter sets both to its synchronization time; they are not preserved vendor change timestamps"
+    },
+    "units": "Identifiers and labels, not financial measures. Market values and prices are stored on linked observations; their numeric PostgreSQL types do not encode display unit or scaling.",
+    "relationships": [
+      "NormalizedCompanyId -> Companies.Id is an optional physical FK with ON DELETE SET NULL; this is not an ExternalCompanyId join.",
+      "IntradayTradeSnapshots.TradingInstrumentId -> TradingInstruments.Id is a required physical FK.",
+      "DailyInstrumentTrades.TradingInstrumentId -> TradingInstruments.Id is a required physical FK.",
+      "IntradayIndexSnapshots.TradingInstrumentId -> TradingInstruments.Id is a required physical FK.",
+      "DailyIndexSnapshots.TradingInstrumentId -> TradingInstruments.Id is a required physical FK."
+    ],
+    "metricReferences": [
+      "Supports instrument identity for existing quote, daily-trade, and index observation paths; it does not establish company-level metric semantics."
+    ],
+    "providerPolicy": "Product-owner-confirmed historical lineage: TSETMC -> direct TSETMC ingestion / historical migration -> Financial Copilot TradingInstruments. Current code also registers TsetmcDirectFeedSyncService; TsetmcPollingWorker schedules instrument sync at end of day when its worker flag and adapter operational settings are enabled. StockMarketDbSyncService currently reads its instrument dataset but deliberately does not write TradingInstruments. ProviderName must be retained.",
+    "periodSemantics": "Mutable reference state; the current TSETMC adapter sets SourceChangedAt and LastSynchronizedAt to the synchronization timestamp, not a vendor change timestamp. Scheduled refresh is end-of-day when worker and adapter settings enable it; these fields do not prove every instrument was refreshed. Market snapshots carry their own exchange date/time and source receipt/observation time.",
+    "examples": [
+      "نمایش سابقه قیمت یک ابزار معاملاتی با شناسه ابزار",
+      "Show trade or index history for a known TradingInstrumentId"
+    ],
+    "cautions": [
+      "InsCode is not a database column: it maps to InstrumentCode; InstrumentId (ISIN-like) maps to InstrumentIsin; ExternalInstrumentId is a deterministic adapter GUID derived from InsCode.",
+      "The current company linker matches InsCode text to Companies.InstrumentCode, chooses the most recently synchronized match then Id, and does not filter Companies.ProviderName. InstrumentCode has no unique constraint on Companies; preserve this as a possible ambiguous/cross-provider mapping and do not replace it with ticker/name matching.",
+      "Market ingestion can create minimal instrument stub rows for unknown InsCode values; labels/type/ISIN and company link may remain incomplete until an instruments refresh.",
+      "Configured TSETMC instrument flows are documented as equity/ETF/rights; no reviewed InstrumentKind dictionary proves a full security/index taxonomy. Index observations still reference this dimension but index classification must use verified source mappings.",
+      "No source conversion is applied by the current normalizers; observation numeric scales must be checked against each provider/source mapping. Do not infer completeness from the most recent timestamp."
+    ],
+    "sourceVerification": "Live read-only PostgreSQL pg_catalog snapshot and EF Core model; TsetmcDirectFeedSyncService, TsetmcPollingWorker, StockMarketDbSyncService, and provider DTO mappings; historical lineage confirmed by product owner.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

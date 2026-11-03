@@ -1,0 +1,145 @@
+{
+  "id": "tbl_866420bcd18b5e3e",
+  "physical": {
+    "Schema": "public",
+    "Name": "SavedFilters",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "character varying(100)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedName",
+        "Type": "character varying(100)",
+        "Nullable": false
+      },
+      {
+        "Name": "FilterCode",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "FilterVersion",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ParametersJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ConcurrencyToken",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RemovedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_SavedFilters_Actor_State_Updated",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_SavedFilters_Actor_State_Updated\" ON public.\"SavedFilters\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"RemovedAtUtc\", \"UpdatedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "RemovedAtUtc",
+          "UpdatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_SavedFilters_CatalogReference",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_SavedFilters_CatalogReference\" ON public.\"SavedFilters\" USING btree (\"FilterCode\", \"FilterVersion\", \"RemovedAtUtc\")",
+        "Columns": [
+          "FilterCode",
+          "FilterVersion",
+          "RemovedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_SavedFilters",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_SavedFilters\" ON public.\"SavedFilters\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_SavedFilters_Actor_Name_Active",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_SavedFilters_Actor_Name_Active\" ON public.\"SavedFilters\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"NormalizedName\") WHERE (\"RemovedAtUtc\" IS NULL)",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "NormalizedName"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_SavedFilters",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

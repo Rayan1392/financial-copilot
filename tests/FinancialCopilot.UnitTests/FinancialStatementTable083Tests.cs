@@ -77,6 +77,53 @@ public sealed class FinancialStatementTable083Tests
     }
 
     [Fact]
+    public async Task QuarterlyRepository_ResolvesNewEpsItemsByProviderSourceIdentityNotSurrogateCatalogId()
+    {
+        await using var db = CreateDb();
+        var statementId = Guid.NewGuid();
+        SeedStatement(db, statementId, "NoavaranCurrentApi", FinancialStatementType.IncomeStatement, "ThreeMonths", false);
+        var shareCatalogId = Guid.NewGuid();
+        var profitCatalogId = Guid.NewGuid();
+        db.FinancialStatementSourceItems.AddRange(
+            new FinancialStatementSourceItemCatalogRow
+            {
+                Id = shareCatalogId, ProviderName = "NoavaranCurrentApi", StatementType = "IncomeStatement",
+                SourceItemId = 153, TitleFa = "تعداد سهام شرکت - به هزار سهم", Unit = "N/A",
+                LastSynchronizedAt = DateTimeOffset.UtcNow
+            },
+            new FinancialStatementSourceItemCatalogRow
+            {
+                Id = profitCatalogId, ProviderName = "NoavaranCurrentApi", StatementType = "IncomeStatement",
+                SourceItemId = 144, TitleFa = "سود خالص قابل انتساب", Unit = "N/A",
+                LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+        db.FinancialStatementLineItems.AddRange(
+            new NormalizedFinancialStatementLineItemRow
+            {
+                Id = Guid.NewGuid(), FinancialStatementId = statementId, SourceItemCatalogId = shareCatalogId, Value = 10_000_000m
+            },
+            new NormalizedFinancialStatementLineItemRow
+            {
+                Id = Guid.NewGuid(), FinancialStatementId = statementId, SourceItemCatalogId = profitCatalogId, Value = 1_000_000m
+            });
+        await db.SaveChangesAsync();
+
+        var repository = new EfCoreFinancialStatementTableRepository(
+            db, Options.Create(new NadpcoApiProviderOptions { ProviderName = "NoavaranCurrentApi" }));
+        var reports = await repository.GetQuarterlyIncomeStatementReportsAsync(
+            new QuarterlyFinancialReportSelection("30", 1, new DateOnly(2026, 6, 30)));
+
+        var report = Assert.Single(reports);
+        var shares = Assert.Single(report.Items, item => item.SourceItemId == 153);
+        var profit = Assert.Single(report.Items, item => item.SourceItemId == 144);
+        Assert.Equal(shareCatalogId, shares.CatalogId);
+        Assert.Equal(profitCatalogId, profit.CatalogId);
+        Assert.Equal("N/A", shares.Unit);
+        Assert.Equal(10_000_000m, shares.Value);
+        Assert.Equal(1_000_000m, profit.Value);
+    }
+
+    [Fact]
     public async Task Repository_UsesPersianFallbackTitlesForLegacyMetricOnlyLineItems()
     {
         await using var db = CreateDb();

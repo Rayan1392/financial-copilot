@@ -1,0 +1,209 @@
+{
+  "caseId": "financial-statement-operating-profit-per-share",
+  "question": "\u0633\u0648\u062F \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC \u0647\u0631 \u0633\u0647\u0645 \u06A9\u06AF\u0647\u0631 \u0686\u0642\u062F\u0631 \u0627\u0633\u062A\u061F",
+  "executionMode": "captured-navigation-plus-isolated-postgresql-fixture",
+  "catalogVersion": "1",
+  "catalogHash": "91bd31549418bdbd870b878079efa2808f9122d02cb7725aab5d4bab8595d1a2",
+  "companyBinding": {
+    "Status": 0,
+    "CompanyId": "ce936877-146d-4fdd-83d7-72ec18c3c751",
+    "CandidateCompanyIds": [
+      "ce936877-146d-4fdd-83d7-72ec18c3c751"
+    ],
+    "IdentityProvenance": "exact_ticker",
+    "DiagnosticCode": null
+  },
+  "plan": {
+    "ContractVersion": 1,
+    "CatalogVersion": "1",
+    "CatalogHash": "91bd31549418bdbd870b878079efa2808f9122d02cb7725aab5d4bab8595d1a2",
+    "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+    "Entities": [
+      {
+        "EntityKind": "Company",
+        "UserReference": "\u06A9\u06AF\u0647\u0631",
+        "ResolvedEntityId": "ce936877-146d-4fdd-83d7-72ec18c3c751",
+        "ResolvedEntityKey": null,
+        "IdentityProvenance": "exact_ticker",
+        "IdentityVerified": true
+      }
+    ],
+    "Sources": [
+      {
+        "ReferenceType": 1,
+        "CatalogId": "source_item_682beceadddc1458",
+        "SourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+        "ProviderName": "NoavaranCurrentApi",
+        "StatementType": "IncomeStatement",
+        "SourceItemId": 161,
+        "MetricCode": null,
+        "Unit": "IRRPerShare",
+        "UnitStatus": "unknown",
+        "IdentityStatus": "verified-persisted-source-key",
+        "SemanticReviewStatus": "approved",
+        "Queryable": true
+      }
+    ],
+    "RelationshipIds": [
+      "rel_2588cf95d01a651a",
+      "rel_cd8a77a2717ac71f",
+      "rel_e4fa0fe989156533"
+    ],
+    "Projection": [
+      {
+        "CatalogId": "source_item_682beceadddc1458",
+        "Role": 0
+      }
+    ],
+    "Filters": [],
+    "Period": {
+      "Policies": [
+        "latest"
+      ],
+      "ComparisonScopes": [],
+      "SelectLatestByReportingPeriod": true,
+      "UseSynchronizationTimestampForRecency": false,
+      "ReportingPeriodStart": null,
+      "ReportingPeriodEnd": null,
+      "MaximumPeriods": null
+    },
+    "Statement": {
+      "Scopes": [
+        "standalone"
+      ],
+      "Providers": [
+        "NoavaranCurrentApi"
+      ],
+      "StatementTypes": [
+        "IncomeStatement"
+      ],
+      "SelectionKeys": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "PreferComposing": false,
+      "PreservePeriodType": true,
+      "PreserveAuditState": true,
+      "PreserveRestatementState": true,
+      "PreserveRevisionIdentity": true,
+      "RequireUnambiguousSelection": true
+    },
+    "Aggregations": [],
+    "Sort": [],
+    "Pagination": {
+      "Offset": 0,
+      "Limit": 1
+    },
+    "Presentation": 0,
+    "FinancialOperation": {
+      "Operation": 0,
+      "Kind": 0,
+      "ComparisonMode": 0,
+      "ValueDefinitionCatalogIds": [],
+      "FormulaAuthorized": false
+    },
+    "RetrievalComplete": true,
+    "SemanticReviewApproved": true,
+    "QueryAuthorized": true,
+    "ExecutionEligible": true,
+    "Diagnostics": [
+      "offline_plan_execution_disabled"
+    ],
+    "ReviewedProductEquivalence": null,
+    "CompanyPopulationId": null,
+    "CompanyPopulationApprovalReference": null,
+    "ProductConcept": null,
+    "CompanyDiscoveryScope": null,
+    "PopulationCoveragePolicyId": null,
+    "PopulationSalesScope": null
+  },
+  "sqlExecuted": "WITH latest_period AS (\n  SELECT MAX(st_latest.\u0022PeriodEnd\u0022) AS \u0022PeriodEnd\u0022\n  FROM \u0022public\u0022.\u0022FinancialStatements\u0022 st_latest\n  WHERE st_latest.\u0022CompanyId\u0022 = @company_id\n    AND st_latest.\u0022ProviderName\u0022 = @provider_name\n    AND st_latest.\u0022StatementType\u0022 = @statement_type\n    AND st_latest.\u0022IsComposing\u0022 = @is_composing\n)\nSELECT li.\u0022Value\u0022 AS \u0022Value\u0022, st.\u0022PeriodEnd\u0022 AS \u0022PeriodEnd\u0022, st.\u0022Id\u0022 AS \u0022StatementId\u0022, st.\u0022ProviderName\u0022 AS \u0022ProviderName\u0022, st.\u0022StatementType\u0022 AS \u0022StatementType\u0022, @source_item_id AS \u0022SourceItemId\u0022, (SELECT si.\u0022Unit\u0022 FROM \u0022public\u0022.\u0022FinancialStatementSourceItems\u0022 si WHERE si.\u0022Id\u0022 = @source_item_catalog_id) AS \u0022SourceUnit\u0022, @source_item_catalog_id AS \u0022SourceItemCatalogId\u0022, st.\u0022IsComposing\u0022 AS \u0022IsComposing\u0022, st.\u0022CompanyId\u0022 AS \u0022CompanyId\u0022, st.\u0022PeriodType\u0022 AS \u0022PeriodType\u0022, st.\u0022IsAudited\u0022 AS \u0022IsAudited\u0022, st.\u0022IsRepresented\u0022 AS \u0022IsRepresented\u0022, st.\u0022ExternalStatementId\u0022 AS \u0022ExternalStatementId\u0022, st.\u0022PeriodStart\u0022 AS \u0022PeriodStart\u0022, st.\u0022SourcePayloadChecksum\u0022 AS \u0022SourcePayloadChecksum\u0022, st.\u0022PublishedAt\u0022 AS \u0022PublishedAt\u0022, st.\u0022LastSynchronizedAt\u0022 AS \u0022LastSynchronizedAt\u0022, st.\u0022WarningsJson\u0022 AS \u0022WarningsJson\u0022, st.\u0022LogicalVendor\u0022 AS \u0022LogicalVendor\u0022, st.\u0022SourceMode\u0022 AS \u0022SourceMode\u0022\nFROM \u0022public\u0022.\u0022FinancialStatements\u0022 st\nJOIN \u0022public\u0022.\u0022Companies\u0022 co ON st.\u0022CompanyId\u0022 = co.\u0022Id\u0022\nLEFT JOIN \u0022public\u0022.\u0022FinancialStatementLineItems\u0022 li ON li.\u0022FinancialStatementId\u0022 = st.\u0022Id\u0022 AND li.\u0022SourceItemCatalogId\u0022 = @source_item_catalog_id\nWHERE co.\u0022Id\u0022 = @company_id\n  AND st.\u0022ProviderName\u0022 = @provider_name\n  AND st.\u0022StatementType\u0022 = @statement_type\n  AND EXISTS (SELECT 1 FROM \u0022public\u0022.\u0022FinancialStatementSourceItems\u0022 si WHERE si.\u0022Id\u0022 = @source_item_catalog_id AND si.\u0022ProviderName\u0022 = @provider_name AND si.\u0022StatementType\u0022 = @statement_type AND si.\u0022SourceItemId\u0022 = @source_item_id)\n  AND st.\u0022IsComposing\u0022 = @is_composing\n  AND st.\u0022PeriodEnd\u0022 = (SELECT \u0022PeriodEnd\u0022 FROM latest_period)\nORDER BY st.\u0022PeriodEnd\u0022 DESC, st.\u0022PeriodType\u0022, st.\u0022Id\u0022\nLIMIT @row_limit OFFSET @row_offset",
+  "sqlParameters": [
+    {
+      "Name": "company_id",
+      "Value": "ce936877-146d-4fdd-83d7-72ec18c3c751"
+    },
+    {
+      "Name": "source_item_catalog_id",
+      "Value": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528"
+    },
+    {
+      "Name": "provider_name",
+      "Value": "NoavaranCurrentApi"
+    },
+    {
+      "Name": "statement_type",
+      "Value": "IncomeStatement"
+    },
+    {
+      "Name": "source_item_id",
+      "Value": 161
+    },
+    {
+      "Name": "is_composing",
+      "Value": false
+    },
+    {
+      "Name": "row_limit",
+      "Value": 2
+    },
+    {
+      "Name": "row_offset",
+      "Value": 0
+    }
+  ],
+  "executionStatus": "Succeeded",
+  "observedRows": [
+    {
+      "Value": 3753,
+      "PeriodEnd": "2026-06-21",
+      "StatementId": "e9f595d9-eb6a-4f97-ac31-a80caf646280",
+      "ProviderName": "NoavaranCurrentApi",
+      "StatementType": "IncomeStatement",
+      "SourceItemId": 161,
+      "SourceUnit": "N/A",
+      "SourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "IsComposing": false,
+      "CompanyId": "ce936877-146d-4fdd-83d7-72ec18c3c751",
+      "PeriodType": "ThreeMonths",
+      "IsAudited": false,
+      "IsRepresented": false,
+      "ExternalStatementId": "fixture-income-2026-q2",
+      "PeriodStart": "2026-03-21",
+      "SourcePayloadChecksum": "feature141-statement-fixture",
+      "PublishedAt": "2026-07-22",
+      "LastSynchronizedAt": "2026-10-09T19:20:16.31031Z",
+      "WarningsJson": "[]",
+      "LogicalVendor": null,
+      "SourceMode": null
+    }
+  ],
+  "expectedValue": 3753,
+  "actualValue": 3753,
+  "effectiveUnit": "IRRPerShare",
+  "finalPersianAnswer": "\u06A9\u06AF\u0647\u0631 \u062F\u0631 \u0628\u0627\u0632\u0647\u0654 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F3-\u06F2\u06F1 \u062A\u0627 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F6-\u06F2\u06F1\u060C \u0645\u0642\u062F\u0627\u0631 \u0645\u0627\u0644\u06CC \u06AF\u0632\u0627\u0631\u0634\u200C\u0634\u062F\u0647: \u06F3\u066C\u06F7\u06F5\u06F3 IRRPerShare.\n\u0645\u0646\u0628\u0639: NoavaranCurrentApi.",
+  "evidence": [
+    {
+      "Company": "\u06A9\u06AF\u0647\u0631",
+      "Product": null,
+      "PeriodStart": "2026-03-21",
+      "PeriodEnd": "2026-06-21",
+      "Provider": "NoavaranCurrentApi",
+      "ReportIdentities": [],
+      "SourceReferences": [],
+      "Facts": {
+        "Value": "3753",
+        "SourceUnit": "N/A"
+      },
+      "EvidenceStatus": "verified"
+    }
+  ],
+  "secretValuesLogged": false
+}

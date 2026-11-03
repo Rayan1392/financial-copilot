@@ -8,14 +8,233 @@ export type AdminUser = {
   roles: string[];
   tenantIds: string[];
 };
+export type AdminSection<T> = {
+  status: "available" | "unavailable" | "not_authorized";
+  data: T | null;
+  reason?: string | null;
+};
+export type AdminUserDirectoryQuery = {
+  pageSize?: number;
+  cursor?: string | null;
+  search?: string;
+  status?: "any" | "enabled" | "disabled" | "locked";
+  acquisitionSource?: "native" | "tahlilapp" | "unknown";
+  linkedProvider?: "tahlilapp" | "telegram";
+  externalProvider?: "tahlilapp";
+  externalUserId?: string;
+  registeredFromUtc?: string;
+  registeredToUtc?: string;
+  lastLoginFromUtc?: string;
+  lastLoginToUtc?: string;
+  sort?: string;
+};
+export type AdminUserDirectoryItem = {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  isEnabled: boolean;
+  isLockedOut: boolean;
+  status: string;
+  acquisitionSourceCode: string;
+  registeredAtUtc: string | null;
+  lastSuccessfulLoginAtUtc: string | null;
+  lastLoginProviderCode: string | null;
+  linkedProviderCodes: string[];
+  subscription: AdminSection<AdminUserSubscriptionSummary>;
+  credits: AdminSection<AdminUserCreditSummary>;
+  customerAccountId?: string | null;
+};
+export type AdminUserDirectoryPage = {
+  items: AdminUserDirectoryItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  asOfUtc: string;
+};
+export type AdminUserSubscriptionSummary = {
+  customerAccountId: string;
+  accountType: string;
+  planCode: string | null;
+  effectiveFromUtc: string | null;
+  effectiveToUtc: string | null;
+  revision: number;
+  isActive: boolean;
+  creditQuotaMode: "Finite" | "Unlimited";
+  capabilityCodes: string[];
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminUserCreditSummary = {
+  spendableCredits: number | null;
+  reservedCredits: number | null;
+  approvedCreditLine: number | null;
+  activeSubscriptionCredits: number;
+  nextExpiryUtc: string | null;
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminProviderLink = {
+  providerCode: string;
+  status: string;
+  maskedExternalId: string;
+  displayMetadata: string | null;
+  linkedAtUtc: string;
+  revokedAtUtc: string | null;
+  lastAuthenticatedAtUtc: string | null;
+  profileSyncedAtUtc: string | null;
+};
+export type AdminCustomer360 = {
+  userId: string;
+  tenantId: string;
+  isEnabled: boolean;
+  isLockedOut: boolean;
+  acquisitionSourceCode: string;
+  registeredAtUtc: string | null;
+  lastSuccessfulLoginAtUtc: string | null;
+  lastLoginProviderCode: string | null;
+  hasNativeCredential: boolean;
+  emailConfirmed: boolean;
+  activeRefreshSessions: number;
+  tenantMemberships: string[];
+  linkedProviders: AdminProviderLink[];
+  subscription: AdminSection<AdminCustomerSubscription>;
+  credits: AdminSection<AdminCustomerCredits>;
+  purchases: AdminSection<AdminCustomerPurchases>;
+  asOfUtc: string;
+};
+export type AdminCustomerSubscription = {
+  customerAccountId: string;
+  accountType: string;
+  planCode: string | null;
+  planName: string | null;
+  effectiveFromUtc: string | null;
+  effectiveToUtc: string | null;
+  revision: number;
+  isActive: boolean;
+  creditQuotaMode: "Finite" | "Unlimited";
+  capabilities: { code: string; isEnabled: boolean; limit: number | null; policyVersion: string }[];
+  externalSyncStatus: string | null;
+  externalLastSyncedAtUtc: string | null;
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminCustomerCredits = {
+  spendableCredits: number | null;
+  reservedCredits: number | null;
+  approvedCreditLine: number | null;
+  activeSubscriptionCredits: number;
+  nextExpiryUtc: string | null;
+  activePeriods: {
+    id: string;
+    planCode: string;
+    grantedCredits: number;
+    remainingCredits: number;
+    startsAtUtc: string;
+    expiresAtUtc: string;
+    status: string;
+  }[];
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminPurchaseHistoryItem = {
+  checkoutIntentId: string;
+  createdAtUtc: string;
+  productType: string;
+  productCode: string;
+  productDisplayName: string;
+  status: string;
+  amount: number;
+  currency: string;
+  channel: string;
+  providerName: string | null;
+  paymentReference: string;
+  receiptSubmittedAtUtc: string | null;
+  reviewedAtUtc: string | null;
+  fulfilledAtUtc: string | null;
+  financialTransactionId: string | null;
+  financialTransactionType: string | null;
+  financialTransactionOccurredAtUtc: string | null;
+  reconciliationState: string | null;
+};
+export type AdminCustomerPurchases = {
+  completedLocalPurchaseCount: number | null;
+  recentLocalPurchases: AdminPurchaseHistoryItem[];
+  externalEntitlementsStatus: string;
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminCreditHistoryItem = {
+  id: string;
+  occurredAtUtc: string;
+  recordType: string;
+  entryType: string | null;
+  operationCode: string | null;
+  credits: number;
+  allocationSource: string | null;
+  expiresAtUtc: string | null;
+  relatedEntryId: string | null;
+  status: string;
+  customerAccountId: string;
+  remainingCredits: number | null;
+  grantLedgerEntryId: string | null;
+  auditDescription?: string | null;
+};
+export type AdminCreditHistoryPage = {
+  items: AdminCreditHistoryItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  asOfUtc: string;
+};
+export type AdminPurchaseHistoryPage = {
+  items: AdminPurchaseHistoryItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  asOfUtc: string;
+};
+export type AdminChatHistoryPage = {
+  items: AdminChatHistoryItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
+export type AdminChatHistoryItem = {
+  turnId: string;
+  conversationId: string;
+  conversationTitle: string | null;
+  questionSummary: string;
+  answerSummary: string | null;
+  questionCreatedAtUtc: string;
+  answerCreatedAtUtc: string | null;
+  hasAnswer: boolean;
+};
+export type AdminChatHistoryTurn = {
+  turnId: string;
+  conversationId: string;
+  conversationTitle: string | null;
+  question: string;
+  questionCreatedAtUtc: string;
+  answers: {
+    messageId: string;
+    content: string;
+    createdAtUtc: string;
+    structuredPayload: unknown | null;
+  }[];
+};
 export type AdminRole = { roleId: string; name: string; isEnabled: boolean; permissions: string[] };
 export type AdminTenant = { tenantId: string; name: string };
-export type AdminTenantMember = { userId: string; email: string; isDefault: boolean };
+export type AdminTenantMember = {
+  userId: string;
+  email: string | null;
+  isDefault: boolean;
+  displayName: string | null;
+  isTahlilAppConnected: boolean;
+};
 export type AdminPlan = {
   code: string;
   name: string;
   includedCredits: number;
   pricingPolicyVersion: string;
+  quotaMode: "Finite" | "Unlimited";
 };
 export type AdminCapability = {
   capabilityCode: string;
@@ -32,6 +251,8 @@ export type AdminSubscription = {
   effectiveFrom: string | null;
   effectiveTo: string | null;
   revision: number;
+  creditQuotaMode: "Finite" | "Unlimited";
+  subscriptionExpiresAtUtc: string | null;
 };
 export type AdminUsageLedger = {
   id: string;
@@ -41,6 +262,9 @@ export type AdminUsageLedger = {
   occurredAt: string;
   completionStatus: string | null;
   auditDescription: string | null;
+  creditQuotaMode: "Finite" | "Unlimited";
+  sourceSubscriptionId: string | null;
+  subscriptionExpiresAtUtc: string | null;
   correlationId?: string;
 };
 export type AdminCreditAdjustment = {
@@ -64,9 +288,73 @@ export type AdminAudit = {
   before: string | null;
   after: string | null;
 };
-export type FundPortfolioRun = { id: string; triggerType: string; providerName: string; status: string; discoveredCount: number; importedCount: number; duplicateCount: number; partialCount: number; failedCount: number; startedAtUtc: string; completedAtUtc: string | null; correlationId: string };
-export type FundPortfolioReport = { reportId: string; fundId: string; providerName: string; originalFileName: string; parseStatus: string; sourceRevision: number; periodEndDate: string | null; importedAtUtc: string; sheetCount: number; issueCount: number; errorCount: number; hasReconciliationIssues: boolean };
-export type FundPortfolioReview = { id: string; reportId: string; mappingType: string; rawValue: string; normalizedValue: string; candidateJson: string; status: string; resolutionJson: string | null; resolvedByActorId: string | null; resolvedAtUtc: string | null; version: number };
+export type TahlilAppTopUpReconciliation = {
+  purchases: {
+    invoiceId: string;
+    legacyPaymentId: string | null;
+    externalUserId: string;
+    customerAccountId: string;
+    creditsPurchased: number;
+    status: string;
+    planSlug: string | null;
+    planStartsAtUtc: string | null;
+    planExpiresAtUtc: string | null;
+    paidAtUtc: string;
+    receivedAtUtc: string;
+    grantId: string | null;
+    grantedAtUtc: string | null;
+  }[];
+  identityConflicts: {
+    occurredAtUtc: string;
+    receiptId: string;
+    invoiceId: string;
+    conflictCode: string;
+    existingIdentity: string;
+    incomingIdentity: string;
+  }[];
+  generatedAtUtc: string;
+};
+export type FundPortfolioRun = {
+  id: string;
+  triggerType: string;
+  providerName: string;
+  status: string;
+  discoveredCount: number;
+  importedCount: number;
+  duplicateCount: number;
+  partialCount: number;
+  failedCount: number;
+  startedAtUtc: string;
+  completedAtUtc: string | null;
+  correlationId: string;
+};
+export type FundPortfolioReport = {
+  reportId: string;
+  fundId: string;
+  providerName: string;
+  originalFileName: string;
+  parseStatus: string;
+  sourceRevision: number;
+  periodEndDate: string | null;
+  importedAtUtc: string;
+  sheetCount: number;
+  issueCount: number;
+  errorCount: number;
+  hasReconciliationIssues: boolean;
+};
+export type FundPortfolioReview = {
+  id: string;
+  reportId: string;
+  mappingType: string;
+  rawValue: string;
+  normalizedValue: string;
+  candidateJson: string;
+  status: string;
+  resolutionJson: string | null;
+  resolvedByActorId: string | null;
+  resolvedAtUtc: string | null;
+  version: number;
+};
 
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
@@ -79,6 +367,35 @@ export const adminApi = {
     financialCopilotApi<AdminUser[]>(
       `/api/v1/admin/users?search=${encodeURIComponent(search)}&limit=50`,
     ),
+  userDirectory: (query: AdminUserDirectoryQuery = {}) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+    }
+    return financialCopilotApi<AdminUserDirectoryPage>(`/api/v1/admin/users/directory?${params}`);
+  },
+  customer360: (id: string) =>
+    financialCopilotApi<AdminCustomer360>(`/api/v1/admin/users/${id}/customer-360`),
+  customerChatHistory: (id: string, page = 1) =>
+    financialCopilotApi<AdminChatHistoryPage>(
+      `/api/v1/admin/users/${id}/chat-history?page=${page}`,
+    ),
+  customerChatHistoryTurn: (id: string, turnId: string) =>
+    financialCopilotApi<AdminChatHistoryTurn>(`/api/v1/admin/users/${id}/chat-history/${turnId}`),
+  customerCreditHistory: (id: string, pageSize = 10, cursor?: string | null) => {
+    const params = new URLSearchParams({ pageSize: String(pageSize) });
+    if (cursor) params.set("cursor", cursor);
+    return financialCopilotApi<AdminCreditHistoryPage>(
+      `/api/v1/admin/users/${id}/customer-360/credits?${params}`,
+    );
+  },
+  customerPurchaseHistory: (id: string, pageSize = 10, cursor?: string | null) => {
+    const params = new URLSearchParams({ pageSize: String(pageSize) });
+    if (cursor) params.set("cursor", cursor);
+    return financialCopilotApi<AdminPurchaseHistoryPage>(
+      `/api/v1/admin/users/${id}/customer-360/purchases?${params}`,
+    );
+  },
   user: (id: string) => financialCopilotApi<AdminUser>(`/api/v1/admin/users/${id}`),
   setUserStatus: (id: string, isEnabled: boolean, unlock: boolean, reason: string) =>
     financialCopilotApi<AdminUser>(
@@ -130,6 +447,14 @@ export const adminApi = {
     pricingPolicyVersion: string;
     reason: string;
   }) => financialCopilotApi<AdminPlan>("/api/v1/admin/plans", json("POST", body)),
+  updatePlanIncludedCredits: (
+    code: string,
+    body: { includedCredits: number; pricingPolicyVersion: string; reason: string },
+  ) =>
+    financialCopilotApi<AdminPlan>(
+      `/api/v1/admin/plans/${encodeURIComponent(code)}/included-credits`,
+      json("PATCH", body),
+    ),
   capabilities: (code: string) =>
     financialCopilotApi<AdminCapability[]>(
       `/api/v1/admin/plans/${encodeURIComponent(code)}/capabilities`,
@@ -164,12 +489,66 @@ export const adminApi = {
     ),
   securityAudits: () => financialCopilotApi<AdminAudit[]>("/api/v1/admin/audits/security?limit=50"),
   billingAudits: () => financialCopilotApi<AdminAudit[]>("/api/v1/admin/audits/billing?limit=50"),
-  fundPortfolioRuns: () => financialCopilotApi<{ items: FundPortfolioRun[]; totalCount: number }>("/api/v1/admin/fund-portfolio-reports/runs?page=1&pageSize=20"),
-  fundPortfolioReports: () => financialCopilotApi<{ items: FundPortfolioReport[]; totalCount: number }>("/api/v1/admin/fund-portfolio-reports?page=1&pageSize=20"),
-  fundPortfolioReviews: () => financialCopilotApi<{ items: FundPortfolioReview[]; totalCount: number }>("/api/v1/admin/fund-portfolio-mapping-reviews?page=1&pageSize=20&status=Pending"),
-  fundPortfolioSourceStatus: (provider = "ConfiguredLocalStorage") => financialCopilotApi<{ providerName: string; available: boolean; unavailableReason: string | null }>(`/api/v1/admin/fund-portfolio-reports/source-status/${encodeURIComponent(provider)}`),
-  fundPortfolioHealth: () => financialCopilotApi<{ sourceAvailable: boolean; sourceReason: string | null; totalRuns: number; queuedItems: number; retryableItems: number; pendingReviews: number; lastRunAtUtc: string | null }>("/api/v1/admin/fund-portfolio-reports/health"),
-  fundPortfolioUpload: (file: File, fundName?: string) => { const form = new FormData(); form.append("file", file); if (fundName) form.append("fundName", fundName); return financialCopilotApi<{ runId: string; itemCount: number; status: string; correlationId: string }>("/api/v1/admin/fund-portfolio-reports/uploads", { method: "POST", body: form }); },
-  fundPortfolioReprocess: (reportId: string) => financialCopilotApi<void>(`/api/v1/admin/fund-portfolio-reports/${reportId}/reprocess`, json("POST", { confirm: true })),
-  fundPortfolioResolveReview: (review: FundPortfolioReview, approve: boolean, resolutionJson: string) => financialCopilotApi<void>(`/api/v1/admin/fund-portfolio-mapping-reviews/${review.id}/resolve`, json("POST", { expectedVersion: review.version, approve, resolutionJson, resolvedByActorId: review.resolvedByActorId ?? "console" })),
+  tahlilAppTopUpReconciliation: (limit = 50) =>
+    financialCopilotApi<TahlilAppTopUpReconciliation>(
+      `/api/v1/admin/billing/top-ups/reconciliation?limit=${limit}`,
+    ),
+  fundPortfolioRuns: () =>
+    financialCopilotApi<{ items: FundPortfolioRun[]; totalCount: number }>(
+      "/api/v1/admin/fund-portfolio-reports/runs?page=1&pageSize=20",
+    ),
+  fundPortfolioReports: () =>
+    financialCopilotApi<{ items: FundPortfolioReport[]; totalCount: number }>(
+      "/api/v1/admin/fund-portfolio-reports?page=1&pageSize=20",
+    ),
+  fundPortfolioReviews: () =>
+    financialCopilotApi<{ items: FundPortfolioReview[]; totalCount: number }>(
+      "/api/v1/admin/fund-portfolio-mapping-reviews?page=1&pageSize=20&status=Pending",
+    ),
+  fundPortfolioSourceStatus: (provider = "ConfiguredLocalStorage") =>
+    financialCopilotApi<{
+      providerName: string;
+      available: boolean;
+      unavailableReason: string | null;
+    }>(`/api/v1/admin/fund-portfolio-reports/source-status/${encodeURIComponent(provider)}`),
+  fundPortfolioHealth: () =>
+    financialCopilotApi<{
+      sourceAvailable: boolean;
+      sourceReason: string | null;
+      totalRuns: number;
+      queuedItems: number;
+      retryableItems: number;
+      pendingReviews: number;
+      lastRunAtUtc: string | null;
+    }>("/api/v1/admin/fund-portfolio-reports/health"),
+  fundPortfolioUpload: (file: File, fundName?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (fundName) form.append("fundName", fundName);
+    return financialCopilotApi<{
+      runId: string;
+      itemCount: number;
+      status: string;
+      correlationId: string;
+    }>("/api/v1/admin/fund-portfolio-reports/uploads", { method: "POST", body: form });
+  },
+  fundPortfolioReprocess: (reportId: string) =>
+    financialCopilotApi<void>(
+      `/api/v1/admin/fund-portfolio-reports/${reportId}/reprocess`,
+      json("POST", { confirm: true }),
+    ),
+  fundPortfolioResolveReview: (
+    review: FundPortfolioReview,
+    approve: boolean,
+    resolutionJson: string,
+  ) =>
+    financialCopilotApi<void>(
+      `/api/v1/admin/fund-portfolio-mapping-reviews/${review.id}/resolve`,
+      json("POST", {
+        expectedVersion: review.version,
+        approve,
+        resolutionJson,
+        resolvedByActorId: review.resolvedByActorId ?? "console",
+      }),
+    ),
 };

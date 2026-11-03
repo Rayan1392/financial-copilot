@@ -1,0 +1,61 @@
+{
+  "testCase": {
+    "Id": "C5",
+    "Question": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "Refusal": false,
+    "Contains": [
+      "فملی",
+      "۱٬۶۰۰",
+      "کگل",
+      "۱٬۲۰۰",
+      "کگهر",
+      "۹۰۰"
+    ],
+    "Excludes": [
+      "فولاد",
+      "۹٬۹۹۹"
+    ],
+    "SpecialistContains": null,
+    "ExpectedQueryStatus": "Succeeded"
+  },
+  "run": {
+    "Question": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "Enabled": true,
+    "Answer": "در پردازش پرسش خطایی رخ داد. لطفاً دوباره تلاش کنید.",
+    "PersistedUserMessage": "شرکت‌ها را بر اساس سود خالص رتبه‌بندی کن.",
+    "PersistedAssistantMessage": "در پردازش پرسش خطایی رخ داد. لطفاً دوباره تلاش کنید.",
+    "Feature141Invoked": false,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=SemanticPrimary CorrelationId=feature141-chat-mvp-37341a84338a461cb0318dd324b37aa5 | Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities= RequestedMetrics=سود RequestedPeriod=LatestAvailable RequestedComparison=(null) Presentation=Table | Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=Failed ReasonCode=provider_or_tool_failure PayloadType=none",
+    "SemanticCapability": "stock_screening",
+    "Intent": "Scanner",
+    "Outcome": "Failed",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "ProviderFailed",
+      "CreditsCharged": 0,
+      "RemainingSpendingCapacity": 25.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 1042,
+      "CompletionTokens": 612,
+      "TotalTokens": 1654,
+      "EstimatedCost": null,
+      "ExecutionRoute": "semantic:stock_screening"
+    },
+    "Feature141Log": [],
+    "ElapsedMs": 12670.9219,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=SemanticPrimary CorrelationId=feature141-chat-mvp-37341a84338a461cb0318dd324b37aa5",
+      "Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities= RequestedMetrics=سود RequestedPeriod=LatestAvailable RequestedComparison=(null) Presentation=Table",
+      "[SemanticRouting] Capability execution faulted. Capability=stock_screening CorrelationId=feature141-chat-mvp-37341a84338a461cb0318dd324b37aa5 [InvalidOperationException: The requested operation requires an element of type 'Number', but the target element has type 'Null'.]",
+      "Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=Failed ReasonCode=provider_or_tool_failure PayloadType=none",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-chat-mvp-37341a84338a461cb0318dd324b37aa5 RolloutMode=Shadow LegacyCapability=monthly_sales_quality_ranking LegacyConfidence=0.9 SemanticIntent=stock_screening SemanticCapabilityCandidate=stock_screening SemanticConfidence=0.96 ExtractedCompany=(null) ExtractedProduct=(null) ExtractedMetric=سود ExtractedPeriod=LatestAvailable Resol"
+    ]
+  }
+}

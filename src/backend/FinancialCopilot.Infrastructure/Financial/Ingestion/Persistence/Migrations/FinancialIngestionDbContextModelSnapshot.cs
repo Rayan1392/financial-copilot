@@ -17,7 +17,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -531,6 +531,200 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("CodalDbSyncStates", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyIndustryRelativeValuationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CalculationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("CurrentMarketPrice")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal?>("CurrentPE")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal?>("CurrentPS")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("EquilibriumClassification")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("EquilibriumIsOutlier")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("EquilibriumIsValid")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("EquilibriumPercent")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<DateTimeOffset?>("EquilibriumPersistedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("EquilibriumPrice")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("EquilibriumReason")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("EquilibriumSourceFactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EquilibriumSourceObservationId")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset?>("EquilibriumSourceObservationTimestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EquilibriumSourceVersion")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("EquilibriumSourceWatermark")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<int?>("GlobalRank")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("HistoricalAveragePE")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal?>("HistoricalAveragePS")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("PEClassification")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("PEIsOutlier")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("PEIsValid")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("PEPercent")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("PEReason")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PSClassification")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("PSIsOutlier")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("PSIsValid")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("PSPercent")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("PSReason")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("PePersistedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PeSourceFactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PeSourceObservationId")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset?>("PeSourceObservationTimestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PeSourceVersion")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("PeSourceWatermark")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<int>("PositiveMetricCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("PsPersistedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PsSourceFactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PsSourceObservationId")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset?>("PsSourceObservationTimestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PsSourceVersion")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("PsSourceWatermark")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("RankVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("ValidMetricCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CalculationId", "CompanyId")
+                        .IsUnique();
+
+                    b.HasIndex("CalculationId", "GlobalRank");
+
+                    b.ToTable("CompanyIndustryRelativeValuations", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyMonthlyActivityTrendSnapshotRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -845,6 +1039,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("ForwardPsRatio")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal>("GaugeAverage")
                         .HasPrecision(28, 14)
                         .HasColumnType("numeric(28,14)");
 
@@ -1238,6 +1436,882 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("ComprehensiveAnalysisTags", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesAcquisitionCheckRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<short>("AttemptCount")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset>("CheckedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("CycleDateUtc")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FailureMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<short?>("HttpStatusCode")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("MetricType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResponseHash")
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("SnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceEndpoint")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("SymbolIsin")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SnapshotId");
+
+                    b.HasIndex("CompanyId", "MetricType", "CheckedAtUtc")
+                        .IsDescending(false, false, true)
+                        .HasDatabaseName("IX_CyclicalWavesAcquisitionChecks_Diagnostics");
+
+                    b.HasIndex("CycleDateUtc", "CompanyId", "MetricType", "Result")
+                        .HasDatabaseName("IX_CyclicalWavesAcquisitionChecks_Restart");
+
+                    b.ToTable("CyclicalWavesAcquisitionChecks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_AttemptCount", "\"AttemptCount\" >= 0");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_Consistency", "((\"Result\" IN ('Changed', 'NoChange') AND \"ResponseHash\" IS NOT NULL AND \"SnapshotId\" IS NOT NULL AND \"FailureCode\" IS NULL) OR (\"Result\" = 'Failed' AND \"ResponseHash\" IS NULL AND \"SnapshotId\" IS NULL AND \"FailureCode\" IS NOT NULL))");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_MetricType", "\"MetricType\" IN ('PS', 'LastPS', 'PE', 'LastPE', 'Equilibrium')");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_ProviderName", "\"ProviderName\" = 'CyclicalWaves'");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_Result", "\"Result\" IN ('Changed', 'NoChange', 'Failed')");
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesMetricSnapshotRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AcquisitionDateUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MetricType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("PreviousSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateOnly?>("ProviderObservationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RawResponseJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResponseHash")
+                        .IsRequired()
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("SourceEndpoint")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("SymbolIsin")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PreviousSnapshotId");
+
+                    b.HasIndex("CompanyId", "ProviderName", "MetricType", "PreviousSnapshotId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesMetricSnapshots_Predecessor");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("CompanyId", "ProviderName", "MetricType", "PreviousSnapshotId"), false);
+
+                    b.HasIndex("CompanyId", "ProviderName", "MetricType", "ProviderObservationDate")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesMetricSnapshots_ProviderObservationDate");
+
+                    b.HasIndex("CompanyId", "ProviderName", "MetricType", "ResponseHash")
+                        .HasDatabaseName("IX_CyclicalWavesMetricSnapshots_Hash");
+
+                    b.HasIndex("CompanyId", "ProviderName", "MetricType", "AcquisitionDateUtc", "CreatedAtUtc")
+                        .IsDescending(false, false, false, true, true)
+                        .HasDatabaseName("IX_CyclicalWavesMetricSnapshots_Latest");
+
+                    b.ToTable("CyclicalWavesMetricSnapshots", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesMetricSnapshots_MetricType", "\"MetricType\" IN ('PS', 'LastPS', 'PE', 'LastPE', 'Equilibrium')");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesMetricSnapshots_ProviderName", "\"ProviderName\" = 'CyclicalWaves'");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesMetricSnapshots_ResponseHash", "\"ResponseHash\" ~ '^[0-9a-f]{64}$'");
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisCategoryRow", b =>
+                {
+                    b.Property<long>("AnalysisId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProviderCategoryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("AnalysisId", "ProviderCategoryId");
+
+                    b.ToTable("AnalysisCategories", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTimeOffset>("FirstSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PlainTextSummary")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublishedAt")
+                        .HasDatabaseName("IX_CyclicalWavesV2Analyses_PublishedAt");
+
+                    b.ToTable("Analyses", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisTagRow", b =>
+                {
+                    b.Property<long>("AnalysisId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProviderTagId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("AnalysisId", "ProviderTagId");
+
+                    b.HasIndex("NormalizedName")
+                        .HasDatabaseName("IX_CyclicalWavesV2AnalysisTags_NormalizedName");
+
+                    b.ToTable("AnalysisTags", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2FinancialValueRow", b =>
+                {
+                    b.Property<Guid>("TickerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<short>("MetricDefinitionId")
+                        .HasColumnType("smallint");
+
+                    b.Property<decimal?>("NumericValue")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TickerId", "MetricDefinitionId");
+
+                    b.HasIndex("MetricDefinitionId")
+                        .HasDatabaseName("IX_CyclicalWavesV2FinancialValues_Metric");
+
+                    b.ToTable("FinancialValues", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementLineDefinitionRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("IncomeStatementLineDefinitions", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool?>("Audited")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CodalUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FiscalMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("PeriodEndingDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("PublishDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TickerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TickerId", "PeriodEndingDate", "FiscalMonth")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2IncomeStatements_Period");
+
+                    b.ToTable("IncomeStatements", "cyclicalwaves", t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesV2IncomeStatements_FiscalMonth", "\"FiscalMonth\" BETWEEN 1 AND 12");
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementValueRow", b =>
+                {
+                    b.Property<Guid>("StatementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("LineDefinitionId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Quarter")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("TrailingYear")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.Property<decimal?>("YearToDate")
+                        .HasColumnType("numeric(38,6)");
+
+                    b.HasKey("StatementId", "LineDefinitionId");
+
+                    b.HasIndex("LineDefinitionId")
+                        .HasDatabaseName("IX_CyclicalWavesV2IncomeStatementValues_Line");
+
+                    b.ToTable("IncomeStatementValues", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2MetricDefinitionRow", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("FieldKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FieldKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2MetricDefinitions_FieldKey");
+
+                    b.ToTable("MetricDefinitions", "cyclicalwaves", t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesV2MetricDefinitions_Category", "\"Category\" IN ('MonthlySales', 'QuarterlySales', 'Profit', 'ProfitMargin', 'Valuation')");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesV2MetricDefinitions_Unit", "\"Unit\" IN ('Irr', 'Percent', 'Ratio')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = (short)1,
+                            Category = "QuarterlySales",
+                            FieldKey = "lastQuarterSale",
+                            NameEn = "Last quarter sales",
+                            NameFa = "فروش آخرین فصل مالی",
+                            SortOrder = (short)1,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)2,
+                            Category = "QuarterlySales",
+                            FieldKey = "penultimateQuarterSale",
+                            NameEn = "Penultimate quarter sales",
+                            NameFa = "فروش فصل ماقبل آخر",
+                            SortOrder = (short)2,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)3,
+                            Category = "QuarterlySales",
+                            FieldKey = "lastYearSameQuarterSale",
+                            NameEn = "Same quarter last year sales",
+                            NameFa = "فروش فصل مشابه سال قبل",
+                            SortOrder = (short)3,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)4,
+                            Category = "QuarterlySales",
+                            FieldKey = "average4QuarterSale",
+                            NameEn = "Average sales of the four quarters before the last quarter",
+                            NameFa = "میانگین فروش چهار فصل پیش از فصل آخر",
+                            SortOrder = (short)4,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)5,
+                            Category = "Profit",
+                            FieldKey = "lastQuarterNetProfit",
+                            NameEn = "Last quarter net profit",
+                            NameFa = "سود خالص آخرین فصل",
+                            SortOrder = (short)5,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)6,
+                            Category = "Profit",
+                            FieldKey = "penultimateQuarterNetProfit",
+                            NameEn = "Penultimate quarter net profit",
+                            NameFa = "سود خالص فصل ماقبل آخر",
+                            SortOrder = (short)6,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)7,
+                            Category = "Profit",
+                            FieldKey = "lastYearSameQuarterNetProfit",
+                            NameEn = "Same quarter last year net profit",
+                            NameFa = "سود خالص فصل مشابه سال قبل",
+                            SortOrder = (short)7,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)8,
+                            Category = "Profit",
+                            FieldKey = "lastQuarterGrossProfit",
+                            NameEn = "Last quarter gross profit",
+                            NameFa = "سود ناخالص آخرین فصل",
+                            SortOrder = (short)8,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)9,
+                            Category = "Profit",
+                            FieldKey = "penultimateQuarterGrossProfit",
+                            NameEn = "Penultimate quarter gross profit",
+                            NameFa = "سود ناخالص فصل ماقبل آخر",
+                            SortOrder = (short)9,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)10,
+                            Category = "Profit",
+                            FieldKey = "lastYearSameQuarterGrossProfit",
+                            NameEn = "Same quarter last year gross profit",
+                            NameFa = "سود ناخالص فصل مشابه سال قبل",
+                            SortOrder = (short)10,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)11,
+                            Category = "Profit",
+                            FieldKey = "lastQuarterOperatingProfit",
+                            NameEn = "Last quarter operating profit",
+                            NameFa = "سود عملیاتی آخرین فصل",
+                            SortOrder = (short)11,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)12,
+                            Category = "Profit",
+                            FieldKey = "penultimateQuarterOperatingProfit",
+                            NameEn = "Penultimate quarter operating profit",
+                            NameFa = "سود عملیاتی فصل ماقبل آخر",
+                            SortOrder = (short)12,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)13,
+                            Category = "Profit",
+                            FieldKey = "lastYearSameQuarterOperatingProfit",
+                            NameEn = "Same quarter last year operating profit",
+                            NameFa = "سود عملیاتی فصل مشابه سال قبل",
+                            SortOrder = (short)13,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)14,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastQuarterNetProfitMargin",
+                            NameEn = "Last quarter net profit margin",
+                            NameFa = "حاشیه سود خالص آخرین فصل",
+                            SortOrder = (short)14,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)15,
+                            Category = "ProfitMargin",
+                            FieldKey = "penultimateQuarterNetProfitMargin",
+                            NameEn = "Penultimate quarter net profit margin",
+                            NameFa = "حاشیه سود خالص فصل ماقبل آخر",
+                            SortOrder = (short)15,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)16,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastYearSameQuarterNetProfitMargin",
+                            NameEn = "Same quarter last year net profit margin",
+                            NameFa = "حاشیه سود خالص فصل مشابه سال قبل",
+                            SortOrder = (short)16,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)17,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastQuarterGrossProfitMargin",
+                            NameEn = "Last quarter gross profit margin",
+                            NameFa = "حاشیه سود ناخالص آخرین فصل",
+                            SortOrder = (short)17,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)18,
+                            Category = "ProfitMargin",
+                            FieldKey = "penultimateQuarterGrossProfitMargin",
+                            NameEn = "Penultimate quarter gross profit margin",
+                            NameFa = "حاشیه سود ناخالص فصل ماقبل آخر",
+                            SortOrder = (short)18,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)19,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastYearSameQuarterGrossProfitMargin",
+                            NameEn = "Same quarter last year gross profit margin",
+                            NameFa = "حاشیه سود ناخالص فصل مشابه سال قبل",
+                            SortOrder = (short)19,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)20,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastQuarterOperatingProfitMargin",
+                            NameEn = "Last quarter operating profit margin",
+                            NameFa = "حاشیه سود عملیاتی آخرین فصل",
+                            SortOrder = (short)20,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)21,
+                            Category = "ProfitMargin",
+                            FieldKey = "penultimateQuarterOperatingProfitMargin",
+                            NameEn = "Penultimate quarter operating profit margin",
+                            NameFa = "حاشیه سود عملیاتی فصل ماقبل آخر",
+                            SortOrder = (short)21,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)22,
+                            Category = "ProfitMargin",
+                            FieldKey = "lastYearSameQuarterOperatingProfitMargin",
+                            NameEn = "Same quarter last year operating profit margin",
+                            NameFa = "حاشیه سود عملیاتی فصل مشابه سال قبل",
+                            SortOrder = (short)22,
+                            Unit = "Percent"
+                        },
+                        new
+                        {
+                            Id = (short)23,
+                            Category = "MonthlySales",
+                            FieldKey = "average12MonthSale",
+                            NameEn = "Average monthly sales over 12 months, excluding the latest month",
+                            NameFa = "میانگین فروش ۱۲ ماه، بدون احتساب تازه‌ترین ماه",
+                            SortOrder = (short)23,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)24,
+                            Category = "MonthlySales",
+                            FieldKey = "lastYearAverage12MonthSale",
+                            NameEn = "Average monthly sales of the previous fiscal year",
+                            NameFa = "میانگین فروش ماهانه سال مالی قبل",
+                            SortOrder = (short)24,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)25,
+                            Category = "MonthlySales",
+                            FieldKey = "lastMonthSale",
+                            NameEn = "Last month sales",
+                            NameFa = "فروش آخرین ماه",
+                            SortOrder = (short)25,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)26,
+                            Category = "MonthlySales",
+                            FieldKey = "penultimateMonthSale",
+                            NameEn = "Penultimate month sales",
+                            NameFa = "فروش ماه ماقبل آخر",
+                            SortOrder = (short)26,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)27,
+                            Category = "MonthlySales",
+                            FieldKey = "lastYearSameMonthSale",
+                            NameEn = "Same month last year sales",
+                            NameFa = "فروش ماه مشابه سال قبل",
+                            SortOrder = (short)27,
+                            Unit = "Irr"
+                        },
+                        new
+                        {
+                            Id = (short)28,
+                            Category = "Valuation",
+                            FieldKey = "pe",
+                            NameEn = "Price to earnings (P/E)",
+                            NameFa = "نسبت قیمت به سود (P/E)",
+                            SortOrder = (short)28,
+                            Unit = "Ratio"
+                        },
+                        new
+                        {
+                            Id = (short)29,
+                            Category = "Valuation",
+                            FieldKey = "ps",
+                            NameEn = "Price to sales (P/S)",
+                            NameFa = "نسبت قیمت به فروش (P/S)",
+                            SortOrder = (short)29,
+                            Unit = "Ratio"
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2ScreenerMetadataRow", b =>
+                {
+                    b.Property<Guid>("TickerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("LastChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("LastMonthSaleDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("LastQuarterDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ProviderUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TickerId");
+
+                    b.ToTable("ScreenerMetadata", "cyclicalwaves");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2SyncRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AnalysisMode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorSummary")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<int>("FailedItems")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LockLeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockOwner")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ProcessedItems")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TickerFilter")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("TotalItems")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TriggerSource")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("UnchangedItems")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UpdatedItems")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestedAt")
+                        .IsDescending()
+                        .HasDatabaseName("IX_CyclicalWavesV2SyncRuns_RequestedAt");
+
+                    b.HasIndex("Status")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2SyncRuns_SingleRunning")
+                        .HasFilter("\"Status\" = 'Running'");
+
+                    b.ToTable("SyncRuns", "cyclicalwaves", t =>
+                        {
+                            t.HasCheckConstraint("CK_CyclicalWavesV2SyncRuns_Scope", "\"Scope\" IN ('Catalog', 'Ticker', 'Screener', 'IncomeStatements', 'Analysis', 'Full')");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesV2SyncRuns_Status", "\"Status\" IN ('Requested', 'Running', 'Succeeded', 'CompletedWithErrors', 'Failed', 'SkippedAlreadyRunning')");
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Enticker")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastSeenInCatalogAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedTicker")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Ticker")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Enticker")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2Tickers_Enticker")
+                        .HasFilter("\"Enticker\" IS NOT NULL");
+
+                    b.HasIndex("NormalizedTicker")
+                        .HasDatabaseName("IX_CyclicalWavesV2Tickers_NormalizedTicker");
+
+                    b.HasIndex("Ticker")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesV2Tickers_Ticker");
+
+                    b.ToTable("Tickers", "cyclicalwaves");
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.DailyIndexSnapshotRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1484,6 +2558,113 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsUnique();
 
                     b.ToTable("DerivedMetrics", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Feature126EventRow", b =>
+                {
+                    b.Property<string>("EventId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("AppendedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AttemptReason")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long>("EventSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ExpectedPredecessorState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("FencingToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FieldsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RecoveredFromRunId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RunId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TehranDate")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("EventId");
+
+                    b.HasIndex("RunId", "AppendedAtUtc");
+
+                    b.HasIndex("RunId", "EventSequence")
+                        .IsUnique();
+
+                    b.ToTable("Feature126Events", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Feature126EventStreamRow", b =>
+                {
+                    b.Property<string>("RunId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("FencingToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsTerminal")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("NextSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TehranDate")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("RunId");
+
+                    b.ToTable("Feature126EventStreams", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.FeatureComputationJobRow", b =>
@@ -1879,6 +3060,569 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasIndex("Status");
 
                     b.ToTable("FundamentalIndexCatchUpRuns", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationCalculationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AlgorithmVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CalculatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("CalculationDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("CalculationVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GroupExternalId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("GroupTitleSnapshot")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("IndustryExternalId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IndustryTitleSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<bool>("IsLatestEvaluation")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSelectedCurrent")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MembershipHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceBarrierEvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceBarrierHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalculationDate", "GroupId", "CalculationVersion")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NOT NULL");
+
+                    b.HasIndex("CalculationDate", "IndustryId", "CalculationVersion")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NULL");
+
+                    b.HasIndex("GroupId", "CalculationDate", "IsLatestEvaluation")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NOT NULL AND \"IsLatestEvaluation\" = TRUE");
+
+                    b.HasIndex("GroupId", "CalculationDate", "IsSelectedCurrent")
+                        .IsUnique()
+                        .HasDatabaseName("IX_IndustryRelativeValuationCalculations_GroupId_CalculationD~1")
+                        .HasFilter("\"GroupId\" IS NOT NULL AND \"IsSelectedCurrent\" = TRUE");
+
+                    b.HasIndex("GroupId", "CalculationDate", "Status")
+                        .HasDatabaseName("IX_IndustryRelativeValuationCalculations_GroupId_CalculationD~2")
+                        .HasFilter("\"GroupId\" IS NOT NULL");
+
+                    b.HasIndex("IndustryId", "CalculationDate", "IsLatestEvaluation")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NULL AND \"IsLatestEvaluation\" = TRUE");
+
+                    b.HasIndex("IndustryId", "CalculationDate", "IsSelectedCurrent")
+                        .IsUnique()
+                        .HasDatabaseName("IX_IndustryRelativeValuationCalculations_IndustryId_Calculati~1")
+                        .HasFilter("\"GroupId\" IS NULL AND \"IsSelectedCurrent\" = TRUE");
+
+                    b.HasIndex("IndustryId", "CalculationDate", "Status")
+                        .HasDatabaseName("IX_IndustryRelativeValuationCalculations_IndustryId_Calculati~2")
+                        .HasFilter("\"GroupId\" IS NULL");
+
+                    b.ToTable("IndustryRelativeValuationCalculations", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationMetricRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CalculationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("CleanAverage")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<int>("CleanCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("LowerBound")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("MetricKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("OutlierCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Quartile1")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal?>("Quartile3")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("Readiness")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<decimal?>("UpperBound")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<int>("ValidCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalculationId", "MetricKind")
+                        .IsUnique();
+
+                    b.ToTable("IndustryRelativeValuationMetrics", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationOutboxRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CalculationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventIdentity")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalculationId");
+
+                    b.HasIndex("EventIdentity")
+                        .IsUnique();
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("IndustryId");
+
+                    b.HasIndex("PublishedAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("IndustryRelativeValuationOutbox", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationSourceFactRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("CurrentValue")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<DateTimeOffset>("FetchedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IdentityEvidence")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("PersistedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("QualityCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RawPayload")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Readiness")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal?>("ReferenceValue")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("SourceEndpoint")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SourceObservationId")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("SourceWatermark")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "SourceKind", "FetchedAtUtc");
+
+                    b.HasIndex("ProviderName", "SourceKind", "SourceObservationId")
+                        .IsUnique();
+
+                    b.ToTable("IndustryRelativeValuationSourceFacts", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationSourceLeaseRow", b =>
+                {
+                    b.Property<string>("LeaseName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CurrentRunId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("SupersededRunId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("LeaseName");
+
+                    b.ToTable("IndustryRelativeValuationSourceLeases", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryWatchEvaluationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AlgorithmVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateOnly>("CalculationDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("CalculationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("EvaluatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EvaluationKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsEffective")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("NewEntryStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NewExitStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NewState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("PreviousEntryStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PreviousExitStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PreviousState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TransitionReason")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalculationId");
+
+                    b.HasIndex("GroupId", "CalculationDate", "IsEffective")
+                        .HasFilter("\"GroupId\" IS NOT NULL");
+
+                    b.HasIndex("GroupId", "CalculationId", "EvaluationKind")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NOT NULL");
+
+                    b.HasIndex("IndustryId", "CalculationDate", "IsEffective")
+                        .HasFilter("\"GroupId\" IS NULL");
+
+                    b.HasIndex("IndustryId", "CalculationId", "EvaluationKind")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NULL");
+
+                    b.ToTable("IndustryWatchEvaluations", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryWatchStateRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AlgorithmVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("EntryStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ExitStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("LastEvaluatedCalculationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("LastTransitionDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("LastTransitionReason")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NOT NULL");
+
+                    b.HasIndex("IndustryId")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NULL");
+
+                    b.ToTable("IndustryWatchStates", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryWatchTransitionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AlgorithmVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("CalculationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EvaluationKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EvaluationOutcome")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EventIdentity")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("NewEntryStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NewExitStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NextState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("PreviousEntryStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PreviousExitStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PreviousState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("TransitionDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalculationId");
+
+                    b.HasIndex("GroupId", "TransitionDate")
+                        .HasFilter("\"GroupId\" IS NOT NULL");
+
+                    b.HasIndex("IndustryId", "TransitionDate")
+                        .HasFilter("\"GroupId\" IS NULL");
+
+                    b.HasIndex("GroupId", "CalculationId", "EvaluationKind")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NOT NULL");
+
+                    b.HasIndex("IndustryId", "CalculationId", "EvaluationKind")
+                        .IsUnique()
+                        .HasFilter("\"GroupId\" IS NULL");
+
+                    b.ToTable("IndustryWatchTransitions", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.InsightEventRow", b =>
@@ -2588,6 +4332,142 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("MissingAnswerFeedbacks", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MonthlyActivityBackfillBatchRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ActiveSlot")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("PlannedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProcessedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PublishedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("PublishingStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("RetryableCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int?>("TargetShamsiMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TargetShamsiYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActiveSlot")
+                        .IsUnique()
+                        .HasFilter("\"ActiveSlot\" IS NOT NULL");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("MonthlyActivityBackfillBatches", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MonthlyActivityBackfillOutboxRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("BatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("LastAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LeaseOwner")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("BatchId", "Sequence")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "LeaseExpiresAt", "CreatedAt");
+
+                    b.ToTable("MonthlyActivityBackfillOutbox", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MonthlyActivityBackfillStateRow", b =>
                 {
                     b.Property<string>("SourceName")
@@ -2943,6 +4823,57 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("NadpcoScheduledSyncRuns", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NoavaranEligibleCompanyRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CompanySymbol")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ExternalCompanyId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("MarketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int?>("PrecedencyRight")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SymbolIsin")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("TseSymbol")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("NoavaranEligibleCompanies", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3067,6 +4998,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.Property<string>("RegistrationProvince")
                         .HasColumnType("text");
+
+                    b.Property<int?>("ReportingType")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SourceMode")
                         .HasMaxLength(32)
@@ -3341,6 +5275,13 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<decimal?>("ProductionQuantity")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("ProviderProductCode")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long?>("ProviderProductId")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal?>("SalesAmount")
                         .HasColumnType("numeric");
 
@@ -3349,6 +5290,25 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.Property<decimal?>("SalesRate")
                         .HasColumnType("numeric");
+
+                    b.Property<int>("SourceMultiplicity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<string>("SourcePayloadChecksum")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("SourceRowFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("SourceRowKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("Title")
                         .HasMaxLength(512)
@@ -3360,7 +5320,11 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MonthlyReportId", "ProductCode")
+                    b.HasIndex("MonthlyReportId", "SourceRowKey")
+                        .IsUnique()
+                        .HasFilter("\"SourceRowKey\" IS NOT NULL");
+
+                    b.HasIndex("MonthlyReportId", "SourceRowFingerprint", "SourceMultiplicity")
                         .IsUnique();
 
                     b.ToTable("MonthlyReportLineItems", (string)null);
@@ -3383,8 +5347,18 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsAccepted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<DateTimeOffset>("LastSynchronizedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LogicalReportKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<string>("LogicalVendor")
                         .HasMaxLength(64)
@@ -3403,11 +5377,26 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("ProviderPublishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateOnly?>("PublishedAt")
                         .HasColumnType("date");
 
                     b.Property<string>("ReportType")
                         .HasColumnType("text");
+
+                    b.Property<string>("RevisionFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RevisionStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Accepted");
 
                     b.Property<string>("SourceMode")
                         .HasMaxLength(32)
@@ -3428,17 +5417,17 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("ProviderName", "ExternalReportId")
-                        .IsUnique();
-
                     b.HasIndex("ProviderName", "LastSynchronizedAt");
 
                     b.HasIndex("ProviderName", "ExternalCompanyId", "LastSynchronizedAt");
 
-                    b.HasIndex("ProviderName", "ExternalCompanyId", "PeriodStart", "OutputType", "ReportType")
+                    b.HasIndex("ProviderName", "ExternalReportId", "RevisionFingerprint")
+                        .IsUnique();
+
+                    b.HasIndex("ProviderName", "ExternalCompanyId", "PeriodStart", "PeriodEnd", "OutputType", "ReportType", "IsAccepted")
                         .IsUnique()
                         .HasDatabaseName("IX_MonthlyReports_LogicalPeriod")
-                        .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL");
+                        .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL AND \"IsAccepted\" = TRUE");
 
                     b.ToTable("MonthlyReports", (string)null);
                 });
@@ -4889,6 +6878,21 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyIndustryRelativeValuationRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationCalculationRow", null)
+                        .WithMany()
+                        .HasForeignKey("CalculationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsGaugeSnapshotRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
@@ -4934,6 +6938,100 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesAcquisitionCheckRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesMetricSnapshotRow", null)
+                        .WithMany()
+                        .HasForeignKey("SnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesMetricSnapshotRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesMetricSnapshotRow", null)
+                        .WithMany()
+                        .HasForeignKey("PreviousSnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisCategoryRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisRow", null)
+                        .WithMany()
+                        .HasForeignKey("AnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisTagRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2AnalysisRow", null)
+                        .WithMany()
+                        .HasForeignKey("AnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2FinancialValueRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2MetricDefinitionRow", null)
+                        .WithMany()
+                        .HasForeignKey("MetricDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", null)
+                        .WithMany()
+                        .HasForeignKey("TickerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", null)
+                        .WithMany()
+                        .HasForeignKey("TickerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementValueRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementLineDefinitionRow", null)
+                        .WithMany()
+                        .HasForeignKey("LineDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2IncomeStatementRow", null)
+                        .WithMany()
+                        .HasForeignKey("StatementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2ScreenerMetadataRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2TickerRow", null)
+                        .WithOne()
+                        .HasForeignKey("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CyclicalWavesV2ScreenerMetadataRow", "TickerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.DailyIndexSnapshotRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
@@ -4958,6 +7056,112 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .WithMany()
                         .HasForeignKey("SourceItemCatalogId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationCalculationRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryGroupRow", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryRow", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationMetricRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationCalculationRow", null)
+                        .WithMany()
+                        .HasForeignKey("CalculationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationOutboxRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationCalculationRow", null)
+                        .WithMany()
+                        .HasForeignKey("CalculationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryGroupRow", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryRow", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationSourceFactRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryWatchEvaluationRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationCalculationRow", null)
+                        .WithMany()
+                        .HasForeignKey("CalculationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryGroupRow", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryRow", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryWatchStateRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryGroupRow", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryRow", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryWatchTransitionRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IndustryRelativeValuationCalculationRow", null)
+                        .WithMany()
+                        .HasForeignKey("CalculationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryGroupRow", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryRow", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -5011,6 +7215,15 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .WithMany()
                         .HasForeignKey("SupersedesReportId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MonthlyActivityBackfillOutboxRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MonthlyActivityBackfillBatchRow", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", b =>

@@ -1,0 +1,95 @@
+{
+  "manifestVersion": 2,
+  "createdUtc": "2026-10-10",
+  "policy": "Original source datasets are immutable. Corrections are explicit overlays supported by the question text and the Feature 141 design review. Missing fields remain unadjudicated and are not silently scored.",
+  "corrections": [
+    {
+      "caseId": "readiness-dev-18",
+      "source": "release-readiness-dev-v1.json",
+      "status": "corrected_unambiguous",
+      "reason": "The question asks مقدار فروش and reports a ton unit; sales quantity is distinct from production quantity.",
+      "expected": { "measureConcepts": ["salesQuantity"], "operation": "retrieve", "comparison": "none", "period": "latestAvailable", "entityScope": "namedCompanies", "productLabels": ["گندله"], "output": "scalar" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "productLabels", "output"]
+    },
+    {
+      "caseId": "readiness-holdout-v2-03",
+      "source": "release-readiness-holdout-v2.json",
+      "status": "corrected_unambiguous",
+      "reason": "The Persian wording asks which producers sold more than 30 tons of pellets; this is a sales-quantity population filter, not YoY sales growth.",
+      "expected": { "measureConcepts": ["salesQuantity"], "operation": "discoverPopulation", "comparison": "none", "period": "latestAvailable", "entityScope": "unboundCompanyPopulation", "productLabels": ["گندله"], "thresholds": [{"measureConcept":"salesQuantity","operator":"greaterThan","value":30,"unit":"ton"}], "output": "table" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "productLabels", "thresholds", "output"]
+    },
+    {
+      "caseId": "readiness-holdout-v2-10",
+      "source": "release-readiness-holdout-v2.json",
+      "status": "corrected_unambiguous",
+      "reason": "Both production growth and sales growth are explicitly requested and the question asks whether they moved in the same direction. Preserve both measures and a cross-measure comparison; do not collapse to sales growth alone.",
+      "expected": { "measureConcepts": ["productionGrowth", "salesGrowth"], "operation": "compare", "comparison": "crossMeasure", "period": "latestAvailable", "entityScope": "namedCompanies", "output": "comparison", "requiresClarification": false },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "output", "requiresClarification"]
+    },
+    {
+      "caseId": "readiness-holdout-v3-02",
+      "source": "release-readiness-holdout-v3.json",
+      "status": "corrected_unambiguous",
+      "reason": "Latest report, mining industry, pellet, and production are explicit; the company population is unbound.",
+      "expected": { "measureConcepts": ["productionQuantity"], "operation": "discoverPopulation", "comparison": "none", "period": "latestAvailable", "entityScope": "unboundCompanyPopulation", "productLabels": ["گندله"], "categoryLabels": ["معدن"], "output": "table" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "productLabels", "categoryLabels", "output"]
+    },
+    {
+      "caseId": "readiness-holdout-v3-03",
+      "source": "release-readiness-holdout-v3.json",
+      "status": "corrected_unambiguous",
+      "reason": "More than 30 tons sold is a quantity threshold. The original YoY sales-growth label contradicts the unit and wording.",
+      "expected": { "measureConcepts": ["salesQuantity"], "operation": "discoverPopulation", "comparison": "none", "period": "latestAvailable", "entityScope": "unboundCompanyPopulation", "productLabels": ["گندله"], "thresholds": [{"measureConcept":"salesQuantity","operator":"greaterThan","value":30,"unit":"ton"}], "output": "table" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "productLabels", "thresholds", "output"]
+    },
+    {
+      "caseId": "readiness-holdout-v3-04",
+      "source": "release-readiness-holdout-v3.json",
+      "status": "corrected_unambiguous",
+      "reason": "The wording explicitly ranks pellet-producing companies by the sum of production over the last three months; the old sales-growth label is unrelated.",
+      "expected": { "measureConcepts": ["productionQuantity"], "operation": "rank", "comparison": "none", "period": "relativePeriods:month:3", "entityScope": "unboundCompanyPopulation", "productLabels": ["گندله"], "aggregation": "sum:acrossPeriods", "ranking": "descending:productionQuantity", "output": "rankedList" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "productLabels", "aggregation", "ranking", "output"]
+    },
+    {
+      "caseId": "readiness-holdout-v3-05",
+      "source": "release-readiness-holdout-v3.json",
+      "status": "corrected_unambiguous",
+      "reason": "The explicit target is monthly production-quantity growth over the last three months, not net profit. Preserve growth as an operation on the production observation rather than inventing a separate financial-statement measure.",
+      "expected": { "measureConcepts": ["productionQuantity"], "operation": "growthRate", "comparison": "monthOverMonth", "period": "relativePeriods:month:3", "entityScope": "namedCompanies", "ranking": "descending:productionQuantity", "productLabels": [], "output": "rankedList" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "ranking", "output"]
+    },
+    {
+      "caseId": "readiness-holdout-v3-06",
+      "source": "release-readiness-holdout-v3.json",
+      "status": "corrected_unambiguous",
+      "reason": "Explicit target month and prior-year baseline ask for a YoY percent change in production quantity. Gold describes the base observation plus operation, not a catalog-derived metric ID.",
+      "expected": { "measureConcepts": ["productionQuantity"], "operation": "growthRate", "comparison": "yearOverYear", "period": "explicitMonth:شهریور ۱۴۰۵", "entityScope": "namedCompanies", "productLabels": ["گندله"], "output": "scalar" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "productLabels", "output"]
+    },
+    {
+      "caseId": "readiness-holdout-v3-09",
+      "source": "release-readiness-holdout-v3.json",
+      "status": "catalog_blocked_semantically_valid",
+      "reason": "Cash at fiscal-year end is a direct financial-statement item. Retrieval authorization/catalog support is a later-stage concern and must not be reported as malformed model output or invalid intent.",
+      "expected": { "measureConcepts": ["cashBalance"], "operation": "retrieve", "comparison": "none", "period": "explicitFiscalYear:۱۴۰۴", "entityScope": "namedCompanies", "unit": "millionIRR", "output": "scalar", "requiresClarification": false },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "unit", "output", "requiresClarification"]
+    },
+    {
+      "caseId": "readiness-holdout-v3-10",
+      "source": "release-readiness-holdout-v3.json",
+      "status": "genuinely_ambiguous",
+      "reason": "Production growth is a rate while sales quantity is an absolute amount. Whether they are 'equal' is not semantically comparable without clarification; preserve both partial concepts and ask what comparison is intended.",
+      "expected": { "measureConcepts": ["productionGrowth", "salesQuantity"], "operation": "compare", "comparison": "crossMeasure", "period": "latestAvailable", "entityScope": "namedCompanies", "requiresClarification": true },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "requiresClarification"]
+    },
+    {
+      "caseId": "fa-value-02",
+      "source": "release-readiness-dev-v1.json",
+      "status": "corrected_unambiguous",
+      "reason": "Owner-approved semantics state that سود عملیاتی هر سهم is an independent direct source item measured in IRR per share, not a derived calculation.",
+      "expected": { "measureConcepts": ["operatingProfitPerShare"], "operation": "retrieve", "comparison": "none", "period": "latestAvailable", "entityScope": "namedCompanies", "unit": "irrPerShare", "output": "scalar" },
+      "expectedFields": ["measureConcepts", "operation", "comparison", "period", "entityScope", "unit", "output"]
+    }
+  ]
+}

@@ -1,0 +1,2104 @@
+{
+  "datasetVersion": "feature141-release-readiness-v1",
+  "split": "development",
+  "createdBeforeInference": true,
+  "caseCount": 40,
+  "cases": [
+    {
+      "id": "fa-02",
+      "question": "کدام محصولات کگل رشد تولید داشته‌اند؟",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports → MonthlyReportLineItems by report identity (application association)"
+      ],
+      "providerPeriodPolicies": [
+        "provider output type and accepted revision",
+        "explicit comparison baseline required"
+      ],
+      "statementScope": null,
+      "completeness": "incomplete unless baseline period and reviewed product identity are available",
+      "existingCapability": "product analytics precedence",
+      "genericSupport": "growth formula and product-category scope require review",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-monthly-activity",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_growth_yoy"
+      ],
+      "split": "development",
+      "readinessCategory": "monthly-activity"
+    },
+    {
+      "id": "fa-03",
+      "question": "روند فروش کگل را نمایش بده.",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "CompanyMonthlyActivityTrendSnapshots"
+      ],
+      "metrics": [
+        "MONTHLY_SALES"
+      ],
+      "dimensions": [
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped ExternalCompanyId resolver policy"
+      ],
+      "providerPeriodPolicies": [
+        "persisted governed trend snapshot",
+        "report month; completeness and provider provenance retained",
+        "sales amounts in million IRR; existing response converts where contract requires"
+      ],
+      "statementScope": null,
+      "completeness": "required company, monthly series and snapshot policy",
+      "existingCapability": "Feature 076/077/136 monthly trend route takes precedence",
+      "genericSupport": "specialized response is authoritative",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "domain-monthly-activity",
+        "table-tbl_4f3dd93b63d1766f"
+      ],
+      "metricIds": [
+        "metric_monthly_sales"
+      ],
+      "split": "development",
+      "readinessCategory": "monthly-activity"
+    },
+    {
+      "id": "fa-04",
+      "question": "سود خالص فولاد چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "provider and period type must be explicit or governed",
+        "retain source item mapping and unit"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "value": false,
+        "provenance": "business-owner-confirmed",
+        "fallback": "no consolidated substitution"
+      },
+      "completeness": "requires net-profit definition, company binding, statement period, provider and separate-scope policy",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "catalog semantics available; query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-05",
+      "question": "سود خالص تلفیقی فولاد چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "provider and period type must be explicit or governed",
+        "retain source item mapping and unit"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "value": true,
+        "provenance": "business-owner-confirmed"
+      },
+      "completeness": "requires explicitly consolidated scope and no mixing with separate statements",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "catalog semantics available; query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-06",
+      "question": "مقایسه سود خالص اصلی و تلفیقی فولاد",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable reporting period required"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "values": [
+          false,
+          true
+        ],
+        "rule": "return separate results; never merge"
+      },
+      "completeness": "requires both scopes and comparable provider/period/unit; incomplete if either scope unavailable",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-07",
+      "question": "کدام شرکت‌های صنعت فلزات اساسی بیشترین رشد فروش را داشته‌اند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "split": "development",
+      "readinessCategory": "company-industry,monthly-activity"
+    },
+    {
+      "id": "fa-08",
+      "question": "نسبت P/E شرکت‌های یک صنعت را مقایسه کن.",
+      "domains": [
+        "company-industry",
+        "financial-analytics"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "DerivedMetrics",
+        "CompanyIndustryRelativeValuations"
+      ],
+      "metrics": [
+        "PE_TTM"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "company industry FK and governed valuation snapshot identity"
+      ],
+      "providerPeriodPolicies": [
+        "P/E source/calculation provenance and freshness",
+        "persisted relative-valuation algorithm if ranking is requested"
+      ],
+      "statementScope": null,
+      "completeness": "requires industry binding, comparable P/E definition and freshness policy",
+      "existingCapability": "Feature 125 relative valuation capability takes precedence for ranking",
+      "genericSupport": "raw cross-company ratio comparison is not query-authorized",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "domain-company-industry",
+        "domain-financial-analytics",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_83be994ebc1a8627",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_ca0643d8942492ab"
+      ],
+      "metricIds": [
+        "metric_pe_ttm"
+      ],
+      "split": "development",
+      "readinessCategory": "company-industry,financial-analytics"
+    },
+    {
+      "id": "fa-09",
+      "question": "قیمت پایانی کگل در ماه گذشته",
+      "domains": [
+        "company-industry",
+        "market-data"
+      ],
+      "tables": [
+        "Companies",
+        "TradingInstruments",
+        "DailyInstrumentTrades"
+      ],
+      "metrics": [
+        "LATEST_PRICE"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company",
+        "trading instrument"
+      ],
+      "relationships": [
+        "TradingInstruments.NormalizedCompanyId → Companies.Id optional FK",
+        "DailyInstrumentTrades.TradingInstrumentId → TradingInstruments.Id physical FK"
+      ],
+      "providerPeriodPolicies": [
+        "retain ProviderName and SourceKind",
+        "exchange trading calendar; source-specific price scale",
+        "explicit last-month boundary"
+      ],
+      "statementScope": null,
+      "completeness": "requires unambiguous instrument mapping, trading calendar and source scale",
+      "existingCapability": "existing market quote/history route takes precedence",
+      "genericSupport": "query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-company-industry",
+        "domain-market-data",
+        "table-tbl_45c7c30ce87b0cf0",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_b5b50f52c60bb568"
+      ],
+      "metricIds": [
+        "metric_latest_price"
+      ],
+      "split": "development",
+      "readinessCategory": "company-industry,market-data"
+    },
+    {
+      "id": "fa-10",
+      "question": "روند شاخص کل در شش ماه گذشته",
+      "domains": [
+        "market-data"
+      ],
+      "tables": [
+        "TradingInstruments",
+        "DailyIndexSnapshots"
+      ],
+      "metrics": [
+        "index level and change percent; no generic metric ID asserted"
+      ],
+      "dimensions": [
+        "trading instrument",
+        "daily trading period"
+      ],
+      "entities": [
+        "named market index instrument"
+      ],
+      "relationships": [
+        "DailyIndexSnapshots.TradingInstrumentId → TradingInstruments.Id physical FK"
+      ],
+      "providerPeriodPolicies": [
+        "provider and SourceKind remain separate",
+        "exchange trading calendar",
+        "six-month time bound"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified index identity, date boundary, source and coverage policy",
+      "existingCapability": "existing market/index chart route takes precedence",
+      "genericSupport": "specialized chart contract is authoritative",
+      "nodeIds": [
+        "domain-market-data",
+        "table-tbl_45c7c30ce87b0cf0",
+        "table-tbl_5202a05755e60181"
+      ],
+      "metricIds": [],
+      "split": "development",
+      "readinessCategory": "market-data"
+    },
+    {
+      "id": "fa-value-01",
+      "question": "آخرین سود عملیاتی هر سهم کگل چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_682beceadddc1458",
+          "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 161,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported per-share operating-profit source item 161; no EPS or OPERATING_PROFIT substitution",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_682beceadddc1458",
+          "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 161,
+          "unitStatus": "unknown",
+          "metricCode": null
+        }
+      ],
+      "expectedEntityReferences": [
+        "کگل"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-value-02",
+      "question": "آخرین سود عملیاتی کگل چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_9c617846fc7c5c13",
+          "sourceItemCatalogId": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 140,
+          "metricCode": "OPERATING_PROFIT",
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported operating-profit source item 140 mapped to OPERATING_PROFIT",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگل"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-value-03",
+      "question": "سود خالص هر سهم کگل چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_bb4b63de3c1ecfe9",
+          "sourceItemCatalogId": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 160,
+          "metricCode": "EPS",
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported net-profit-per-share source item 160 mapped to EPS",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگل"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-value-04",
+      "question": "موجودی نقد کگهر در پایان سال ۱۴۰۴ چقدر بود؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_b7bcc0f92e19ac4f",
+          "sourceItemCatalogId": "c7fff58f-d0f7-4120-8e11-dc50ec890a93",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "BalanceSheet",
+          "sourceItemId": 1,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported cash-balance item 1; balance sheet and explicit year-end 1404",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگهر"
+      ],
+      "expectedPeriodPolicies": [
+        "explicit-period"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-value-05",
+      "question": "هزینه استهلاک فولاد در آخرین صورت سود و زیان چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_c3c0540b9de8f519",
+          "sourceItemCatalogId": "693cafce-bf83-4b39-9816-cfba9ddf4c3d",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 8,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported depreciation expense item 8 in latest income statement",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "فولاد"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-value-06",
+      "question": "سود خالص تلفیقی فولاد در آخرین گزارش چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "consolidated",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_66fdf1090cbf96d3",
+          "sourceItemCatalogId": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 143,
+          "metricCode": "NET_PROFIT",
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported net-profit item 143 mapped to NET_PROFIT; explicitly consolidated",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "فولاد"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-value-07",
+      "question": "رشد سود عملیاتی کگل نسبت به سال قبل چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "ApprovedPeriodComparison",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_9c617846fc7c5c13",
+          "sourceItemCatalogId": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 140,
+          "metricCode": "OPERATING_PROFIT",
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported operating-profit item 140 compared year-over-year under comparison policy",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگل"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "fa-value-08",
+      "question": "حاشیه سود خالص کگهر چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "UnsupportedDerivedFinancialMetric",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [],
+      "financialValueExpectation": "no approved provider financial indicator for NET_PROFIT_MARGIN in this catalog; do not derive locally",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگهر"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "split": "development",
+      "readinessCategory": "financial-statements"
+    },
+    {
+      "id": "readiness-dev-01",
+      "question": "آخرین گزارش جداگانه فولاد چه میزان سود خالص ثبت کرده است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "provider and period type must be explicit or governed",
+        "retain source item mapping and unit"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "value": false,
+        "provenance": "business-owner-confirmed",
+        "fallback": "no consolidated substitution"
+      },
+      "completeness": "requires net-profit definition, company binding, statement period, provider and separate-scope policy",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "catalog semantics available; query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-02",
+      "question": "سود خالص شرکت فولاد در آخرین صورت مالی چقدر گزارش شده؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "provider and period type must be explicit or governed",
+        "retain source item mapping and unit"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "value": false,
+        "provenance": "business-owner-confirmed",
+        "fallback": "no consolidated substitution"
+      },
+      "completeness": "requires net-profit definition, company binding, statement period, provider and separate-scope policy",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "catalog semantics available; query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-03",
+      "question": "در گزارش تلفیقی فولاد، رقم سود خالص چقدر است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "provider and period type must be explicit or governed",
+        "retain source item mapping and unit"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "value": true,
+        "provenance": "business-owner-confirmed"
+      },
+      "completeness": "requires explicitly consolidated scope and no mixing with separate statements",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "catalog semantics available; query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-04",
+      "question": "سود خالص جداگانه و تلفیقی فولاد را کنار هم مقایسه کن.",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [
+        "NET_PROFIT"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "company identity and statement-line association must be verified in provider scope"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable reporting period required"
+      ],
+      "statementScope": {
+        "field": "IsComposing",
+        "values": [
+          false,
+          true
+        ],
+        "rule": "return separate results; never merge"
+      },
+      "completeness": "requires both scopes and comparable provider/period/unit; incomplete if either scope unavailable",
+      "existingCapability": "existing financial metric capability takes precedence",
+      "genericSupport": "query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-financial-statements",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "metricIds": [
+        "metric_net_profit"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-05",
+      "question": "آخرین مقدار گزارش‌شده سود عملیاتی هر سهم کگل چیست؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_682beceadddc1458",
+          "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 161,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported per-share operating-profit source item 161; no EPS or OPERATING_PROFIT substitution",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_682beceadddc1458",
+          "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 161,
+          "unitStatus": "unknown",
+          "metricCode": null
+        }
+      ],
+      "expectedEntityReferences": [
+        "کگل"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-06",
+      "question": "موجودی وجه نقد کگهر در پایان سال ۱۴۰۴ چه مبلغی بود؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_b7bcc0f92e19ac4f",
+          "sourceItemCatalogId": "c7fff58f-d0f7-4120-8e11-dc50ec890a93",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "BalanceSheet",
+          "sourceItemId": 1,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported cash-balance item 1; balance sheet and explicit year-end 1404",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگهر"
+      ],
+      "expectedPeriodPolicies": [
+        "explicit-period"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-07",
+      "question": "هزینه استهلاک فولاد را از آخرین صورت سود و زیان پیدا کن.",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "DirectValueRetrieval",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_c3c0540b9de8f519",
+          "sourceItemCatalogId": "693cafce-bf83-4b39-9816-cfba9ddf4c3d",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 8,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported depreciation expense item 8 in latest income statement",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "فولاد"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-08",
+      "question": "سود عملیاتی هر سهم کگل نسبت به سال قبل چند درصد تغییر کرد؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "ApprovedPeriodComparison",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_9c617846fc7c5c13",
+          "sourceItemCatalogId": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 140,
+          "metricCode": "OPERATING_PROFIT",
+          "unitStatus": "unknown"
+        }
+      ],
+      "financialValueExpectation": "reported operating-profit item 140 compared year-over-year under comparison policy",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگل"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-09",
+      "question": "حاشیه سود ناخالص کگهر در تازه‌ترین گزارش چند درصد است؟",
+      "domains": [
+        "financial-statements"
+      ],
+      "tables": [
+        "FinancialStatements",
+        "FinancialStatementLineItems",
+        "Companies"
+      ],
+      "metrics": [],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped statement and company identity"
+      ],
+      "providerPeriodPolicies": [
+        "NoavaranCurrentApi",
+        "reporting period required",
+        "preserve statement scope and unknown unit"
+      ],
+      "statementScope": "standalone",
+      "expectedFinancialValueOperation": "UnsupportedDerivedFinancialMetric",
+      "expectedOutcome": "unsupported",
+      "expectedComplete": false,
+      "expectedFinancialValueReferences": [],
+      "financialValueExpectation": "no approved provider financial indicator for NET_PROFIT_MARGIN in this catalog; do not derive locally",
+      "genericSupport": "unsupported until semantic/runtime authorization; no numeric observation is included",
+      "nodeIds": [],
+      "metricIds": [],
+      "completeness": "catalog concept and exact reference must be present; retrieval authorization remains separate",
+      "existingCapability": "existing specialized capability retains precedence",
+      "financialValueReferences": [],
+      "expectedEntityReferences": [
+        "کگهر"
+      ],
+      "expectedPeriodPolicies": [
+        "latest"
+      ],
+      "readinessCategory": "financial-statements",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-10",
+      "question": "نسبت قیمت به درآمد شرکت‌های صنعت فولاد را در یک جدول مقایسه کن.",
+      "domains": [
+        "company-industry",
+        "financial-analytics"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "DerivedMetrics",
+        "CompanyIndustryRelativeValuations"
+      ],
+      "metrics": [
+        "PE_TTM"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "company industry FK and governed valuation snapshot identity"
+      ],
+      "providerPeriodPolicies": [
+        "P/E source/calculation provenance and freshness",
+        "persisted relative-valuation algorithm if ranking is requested"
+      ],
+      "statementScope": null,
+      "completeness": "requires industry binding, comparable P/E definition and freshness policy",
+      "existingCapability": "Feature 125 relative valuation capability takes precedence for ranking",
+      "genericSupport": "raw cross-company ratio comparison is not query-authorized",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "domain-company-industry",
+        "domain-financial-analytics",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_83be994ebc1a8627",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_ca0643d8942492ab"
+      ],
+      "metricIds": [
+        "metric_pe_ttm"
+      ],
+      "readinessCategory": "financial-analytics",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-11",
+      "question": "بیشترین قیمت پایانی کگل در ماه گذشته چه بوده است؟",
+      "domains": [
+        "company-industry",
+        "market-data"
+      ],
+      "tables": [
+        "Companies",
+        "TradingInstruments",
+        "DailyInstrumentTrades"
+      ],
+      "metrics": [
+        "LATEST_PRICE"
+      ],
+      "dimensions": [
+        "dim_company"
+      ],
+      "entities": [
+        "company",
+        "trading instrument"
+      ],
+      "relationships": [
+        "TradingInstruments.NormalizedCompanyId → Companies.Id optional FK",
+        "DailyInstrumentTrades.TradingInstrumentId → TradingInstruments.Id physical FK"
+      ],
+      "providerPeriodPolicies": [
+        "retain ProviderName and SourceKind",
+        "exchange trading calendar; source-specific price scale",
+        "explicit last-month boundary"
+      ],
+      "statementScope": null,
+      "completeness": "requires unambiguous instrument mapping, trading calendar and source scale",
+      "existingCapability": "existing market quote/history route takes precedence",
+      "genericSupport": "query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "domain-company-industry",
+        "domain-market-data",
+        "table-tbl_45c7c30ce87b0cf0",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_b5b50f52c60bb568"
+      ],
+      "metricIds": [
+        "metric_latest_price"
+      ],
+      "readinessCategory": "market-data",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-12",
+      "question": "در سال اخیر کدام شرکت‌ها بر اساس گزارش مثبت، گندله تولید کرده‌اند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "readinessCategory": "population-discovery",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-13",
+      "question": "شرکت‌های دارای تولید مثبت گندله سنگ‌آهن در شهریور ۱۴۰۵ را پیدا کن.",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "readinessCategory": "population-discovery",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-14",
+      "question": "مقدار تولید گندله کگهر در ماه شهریور ۱۴۰۵ چقدر ثبت شده؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "readinessCategory": "monthly-production",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-15",
+      "question": "رشد تولید محصولات کگل در مقایسه با دوره مشابه پارسال چه‌قدر بوده؟",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports → MonthlyReportLineItems by report identity (application association)"
+      ],
+      "providerPeriodPolicies": [
+        "provider output type and accepted revision",
+        "explicit comparison baseline required"
+      ],
+      "statementScope": null,
+      "completeness": "incomplete unless baseline period and reviewed product identity are available",
+      "existingCapability": "product analytics precedence",
+      "genericSupport": "growth formula and product-category scope require review",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-monthly-activity",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_growth_yoy"
+      ],
+      "readinessCategory": "monthly-production",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-16",
+      "question": "مبالغ فروش ماهانه کگل را برای شش گزارش آخر به ترتیب زمانی بیاور.",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "CompanyMonthlyActivityTrendSnapshots"
+      ],
+      "metrics": [
+        "MONTHLY_SALES"
+      ],
+      "dimensions": [
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped ExternalCompanyId resolver policy"
+      ],
+      "providerPeriodPolicies": [
+        "persisted governed trend snapshot",
+        "report month; completeness and provider provenance retained",
+        "sales amounts in million IRR; existing response converts where contract requires"
+      ],
+      "statementScope": null,
+      "completeness": "required company, monthly series and snapshot policy",
+      "existingCapability": "Feature 076/077/136 monthly trend route takes precedence",
+      "genericSupport": "specialized response is authoritative",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "domain-monthly-activity",
+        "table-tbl_4f3dd93b63d1766f"
+      ],
+      "metricIds": [
+        "metric_monthly_sales"
+      ],
+      "readinessCategory": "monthly-sales",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-17",
+      "question": "فروش ریالی کگل در شهریور ۱۴۰۵ به چه میزان رسید؟",
+      "domains": [
+        "monthly-activity"
+      ],
+      "tables": [
+        "CompanyMonthlyActivityTrendSnapshots"
+      ],
+      "metrics": [
+        "MONTHLY_SALES"
+      ],
+      "dimensions": [
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company"
+      ],
+      "relationships": [
+        "provider-scoped ExternalCompanyId resolver policy"
+      ],
+      "providerPeriodPolicies": [
+        "persisted governed trend snapshot",
+        "report month; completeness and provider provenance retained",
+        "sales amounts in million IRR; existing response converts where contract requires"
+      ],
+      "statementScope": null,
+      "completeness": "required company, monthly series and snapshot policy",
+      "existingCapability": "Feature 076/077/136 monthly trend route takes precedence",
+      "genericSupport": "specialized response is authoritative",
+      "nodeIds": [
+        "dimension-dim_monthly_period",
+        "domain-monthly-activity",
+        "table-tbl_4f3dd93b63d1766f"
+      ],
+      "metricIds": [
+        "metric_monthly_sales"
+      ],
+      "readinessCategory": "monthly-sales",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-18",
+      "question": "در آخرین گزارش، مقدار فروش گندله کگهر چند تن بوده است؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "readinessCategory": "monthly-sales",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-19",
+      "question": "کدام شرکت‌های صنعت فولاد رشد فروش ماهانه بیشتری داشته‌اند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "readinessCategory": "company-industry",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-20",
+      "question": "شرکت‌های یک صنعت را با رشد فروش ماهانه مرتب کن.",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "readinessCategory": "company-industry",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-21",
+      "question": "کدام شرکت‌های صنعت معدن در شهریور گندله تولید مثبت داشته‌اند؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_PRODUCTION_QUANTITY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "entities": [
+        "company",
+        "company-scoped product identity"
+      ],
+      "relationships": [
+        "MonthlyReports.CompanyId → Companies.Id",
+        "MonthlyReportLineItems.MonthlyReportId → MonthlyReports.Id (application association; no physical FK)"
+      ],
+      "providerPeriodPolicies": [
+        "Noavaran provider identity retained",
+        "accepted ProductSales monthly report; actual output type 0",
+        "Shamsi report month"
+      ],
+      "statementScope": null,
+      "completeness": "context-required; company, production measure, product identity and reporting period must be present",
+      "existingCapability": "product/monthly specialized capabilities take precedence",
+      "genericSupport": "pending authorization and product alias review",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "readinessCategory": "company-industry",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-22",
+      "question": "شرکت‌های تولیدکننده گندله را از نظر فروش مقایسه کن؛ منظورم فروش کل شرکت است یا خود محصول؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "readinessCategory": "ambiguity",
+      "split": "development"
+    },
+    {
+      "id": "readiness-dev-23",
+      "question": "آیا رشد تولید کگهر با رشد فروش آن هم‌جهت بوده است؟",
+      "domains": [
+        "company-industry",
+        "monthly-activity"
+      ],
+      "tables": [
+        "Companies",
+        "Industries",
+        "MonthlyReports",
+        "MonthlyReportLineItems"
+      ],
+      "metrics": [
+        "MONTHLY_SALES_GROWTH_YOY"
+      ],
+      "dimensions": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "entities": [
+        "company",
+        "industry"
+      ],
+      "relationships": [
+        "Companies.IndustryId → Industries.Id physical FK",
+        "company/provider-scoped monthly report identity"
+      ],
+      "providerPeriodPolicies": [
+        "same provider and comparable monthly period",
+        "industry classification is source-scoped"
+      ],
+      "statementScope": null,
+      "completeness": "requires verified industry binding, sales growth policy, baseline period and comparable cohort",
+      "existingCapability": "existing scanner/product analytics takes precedence if recognized",
+      "genericSupport": "growth aggregation and query authorization pending",
+      "nodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_industry",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "table-tbl_0092e8a0b8fd0d23",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "metricIds": [
+        "metric_monthly_sales_growth_yoy"
+      ],
+      "readinessCategory": "ambiguity",
+      "split": "development"
+    }
+  ]
+}

@@ -7,17 +7,86 @@ using Microsoft.Extensions.Options;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 /// <summary>
-/// Enqueues bounded monthly-activity sync requests for one company across an explicit Shamsi range
-/// (spec 057 pipeline). Each month becomes one <see cref="DataSyncRequest"/> with explicit Jalali
-/// from/to dates, identical to what the full backfill coordinator enqueues per company-month.
-/// Uses a distinct idempotency-key prefix so runs do not interfere with the full backfill state.
+/// Handles targeted monthly activity for one company. Range requests use the existing queue; the
+/// direct recovery method fetches all ProductSales output types and invokes normalization/persistence inline.
 /// </summary>
 public sealed class SingleCompanyMonthlyIngestionService(
     IDataSyncRequestPublisher publisher,
+    INadpcoMonthlyProductSalesDirectProvider directProvider,
+    IFinancialDataSyncProcessor syncProcessor,
     IOptions<NadpcoApiProviderOptions> providerOptions,
     TimeProvider timeProvider) : ISingleCompanyMonthlyIngestionService
 {
     private const string KeyPrefix = "nadpco-single-monthly";
+
+    public async Task<DataSyncProcessingResult> ExecuteDirectAsync(
+        SingleCompanyMonthlyDirectIngestionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var requestId = Guid.NewGuid();
+        var month = new ShamsiMonth(request.ShamsiYear, request.ShamsiMonth);
+        var companyId = request.ExternalCompanyId.ToString(CultureInfo.InvariantCulture);
+        var syncRequest = new DataSyncRequest(
+            requestId,
+            ProviderDataset.MonthlyProductionSales,
+            companyId,
+            timeProvider.GetUtcNow(),
+            IdempotencyKey: string.Create(
+                CultureInfo.InvariantCulture,
+                $"{KeyPrefix}-direct-{month.Year:D4}{month.Month:D2}-{request.ExternalCompanyId}-{requestId:N}"),
+            ProviderName: providerOptions.Value.ProviderName,
+            Mode: SourceMode.CurrentIncremental,
+            SourceDateRangeStartJalali: month.FirstDayJalali,
+            SourceDateRangeEndJalali: ShamsiMonthCalculator.LastDayJalali(month),
+            MonthlyActivityOutputType: 0);
+        var result = await syncProcessor.ProcessProviderAsync(
+            syncRequest,
+            () => directProvider.FetchProductSalesAllOutputTypesAsync(
+                companyId,
+                request.ShamsiYear,
+                request.ShamsiMonth,
+                cancellationToken,
+                monthlyActivityOutputType: 0),
+            cancellationToken,
+            rethrowProviderExceptions: true);
+
+        if (result.Run.Status == DataSyncRunStatus.Completed && result.Run.ErrorCount == 0)
+        {
+            await EnqueueRemainingOutputTypesAsync(request, month, cancellationToken);
+        }
+
+        return result;
+    }
+
+    private async Task EnqueueRemainingOutputTypesAsync(
+        SingleCompanyMonthlyDirectIngestionRequest request,
+        ShamsiMonth month,
+        CancellationToken cancellationToken)
+    {
+        var providerName = providerOptions.Value.ProviderName;
+        var externalCompanyId = request.ExternalCompanyId.ToString(CultureInfo.InvariantCulture);
+        var fromDate = month.FirstDayJalali;
+        var toDate = ShamsiMonthCalculator.LastDayJalali(month);
+
+        foreach (var outputType in Enumerable.Range(1, 4))
+        {
+            await publisher.PublishAsync(
+                new DataSyncRequest(
+                    Guid.NewGuid(),
+                    ProviderDataset.MonthlyProductionSales,
+                    externalCompanyId,
+                    timeProvider.GetUtcNow(),
+                    IdempotencyKey: string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{KeyPrefix}-async-{month.Year:D4}{month.Month:D2}-{request.ExternalCompanyId}-ot{outputType}-{Guid.NewGuid():N}"),
+                    ProviderName: providerName,
+                    Mode: SourceMode.CurrentIncremental,
+                    SourceDateRangeStartJalali: fromDate,
+                    SourceDateRangeEndJalali: toDate,
+                    MonthlyActivityOutputType: outputType),
+                cancellationToken);
+        }
+    }
 
     public async Task<SingleCompanyMonthlyIngestionResult> EnqueueAsync(
         SingleCompanyMonthlyIngestionRequest request,
@@ -49,25 +118,32 @@ public sealed class SingleCompanyMonthlyIngestionService(
         }
 
         var enqueued = 0;
-        foreach (var month in months)
+        IEnumerable<int> outputTypes = request.OutputType is { } selectedOutputType
+            ? new[] { selectedOutputType }
+            : Enumerable.Range(0, 5);
+        foreach (var outputType in outputTypes)
         {
-            var fromDate = month.FirstDayJalali;
-            var toDate = ShamsiMonthCalculator.LastDayJalali(month);
-            var key = BuildKey(month, request.ExternalCompanyId);
+            foreach (var month in months)
+            {
+                var fromDate = month.FirstDayJalali;
+                var toDate = ShamsiMonthCalculator.LastDayJalali(month);
+                var key = BuildKey(month, request.ExternalCompanyId, outputType);
 
-            await publisher.PublishAsync(
-                new DataSyncRequest(
-                    Guid.NewGuid(),
-                    ProviderDataset.MonthlyProductionSales,
-                    request.ExternalCompanyId.ToString(CultureInfo.InvariantCulture),
-                    timeProvider.GetUtcNow(),
-                    IdempotencyKey: key,
-                    ProviderName: providerName,
-                    Mode: SourceMode.CurrentIncremental,
-                    SourceDateRangeStartJalali: fromDate,
-                    SourceDateRangeEndJalali: toDate),
-                cancellationToken);
-            enqueued++;
+                await publisher.PublishAsync(
+                    new DataSyncRequest(
+                        Guid.NewGuid(),
+                        ProviderDataset.MonthlyProductionSales,
+                        request.ExternalCompanyId.ToString(CultureInfo.InvariantCulture),
+                        timeProvider.GetUtcNow(),
+                        IdempotencyKey: key,
+                        ProviderName: providerName,
+                        Mode: SourceMode.CurrentIncremental,
+                        SourceDateRangeStartJalali: fromDate,
+                        SourceDateRangeEndJalali: toDate,
+                        MonthlyActivityOutputType: outputType),
+                    cancellationToken);
+                enqueued++;
+            }
         }
 
         return new SingleCompanyMonthlyIngestionResult(
@@ -80,8 +156,8 @@ public sealed class SingleCompanyMonthlyIngestionService(
             request.RequestedBy);
     }
 
-    private static string BuildKey(ShamsiMonth month, int companyId) =>
+    private static string BuildKey(ShamsiMonth month, int companyId, int outputType) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"{KeyPrefix}-{month.Year:D4}{month.Month:D2}-{companyId}");
+            $"{KeyPrefix}-{month.Year:D4}{month.Month:D2}-{companyId}-ot{outputType}");
 }

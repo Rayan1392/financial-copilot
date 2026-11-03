@@ -19,11 +19,12 @@ import {
 
 interface Props {
   onCompose: (prompt: string) => void;
+  disabled?: boolean;
 }
 
 const RESULT_LIMIT = 20;
 
-export function AssistedQueryDialog({ onCompose }: Props) {
+export function AssistedQueryDialog({ onCompose, disabled = false }: Props) {
   const [open, setOpen] = useState(false);
   const [metricCode, setMetricCode] = useState("");
   const [periodCode, setPeriodCode] = useState("");
@@ -86,7 +87,8 @@ export function AssistedQueryDialog({ onCompose }: Props) {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium ring-1 ring-hairline bg-background text-muted-foreground hover:text-foreground transition"
+          disabled={disabled}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium ring-1 ring-hairline bg-background text-muted-foreground hover:text-foreground transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
         >
           <Filter className="size-3" />
           فیلترنویسی

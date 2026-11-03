@@ -1,0 +1,79 @@
+{
+  "id": "metric_eps",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "EPS"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Earnings per Share",
+    "Description": "Governed semantic definition for Earnings per Share.",
+    "Category": 0,
+    "Unit": {
+      "Code": "amount-per-share",
+      "DisplayLabel": "Amount per share"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "eps",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "EPS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "earnings per share",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "EPS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "سود هر سهم",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EPS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "سود پایه هر سهم",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EPS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

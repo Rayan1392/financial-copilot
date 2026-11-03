@@ -1,0 +1,43 @@
+{
+  "datasetVersion": 3,
+  "purpose": "Fresh post-freeze generalization fixture. It uses question structures and metric compositions absent from both the development golden set and prior held-out fixtures. It is not included in runtime prompts.",
+  "cases": [
+    {
+      "id": "holdout-v3-price-cashflow",
+      "question": "For every listed company, show the latest market price next to operating cash flow in the same result.",
+      "domains": ["financial-statements", "market-data"],
+      "tables": ["table-tbl_4f2ef2d8dd59b46a", "table-tbl_a7c77d65fb2aaea2", "table-tbl_aed5e5af50281db4", "table-tbl_b5b50f52c60bb568"],
+      "metrics": ["LATEST_PRICE", "OPERATING_CASH_FLOW"],
+      "metricIds": ["metric_latest_price", "metric_operating_cash_flow"],
+      "dimensions": ["dim_company"],
+      "entities": ["company"],
+      "relationships": [],
+      "nodeIds": ["domain-financial-statements", "domain-market-data", "dimension-dim_company", "table-tbl_4f2ef2d8dd59b46a", "table-tbl_a7c77d65fb2aaea2", "table-tbl_aed5e5af50281db4", "table-tbl_b5b50f52c60bb568"]
+    },
+    {
+      "id": "holdout-v3-industry-efficiency-rank",
+      "question": "Group issuers by industry and rank the industries using their companies' asset turnover and average collection period.",
+      "domains": ["company-industry", "financial-statements"],
+      "tables": ["table-tbl_0092e8a0b8fd0d23", "table-tbl_83be994ebc1a8627"],
+      "metrics": ["ASSET_TURNOVER", "AVERAGE_COLLECTION_PERIOD"],
+      "metricIds": ["metric_asset_turnover", "metric_average_collection_period"],
+      "dimensions": ["dim_company", "dim_industry"],
+      "entities": ["company", "industry"],
+      "relationships": ["company-to-industry relation"],
+      "nodeIds": ["domain-company-industry", "domain-financial-statements", "dimension-dim_company", "dimension-dim_industry", "table-tbl_0092e8a0b8fd0d23", "table-tbl_83be994ebc1a8627"]
+    },
+    {
+      "id": "holdout-v3-liquidity-margin",
+      "question": "For each issuer's newest standalone statement, put its current ratio and gross profit margin side by side.",
+      "domains": ["financial-statements"],
+      "tables": ["table-tbl_83be994ebc1a8627"],
+      "metrics": ["CURRENT_RATIO", "GROSS_PROFIT_MARGIN"],
+      "metricIds": ["metric_current_ratio", "metric_gross_profit_margin"],
+      "dimensions": ["dim_company"],
+      "entities": ["company"],
+      "relationships": [],
+      "statementScope": "standalone",
+      "nodeIds": ["domain-financial-statements", "dimension-dim_company", "table-tbl_83be994ebc1a8627"]
+    }
+  ]
+}

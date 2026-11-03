@@ -18,8 +18,11 @@ public sealed class CustomerAccountRow
 
     public string? SubscriptionPlanCode { get; set; }
     public DateTimeOffset? SubscriptionEffectiveFrom { get; set; }
+    public bool SubscriptionActivationIsAuthoritative { get; set; }
     public DateTimeOffset? SubscriptionEffectiveTo { get; set; }
     public long SubscriptionRevision { get; set; }
+    public long? ExternalSubscriptionRevision { get; set; }
+    public bool ExternalSubscriptionManaged { get; set; }
 }
 
 public sealed class WalletProjectionRow
@@ -43,9 +46,18 @@ public sealed class UsageReservationRow
 
     public string IdempotencyKey { get; set; } = string.Empty;
 
+    // SHA-256 of the caller payload; never store the raw user prompt here.
+    public string? RequestFingerprint { get; set; }
+
     public string OperationCode { get; set; } = string.Empty;
 
     public decimal ReservedCredits { get; set; }
+
+    public string QuotaMode { get; set; } = "Finite";
+
+    public Guid? SourceSubscriptionId { get; set; }
+
+    public DateTimeOffset? SourceSubscriptionExpiresAtUtc { get; set; }
 
     public decimal? CommittedCredits { get; set; }
 
@@ -105,6 +117,187 @@ public sealed class UsageLedgerEntryRow
     public string? AllocationSource { get; set; }
 
     public string? AllowanceDateKey { get; set; }
+
+    public decimal? SubscriptionCreditsApplied { get; set; }
+
+    public string QuotaMode { get; set; } = "Finite";
+
+    public Guid? SourceSubscriptionId { get; set; }
+
+    public DateTimeOffset? SourceSubscriptionExpiresAtUtc { get; set; }
+}
+
+/// <summary>Immutable source attribution for charges funded by one or more subscription periods.</summary>
+public sealed class UsageCreditAllocationRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageLedgerEntryId { get; set; }
+    public Guid SubscriptionCreditPeriodId { get; set; }
+    public Guid GrantLedgerEntryId { get; set; }
+    public decimal CreditsApplied { get; set; }
+}
+
+/// <summary>A reservation's claim on an expiring allowance source.</summary>
+public sealed class UsageCreditHoldRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageReservationId { get; set; }
+    public Guid SubscriptionCreditPeriodId { get; set; }
+    public decimal CreditsHeld { get; set; }
+}
+
+/// <summary>Credits purchased from TahlilApp and expiring with their original paid window.</summary>
+public sealed class TopUpCreditSourceRow
+{
+    public Guid Id { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public Guid ExternalPlanSubscriptionId { get; set; }
+    public Guid PurchaseId { get; set; }
+    public Guid GrantLedgerEntryId { get; set; }
+    public decimal GrantedCredits { get; set; }
+    public decimal RemainingCredits { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public string Status { get; set; } = "Active";
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public long Revision { get; set; }
+}
+
+/// <summary>Durable verified TahlilApp purchase receipt and immutable delivery outcome.</summary>
+public sealed class TahlilAppTopUpPurchaseRow
+{
+    public Guid Id { get; set; }
+    public string Partner { get; set; } = "TahlilApp";
+    public string InvoiceId { get; set; } = string.Empty;
+    public string RequestFingerprint { get; set; } = string.Empty;
+    // Retained only for legacy reconciliation of receipts created before invoiceId became canonical.
+    public string? EventId { get; set; }
+    public string? PurchaseId { get; set; }
+    public string? PaymentId { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public string ExternalUserId { get; set; } = string.Empty;
+    public Guid? ExternalPlanSubscriptionId { get; set; }
+    public string? PlanSlug { get; set; }
+    public DateTimeOffset? PlanStartsAtUtc { get; set; }
+    public DateTimeOffset? PlanExpiresAtUtc { get; set; }
+    public int CreditsPurchased { get; set; }
+    public string? PackageId { get; set; }
+    public string? PackageVersion { get; set; }
+    public DateTimeOffset PaidAtUtc { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public Guid? GrantId { get; set; }
+    public Guid? GrantLedgerEntryId { get; set; }
+    public DateTimeOffset ReceivedAtUtc { get; set; }
+    public DateTimeOffset? GrantedAtUtc { get; set; }
+}
+
+/// <summary>One-time consumption record for a TahlilApp partner JWT jti.</summary>
+public sealed class ConsumedPartnerTokenRow
+{
+    public string Issuer { get; set; } = string.Empty;
+    public string Jti { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public DateTimeOffset ConsumedAtUtc { get; set; }
+}
+
+public sealed class TopUpUsageCreditAllocationRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageLedgerEntryId { get; set; }
+    public Guid TopUpCreditSourceId { get; set; }
+    public Guid GrantLedgerEntryId { get; set; }
+    public decimal CreditsApplied { get; set; }
+}
+
+public sealed class TopUpUsageCreditHoldRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageReservationId { get; set; }
+    public Guid TopUpCreditSourceId { get; set; }
+    public decimal CreditsHeld { get; set; }
+}
+
+/// <summary>Database controlled active quantity/package agreement for partner top-ups.</summary>
+public sealed class TopUpOfferRow
+{
+    public string OfferId { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
+    public int Credits { get; set; }
+    public bool IsActive { get; set; }
+}
+
+/// <summary>One authoritative TahlilApp paid-plan window, identified only by the confirmed fields.</summary>
+public sealed class ExternalPlanSubscriptionRow
+{
+    public Guid Id { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public string IdentityKey { get; set; } = string.Empty;
+    public string PlanCode { get; set; } = string.Empty;
+    public DateTimeOffset StartsAtUtc { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public bool PlusTransferApplied { get; set; }
+    public bool IsRevoked { get; set; }
+    public DateTimeOffset? RevokedAtUtc { get; set; }
+}
+
+/// <summary>Durable eligibility state, separate from identity authentication and effective plan.</summary>
+public sealed class PaidExpiryCooldownRow
+{
+    public Guid CustomerAccountId { get; set; }
+    public DateTimeOffset LastPaidExpiresAtUtc { get; set; }
+    public DateTimeOffset CooldownUntilUtc { get; set; }
+    public DateTimeOffset? RevocationObservedAtUtc { get; set; }
+    public long Revision { get; set; }
+}
+
+public sealed class SubscriptionCreditPeriodRow
+{
+    public Guid Id { get; set; }
+
+    public Guid CustomerAccountId { get; set; }
+
+    public string PlanCode { get; set; } = string.Empty;
+
+    public string SubscriptionIdentity { get; set; } = string.Empty;
+
+    public string IdempotencyKey { get; set; } = string.Empty;
+
+    public DateTimeOffset AnchorAtUtc { get; set; }
+
+    public long ActivationRevision { get; set; }
+
+    public long PeriodNumber { get; set; }
+
+    public DateTimeOffset StartsAtUtc { get; set; }
+
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+
+    public decimal GrantedCredits { get; set; }
+
+    /// <summary>The catalog allowance captured at grant time, excluding any explicit transfer.</summary>
+    public decimal AllowanceCredits { get; set; }
+
+    public decimal RemainingCredits { get; set; }
+
+    public Guid GrantLedgerEntryId { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public DateTimeOffset? ClosedAtUtc { get; set; }
+
+    public long Revision { get; set; }
+}
+
+/// <summary>Permanent proof that a local user has received the one-time Free allowance.</summary>
+public sealed class FreeCreditGrantEvidenceRow
+{
+    public Guid UserId { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public Guid? GrantLedgerEntryId { get; set; }
+    public DateTimeOffset GrantedAtUtc { get; set; }
+    public DateTimeOffset? AssignedExpiresAtUtc { get; set; }
+    public string EvidenceSource { get; set; } = string.Empty;
 }
 
 public sealed class DailyFreeAllowanceGrantRow
@@ -148,6 +341,8 @@ public sealed class SubscriptionPlanRow
     public string Name { get; set; } = string.Empty;
 
     public decimal IncludedCredits { get; set; }
+
+    public string QuotaMode { get; set; } = "Finite";
 
     public string PricingPolicyVersion { get; set; } = string.Empty;
 }

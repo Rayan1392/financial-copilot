@@ -1,0 +1,62 @@
+{
+  "id": "P10",
+  "run": {
+    "Question": "کدام شرکت‌ها سود خالص بالای ۱۰۰۰ میلیارد ریال و EPS بالای ۲۰۰۰ ریال دارند؟",
+    "Enabled": true,
+    "Answer": "این پرسش را نمی‌توانم به‌صورت قابل اتکا پاسخ بدهم. می‌توانم نمادها را با معیارهای مالی فیلتر کنم، شاخص‌های یک نماد را نشان بدهم، روند فروش ماهانه را نمایش دهم یا تحلیل‌های ثبت‌شده را ارائه کنم.",
+    "PersistedUserMessage": "کدام شرکت‌ها سود خالص بالای ۱۰۰۰ میلیارد ریال و EPS بالای ۲۰۰۰ ریال دارند؟",
+    "PersistedAssistantMessage": "این پرسش را نمی‌توانم به‌صورت قابل اتکا پاسخ بدهم. می‌توانم نمادها را با معیارهای مالی فیلتر کنم، شاخص‌های یک نماد را نشان بدهم، روند فروش ماهانه را نمایش دهم یا تحلیل‌های ثبت‌شده را ارائه کنم.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 0,
+    "QueryStatus": null,
+    "TypedOutcome": "Feature141 typed outcome. Outcome=Unsupported Diagnostic=requested_result_unit_conversion_not_supported CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51",
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=DeterministicFallback CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51 | Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities=entity:خالص,entity:میلیارد,entity:ریال,entity:دارند RequestedMetrics=eps RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:stock_screening:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51",
+    "SemanticCapability": "stock_screening",
+    "Intent": "Unknown",
+    "Outcome": "Unsupported",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": {
+      "OperationCode": "AiQuery.Scanner",
+      "CompletionStatus": "ValidationFailed",
+      "CreditsCharged": 0,
+      "RemainingSpendingCapacity": 25.0000,
+      "PricingPolicyVersion": "v1",
+      "Cached": false,
+      "ProviderName": "OpenAI",
+      "ModelName": "gpt-5.6-luna",
+      "PromptTokens": 3697,
+      "CompletionTokens": 1169,
+      "TotalTokens": 4866,
+      "EstimatedCost": null,
+      "ExecutionRoute": "feature141_fallback"
+    },
+    "Reservations": [
+      {
+        "IdempotencyKey": "feature141-pilot-701308a874714d60a61179a816c16b51:reservation",
+        "Status": "Committed",
+        "ReservedCredits": 1.0000,
+        "CommittedCredits": 0.0000
+      }
+    ],
+    "LedgerEntries": 1,
+    "LedgerCreditsCharged": 0.0000,
+    "WalletBalanceBefore": 124.0000,
+    "WalletBalanceAfter": 124.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols= Products= RequestedMeasures=netProfit,earningsPerShare PeriodKind=Unspecified PeriodCount=(null) ComparisonMode=None Presentation=Table",
+      "Feature141 statement shape classified. Shape=Filter Diagnostic=none Operation=DiscoverPopulation Ranking=none Constraints= RequestedFields= Filters=FilterGroup CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51",
+      "Feature141 typed outcome. Outcome=Unsupported Diagnostic=requested_result_unit_conversion_not_supported CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51"
+    ],
+    "ElapsedMs": 17195.2648,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=stock_screening Disposition=DeterministicFallback CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51",
+      "Chat semantic route selected. Route=semantic_capability Capability=stock_screening ExtractedEntities=entity:خالص,entity:میلیارد,entity:ریال,entity:دارند RequestedMetrics=eps RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=stock_screening Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:stock_screening:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-701308a874714d60a61179a816c16b51 RolloutMode=Shadow LegacyCapability=stock_screening LegacyConfidence=0.96 SemanticIntent=stock_screening SemanticCapabilityCandidate=stock_screening SemanticConfidence=0.96 ExtractedCompany=خالص ExtractedProduct=(null) ExtractedMetric=eps ExtractedPeriod=(null) ResolvedCompany=(null) CompanyRe"
+    ],
+    "ExecutedQueries": []
+  }
+}

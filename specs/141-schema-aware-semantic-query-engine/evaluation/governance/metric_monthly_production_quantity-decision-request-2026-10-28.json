@@ -1,0 +1,53 @@
+{
+  "decisionRequestId": "feature141-governance-metric_monthly_production_quantity-2026-10-28",
+  "status": "APPROVAL_REQUIRED",
+  "decisionAuthority": "Product owner (same authority that approved operatingProfitPerShare on 2026-10-08 and the product catalog on 2026-10-09)",
+  "preparedBy": "Feature 141 engineering, 2026-10-28",
+  "catalogObjects": {
+    "measure": "metric_monthly_production_quantity (dictionaries/monthly-measures.yaml, metricCode MONTHLY_PRODUCTION_QUANTITY)",
+    "lineItemsTable": "tbl_8ecd0432a4292998 = public.MonthlyReportLineItems",
+    "reportsTable": "tbl_8e759d70dada6bd8 = public.MonthlyReports",
+    "companiesTable": "tbl_8646d83cdb350f92 = public.Companies (already owner-approved for runtime query)",
+    "relationships": [
+      "rel_31e410fb3ae11956 MonthlyReportLineItems.MonthlyReportId -> MonthlyReports.Id (verified application logical relationship, no physical FK in captured schema)",
+      "rel_4e54d40aee8b45e4 MonthlyReports.CompanyId -> Companies.Id (discovered from pg_catalog; needed by the compiled query's company filter)"
+    ]
+  },
+  "currentCatalogState": {
+    "measure.review": { "semanticApproved": false, "queryable": false, "status": "pending-owner-review" },
+    "lineItemsTable": { "semantic.queryable": false, "semanticApproval.approved": false, "queryAuthorization.runtimeQueryable": false, "approvedObjects": [] },
+    "reportsTable": { "semantic.queryable": false, "semanticApproval.approved": false, "queryAuthorization.runtimeQueryable": false, "approvedObjects": [] },
+    "rel_31e410fb3ae11956": { "semantic.approved": false, "runtimeJoinable": false, "queryAuthorization.queryable": false },
+    "rel_4e54d40aee8b45e4": { "semantic.approved": false, "runtimeJoinable": false, "status": "discovered-unapproved" }
+  },
+  "verifiedFacts": [
+    "Source: NoavaranCurrentApi monthly ProductSales reports, OutputType 0 (monthly, non-cumulative); ingestion persists one MonthlyReports row per logical report revision (LogicalReportKey, RevisionFingerprint, RevisionStatus, IsAccepted) and one MonthlyReportLineItems row per product line (ProductCode, Title, Unit, ProductionQuantity, SalesQuantity, SalesAmount, SalesRate, SourceRowFingerprint, SourceMultiplicity).",
+    "Value column: MonthlyReportLineItems.ProductionQuantity (decimal) as persisted by Feature 024/042 ingestion; no formula, no conversion.",
+    "Company identity: MonthlyReports.CompanyId = Companies.Id; the plan binds the company through CanonicalQueryEntityResolver (exact ticker/name), never through ExternalCompanyId.",
+    "Product identity: company-scoped ProductCode resolved by CanonicalQueryProductResolver through StructuredQueryProductBinder; the key is provider:externalCompany:TITLE:<title>|UNIT:<unit> (observed on 2026-10-09: NoavaranCurrentApi:feature141-kgehr:TITLE:گندله|UNIT:ton). Concept product_iron_ore_pellets (aliases گندله, گندله سنگ‌آهن) is owner-approved for alias matching only (approved-aliases-only).",
+    "Period: MonthlyReports.PeriodStart/PeriodEnd are Gregorian DateOnly bounds of the Persian report month; the compiled query matches r.PeriodStart >= @period_start AND r.PeriodEnd <= @period_end and reports both dates in the answer. Shahrivar 1405 = 2026-08-23..2026-09-22.",
+    "Revision and duplicates: the compiled query filters ProviderName, ReportType, OutputType, IsAccepted = true and RevisionStatus = 'Accepted' from the catalog revisionPolicy; SamePeriodCandidateCount > 1, DuplicateProductCount > 0 or SourceMultiplicity <> 1 make the executor return Ambiguous (monthly_product_period_has_multiple_source_rows) instead of choosing a row.",
+    "Unit: unitPolicy kind=quantity, code=source-quantity-unit, compatibleOnlyWithinSameUnit=true; the value's unit is MonthlyReportLineItems.Unit of the returned row (row-scoped, rendered through QuantityUnitDisplayCatalog); aggregation across different units is rejected (UnitCompatibilityCount).",
+    "Aggregation: a direct value binds exactly one company and one product; a company-wide monthly quantity requires a governed sum aggregation and is a separate decision.",
+    "Readiness evidence under test-only authorization: on 2026-10-09 the live question مقدار تولید گندله کگهر در شهریور ۱۴۰۵ چقدر بوده؟ ran through the real extractor/navigator/planner/compiler/executor against an isolated fixture with an in-memory approved snapshot and returned 47 (artifacts/monthly-production-sales-live-llm-postgresql-readiness-v2-diagnostic-2026-10-09-postfix-2026-10-09.json); no catalog flag was changed."
+  ],
+  "assumptionsRequiringApproval": [
+    "A1 Semantic meaning: MONTHLY_PRODUCTION_QUANTITY = the quantity of the named product produced by the company in the report month as reported by the company in its monthly activity report, in the product line's own unit (ton unless the line says otherwise); not year-to-date, not a derived figure.",
+    "A2 Physical mapping: the value is MonthlyReportLineItems.ProductionQuantity joined to MonthlyReports via rel_31e410fb3ae11956 and to Companies via rel_4e54d40aee8b45e4, restricted to ProviderName=NoavaranCurrentApi, ReportType=ProductSales, OutputType=0.",
+    "A3 Revision policy: only IsAccepted=true AND RevisionStatus='Accepted' reports are eligible; superseded or rejected revisions are never read; two accepted candidates for the same company/product/month are an ambiguity, not a choice.",
+    "A4 Unit policy: report the row's source unit verbatim; never convert; a missing unit on the returned row is an incomplete answer, not 'ton' by default.",
+    "A5 Time semantics: a named Persian month maps to the report whose PeriodStart/PeriodEnd lie inside that month's Gregorian window; no interpolation of missing months; 'latest' means the latest accepted report month for that company and product.",
+    "A6 Authorization boundary: SELECT on MonthlyReports (Id, CompanyId, ProviderName, ReportType, OutputType, IsAccepted, RevisionStatus, PeriodStart, PeriodEnd, ExternalReportId) and MonthlyReportLineItems (MonthlyReportId, ProductCode, Title, Unit, ProductionQuantity, SourceRowFingerprint, SourceMultiplicity) plus the two relationships, for DirectValueRetrieval scoped to one tenant/company; SalesQuantity, SalesAmount and SalesRate are NOT part of this decision.",
+    "A7 Period conversion: the Persian-month to Gregorian window conversion is currently produced by the model in structuredShape.reportingPeriodStart/End; engineering proposes a deterministic PersianCalendar normalization of that window before planning (implementation item, not a governance item)."
+  ],
+  "proposedCatalogChange": {
+    "dictionaries/monthly-measures.yaml#metric_monthly_production_quantity.review": { "semanticApproved": true, "queryable": true, "status": "owner-approved", "provenance": "<owner reference>" },
+    "tables/tbl_8ecd0432a4292998.yaml#semantic": { "queryable": true, "semanticApproval.approved": true, "queryAuthorization.runtimeQueryable": true, "queryAuthorization.approvedObjects": ["tbl_8ecd0432a4292998_MonthlyReportId", "tbl_8ecd0432a4292998_ProductCode", "tbl_8ecd0432a4292998_Title", "tbl_8ecd0432a4292998_Unit", "tbl_8ecd0432a4292998_ProductionQuantity", "tbl_8ecd0432a4292998_SourceRowFingerprint", "tbl_8ecd0432a4292998_SourceMultiplicity"] },
+    "tables/tbl_8e759d70dada6bd8.yaml#semantic": { "queryable": true, "semanticApproval.approved": true, "queryAuthorization.runtimeQueryable": true, "queryAuthorization.approvedObjects": ["tbl_8e759d70dada6bd8_Id", "tbl_8e759d70dada6bd8_CompanyId", "tbl_8e759d70dada6bd8_ProviderName", "tbl_8e759d70dada6bd8_ReportType", "tbl_8e759d70dada6bd8_OutputType", "tbl_8e759d70dada6bd8_IsAccepted", "tbl_8e759d70dada6bd8_RevisionStatus", "tbl_8e759d70dada6bd8_PeriodStart", "tbl_8e759d70dada6bd8_PeriodEnd", "tbl_8e759d70dada6bd8_ExternalReportId"] },
+    "relationships/rel_31e410fb3ae11956.yaml#semantic": { "approved": true, "runtimeJoinable": true, "queryAuthorization": { "approved": true, "queryable": true } },
+    "relationships/rel_4e54d40aee8b45e4.yaml#semantic": { "approved": true, "runtimeJoinable": true, "queryAuthorization": { "approved": true, "queryable": true } },
+    "then": "regenerate navigation-hierarchy.yaml governance for the monthly nodes and the catalog hash; re-run CanonicalSemanticCatalogIntegrityValidator"
+  },
+  "notInScope": ["salesQuantity, salesAmount, salesRate measures", "company-wide aggregation", "cross-company product equivalence beyond approved aliases", "population discovery scopes", "chat routing"],
+  "nextStepAfterApproval": "Implement F141-E07 in Feature141EngineVerticalSliceRunner with a seeded monthly fixture (کگل, گندله, 1405-06, 25 ton) and the negative scenarios listed in monthly-production-vertical-slice-report.md."
+}

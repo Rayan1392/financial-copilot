@@ -58,6 +58,7 @@ DELETE /api/v1/admin/tenants/{tenantId}/members/{userId}
 
 GET    /api/v1/admin/plans
 POST   /api/v1/admin/plans
+PATCH  /api/v1/admin/plans/{planCode}/included-credits
 GET    /api/v1/admin/plans/{planCode}/capabilities
 PUT    /api/v1/admin/plans/{planCode}/capabilities
 GET    /api/v1/admin/customers/{customerAccountId}/subscription
@@ -69,14 +70,20 @@ GET    /api/v1/admin/audits/security
 GET    /api/v1/admin/audits/billing
 ```
 
+The active subscription catalog is limited to `Free`, `Plus`, and `Pro`. Updating a plan's
+included credits requires `admin.plans.manage`, a non-negative credit amount, a pricing-policy
+version, and an audit reason. The update changes future plan policy only; it does not rewrite
+usage-ledger history or directly change existing customer wallet balances.
+
 List endpoints accept bounded `limit` values from `1` to `100` and return deterministic order.
 Tenant identifiers are checked against the effective JWT tenant. Subscription changes require
 `expectedRevision`; stale writes return `409`. Credit adjustments require a reason and
 idempotency key and delegate to Billing, which appends ledger evidence and updates the wallet
 projection atomically. Wallet projections are never edited directly.
 
-Published plan codes and plan-capability policy versions are immutable. Publish a new code or
-policy version instead of overwriting history.
+Published plan codes and plan-capability policy versions are immutable. Included credit is the
+only mutable plan field and uses the dedicated audited endpoint above; capability changes still
+require a new policy version.
 
 ## Audit And Errors
 

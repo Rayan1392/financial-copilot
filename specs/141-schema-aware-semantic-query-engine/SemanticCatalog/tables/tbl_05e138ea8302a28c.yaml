@@ -1,0 +1,271 @@
+{
+  "id": "tbl_05e138ea8302a28c",
+  "physical": {
+    "Schema": "public",
+    "Name": "MarketPulseSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "CapturedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "GeneratedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "Segment",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SessionState",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "CadenceSlot",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsPartial",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsFinal",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsCurrent",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "Revision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SupersedesSnapshotId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "DefinitionVersion",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceWatermarkUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "TransactionValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "RetailTradeValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EquityRealMoneyFlow",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "FixedIncomeFundRealMoneyFlow",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "BuyQueueCount",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "BuyQueueValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SellQueueCount",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "SellQueueValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "FactsJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "BreadthJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "LeadingIndustriesJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "LaggingIndustriesJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ComparisonsJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "InputHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "SupersedesSnapshotId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "MarketPulseSnapshots",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"SupersedesSnapshotId\") REFERENCES \"MarketPulseSnapshots\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_MarketPulseSnapshots_Segment_IsCurrent_GeneratedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketPulseSnapshots_Segment_IsCurrent_GeneratedAtUtc\" ON public.\"MarketPulseSnapshots\" USING btree (\"Segment\", \"IsCurrent\", \"GeneratedAtUtc\")",
+        "Columns": [
+          "Segment",
+          "IsCurrent",
+          "GeneratedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_MarketPulseSnapshots_Segment_IsFinal_IsCurrent_TradingDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketPulseSnapshots_Segment_IsFinal_IsCurrent_TradingDate\" ON public.\"MarketPulseSnapshots\" USING btree (\"Segment\", \"IsFinal\", \"IsCurrent\", \"TradingDate\")",
+        "Columns": [
+          "Segment",
+          "IsFinal",
+          "IsCurrent",
+          "TradingDate"
+        ]
+      },
+      {
+        "Name": "IX_MarketPulseSnapshots_SupersedesSnapshotId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketPulseSnapshots_SupersedesSnapshotId\" ON public.\"MarketPulseSnapshots\" USING btree (\"SupersedesSnapshotId\")",
+        "Columns": [
+          "SupersedesSnapshotId"
+        ]
+      },
+      {
+        "Name": "IX_MarketPulseSnapshots_TradingDate_Segment_IsCurrent",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketPulseSnapshots_TradingDate_Segment_IsCurrent\" ON public.\"MarketPulseSnapshots\" USING btree (\"TradingDate\", \"Segment\", \"IsCurrent\")",
+        "Columns": [
+          "TradingDate",
+          "Segment",
+          "IsCurrent"
+        ]
+      },
+      {
+        "Name": "IX_MarketPulseSnapshots_TradingDate_Segment_SessionState_Caden~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MarketPulseSnapshots_TradingDate_Segment_SessionState_Caden~\" ON public.\"MarketPulseSnapshots\" USING btree (\"TradingDate\", \"Segment\", \"SessionState\", \"CadenceSlot\", \"DefinitionVersion\") WHERE \"IsCurrent\"",
+        "Columns": [
+          "TradingDate",
+          "Segment",
+          "SessionState",
+          "CadenceSlot",
+          "DefinitionVersion"
+        ]
+      },
+      {
+        "Name": "IX_MarketPulseSnapshots_TradingDate_Segment_SessionState_Cade~1",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MarketPulseSnapshots_TradingDate_Segment_SessionState_Cade~1\" ON public.\"MarketPulseSnapshots\" USING btree (\"TradingDate\", \"Segment\", \"SessionState\", \"CadenceSlot\", \"DefinitionVersion\", \"Revision\")",
+        "Columns": [
+          "TradingDate",
+          "Segment",
+          "SessionState",
+          "CadenceSlot",
+          "DefinitionVersion",
+          "Revision"
+        ]
+      },
+      {
+        "Name": "PK_MarketPulseSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MarketPulseSnapshots\" ON public.\"MarketPulseSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_MarketPulseSnapshots_MarketPulseSnapshots_SupersedesSnapsho~",
+        "Type": "f",
+        "Columns": [
+          "SupersedesSnapshotId"
+        ],
+        "Definition": "FOREIGN KEY (\"SupersedesSnapshotId\") REFERENCES \"MarketPulseSnapshots\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_MarketPulseSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

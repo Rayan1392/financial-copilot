@@ -1,0 +1,571 @@
+{
+  "ticker": "فولاد",
+  "enticker": "IRO1FOLD0001",
+  "total": 52,
+  "statements": [
+    {
+      "periodEndingDate": 20260922,
+      "fiscalYear": 2026,
+      "fiscalMonth": 6,
+      "isFiscalYearChanged": false,
+      "actualFiscalMonth": null,
+      "audited": false,
+      "publishDate": "2026-10-22 14:37:13",
+      "codalUrl": "https://www.codal.ir/Reports/Decision.aspx?LetterSerial=qV4MKXMUUbQQQaQQQ9cOOObOOO8qmo3wRg%3d%3d&rt=0&let=6&ct=0&ft=-1",
+      "correctedByHand": false,
+      "lines": [
+        {
+          "key": 44,
+          "name": "Sales",
+          "nameFa": "فروش",
+          "quarter": 1675255385000000,
+          "yearToDate": 2509422184000000,
+          "trailingYear": 4569548192000000
+        },
+        {
+          "key": 48,
+          "name": "Cost of Sales",
+          "nameFa": "بهای تمام‌شده فروش",
+          "quarter": -1158078707000000,
+          "yearToDate": -1759586964000000,
+          "trailingYear": -3234454678000000
+        },
+        {
+          "key": 52,
+          "name": "Gross Profit (Loss)",
+          "nameFa": "سود (زیان) ناخالص",
+          "quarter": 517176678000000,
+          "yearToDate": 749835220000000,
+          "trailingYear": 1335093514000000
+        },
+        {
+          "key": 54,
+          "name": "Sales, General and Administrative Expense",
+          "nameFa": "هزینه‌های عمومی، اداری و فروش",
+          "quarter": -69672547000000,
+          "yearToDate": -107449519000000,
+          "trailingYear": -212059794000000
+        },
+        {
+          "key": 55,
+          "name": "Other Operating Revenue (Expenses)",
+          "nameFa": "سایر درآمدها و هزینه‌های عملیاتی",
+          "quarter": 34485313000000,
+          "yearToDate": 37598878000000,
+          "trailingYear": 100385961000000
+        },
+        {
+          "key": 56,
+          "name": "Operating Profit (Loss)",
+          "nameFa": "سود (زیان) عملیاتی",
+          "quarter": 481989444000000,
+          "yearToDate": 679984579000000,
+          "trailingYear": 1223419681000000
+        },
+        {
+          "key": 57,
+          "name": "Finance Expense",
+          "nameFa": "هزینه مالی",
+          "quarter": -59521684000000,
+          "yearToDate": -113379943000000,
+          "trailingYear": -235906101000000
+        },
+        {
+          "key": 59,
+          "name": "Net Miscellaneous Revenue",
+          "nameFa": "خالص درآمدها و هزینه‌های متفرقه",
+          "quarter": 124519479000000,
+          "yearToDate": 118706711000000,
+          "trailingYear": 508952486000000
+        },
+        {
+          "key": 60,
+          "name": "Net Income from Continuing Operations before Tax",
+          "nameFa": "سود عملیات در حال تداوم قبل از مالیات",
+          "quarter": 546987239000000,
+          "yearToDate": 685311347000000,
+          "trailingYear": 1496466066000000
+        },
+        {
+          "key": 63,
+          "name": "Income Tax Expense",
+          "nameFa": "هزینه مالیات",
+          "quarter": -75714446000000,
+          "yearToDate": -93682061000000,
+          "trailingYear": -155749731000000
+        },
+        {
+          "key": 64,
+          "name": "Net Income (Loss) from Continuing Operation",
+          "nameFa": "سود (زیان) خالص عملیات در حال تداوم",
+          "quarter": 471272793000000,
+          "yearToDate": 591629286000000,
+          "trailingYear": 1340716335000000
+        },
+        {
+          "key": 65,
+          "name": "Discontinued Operations Profit (Loss)",
+          "nameFa": "سود (زیان) عملیات متوقف‌شده",
+          "quarter": 0,
+          "yearToDate": 0,
+          "trailingYear": 0
+        },
+        {
+          "key": 66,
+          "name": "Net Income (Loss)",
+          "nameFa": "سود (زیان) خالص",
+          "quarter": 471272793000000,
+          "yearToDate": 591629286000000,
+          "trailingYear": 1340716335000000
+        },
+        {
+          "key": 85,
+          "name": "Earning Per Share",
+          "nameFa": "سود هر سهم",
+          "quarter": 243.55,
+          "yearToDate": 306,
+          "trailingYear": 720.99
+        },
+        {
+          "key": 86,
+          "name": "Listed Capital",
+          "nameFa": "سرمایه ثبت‌شده",
+          "quarter": 1935000000000000,
+          "yearToDate": 1935000000000000,
+          "trailingYear": null
+        },
+        {
+          "key": 6220,
+          "name": "Normalized Earning Per Share",
+          "nameFa": "سود هر سهم تعدیل‌شده",
+          "quarter": 243.55,
+          "yearToDate": 305.75,
+          "trailingYear": 692.88
+        }
+      ]
+    },
+    {
+      "periodEndingDate": 20260621,
+      "fiscalYear": 2026,
+      "fiscalMonth": 3,
+      "isFiscalYearChanged": false,
+      "actualFiscalMonth": null,
+      "audited": false,
+      "publishDate": "2026-07-25 16:54:53",
+      "codalUrl": "https://www.codal.ir/Reports/Decision.aspx?LetterSerial=yC2oQqrZ3w8Q8FsnnWQQBw%3d%3d&rt=0&let=6&ct=0&ft=-1",
+      "correctedByHand": false,
+      "lines": [
+        {
+          "key": 44,
+          "name": "Sales",
+          "nameFa": "فروش",
+          "quarter": 834166799000000,
+          "yearToDate": 834166799000000,
+          "trailingYear": 3655311328000000
+        },
+        {
+          "key": 48,
+          "name": "Cost of Sales",
+          "nameFa": "بهای تمام‌شده فروش",
+          "quarter": -601508257000000,
+          "yearToDate": -601508257000000,
+          "trailingYear": -2619358799000000
+        },
+        {
+          "key": 52,
+          "name": "Gross Profit (Loss)",
+          "nameFa": "سود (زیان) ناخالص",
+          "quarter": 232658542000000,
+          "yearToDate": 232658542000000,
+          "trailingYear": 1035952529000000
+        },
+        {
+          "key": 54,
+          "name": "Sales, General and Administrative Expense",
+          "nameFa": "هزینه‌های عمومی، اداری و فروش",
+          "quarter": -37776972000000,
+          "yearToDate": -37776972000000,
+          "trailingYear": -181305221000000
+        },
+        {
+          "key": 55,
+          "name": "Other Operating Revenue (Expenses)",
+          "nameFa": "سایر درآمدها و هزینه‌های عملیاتی",
+          "quarter": 3113565000000,
+          "yearToDate": 3113565000000,
+          "trailingYear": 69063965000000
+        },
+        {
+          "key": 56,
+          "name": "Operating Profit (Loss)",
+          "nameFa": "سود (زیان) عملیاتی",
+          "quarter": 197995135000000,
+          "yearToDate": 197995135000000,
+          "trailingYear": 923711273000000
+        },
+        {
+          "key": 57,
+          "name": "Finance Expense",
+          "nameFa": "هزینه مالی",
+          "quarter": -53858259000000,
+          "yearToDate": -53858259000000,
+          "trailingYear": -223244975000000
+        },
+        {
+          "key": 59,
+          "name": "Net Miscellaneous Revenue",
+          "nameFa": "خالص درآمدها و هزینه‌های متفرقه",
+          "quarter": -5812768000000,
+          "yearToDate": -5812768000000,
+          "trailingYear": 363338561000000
+        },
+        {
+          "key": 60,
+          "name": "Net Income from Continuing Operations before Tax",
+          "nameFa": "سود عملیات در حال تداوم قبل از مالیات",
+          "quarter": 138324108000000,
+          "yearToDate": 138324108000000,
+          "trailingYear": 1063804859000000
+        },
+        {
+          "key": 63,
+          "name": "Income Tax Expense",
+          "nameFa": "هزینه مالیات",
+          "quarter": -17967615000000,
+          "yearToDate": -17967615000000,
+          "trailingYear": -102271057000000
+        },
+        {
+          "key": 64,
+          "name": "Net Income (Loss) from Continuing Operation",
+          "nameFa": "سود (زیان) خالص عملیات در حال تداوم",
+          "quarter": 120356493000000,
+          "yearToDate": 120356493000000,
+          "trailingYear": 961533802000000
+        },
+        {
+          "key": 65,
+          "name": "Discontinued Operations Profit (Loss)",
+          "nameFa": "سود (زیان) عملیات متوقف‌شده",
+          "quarter": 0,
+          "yearToDate": 0,
+          "trailingYear": 0
+        },
+        {
+          "key": 66,
+          "name": "Net Income (Loss)",
+          "nameFa": "سود (زیان) خالص",
+          "quarter": 120356493000000,
+          "yearToDate": 120356493000000,
+          "trailingYear": 961533802000000
+        },
+        {
+          "key": 85,
+          "name": "Earning Per Share",
+          "nameFa": "سود هر سهم",
+          "quarter": 62,
+          "yearToDate": 62,
+          "trailingYear": 525.03
+        },
+        {
+          "key": 86,
+          "name": "Listed Capital",
+          "nameFa": "سرمایه ثبت‌شده",
+          "quarter": 1935000000000000,
+          "yearToDate": 1935000000000000,
+          "trailingYear": null
+        },
+        {
+          "key": 6220,
+          "name": "Normalized Earning Per Share",
+          "nameFa": "سود هر سهم تعدیل‌شده",
+          "quarter": 62.2,
+          "yearToDate": 62.2,
+          "trailingYear": 496.92
+        }
+      ]
+    },
+    {
+      "periodEndingDate": 20260320,
+      "fiscalYear": 2025,
+      "fiscalMonth": 12,
+      "isFiscalYearChanged": false,
+      "actualFiscalMonth": null,
+      "audited": true,
+      "publishDate": "2026-10-22 14:37:13",
+      "codalUrl": "https://www.codal.ir/Reports/Decision.aspx?LetterSerial=qV4MKXMUUbQQQaQQQ9cOOObOOO8qmo3wRg%3d%3d&rt=0&let=6&ct=0&ft=-1",
+      "correctedByHand": false,
+      "lines": [
+        {
+          "key": 44,
+          "name": "Sales",
+          "nameFa": "فروش",
+          "quarter": 1180795832000000,
+          "yearToDate": 3668860246000000,
+          "trailingYear": 3668860246000000
+        },
+        {
+          "key": 48,
+          "name": "Cost of Sales",
+          "nameFa": "بهای تمام‌شده فروش",
+          "quarter": -846192171000000,
+          "yearToDate": -2599809462000000,
+          "trailingYear": -2599809462000000
+        },
+        {
+          "key": 52,
+          "name": "Gross Profit (Loss)",
+          "nameFa": "سود (زیان) ناخالص",
+          "quarter": 334603661000000,
+          "yearToDate": 1069050784000000,
+          "trailingYear": 1069050784000000
+        },
+        {
+          "key": 54,
+          "name": "Sales, General and Administrative Expense",
+          "nameFa": "هزینه‌های عمومی، اداری و فروش",
+          "quarter": -60015976000000,
+          "yearToDate": -177386815000000,
+          "trailingYear": -177386815000000
+        },
+        {
+          "key": 55,
+          "name": "Other Operating Revenue (Expenses)",
+          "nameFa": "سایر درآمدها و هزینه‌های عملیاتی",
+          "quarter": 48715382000000,
+          "yearToDate": 68634765000000,
+          "trailingYear": 68634765000000
+        },
+        {
+          "key": 56,
+          "name": "Operating Profit (Loss)",
+          "nameFa": "سود (زیان) عملیاتی",
+          "quarter": 323303067000000,
+          "yearToDate": 960298734000000,
+          "trailingYear": 960298734000000
+        },
+        {
+          "key": 57,
+          "name": "Finance Expense",
+          "nameFa": "هزینه مالی",
+          "quarter": -93723146000000,
+          "yearToDate": -219159168000000,
+          "trailingYear": -219159168000000
+        },
+        {
+          "key": 59,
+          "name": "Net Miscellaneous Revenue",
+          "nameFa": "خالص درآمدها و هزینه‌های متفرقه",
+          "quarter": 383264878000000,
+          "yearToDate": 365418274000000,
+          "trailingYear": 365418274000000
+        },
+        {
+          "key": 60,
+          "name": "Net Income from Continuing Operations before Tax",
+          "nameFa": "سود عملیات در حال تداوم قبل از مالیات",
+          "quarter": 612844799000000,
+          "yearToDate": 1106557840000000,
+          "trailingYear": 1106557840000000
+        },
+        {
+          "key": 63,
+          "name": "Income Tax Expense",
+          "nameFa": "هزینه مالیات",
+          "quarter": -52688616000000,
+          "yearToDate": -103556826000000,
+          "trailingYear": -103556826000000
+        },
+        {
+          "key": 64,
+          "name": "Net Income (Loss) from Continuing Operation",
+          "nameFa": "سود (زیان) خالص عملیات در حال تداوم",
+          "quarter": 560156183000000,
+          "yearToDate": 1003001014000000,
+          "trailingYear": 1003001014000000
+        },
+        {
+          "key": 65,
+          "name": "Discontinued Operations Profit (Loss)",
+          "nameFa": "سود (زیان) عملیات متوقف‌شده",
+          "quarter": 0,
+          "yearToDate": 0,
+          "trailingYear": 0
+        },
+        {
+          "key": 66,
+          "name": "Net Income (Loss)",
+          "nameFa": "سود (زیان) خالص",
+          "quarter": 560156183000000,
+          "yearToDate": 1003001014000000,
+          "trailingYear": 1003001014000000
+        },
+        {
+          "key": 85,
+          "name": "Earning Per Share",
+          "nameFa": "سود هر سهم",
+          "quarter": 289.49,
+          "yearToDate": 518,
+          "trailingYear": 547.03
+        },
+        {
+          "key": 86,
+          "name": "Listed Capital",
+          "nameFa": "سرمایه ثبت‌شده",
+          "quarter": 1935000000000000,
+          "yearToDate": 1935000000000000,
+          "trailingYear": null
+        },
+        {
+          "key": 6220,
+          "name": "Normalized Earning Per Share",
+          "nameFa": "سود هر سهم تعدیل‌شده",
+          "quarter": 289.49,
+          "yearToDate": 518.35,
+          "trailingYear": 518.35
+        }
+      ]
+    },
+    {
+      "periodEndingDate": 20251221,
+      "fiscalYear": 2025,
+      "fiscalMonth": 9,
+      "isFiscalYearChanged": false,
+      "actualFiscalMonth": null,
+      "audited": false,
+      "publishDate": "2026-01-31 18:21:22",
+      "codalUrl": "https://www.codal.ir/Reports/Decision.aspx?LetterSerial=EPrfVlRNU8rYEIYM1740RA%3d%3d&rt=0&let=6&ct=0&ft=-1",
+      "correctedByHand": false,
+      "lines": [
+        {
+          "key": 44,
+          "name": "Sales",
+          "nameFa": "فروش",
+          "quarter": 879330176000000,
+          "yearToDate": 2488064414000000,
+          "trailingYear": 3325896834000000
+        },
+        {
+          "key": 48,
+          "name": "Cost of Sales",
+          "nameFa": "بهای تمام‌شده فروش",
+          "quarter": -628675543000000,
+          "yearToDate": -1753617291000000,
+          "trailingYear": -2343119739000000
+        },
+        {
+          "key": 52,
+          "name": "Gross Profit (Loss)",
+          "nameFa": "سود (زیان) ناخالص",
+          "quarter": 250654633000000,
+          "yearToDate": 734447123000000,
+          "trailingYear": 982777095000000
+        },
+        {
+          "key": 54,
+          "name": "Sales, General and Administrative Expense",
+          "nameFa": "هزینه‌های عمومی، اداری و فروش",
+          "quarter": -44594299000000,
+          "yearToDate": -117370839000000,
+          "trailingYear": -158342009000000
+        },
+        {
+          "key": 55,
+          "name": "Other Operating Revenue (Expenses)",
+          "nameFa": "سایر درآمدها و هزینه‌های عملیاتی",
+          "quarter": 14071701000000,
+          "yearToDate": 19919383000000,
+          "trailingYear": 35366848000000
+        },
+        {
+          "key": 56,
+          "name": "Operating Profit (Loss)",
+          "nameFa": "سود (زیان) عملیاتی",
+          "quarter": 220132035000000,
+          "yearToDate": 636995667000000,
+          "trailingYear": 859801934000000
+        },
+        {
+          "key": 57,
+          "name": "Finance Expense",
+          "nameFa": "هزینه مالی",
+          "quarter": -28803012000000,
+          "yearToDate": -125436022000000,
+          "trailingYear": -179214398000000
+        },
+        {
+          "key": 59,
+          "name": "Net Miscellaneous Revenue",
+          "nameFa": "خالص درآمدها و هزینه‌های متفرقه",
+          "quarter": 6980897000000,
+          "yearToDate": -17846604000000,
+          "trailingYear": 128266240000000
+        },
+        {
+          "key": 60,
+          "name": "Net Income from Continuing Operations before Tax",
+          "nameFa": "سود عملیات در حال تداوم قبل از مالیات",
+          "quarter": 198309920000000,
+          "yearToDate": 493713041000000,
+          "trailingYear": 808853776000000
+        },
+        {
+          "key": 63,
+          "name": "Income Tax Expense",
+          "nameFa": "هزینه مالیات",
+          "quarter": -9379054000000,
+          "yearToDate": -50868210000000,
+          "trailingYear": -56121011000000
+        },
+        {
+          "key": 64,
+          "name": "Net Income (Loss) from Continuing Operation",
+          "nameFa": "سود (زیان) خالص عملیات در حال تداوم",
+          "quarter": 188930866000000,
+          "yearToDate": 442844831000000,
+          "trailingYear": 752732765000000
+        },
+        {
+          "key": 65,
+          "name": "Discontinued Operations Profit (Loss)",
+          "nameFa": "سود (زیان) عملیات متوقف‌شده",
+          "quarter": 0,
+          "yearToDate": 0,
+          "trailingYear": 0
+        },
+        {
+          "key": 66,
+          "name": "Net Income (Loss)",
+          "nameFa": "سود (زیان) خالص",
+          "quarter": 188930866000000,
+          "yearToDate": 442844831000000,
+          "trailingYear": 752732765000000
+        },
+        {
+          "key": 85,
+          "name": "Earning Per Share",
+          "nameFa": "سود هر سهم",
+          "quarter": 125.95,
+          "yearToDate": 295,
+          "trailingYear": 417.69
+        },
+        {
+          "key": 86,
+          "name": "Listed Capital",
+          "nameFa": "سرمایه ثبت‌شده",
+          "quarter": 1500000000000000,
+          "yearToDate": 1500000000000000,
+          "trailingYear": null
+        },
+        {
+          "key": 6220,
+          "name": "Normalized Earning Per Share",
+          "nameFa": "سود هر سهم تعدیل‌شده",
+          "quarter": 97.64,
+          "yearToDate": 228.86,
+          "trailingYear": 389.01
+        }
+      ]
+    }
+  ]
+}

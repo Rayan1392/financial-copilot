@@ -1,0 +1,146 @@
+{
+  "id": "tbl_0c3a4ef601dd6dce",
+  "physical": {
+    "Schema": "public",
+    "Name": "DynamicMetricAliases",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Expression",
+        "Type": "character varying(300)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedExpression",
+        "Type": "character varying(300)",
+        "Nullable": false
+      },
+      {
+        "Name": "Language",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Source",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ConfidenceScore",
+        "Type": "numeric(5,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "FrequencyCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedBy",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "ApprovedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ApprovedBy",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "DisabledAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "DisabledBy",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "DisableReason",
+        "Type": "character varying(500)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_DynamicMetricAliases_Language_Status",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_DynamicMetricAliases_Language_Status\" ON public.\"DynamicMetricAliases\" USING btree (\"Language\", \"Status\")",
+        "Columns": [
+          "Language",
+          "Status"
+        ]
+      },
+      {
+        "Name": "IX_DynamicMetricAliases_NormalizedExpression_Language_MetricCo~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_DynamicMetricAliases_NormalizedExpression_Language_MetricCo~\" ON public.\"DynamicMetricAliases\" USING btree (\"NormalizedExpression\", \"Language\", \"MetricCode\") WHERE ((\"Status\")::text = 'Active'::text)",
+        "Columns": [
+          "NormalizedExpression",
+          "Language",
+          "MetricCode"
+        ]
+      },
+      {
+        "Name": "PK_DynamicMetricAliases",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_DynamicMetricAliases\" ON public.\"DynamicMetricAliases\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_DynamicMetricAliases",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

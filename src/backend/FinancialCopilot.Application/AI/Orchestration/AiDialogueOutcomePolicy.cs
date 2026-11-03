@@ -28,6 +28,9 @@ public static class DialogueOutcomeReasonCodes
     public const string ProviderOrToolFailure = "provider_or_tool_failure";
     public const string ResponseValidationFailed = "response_validation_failed";
     public const string LanguageGuardApplied = "language_guard_applied";
+    public const string DifferentIndustries = "different_industries";
+    public const string InvalidIndustryMembership = "invalid_industry_membership";
+    public const string ResultLimitExceeded = "result_limit_exceeded";
 }
 
 public static class AiDialogueOutcomePolicy
@@ -183,6 +186,9 @@ public static class AiDialogueOutcomePolicy
     private static string ComposePersian(DialogueOutcomeResult outcome, string? detail) =>
         outcome.Outcome switch
         {
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.DifferentIndustries => "این دو نماد متعلق به صنایع مختلف هستند. کدام را نسبت به صنعت خودش بررسی کنم؟",
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.InvalidIndustryMembership => "این نماد عضو صنعت انتخاب‌شده نیست. لطفاً نماد یا صنعت درست را مشخص کنید.",
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.EntityNotFound => "نماد یا شرکت درخواست‌شده در فهرست شرکت‌های معتبر پیدا نشد.",
             DialogueOutcome.ClarificationNeeded => detail
                 ?? "برای پاسخ دقیق، لطفاً اطلاعات بیشتری درباره نماد، معیار یا بازه موردنظر بنویسید.",
             DialogueOutcome.DisambiguationNeeded =>
@@ -190,6 +196,8 @@ public static class AiDialogueOutcomePolicy
             DialogueOutcome.NoData =>
                 detail
                 ?? "درخواست شما پشتیبانی می‌شود، اما داده قابل استفاده‌ای برای آن در بازه موجود پیدا نشد.",
+            DialogueOutcome.Unsupported when ChatCapabilityAvailability.MessageForReasonCode(outcome.ReasonCode, persian: true) is { } availabilityMessage =>
+                availabilityMessage,
             DialogueOutcome.Unsupported =>
                 "این پرسش را نمی‌توانم به‌صورت قابل اتکا پاسخ بدهم. می‌توانم نمادها را با معیارهای مالی فیلتر کنم، شاخص‌های یک نماد را نشان بدهم، روند فروش ماهانه را نمایش دهم یا تحلیل‌های ثبت‌شده را ارائه کنم.",
             DialogueOutcome.TemporarilyUnavailable =>
@@ -204,6 +212,7 @@ public static class AiDialogueOutcomePolicy
     private static string ComposeEnglish(DialogueOutcomeResult outcome, string? detail) =>
         outcome.Outcome switch
         {
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.EntityNotFound => "The requested symbol or company was not found in the authoritative company catalog.",
             DialogueOutcome.ClarificationNeeded => detail
                 ?? "Please provide more information about the symbol, metric, or period you want.",
             DialogueOutcome.DisambiguationNeeded =>
@@ -211,6 +220,8 @@ public static class AiDialogueOutcomePolicy
             DialogueOutcome.NoData =>
                 detail
                 ?? "This request is supported, but no usable data was found for the available period.",
+            DialogueOutcome.Unsupported when ChatCapabilityAvailability.MessageForReasonCode(outcome.ReasonCode, persian: false) is { } availabilityMessage =>
+                availabilityMessage,
             DialogueOutcome.Unsupported =>
                 "I cannot answer this question reliably yet. I can screen symbols by financial conditions, show metrics for a symbol, display monthly sales trends, or provide stored analysis posts.",
             DialogueOutcome.TemporarilyUnavailable =>

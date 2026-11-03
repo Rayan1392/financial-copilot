@@ -266,20 +266,37 @@ public sealed class MarketSummaryService(
                 snapshot.ObservedAt,
                 snapshot.SourceKind));
         }
-        var quoteRows = await (
-            from quote in dbContext.LatestMarketQuotes.AsNoTracking()
+        // Top gainers and losers come only from listed operating companies (the NoavaranEligibleCompanies
+        // universe), never from options, futures, funds, bonds or other instruments in the quote feed.
+        // A quote belongs to a company the same way the canonical price resolver links them: through the
+        // instrument's company link, or through the company's ticker when that link is missing. TSETMC's
+        // IsActive ("Valid") flag is false for many listed companies, so it does not decide the universe.
+        var companyLinkedQuotes =
+            from company in dbContext.NoavaranEligibleCompanies.AsNoTracking()
             join instrument in dbContext.TradingInstruments.AsNoTracking()
-                on quote.TradingInstrumentId equals instrument.Id
-            where instrument.IsActive
-            select new { quote, instrument })
+                on company.Id equals instrument.NormalizedCompanyId
+            join quote in dbContext.LatestMarketQuotes.AsNoTracking()
+                on instrument.Id equals quote.TradingInstrumentId
+            where company.TseSymbol != null
+            select new { CompanyId = company.Id, company.TseSymbol, company.Name, quote };
+        var tickerLinkedQuotes =
+            from company in dbContext.NoavaranEligibleCompanies.AsNoTracking()
+            join instrument in dbContext.TradingInstruments.AsNoTracking()
+                on company.TseSymbol equals instrument.Symbol
+            join quote in dbContext.LatestMarketQuotes.AsNoTracking()
+                on instrument.Id equals quote.TradingInstrumentId
+            where company.TseSymbol != null
+            select new { CompanyId = company.Id, company.TseSymbol, company.Name, quote };
+        var quoteRows = await companyLinkedQuotes
+            .Concat(tickerLinkedQuotes)
             .ToListAsync(cancellationToken);
         var staleBefore = timeProvider.GetUtcNow().AddMinutes(-_options.StaleAfterMinutes);
         var movers = quoteRows
-            .GroupBy(row => row.instrument.Id)
+            .GroupBy(row => row.CompanyId)
             .Select(group => group.OrderByDescending(row => row.quote.AsOf).First())
             .Select(row => new MarketMover(
-                row.instrument.Symbol,
-                row.instrument.Name,
+                row.TseSymbol!,
+                row.Name,
                 row.quote.LatestPrice,
                 row.quote.PriceChangePercentage,
                 row.quote.AsOf,

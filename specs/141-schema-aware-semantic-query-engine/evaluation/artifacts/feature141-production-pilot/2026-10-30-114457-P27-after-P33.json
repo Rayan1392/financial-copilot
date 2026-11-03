@@ -1,0 +1,119 @@
+{
+  "id": "P27-after-P33",
+  "run": {
+    "Question": "کدام شرکت‌ها در مرداد ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "Enabled": true,
+    "Answer": "در گزارش‌های ماهانهٔ واجد شرایط مرداد ۱۴۰۵، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: معدنی و صنعتی چادرملو (کچاد): تولید ثبت‌شدهٔ گندله ۳۸۳٬۷۲۷ تن در مرداد ۱۴۰۵؛ معدنی و صنعتی گل گهر (کگل): تولید ثبت‌شدهٔ گندله ۱٬۰۳۳٬۳۲۱ تن در مرداد ۱۴۰۵؛ معدنی و صنعتی گهر زمین (کگهر): تولید ثبت‌شدهٔ گندله ۵۱۲٬۹۰۲ تن در مرداد ۱۴۰۵. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+    "PersistedUserMessage": "کدام شرکت‌ها در مرداد ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "PersistedAssistantMessage": "در گزارش‌های ماهانهٔ واجد شرایط مرداد ۱۴۰۵، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: معدنی و صنعتی چادرملو (کچاد): تولید ثبت‌شدهٔ گندله ۳۸۳٬۷۲۷ تن در مرداد ۱۴۰۵؛ معدنی و صنعتی گل گهر (کگل): تولید ثبت‌شدهٔ گندله ۱٬۰۳۳٬۳۲۱ تن در مرداد ۱۴۰۵؛ معدنی و صنعتی گهر زمین (کگهر): تولید ثبت‌شدهٔ گندله ۵۱۲٬۹۰۲ تن در مرداد ۱۴۰۵. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+    "Feature141Invoked": true,
+    "QueriesExecuted": 1,
+    "QueryStatus": "Feature141 query completed. CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717 Fingerprint=acfc1dafd12f97d009b2ad6c5b8390d9890a7b9bd6a903c5bce988754af246db Status=Incomplete Rows=3 ElapsedMs=7.2993",
+    "TypedOutcome": null,
+    "RouteLog": "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717 | Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=entity:مرداد,entity:گندله,entity:تولید,entity:کرده,entity:اند RequestedMetrics= RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null) | Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none | Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:product_sales_trend:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717",
+    "SemanticCapability": "product_sales_trend",
+    "Intent": "Unknown",
+    "Outcome": "Answered",
+    "Mode": "MicrosoftAgentFrameworkV2",
+    "Usage": null,
+    "Reservations": [],
+    "LedgerEntries": 2,
+    "LedgerCreditsCharged": 1.0000,
+    "WalletBalanceBefore": 241.0000,
+    "WalletBalanceAfter": 240.0000,
+    "WalletReservedAfter": 0.0000,
+    "Feature141Log": [
+      "Feature141 registered financial source route selected. Route=query_registered_financial_source CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717",
+      "Feature141 intent extracted. Route=query_registered_financial_source CompanySymbols= Products=گندله RequestedMeasures=productionQuantity PeriodKind=ExplicitMonth PeriodCount=1 ComparisonMode=None Presentation=Table",
+      "Feature141 statement shape classified. Shape=none Diagnostic=none Operation=DiscoverPopulation Ranking=none Constraints= RequestedFields= Filters=ProductFilter CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717",
+      "Feature141 query completed. CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717 Fingerprint=acfc1dafd12f97d009b2ad6c5b8390d9890a7b9bd6a903c5bce988754af246db Status=Incomplete Rows=3 ElapsedMs=7.2993"
+    ],
+    "ElapsedMs": 31599.5441,
+    "WorkflowLog": [
+      "Chat routing disposition observed. SelectedRoute=semantic_capability Capability=product_sales_trend Disposition=DeterministicFallback CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717",
+      "Chat semantic route selected. Route=semantic_capability Capability=product_sales_trend ExtractedEntities=entity:مرداد,entity:گندله,entity:تولید,entity:کرده,entity:اند RequestedMetrics= RequestedPeriod=(null) RequestedComparison=(null) Presentation=(null)",
+      "Chat semantic route completed. Route=semantic_capability Capability=product_sales_trend Status=ClarificationRequired ReasonCode=required_input_missing PayloadType=none",
+      "Chat Feature 141 fallback evaluated. PreviousRoute=semantic_capability:product_sales_trend:ClarificationRequired Definitive=True CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717",
+      "[SemanticRouting] SemanticRoutingDecision CorrelationId=feature141-pilot-f5475a4cbf13467f9490a74403b46717 RolloutMode=Canary LegacyCapability=unknown LegacyConfidence=(null) SemanticIntent=product_sales_trend SemanticCapabilityCandidate=product_sales_trend SemanticConfidence=(null) ExtractedCompany=مرداد ExtractedProduct=(null) ExtractedMetric=(null) ExtractedPeriod=(null) ResolvedCompany=(null) C"
+    ],
+    "ExecutedQueries": [
+      {
+        "Sql": "WITH eligible_observations AS (SELECT c.\"Id\" AS \"CompanyId\", c.\"Name\" AS \"CompanyName\", c.\"CompanySymbol\" AS \"CompanySymbol\", li.\"Title\" AS \"ProductTitle\", li.\"ProductionQuantity\" AS \"Value\", li.\"Unit\" AS \"SourceUnit\", r.\"PeriodStart\" AS \"PeriodStart\", r.\"PeriodEnd\" AS \"PeriodEnd\", r.\"ProviderName\" AS \"ProviderName\", r.\"Id\" AS \"ReportId\", r.\"ExternalReportId\" AS \"ExternalReportId\", li.\"SourceRowFingerprint\" AS \"SourceRowFingerprint\", li.\"SourceMultiplicity\" AS \"SourceMultiplicity\", COUNT(*) OVER (PARTITION BY c.\"Id\", r.\"PeriodEnd\") AS \"SamePeriodCandidateCount\", ROW_NUMBER() OVER (PARTITION BY c.\"Id\" ORDER BY r.\"PeriodEnd\" DESC, r.\"PeriodStart\" DESC, r.\"Id\" ASC, li.\"Title\" ASC, li.\"SourceRowFingerprint\" ASC) AS \"DiscoveryRank\" FROM \"public\".\"MonthlyReportLineItems\" li JOIN \"public\".\"MonthlyReports\" r ON li.\"MonthlyReportId\" = r.\"Id\" JOIN \"public\".\"Companies\" c ON c.\"ExternalCompanyId\" = r.\"ExternalCompanyId\" AND c.\"ProviderName\" = r.\"ProviderName\" WHERE c.\"Id\" = ANY(@company_ids) AND r.\"ProviderName\" = @provider_name AND r.\"ReportType\" = @report_type AND r.\"OutputType\" = @output_type AND r.\"IsAccepted\" = @is_accepted AND r.\"RevisionStatus\" = @revision_status AND r.\"PeriodStart\" = @period_start AND r.\"PeriodEnd\" = @period_end AND li.\"ProductionQuantity\" > 0 AND BTRIM(li.\"Title\") = ANY(@product_aliases)) SELECT *, 'partial' AS \"ProductMappingCoverageStatus\", @company_coverage_complete AS \"CompanyCoverageComplete\" FROM eligible_observations WHERE \"DiscoveryRank\" = 1 ORDER BY \"CompanyName\" ASC, \"CompanyId\" ASC LIMIT @row_limit",
+        "Parameters": {
+          "provider_name": "NoavaranCurrentApi",
+          "report_type": "ProductSales",
+          "output_type": "0",
+          "is_accepted": "True",
+          "revision_status": "Accepted",
+          "period_start": "2026-07-23",
+          "period_end": "2026-08-22",
+          "product_aliases": "[\"گندله\", \"گندله سنگ‌آهن\"]",
+          "company_coverage_complete": "True",
+          "row_limit": "21"
+        },
+        "Status": "Incomplete",
+        "DiagnosticCode": "population_discovery_product_alias_coverage_incomplete",
+        "EffectiveUnit": "row-source-unit",
+        "Rows": [
+          {
+            "CompanyId": "576a8f8c-6e38-4382-bbff-4ee9cbc2b84b",
+            "CompanyName": "معدنی و صنعتی چادرملو",
+            "CompanySymbol": "کچاد",
+            "ProductTitle": "گندله",
+            "Value": "383727",
+            "SourceUnit": "تن",
+            "PeriodStart": "2026-07-23",
+            "PeriodEnd": "2026-08-22",
+            "ProviderName": "NoavaranCurrentApi",
+            "ReportId": "bc145043-09d6-4941-9eca-8889b7026dc7",
+            "ExternalReportId": "ProductSales:3:1405-05:output-0",
+            "SourceRowFingerprint": "a9f509ee27b6074a",
+            "SourceMultiplicity": "1",
+            "SamePeriodCandidateCount": "1",
+            "DiscoveryRank": "1",
+            "ProductMappingCoverageStatus": "partial",
+            "CompanyCoverageComplete": "True"
+          },
+          {
+            "CompanyId": "3386cf62-2fc7-427f-bbdf-364c4666d8df",
+            "CompanyName": "معدنی و صنعتی گل گهر",
+            "CompanySymbol": "کگل",
+            "ProductTitle": "گندله",
+            "Value": "1033321",
+            "SourceUnit": "تن",
+            "PeriodStart": "2026-07-23",
+            "PeriodEnd": "2026-08-22",
+            "ProviderName": "NoavaranCurrentApi",
+            "ReportId": "d616e624-f489-4d28-b765-dea74b671559",
+            "ExternalReportId": "ProductSales:4:1405-05:output-0",
+            "SourceRowFingerprint": "e9aa8bd7eb5a14cd3292366a4ea03b61",
+            "SourceMultiplicity": "1",
+            "SamePeriodCandidateCount": "1",
+            "DiscoveryRank": "1",
+            "ProductMappingCoverageStatus": "partial",
+            "CompanyCoverageComplete": "True"
+          },
+          {
+            "CompanyId": "980f880b-32c9-467e-8007-19d9ef30dc19",
+            "CompanyName": "معدنی و صنعتی گهر زمین",
+            "CompanySymbol": "کگهر",
+            "ProductTitle": "گندله",
+            "Value": "512902",
+            "SourceUnit": "تن",
+            "PeriodStart": "2026-07-23",
+            "PeriodEnd": "2026-08-22",
+            "ProviderName": "NoavaranCurrentApi",
+            "ReportId": "167a0a89-84aa-4733-8ddc-2e1dbf531065",
+            "ExternalReportId": "ProductSales:12795:1405-05:output-0",
+            "SourceRowFingerprint": "dd74fe6937b9276c9c8dd1d9614fc479",
+            "SourceMultiplicity": "1",
+            "SamePeriodCandidateCount": "1",
+            "DiscoveryRank": "1",
+            "ProductMappingCoverageStatus": "partial",
+            "CompanyCoverageComplete": "True"
+          }
+        ]
+      }
+    ]
+  }
+}

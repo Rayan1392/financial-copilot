@@ -193,6 +193,7 @@ export const explainInsight = createServerFn({ method: "POST" })
       body: JSON.stringify({
         message: "Explain this insight",
         context: { insightEventId: data.insightEventId },
+        idempotencyKey: crypto.randomUUID(),
       }),
     });
     return {

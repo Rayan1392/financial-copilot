@@ -1,0 +1,151 @@
+{
+  "id": "tbl_3574e9a7b6b88039",
+  "physical": {
+    "Schema": "public",
+    "Name": "MonthlyActivityBackfillBatches",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedBy",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(40)",
+        "Nullable": false
+      },
+      {
+        "Name": "ActiveSlot",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "TargetShamsiYear",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "TargetShamsiMonth",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "PublishingStartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PublishedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PlannedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PublishedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ProcessedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "FailedCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RetryableCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastError",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MonthlyActivityBackfillBatches_ActiveSlot",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MonthlyActivityBackfillBatches_ActiveSlot\" ON public.\"MonthlyActivityBackfillBatches\" USING btree (\"ActiveSlot\") WHERE (\"ActiveSlot\" IS NOT NULL)",
+        "Columns": [
+          "ActiveSlot"
+        ]
+      },
+      {
+        "Name": "IX_MonthlyActivityBackfillBatches_CreatedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlyActivityBackfillBatches_CreatedAt\" ON public.\"MonthlyActivityBackfillBatches\" USING btree (\"CreatedAt\")",
+        "Columns": [
+          "CreatedAt"
+        ]
+      },
+      {
+        "Name": "IX_MonthlyActivityBackfillBatches_Status",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlyActivityBackfillBatches_Status\" ON public.\"MonthlyActivityBackfillBatches\" USING btree (\"Status\")",
+        "Columns": [
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_MonthlyActivityBackfillBatches",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MonthlyActivityBackfillBatches\" ON public.\"MonthlyActivityBackfillBatches\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MonthlyActivityBackfillBatches",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

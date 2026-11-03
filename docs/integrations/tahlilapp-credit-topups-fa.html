@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>راهنمای فنی یکپارچه‌سازی خرید اعتبار از ساپیو</title>
+  <style>
+    @font-face {
+      font-family: "Samim";
+      src: url("../samim-font-v2.0.1/Farsi-Digits/Samim-FD.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Samim";
+      src: url("../samim-font-v2.0.1/Farsi-Digits/Samim-Bold-FD.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+    }
+    :root { color-scheme: light; --ink:#18212f; --muted:#526174; --line:#d9e1ea; --blue:#155eef; --pale:#f4f7fb; --green:#067647; --amber:#9a6700; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#eef2f7; color:var(--ink); font-family:"Samim", Tahoma, Arial, sans-serif; font-size:16px; line-height:1.9; }
+    main { max-width:1000px; margin:32px auto; padding:40px 48px; background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:0 8px 32px #172b4d12; }
+    h1,h2,h3 { line-height:1.5; }
+    h1 { margin-top:0; font-size:2rem; }
+    h2 { margin-top:2.2rem; padding-bottom:.35rem; border-bottom:1px solid var(--line); font-size:1.35rem; }
+    h3 { margin-bottom:.4rem; font-size:1.05rem; }
+    p,li { color:#263548; }
+    code,pre,.ltr { direction:ltr; unicode-bidi:embed; text-align:left; font-family:Consolas, "Cascadia Code", monospace; }
+    code { background:#f1f4f8; padding:.1rem .35rem; border-radius:4px; }
+    pre { overflow-x:auto; padding:18px; border-radius:10px; background:#101828; color:#e6edf6; line-height:1.55; font-size:.9rem; white-space:pre; }
+    pre code { padding:0; background:transparent; color:inherit; }
+    table { width:100%; border-collapse:collapse; margin:1rem 0; }
+    th,td { border:1px solid var(--line); padding:9px 12px; vertical-align:top; text-align:right; }
+    th { background:var(--pale); }
+    .note { padding:12px 16px; margin:16px 0; border-right:4px solid var(--blue); background:#eff6ff; }
+    .warn { border-right-color:#d97706; background:#fffaeb; }
+    .ok { border-right-color:var(--green); background:#ecfdf3; }
+    .muted { color:var(--muted); font-size:.92rem; }
+    .tag { display:inline-block; direction:ltr; unicode-bidi:embed; font-family:Consolas,monospace; }
+    .tabs { margin:1rem 0 1.5rem; }
+    .tab-list { display:flex; flex-wrap:wrap; gap:8px; border-bottom:1px solid var(--line); }
+    .tab-button { border:1px solid var(--line); border-bottom:0; border-radius:8px 8px 0 0; padding:8px 16px; background:#f8fafc; color:var(--ink); font:inherit; cursor:pointer; }
+    .tab-button[aria-selected="true"] { background:#155eef; border-color:#155eef; color:#fff; }
+    .tab-panel[hidden] { display:none; }
+    .tab-panel > p { margin-bottom:.5rem; }
+    @media(max-width:700px) { main { margin:0; padding:24px 18px; border-radius:0; } h1 { font-size:1.55rem; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>راهنمای فنی یکپارچه‌سازی خرید اعتبار از ساپیو</h1>
+  <p>این سند قرارداد سروربه‌سرور برای ثبت خرید اعتبار و استعلام موجودی را شرح می‌دهد. این راهنما فقط شامل endpointهای اعتبار است.</p>
+
+  <h2>۱. آدرس‌ها</h2>
+  <table>
+    <thead><tr><th>کاربرد</th><th>متد و مسیر</th><th>احراز هویت</th></tr></thead>
+    <tbody>
+      <tr><td>ثبت و تحویل اعتبار خریداری‌شده</td><td><code>POST /api/v1/billing/partners/tahlilapp/top-ups</code></td><td>JWT شریک با scope مجاز</td></tr>
+      <tr><td>استعلام موجودی و وضعیت اشتراک</td><td><code>GET /api/v1/billing/partners/tahlilapp/credit-balance?userId={userId}</code></td><td>عمومی و فقط‌خواندنی؛ JWT لازم نیست</td></tr>
+    </tbody>
+  </table>
+  <p>در نمونه‌ها <code>{{BASE_URL}}</code> ریشه API همان محیط است؛ برای نمونه محلی <code>http://localhost:5074</code> است. محیط production باید از URL رسمی اعلام‌شده برای همان محیط استفاده کند.</p>
+
+  <h2>۲. شناسه کاربر</h2>
+  <p><code>userId</code> باید دقیقاً شناسه پایدار کاربر، سمت همکار باشد؛ این مقدار با شناسه داخلی کاربر ساپیو متفاوت است. ساپیو این مقدار را از پیوند هویت همکار پیدا می‌کند و اشتراک را از رکوردهای همگام‌شده خودش بررسی می‌کند. نام، شماره تلفن یا ایمیل را به‌جای آن ارسال نکنید.</p>
+
+  <h2>۳. افزایش اعتبار با POST</h2>
+  <p>بدنه باید دقیقاً چهار فیلد زیر را داشته باشد. فیلد اضافه یا فیلد جاافتاده پذیرفته نمی‌شود.</p>
+  <pre><code class="language-json">{
+  "invoiceId": "TA-INV-2026-000123",
+  "userId": "&lt;شناسه پایدار کاربر سمت همکار&gt;",
+  "creditsPurchased": 100,
+  "paidAtUtc": "2026-11-03T12:30:00Z"
+}</code></pre>
+  <ul>
+    <li><code>invoiceId</code>: شناسه یکتای فاکتور/خرید در سامانه همکار؛ حداکثر ۱۶۰ نویسه و بدون فاصله ابتدا یا انتها.</li>
+    <li><code>userId</code>: شناسه پایدار کاربر سمت همکار؛ حداکثر ۱۲۸ نویسه و بدون فاصله ابتدا یا انتها.</li>
+    <li><code>creditsPurchased</code>: تعداد اعتبار مطابق بسته فعال سمت ساپیو. بسته‌های seed‌شده فعلی ۱۰۰، ۵۰۰ و ۱۰۰۰ اعتبار هستند؛ بسته فعال محیط مقصد ملاک نهایی است.</li>
+    <li><code>paidAtUtc</code>: زمان واقعی پرداخت به UTC در قالب ISO 8601، همراه با <code>Z</code> یا offset صریح. مقدار نباید در آینده باشد.</li>
+  </ul>
+  <p>نمونه پاسخ موفق با HTTP <code>200</code>:</p>
+  <pre><code class="language-json">{
+  "status": "granted",
+  "invoiceId": "TA-INV-2026-000123",
+  "grantId": "b0d1e5ea-4cd2-43ed-9e34-9e1ddc4d70b8",
+  "creditsGranted": 100,
+  "expiresAtUtc": "2026-11-30T18:03:27+00:00",
+  "grantedAtUtc": "2026-11-03T12:31:04.1234567+00:00"
+}</code></pre>
+
+  <h3>Idempotency و retry</h3>
+  <p>برای retry شبکه، همان <code>invoiceId</code> و همان چهار مقدار را دوباره بفرستید؛ پاسخ همان رسید و <code>grantId</code> قبلی را برمی‌گرداند و اعتبار دوباره اضافه نمی‌شود. برای درخواست جدید، <code>invoiceId</code> تازه بسازید. استفاده مجدد از یک invoice با body متفاوت خطای <code>topup-identity-conflict</code> می‌دهد.</p>
+  <p>هر POST باید JWT تازه با <code>jti</code> تازه داشته باشد؛ حتی در retry. <code>jti</code> در سطح صادرکننده یک‌بارمصرف است.</p>
+
+  <h2>۴. استعلام موجودی</h2>
+  <p>این endpoint فقط وضعیت محلی ثبت‌شده را می‌خواند، داده را تغییر نمی‌دهد و به‌صورت عمومی قابل فراخوانی است. در پاسخ <code>availableCredits</code> موجودی قابل‌مصرف را نشان می‌دهد، پس رزروشده‌ها از آن کم شده‌اند.</p>
+  <pre><code class="language-bash">curl --get '{{BASE_URL}}/api/v1/billing/partners/tahlilapp/credit-balance' \
+  --data-urlencode 'userId={{PARTNER_USER_ID}}'</code></pre>
+  <p>نمونه پاسخ برای Plus یا Pro:</p>
+  <pre><code class="language-json">{
+  "plan": "Plus",
+  "subscriptionStartsAtUtc": "2026-10-31T18:03:27+00:00",
+  "subscriptionExpiresAtUtc": "2026-11-30T18:03:27+00:00",
+  "quotaMode": "finite",
+  "availableCredits": 600.0,
+  "asOfUtc": "2026-11-03T12:35:00+00:00"
+}</code></pre>
+  <p>برای Max، پاسخ <code>quotaMode: "unlimited"</code> و <code>availableCredits: null</code> دارد. برای Free، پاسخ همیشه <code>quotaMode: "finite"</code> است و <code>availableCredits</code> موجودی قابل‌مصرف wallet را نشان می‌دهد. balance endpoint وضعیت فعلی را می‌سنجد؛ شرط خرید بر اساس اشتراک ثبت‌شده و زمان پرداخت در POST ارزیابی می‌شود.</p>
+
+  <h2>۵. JWT شریک</h2>
+  <p>برای POST هدر زیر الزامی است:</p>
+  <pre><code class="language-http">Authorization: Bearer &lt;JWT&gt;
+Content-Type: application/json</code></pre>
+  <p>مقادیر قرارداد JWT باید دقیقاً مطابق جدول زیر باشند:</p>
+  <table>
+    <thead><tr><th>مقدار</th><th>الزام</th></tr></thead>
+    <tbody>
+      <tr><td><code>iss</code> / تنظیم API یعنی <code>Issuer</code></td><td><code>tahlilapp-topup</code></td></tr>
+      <tr><td><code>aud</code> / تنظیم API یعنی <code>Audience</code></td><td><code>sapio-tahlilapp-topup</code></td></tr>
+      <tr><td><code>scope</code></td><td><code>topup.deliver</code></td></tr>
+      <tr><td><code>jti</code></td><td>رشته یکتا، حداقل ۱۶ و حداکثر ۲۰۰ نویسه؛ برای هر POST تازه</td></tr>
+      <tr><td><code>exp</code></td><td>انقضای JWT به Unix time ثانیه؛ الزامی و باید معتبر باشد</td></tr>
+      <tr><td><code>kid</code> در header</td><td>شناسه کلیدی که با یکی از نام‌های عضو <code>SigningKeys</code> برابر باشد</td></tr>
+      <tr><td><code>alg</code> در header</td><td><code>HS256</code></td></tr>
+      <tr><td><code>sub</code></td><td>در پیاده‌سازی فعلی برای این endpoint اجباری نیست؛ برای شناسایی صادرکننده توصیه می‌شود.</td></tr>
+    </tbody>
+  </table>
+  <p>برای سازگاری ساده، عمر توکن را حدود ۵ دقیقه بگذارید. API برای اعتبارسنجی زمان ۳۰ ثانیه clock skew دارد. توکن بدون امضا، امضای نامعتبر، <code>kid</code> ناشناخته یا <code>jti</code> تکراری پذیرفته نمی‌شود.</p>
+
+  <h3>تنظیم API و مدیریت کلید</h3>
+  <p>در محیط API، endpoint باید با <code>Billing:TahlilAppTopUps:Enabled=true</code> فعال شود. مقادیر احراز هویت مورد انتظار:</p>
+  <pre><code class="language-json">{
+  "Billing": {
+    "TahlilAppTopUps": {
+      "Enabled": true,
+      "Authentication": {
+        "Issuer": "tahlilapp-topup",
+        "Audience": "sapio-tahlilapp-topup",
+        "SigningKeys": {
+          "&lt;KID اعلام‌شده در فایل امن&gt;": "&lt;secret اعلام‌شده در فایل امن&gt;"
+        }
+      }
+    }
+  }
+}</code></pre>
+  <p>در JWT ارسالی، مقدار claim یعنی <code>"iss": "tahlilapp-topup"</code> باید با <code>Issuer</code> برابر باشد. مقدار claim یعنی <code>"aud": "sapio-tahlilapp-topup"</code> باید با <code>Audience</code> برابر باشد.</p>
+  <div class="note warn"><strong>محرمانگی کلید:</strong> مقدار واقعی <code>SigningKeys</code> داخل این سند نیست. مقدار و KID مربوط به آن در فایلی جداگانه و از مسیر امن برای تیم فنی همکار ارسال خواهد شد. کلید را در سورس، Postman collection مشترک، log یا تیکت قرار ندهید. برنامه شریک باید از secret store بخواند و مقدار کلید را در log چاپ نکند.</div>
+
+  <h3>نمونه‌های چندزبانه برای ساخت JWT و ارسال درخواست</h3>
+  <p>در تب‌ها نمونهٔ ساخت JWT با C#، PHP، Python و Node.js و نمونهٔ ارسال درخواست با curl آمده است. مقدار <code>SigningKey</code> و <code>kid</code> را از secret store یا فایل امن دریافت کنید؛ کلید را در کد ثابت ننویسید. در نمونه‌های curl، متغیر <code>TOPUP_JWT</code> باید از برنامهٔ شما پر شود؛ curl به‌تنهایی JWT امضا نمی‌کند.</p>
+  <div class="tabs" data-tabs>
+    <div class="tab-list" role="tablist" aria-label="نمونه‌های زبان برنامه‌نویسی">
+      <button class="tab-button" id="tab-csharp" type="button" role="tab" aria-selected="true" aria-controls="panel-csharp">C#</button>
+      <button class="tab-button" id="tab-php" type="button" role="tab" aria-selected="false" aria-controls="panel-php" tabindex="-1">PHP</button>
+      <button class="tab-button" id="tab-python" type="button" role="tab" aria-selected="false" aria-controls="panel-python" tabindex="-1">Python</button>
+      <button class="tab-button" id="tab-node" type="button" role="tab" aria-selected="false" aria-controls="panel-node" tabindex="-1">Node.js</button>
+      <button class="tab-button" id="tab-curl" type="button" role="tab" aria-selected="false" aria-controls="panel-curl" tabindex="-1">curl</button>
+    </div>
+    <section class="tab-panel" id="panel-csharp" role="tabpanel" aria-labelledby="tab-csharp">
+      <p>پکیج موردنیاز: <code>System.IdentityModel.Tokens.Jwt</code>.</p>
+      <pre><code class="language-csharp">using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+
+static string CreateTopUpJwt(
+    string issuer, string audience, string keyId, string signingKey)
+{
+    var now = DateTime.UtcNow;
+    var claims = new[]
+    {
+        new Claim("sub", "partner-topup"),
+        new Claim("scope", "topup.deliver"),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+    };
+
+    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
+    var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+    var jwt = new JwtSecurityToken(
+        issuer: issuer,             // "tahlilapp-topup"
+        audience: audience,         // "sapio-tahlilapp-topup"
+        claims: claims,
+        notBefore: now.AddSeconds(-5),
+        expires: now.AddMinutes(5),
+        signingCredentials: credentials);
+    jwt.Header["kid"] = keyId;      // همان KID نگاشت‌شده در SigningKeys
+    return new JwtSecurityTokenHandler().WriteToken(jwt);
+}</code></pre>
+    </section>
+    <section class="tab-panel" id="panel-php" role="tabpanel" aria-labelledby="tab-php" hidden>
+      <p>با PHP و توابع داخلی؛ کلید به‌صورت متن UTF-8 از متغیر محیطی خوانده می‌شود.</p>
+      <pre><code class="language-php">&lt;?php
+function b64url(string $value): string {
+    return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+}
+
+$issuer = 'tahlilapp-topup';
+$audience = 'sapio-tahlilapp-topup';
+$kid = getenv('TOPUP_KID');
+$key = getenv('TOPUP_SIGNING_KEY'); // از secret store؛ هرگز log نکنید
+if (!$kid || !$key) throw new RuntimeException('Missing signing credentials');
+
+$now = time();
+$header = ['alg' =&gt; 'HS256', 'typ' =&gt; 'JWT', 'kid' =&gt; $kid];
+$payload = [
+    'iss' =&gt; $issuer,
+    'sub' =&gt; 'partner-topup',
+    'aud' =&gt; $audience,
+    'scope' =&gt; 'topup.deliver',
+    'iat' =&gt; $now,
+    'exp' =&gt; $now + 300,
+    'jti' =&gt; bin2hex(random_bytes(16)),
+];
+$unsigned = b64url(json_encode($header, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) . '.' .
+            b64url(json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+$signature = hash_hmac('sha256', $unsigned, $key, true);
+$jwt = $unsigned . '.' . b64url($signature);
+
+// هر POST و retry باید JWT تازه با jti جدید داشته باشد.
+echo $jwt;</code></pre>
+    </section>
+    <section class="tab-panel" id="panel-python" role="tabpanel" aria-labelledby="tab-python" hidden>
+      <p>فقط با کتابخانه‌های استاندارد Python؛ کلید از محیط خوانده می‌شود.</p>
+      <pre><code class="language-python">import base64, hashlib, hmac, json, os, secrets, time
+
+def b64url(data: bytes) -&gt; str:
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+
+issuer = 'tahlilapp-topup'
+audience = 'sapio-tahlilapp-topup'
+kid = os.environ['TOPUP_KID']
+key = os.environ['TOPUP_SIGNING_KEY'].encode('utf-8')
+now = int(time.time())
+header = {'alg': 'HS256', 'typ': 'JWT', 'kid': kid}
+payload = {
+    'iss': issuer, 'sub': 'partner-topup', 'aud': audience,
+    'scope': 'topup.deliver', 'iat': now, 'exp': now + 300,
+    'jti': secrets.token_hex(16),
+}
+unsigned = (b64url(json.dumps(header, separators=(',', ':')).encode()) + '.' +
+            b64url(json.dumps(payload, separators=(',', ':')).encode()))
+signature = hmac.new(key, unsigned.encode('ascii'), hashlib.sha256).digest()
+print(unsigned + '.' + b64url(signature))  # secret را چاپ نکنید
+# برای هر POST/retry، این کد را دوباره اجرا کنید تا jti تازه باشد.</code></pre>
+    </section>
+    <section class="tab-panel" id="panel-node" role="tabpanel" aria-labelledby="tab-node" hidden>
+      <p>با Node.js و ماژول داخلی <code>crypto</code>.</p>
+      <pre><code class="language-javascript">const crypto = require('node:crypto');
+
+const b64url = value =&gt; Buffer.from(value).toString('base64url');
+const now = Math.floor(Date.now() / 1000);
+const header = {
+  alg: 'HS256', typ: 'JWT', kid: process.env.TOPUP_KID
+};
+const payload = {
+  iss: 'tahlilapp-topup', sub: 'partner-topup',
+  aud: 'sapio-tahlilapp-topup', scope: 'topup.deliver',
+  iat: now, exp: now + 300,
+  jti: crypto.randomBytes(16).toString('hex')
+};
+const unsigned = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
+const signature = crypto.createHmac('sha256', process.env.TOPUP_SIGNING_KEY)
+  .update(unsigned, 'ascii').digest();
+const jwt = `${unsigned}.${b64url(signature)}`;
+process.stdout.write(jwt); // خود کلید را چاپ یا log نکنید</code></pre>
+    </section>
+    <section class="tab-panel" id="panel-curl" role="tabpanel" aria-labelledby="tab-curl" hidden>
+      <p>پس از ساخت JWT با یکی از نمونه‌های بالا، مقدار آن را به‌صورت امن در <code>TOPUP_JWT</code> قرار دهید. این نمونه بدنه را به endpoint می‌فرستد؛ برای retry همان بدنه و invoice را نگه دارید و JWT تازه بسازید.</p>
+      <pre><code class="language-bash">curl --fail-with-body --location '{{BASE_URL}}/api/v1/billing/partners/tahlilapp/top-ups' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${TOPUP_JWT}" \
+  --data '{
+    "invoiceId": "{{PARTNER_INVOICE_ID}}",
+    "userId": "{{PARTNER_USER_ID}}",
+    "creditsPurchased": 100,
+    "paidAtUtc": "2026-11-03T12:30:00Z"
+  }'</code></pre>
+    </section>
+  </div>
+  <p>مقادیر <code>iss</code>، <code>aud</code> و <code>scope</code> باید دقیقاً مطابق تنظیمات اعلام‌شده باشند. کلید سمت API با UTF-8 به کلید HMAC تبدیل می‌شود؛ سمت صادرکننده نیز باید دقیقاً همان متن کلید را با UTF-8 به کار ببرد. اگر کلید در فایل امن به شکل متن Base64 ارائه شد، آن را خودسرانه decode نکنید؛ طبق قالب اعلام‌شده برای همان کلید عمل کنید.</p>
+
+  <h2>۶. نمونه‌های چندزبانه برای POST و استعلام</h2>
+  <p>نمونه‌های زیر هر دو endpoint را فراخوانی می‌کنند. برای POST، JWT را در همان برنامه با روش بخش قبل بسازید و در هدر Bearer بفرستید؛ استعلام موجودی به JWT نیاز ندارد. مقادیر invoice، شناسه کاربر، تعداد اعتبار و زمان پرداخت باید از پرداخت تأییدشده بیایند.</p>
+  <div class="tabs" data-tabs>
+    <div class="tab-list" role="tablist" aria-label="نمونه فراخوانی endpointها">
+      <button class="tab-button" id="api-tab-csharp" type="button" role="tab" aria-selected="true" aria-controls="api-panel-csharp">C#</button>
+      <button class="tab-button" id="api-tab-php" type="button" role="tab" aria-selected="false" aria-controls="api-panel-php" tabindex="-1">PHP</button>
+      <button class="tab-button" id="api-tab-python" type="button" role="tab" aria-selected="false" aria-controls="api-panel-python" tabindex="-1">Python</button>
+      <button class="tab-button" id="api-tab-node" type="button" role="tab" aria-selected="false" aria-controls="api-panel-node" tabindex="-1">Node.js</button>
+      <button class="tab-button" id="api-tab-curl" type="button" role="tab" aria-selected="false" aria-controls="api-panel-curl" tabindex="-1">curl</button>
+    </div>
+    <section class="tab-panel" id="api-panel-csharp" role="tabpanel" aria-labelledby="api-tab-csharp">
+      <p>فرض شده متد <code>CreateTopUpJwt</code> از نمونهٔ C# بخش قبل در دسترس است.</p>
+      <pre><code class="language-csharp">using System.Net.Http.Headers;
+using System.Net.Http.Json;
+
+var baseUrl = configuration["SapioApi:BaseUrl"]!.TrimEnd('/');
+var userId = payment.PartnerUserId;
+var http = new HttpClient();
+var jwt = CreateTopUpJwt(
+    configuration["PartnerTopUpJwt:Issuer"]!,
+    configuration["PartnerTopUpJwt:Audience"]!,
+    configuration["PartnerTopUpJwt:KeyId"]!,
+    configuration["PartnerTopUpJwt:SigningKey"]!);
+
+using var post = new HttpRequestMessage(
+    HttpMethod.Post, $"{baseUrl}/api/v1/billing/partners/tahlilapp/top-ups");
+post.Headers.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+post.Content = JsonContent.Create(new
+{
+    invoiceId = payment.InvoiceId,
+    userId,
+    creditsPurchased = payment.CreditsPurchased,
+    paidAtUtc = payment.PaidAtUtc
+});
+using var postResponse = await http.SendAsync(post);
+var postBody = await postResponse.Content.ReadAsStringAsync();
+// postBody را برای ثبت grantId یا بررسی code خطا پردازش کنید.
+postResponse.EnsureSuccessStatusCode();
+
+// GET فقط‌خواندنی است و Authorization نمی‌خواهد.
+var balanceUrl = $"{baseUrl}/api/v1/billing/partners/tahlilapp/credit-balance" +
+    $"?userId={Uri.EscapeDataString(userId)}";
+var balance = await http.GetFromJsonAsync&lt;CreditBalanceResponse&gt;(balanceUrl);
+
+public sealed record CreditBalanceResponse(
+    string Plan, DateTimeOffset? SubscriptionStartsAtUtc,
+    DateTimeOffset? SubscriptionExpiresAtUtc, string QuotaMode,
+    decimal? AvailableCredits, DateTimeOffset AsOfUtc);</code></pre>
+    </section>
+    <section class="tab-panel" id="api-panel-php" role="tabpanel" aria-labelledby="api-tab-php" hidden>
+      <p>JWT را با نمونهٔ PHP بخش قبل در حافظهٔ برنامه بسازید؛ این نمونه برای سادگی آن را از متغیر محیطی می‌خواند.</p>
+      <pre><code class="language-php">&lt;?php
+$baseUrl = rtrim(getenv('SAPIO_API_BASE_URL'), '/');
+$jwt = getenv('TOPUP_JWT'); // JWT تازه و امضاشده؛ کلید را در درخواست نگذارید
+$userId = $payment['partnerUserId'];
+$payload = [
+    'invoiceId' =&gt; $payment['invoiceId'],
+    'userId' =&gt; $userId,
+    'creditsPurchased' =&gt; $payment['creditsPurchased'],
+    'paidAtUtc' =&gt; $payment['paidAtUtc'], // ISO 8601 با Z یا offset
+];
+
+$ch = curl_init($baseUrl . '/api/v1/billing/partners/tahlilapp/top-ups');
+curl_setopt_array($ch, [
+    CURLOPT_POST =&gt; true,
+    CURLOPT_RETURNTRANSFER =&gt; true,
+    CURLOPT_HTTPHEADER =&gt; [
+        'Content-Type: application/json', 'Authorization: Bearer ' . $jwt,
+    ],
+    CURLOPT_POSTFIELDS =&gt; json_encode($payload, JSON_THROW_ON_ERROR),
+]);
+$postBody = curl_exec($ch);
+$status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+if ($postBody === false) throw new RuntimeException(curl_error($ch));
+curl_close($ch);
+if ($status &lt; 200 || $status &gt;= 300) throw new RuntimeException($postBody);
+$grant = json_decode($postBody, true, flags: JSON_THROW_ON_ERROR);
+
+// استعلام موجودی بدون JWT:
+$url = $baseUrl . '/api/v1/billing/partners/tahlilapp/credit-balance?' .
+       http_build_query(['userId' =&gt; $userId]);
+$balanceBody = file_get_contents($url);
+$balance = json_decode($balanceBody, true, flags: JSON_THROW_ON_ERROR);</code></pre>
+    </section>
+    <section class="tab-panel" id="api-panel-python" role="tabpanel" aria-labelledby="api-tab-python" hidden>
+      <p>این نمونه از کتابخانهٔ استاندارد <code>urllib</code> استفاده می‌کند؛ JWT تازه را از سازندهٔ JWT برنامه بگیرید.</p>
+      <pre><code class="language-python">import json, os
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+base_url = os.environ['SAPIO_API_BASE_URL'].rstrip('/')
+jwt = os.environ['TOPUP_JWT']  # توکن امضاشده؛ signing key را ارسال نکنید
+payment = {
+    'invoiceId': payment_invoice_id,
+    'userId': partner_user_id,
+    'creditsPurchased': credits_purchased,
+    'paidAtUtc': paid_at_utc,  # ISO 8601 با Z یا offset
+}
+post_request = Request(
+    base_url + '/api/v1/billing/partners/tahlilapp/top-ups',
+    data=json.dumps(payment).encode('utf-8'),
+    headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {jwt}'},
+    method='POST',
+)
+with urlopen(post_request) as response:
+    grant = json.load(response)
+
+# استعلام موجودی بدون JWT:
+query = urlencode({'userId': partner_user_id})
+with urlopen(base_url + '/api/v1/billing/partners/tahlilapp/credit-balance?' + query) as response:
+    balance = json.load(response)</code></pre>
+    </section>
+    <section class="tab-panel" id="api-panel-node" role="tabpanel" aria-labelledby="api-tab-node" hidden>
+      <p>این نمونه از <code>fetch</code> داخلی Node.js استفاده می‌کند؛ JWT تازه را از سازندهٔ JWT برنامه بگیرید.</p>
+      <pre><code class="language-javascript">const baseUrl = process.env.SAPIO_API_BASE_URL.replace(/\/$/, '');
+const jwt = process.env.TOPUP_JWT; // توکن امضاشده؛ کلید را ارسال نکنید
+const userId = payment.partnerUserId;
+const payload = {
+  invoiceId: payment.invoiceId,
+  userId,
+  creditsPurchased: payment.creditsPurchased,
+  paidAtUtc: payment.paidAtUtc
+};
+
+const postResponse = await fetch(
+  `${baseUrl}/api/v1/billing/partners/tahlilapp/top-ups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+    body: JSON.stringify(payload)
+  });
+const postBody = await postResponse.json();
+if (!postResponse.ok) throw new Error(JSON.stringify(postBody));
+
+// استعلام موجودی بدون JWT:
+const query = new URLSearchParams({ userId });
+const balanceResponse = await fetch(
+  `${baseUrl}/api/v1/billing/partners/tahlilapp/credit-balance?${query}`);
+if (!balanceResponse.ok) throw new Error(await balanceResponse.text());
+const balance = await balanceResponse.json();</code></pre>
+    </section>
+    <section class="tab-panel" id="api-panel-curl" role="tabpanel" aria-labelledby="api-tab-curl" hidden>
+      <p>متغیرهای <code>BASE_URL</code>، <code>TOPUP_JWT</code>، <code>PARTNER_INVOICE_ID</code> و <code>PARTNER_USER_ID</code> را در محیط امن تنظیم کنید. JWT را با برنامه بسازید؛ curl فقط آن را می‌فرستد.</p>
+      <pre><code class="language-bash">curl --fail-with-body --location "$BASE_URL/api/v1/billing/partners/tahlilapp/top-ups" \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer $TOPUP_JWT" \
+  --data "{\"invoiceId\":\"$PARTNER_INVOICE_ID\",\"userId\":\"$PARTNER_USER_ID\",\"creditsPurchased\":100,\"paidAtUtc\":\"2026-11-03T12:30:00Z\"}"
+
+# استعلام موجودی؛ بدون JWT:
+curl --fail-with-body --get "$BASE_URL/api/v1/billing/partners/tahlilapp/credit-balance" \
+  --data-urlencode "userId=$PARTNER_USER_ID"</code></pre>
+    </section>
+  </div>
+  <p>در پاسخ POST، در صورت موفقیت <code>status</code> برابر <code>granted</code> است؛ پاسخ GET شامل طرح، بازهٔ اشتراک، <code>quotaMode</code> و موجودی قابل‌مصرف است. برای retry، بدنه و invoice را عیناً تکرار کنید ولی JWT تازه با <code>jti</code> تازه بسازید.</p>
+
+  <h2>۷. قواعد اشتراک و انقضای اعتبار</h2>
+  <ul>
+    <li>خرید اعتبار فقط برای کاربری قابل grant است که اشتراک فعال <strong>Plus</strong> یا <strong>Pro</strong> داشته باشد. کاربر <strong>Free</strong> و <strong>Max</strong> امکان دریافت اعتبار اضافه از این endpoint را ندارد.</li>
+    <li>اشتراک باید در زمان <code>paidAtUtc</code> فعال بوده باشد: شروع بازه شامل است (<code>startsAtUtc &lt;= paidAtUtc</code>) و پایان بازه شامل نیست (<code>paidAtUtc &lt; expiresAtUtc</code>).</li>
+    <li>اشتراک و هویت باید در داده‌های authoritative ساپیو همگام باشند. پاسخ مثبت سرویس تحلیل‌اپ به‌تنهایی جایگزین رکورد محلی اشتراک نیست.</li>
+    <li>اعتبار خریداری‌شده تا پایان همان بازه اشتراک Plus/Pro قابل‌استفاده است. مقدار استفاده‌نشده با پایان اشتراک منقضی می‌شود و به دوره یا اشتراک بعدی منتقل نخواهد شد.</li>
+  </ul>
+
+  <h2>۸. خطاها و پاسخ‌ها</h2>
+  <p>خطاهای endpointها در قالب Problem Details و با فیلدهای <code>type</code>، <code>title</code>، <code>status</code>، <code>code</code> و <code>correlationId</code> برمی‌گردند. مقدار <code>correlationId</code> را برای پیگیری خطا نگه دارید؛ توکن یا secret را در گزارش خطا قرار ندهید.</p>
+  <table>
+    <thead><tr><th>HTTP</th><th>code</th><th>علت معمول</th><th>اقدام پیشنهادی</th></tr></thead>
+    <tbody>
+      <tr><td>400</td><td><code>invalid-topup-event</code></td><td>JSON نامعتبر، فیلد جاافتاده/اضافی، شناسه خالی/نامعتبر، زمان پرداخت خالی یا <code>paidAtUtc</code> در آینده</td><td>بدنه را با قرارداد چهار فیلدی و زمان UTC بررسی کنید.</td></tr>
+      <tr><td>401</td><td><code>partner-auth-failed</code></td><td>Bearer JWT غایب یا نامعتبر، issuer/audience/امضا/exp نامعتبر، KID ناشناخته، jti مفقود یا تکراری</td><td>JWT تازه بسازید؛ تنظیمات و KID را با تیم ساپیو تطبیق دهید.</td></tr>
+      <tr><td>403</td><td><code>partner-auth-failed</code></td><td>scope وجود ندارد یا با <code>topup.deliver</code> برابر نیست</td><td>claim دقیق <code>scope=topup.deliver</code> را ارسال کنید.</td></tr>
+      <tr><td>404</td><td><code>topup-user-unresolved</code></td><td>شناسه تحلیل‌اپ به هویت فعال/حساب محلی قابل اتصال نیست؛ برای استعلام موجودی نیز همین خطا برمی‌گردد.</td><td>شناسه پایدار کاربر و وضعیت اتصال/همگام‌سازی را بررسی کنید.</td></tr>
+      <tr><td>409</td><td><code>topup-ineligible</code></td><td>کاربر در زمان پرداخت اشتراک واجد شرایط Plus/Pro ندارد یا اشتراک جاری معتبر نیست.</td><td>وضعیت اشتراک و زمان پرداخت را بررسی کنید. برای خرید جدید invoice تازه بسازید.</td></tr>
+      <tr><td>409</td><td><code>topup-identity-conflict</code></td><td>همان invoice قبلاً با user، تعداد اعتبار یا زمان پرداخت متفاوت ثبت شده است.</td><td>مقادیر فاکتور را اصلاح کنید؛ invoice قبلی را با payload متفاوت تکرار نکنید.</td></tr>
+      <tr><td>422</td><td><code>topup-quantity-invalid</code></td><td>تعداد اعتبار با بسته فعال محیط مقصد تطبیق ندارد.</td><td>مقدار بسته را با تنظیم فعلی ساپیو تطبیق دهید.</td></tr>
+      <tr><td>503</td><td><code>topup-temporary-failure</code></td><td>قابلیت در API غیرفعال است یا داده/سرویس داخلی لازم موقتاً در دسترس نیست.</td><td>با فاصله زمانی retry کنید؛ در هر تلاش JWT و jti تازه بسازید و invoice/body را ثابت نگه دارید.</td></tr>
+    </tbody>
+  </table>
+  <p>استعلام موجودی علاوه بر خطاهای <code>404</code> و <code>503</code>، در صورت خالی یا بیش‌ازحد بلند بودن <code>userId</code> پاسخ <code>400 invalid-topup-event</code> می‌دهد. پاسخ ناموفق درخواست <code>POST</code> را بر اساس <code>code</code> و <code>correlationId</code> بررسی کنید؛ تکرار خودکار با invoice/body متفاوت انجام ندهید.</p>
+
+  <div class="note ok"><strong>چک‌لیست ارسال POST:</strong> چهار فیلد دقیق؛ بسته فعال؛ شناسه پایدار کاربر سمت همکار؛ پرداخت UTC معتبر؛ Plus/Pro فعال در زمان پرداخت و منقضی‌نشده هنگام تحویل؛ JWT امضاشده با Issuer، Audience، scope، KID، exp و jti معتبر؛ invoice یکتا؛ jti تازه برای هر درخواست.</div>
+  <p class="muted">مبنای مستندات: قرارداد endpoint و سرویس فعلی top-up شریک در API ساپیو. مقدار secret و KID اختصاصی هر شریک خارج از این سند و از مسیر امن تحویل می‌شوند.</p>
+</main>
+<script>
+  document.querySelectorAll('[data-tabs]').forEach((tabGroup) => {
+    const tabs = Array.from(tabGroup.querySelectorAll('[role="tab"]'));
+    const activate = (tab) => {
+      tabs.forEach((item) => {
+        const selected = item === tab;
+        item.setAttribute('aria-selected', selected ? 'true' : 'false');
+        item.tabIndex = selected ? 0 : -1;
+        document.getElementById(item.getAttribute('aria-controls')).hidden = !selected;
+      });
+    };
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => activate(tab));
+      tab.addEventListener('keydown', (event) => {
+        let next = index;
+        if (event.key === 'ArrowLeft') next = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowRight') next = (index - 1 + tabs.length) % tabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        tabs[next].focus();
+        activate(tabs[next]);
+      });
+    });
+  });
+</script>
+</body>
+</html>

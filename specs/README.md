@@ -26,6 +26,10 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `144-quarterly-financial-reports-table` — proposed, read-only quarterly income-statement comparison table over persisted statement observations, with standalone-quarter normalization, typed comparisons, and traceable source/calculation evidence.
 
+## Mobile Experience
+
+- `153-mobile-pwa-workspace` — mobile-first workspace at `/m` (chat, history, market, watchlist, account), device routing behind a rollout flag, and an installable PWA that caches static assets only.
+
 ## Phase 1 Scanner MVP Specs
 
 1. `001-project-foundation`

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import {
   financialCopilotServerApi,
   requireFinancialCopilotAuth,
@@ -89,6 +90,19 @@ export const getWatchlist = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
   .handler(async ({ context }) =>
     financialCopilotServerApi<WatchlistView>(context, "/api/v1/watchlists/me"),
+  );
+
+/** Resolves a ticker to the external company ID that following requires. Unknown symbols return null. */
+export const resolveExternalCompanyId = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .inputValidator((data) => z.object({ symbol: z.string().trim().min(1).max(64) }).parse(data))
+  .handler(async ({ context, data }) =>
+    financialCopilotServerApi<string | null>(
+      context,
+      `/api/v1/market/external-company-id?${new URLSearchParams({ symbol: data.symbol })}`,
+      {},
+      true,
+    ),
   );
 
 export const getMarketSummary = createServerFn({ method: "GET" })

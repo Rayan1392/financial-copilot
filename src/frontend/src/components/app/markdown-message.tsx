@@ -67,7 +67,14 @@ function IndustryRelativeValuationTable({ rows }: { rows: IndustryRelativeValuat
   };
 
   return (
-    <div className="my-2 overflow-x-auto rounded-lg ring-1 ring-hairline" dir="rtl">
+    // Focusable so keyboard users can scroll a table wider than a phone screen (WCAG 2.1.1).
+    <div
+      className="my-2 overflow-x-auto rounded-lg ring-1 ring-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+      dir="rtl"
+      tabIndex={0}
+      role="region"
+      aria-label="جدول"
+    >
       <table className="w-full min-w-[460px] table-fixed border-collapse text-sm">
         <colgroup>
           <col className="w-[42%]" />
@@ -352,7 +359,11 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean, is
     strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
     em: ({ children }) => <em>{children}</em>,
     pre: ({ children }) => (
-      <pre className="bg-surface/60 ring-1 ring-hairline rounded-lg overflow-x-auto my-2 text-xs font-mono p-3 text-left" dir="ltr">
+      <pre
+        className="bg-surface/60 ring-1 ring-hairline rounded-lg overflow-x-auto my-2 text-xs font-mono p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+        dir="ltr"
+        tabIndex={0}
+      >
         {children}
       </pre>
     ),
@@ -372,8 +383,12 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean, is
     li: ({ children }) => <li className="leading-relaxed [unicode-bidi:plaintext]">{children}</li>,
     table: ({ children }) => (
       <div
-        className="overflow-x-auto rounded-lg ring-1 ring-hairline my-2"
+        className="overflow-x-auto rounded-lg ring-1 ring-hairline my-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
         dir={isMonthlySalesQualityRankingTable || isRtl ? "rtl" : "ltr"}
+        // Focusable so keyboard users can scroll a table wider than a phone screen (WCAG 2.1.1).
+        tabIndex={0}
+        role="region"
+        aria-label="جدول"
       >
         <table className={rankingTableClass}>
           {isMonthlySalesQualityRankingTable && (

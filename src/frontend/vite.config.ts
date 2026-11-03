@@ -9,8 +9,14 @@ import { readFileSync } from "node:fs";
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
+// Feature 153: names the service-worker cache (`/sw.js?v=<id>`), so each deploy gets a fresh static cache.
+const buildId = process.env.VITE_APP_BUILD_ID ?? Date.now().toString(36);
+
 export default defineConfig({
   vite: {
+    define: {
+      "import.meta.env.VITE_APP_BUILD_ID": JSON.stringify(buildId),
+    },
     server: {
       host: "127.0.0.1",
       port: 5173,

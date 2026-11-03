@@ -15,6 +15,8 @@
     "test:quarterly-png": "node scripts/quarterly-financial-table-png.browser.test.mjs",
     "test:quarterly-banking-png": "node scripts/quarterly-financial-banking-png.browser.test.mjs",
     "test:quarterly-general-chart": "node scripts/quarterly-financial-general-chart.browser.test.mjs",
+    "test:mobile-browser": "node scripts/mobile-workspace.browser.mjs",
+    "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "test:watch": "vitest",
     "format": "prettier --write ."
   },
@@ -86,6 +88,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "axe-core": "4.10.3",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",

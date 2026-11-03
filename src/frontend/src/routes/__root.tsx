@@ -11,6 +11,8 @@ import { useEffect } from "react";
 import { subscribeToAuthChanges } from "@/integrations/financial-copilot/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { ThemeInitializer } from "@/components/app/theme-toggle";
+import { PwaRuntime } from "@/lib/pwa/update-toast";
+import { applyExperienceOverride } from "@/lib/experience/client";
 
 import appCss from "../styles.css?url";
 
@@ -76,9 +78,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
+      // Feature 153 PWA: installed-app metadata for iOS (Android reads the manifest).
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "ساپیو" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
@@ -107,6 +116,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Applies a one-shot `?experience=mobile|desktop` choice on any page (spec §7.5). */
+function ExperienceOverride() {
+  useEffect(() => applyExperienceOverride(), []);
+  return null;
+}
+
 function AuthSync() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -126,7 +141,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeInitializer />
       <AuthSync />
+      <ExperienceOverride />
       <Outlet />
+      <PwaRuntime />
     </QueryClientProvider>
   );
 }

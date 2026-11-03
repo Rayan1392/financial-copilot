@@ -1,31 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { Plus } from "lucide-react";
-import { getMarketSummary, getWatchlist } from "@/lib/market-view.functions";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
+import { useMarketSummary, useWatchlist } from "@/lib/workspace/queries";
 
 export function ContextPanel() {
-  const fetchSummary = useServerFn(getMarketSummary);
-  const fetchWatchlist = useServerFn(getWatchlist);
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["market-summary"],
-    queryFn: () => fetchSummary(),
-    retry: false,
-    throwOnError: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data, isLoading, isError } = useMarketSummary();
   const {
     data: watchlist,
     isLoading: watchlistLoading,
     isError: watchlistError,
-  } = useQuery({
-    queryKey: ["watchlist"],
-    queryFn: () => fetchWatchlist(),
-    retry: false,
-    throwOnError: false,
-    refetchOnWindowFocus: false,
-  });
+  } = useWatchlist();
 
   return (
     <aside className="hidden h-screen w-80 flex-shrink-0 flex-col border-r border-hairline bg-surface/50 lg:flex">

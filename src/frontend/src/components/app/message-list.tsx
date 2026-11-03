@@ -31,6 +31,8 @@ interface Props {
   onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
+  /** "compact" is the phone layout (Feature 153): tighter padding and spacing, wider user bubbles. */
+  density?: "default" | "compact";
 }
 
 export function MessageList({
@@ -42,18 +44,23 @@ export function MessageList({
   onDisclosurePageChange,
   showDiagnostics,
   followedSymbols,
+  density = "default",
 }: Props) {
   if (loading) return <div className="p-8 text-sm text-muted-foreground">در حال بارگذاری...</div>;
+  const compact = density === "compact";
   return (
-    <div className="p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full">
+    <div
+      data-density={density}
+      className={compact ? "px-4 py-5 space-y-6 max-w-4xl mx-auto w-full min-w-0" : "p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full"}
+    >
       {messages.map((message, index) => {
         const originalQuery = [...messages.slice(0, index)]
           .reverse()
           .find((item) => item.role === "user");
         return (
-          <div key={message.id} className="animate-fade-up">
+          <div key={message.id} data-message-id={message.id} data-role={message.role} className="animate-fade-up">
             {message.role === "user" ? (
-              <UserBubble text={(message.content as { text: string }).text} />
+              <UserBubble text={(message.content as { text: string }).text} compact={compact} />
             ) : (
               <AssistantBlock
                 block={message.content as AssistantChatBlock}
@@ -78,11 +85,13 @@ export function MessageList({
   );
 }
 
-function UserBubble({ text }: { text: string }) {
+function UserBubble({ text, compact = false }: { text: string; compact?: boolean }) {
   return (
     <div className="flex justify-end" dir="ltr">
       <div
-        className="max-w-[56ch] bg-surface ring-1 ring-hairline rounded-2xl px-5 py-3 text-foreground text-pretty text-sm"
+        className={compact
+          ? "max-w-[85%] bg-surface ring-1 ring-hairline rounded-2xl px-4 py-2.5 text-foreground text-pretty text-[15px] leading-7"
+          : "max-w-[56ch] bg-surface ring-1 ring-hairline rounded-2xl px-5 py-3 text-foreground text-pretty text-sm"}
         dir="auto"
       >
         {text}
@@ -477,8 +486,12 @@ function ScannerResultTable({
   return (
     <div className="space-y-2">
       <div
-        className="rounded-2xl overflow-x-auto ring-1 ring-hairline bg-surface/40"
+        className="rounded-2xl overflow-x-auto ring-1 ring-hairline bg-surface/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
         dir={isPersianTable ? "rtl" : "ltr"}
+        // Focusable so keyboard users can scroll a table wider than a phone screen (WCAG 2.1.1).
+        tabIndex={0}
+        role="region"
+        aria-label="جدول نتایج"
       >
         {metadataLabel && (
           <div

@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+  FinancialCopilotApiError,
   financialCopilotServerApi,
   requireFinancialCopilotAuth,
 } from "@/integrations/financial-copilot/api-client.server";
+import { classifyApiFailure, type ChatFailure } from "@/lib/chat/chat-errors";
 
 export interface ChatThread {
   id: string;
@@ -390,12 +392,17 @@ export interface FinancialStatementAnalysisResult {
   warnings: string[];
 }
 
+/** The API accepts 1–100; omitting the limit keeps the API default (20) that desktop has always used. */
+export const listThreadsInput = z.object({ limit: z.number().int().min(1).max(100).optional() }).optional();
+
 export const listThreads = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => listThreadsInput.parse(d))
+  .handler(async ({ context, data }) => {
+    const query = data?.limit === undefined ? "" : `?limit=${data.limit}`;
     const rows = await financialCopilotServerApi<ConversationSummaryResponse[]>(
       context,
-      "/api/ai/v1/conversations",
+      `/api/ai/v1/conversations${query}`,
     );
     return rows.map(mapThread);
   });
@@ -433,52 +440,82 @@ export const deleteThread = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const sendChatMessageInput = z.object({
+  threadId: z.string().uuid().optional(),
+  message: z.string().trim().min(1).max(2000),
+  scannerPage: z.number().int().min(1).default(1),
+  scannerPageSize: z.number().int().min(1).max(100).default(20),
+  disclosurePage: z.number().int().min(1).default(1),
+  suggestedActionId: z.string().max(160).optional(),
+  idempotencyKey: z.string().uuid().optional(),
+});
+
+export type ChatSendResult = Awaited<ReturnType<typeof runChatQuery>>;
+
+/**
+ * Sends a question and returns a discriminated result instead of throwing (Feature 153 T02). TanStack serializes
+ * only an error's message to the browser, so the stable failure code travels in the result instead.
+ */
 export const sendChatMessage = createServerFn({ method: "POST" })
   .middleware([requireFinancialCopilotAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        threadId: z.string().uuid().optional(),
-        message: z.string().trim().min(1).max(2000),
-        scannerPage: z.number().int().min(1).default(1),
-        scannerPageSize: z.number().int().min(1).max(100).default(20),
-        disclosurePage: z.number().int().min(1).default(1),
-        suggestedActionId: z.string().max(160).optional(),
-        idempotencyKey: z.string().uuid().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    const idempotencyKey = data.idempotencyKey ?? crypto.randomUUID();
-    const result = await financialCopilotServerApi<QueryResponse>(context, "/api/ai/v1/query", {
-      method: "POST",
-      body: JSON.stringify({
-        conversationId: data.threadId,
-        message: data.message,
-        scannerPage: data.scannerPage,
-        scannerPageSize: data.scannerPageSize,
-        disclosurePage: data.disclosurePage,
-        suggestedActionId: data.suggestedActionId,
-        idempotencyKey,
-      }),
-    });
-    const createdAt = new Date().toISOString();
-    return {
-      threadId: result.conversationId,
-      userMsg: {
-        id: result.messageId,
-        role: "user",
-        content: { text: data.message },
-        created_at: createdAt,
-      } satisfies ChatMessage,
-      aiMsg: {
-        id: result.assistantMessageId,
-        role: "assistant",
-        content: mapAssistantBlock(result, result.textAnswer ?? ""),
-        created_at: createdAt,
-      } satisfies ChatMessage,
-    };
+  .inputValidator((d) => sendChatMessageInput.parse(d))
+  .handler(async ({ context, data }): Promise<
+    { ok: true; result: ChatSendResult } | { ok: false; failure: ChatFailure }
+  > => {
+    try {
+      return { ok: true, result: await runChatQuery(context, data) };
+    } catch (error) {
+      if (error instanceof FinancialCopilotApiError) {
+        return {
+          ok: false,
+          failure: {
+            code: classifyApiFailure(error.status, error.problemCode, error.message),
+            message: error.message,
+          },
+        };
+      }
+      // The API could not be reached from the server, so the request's outcome is unknown.
+      return {
+        ok: false,
+        failure: { code: "server", message: error instanceof Error ? error.message : "Unknown failure." },
+      };
+    }
   });
+
+async function runChatQuery(
+  context: Parameters<typeof financialCopilotServerApi>[0],
+  data: z.infer<typeof sendChatMessageInput>,
+) {
+  const idempotencyKey = data.idempotencyKey ?? crypto.randomUUID();
+  const result = await financialCopilotServerApi<QueryResponse>(context, "/api/ai/v1/query", {
+    method: "POST",
+    body: JSON.stringify({
+      conversationId: data.threadId,
+      message: data.message,
+      scannerPage: data.scannerPage,
+      scannerPageSize: data.scannerPageSize,
+      disclosurePage: data.disclosurePage,
+      suggestedActionId: data.suggestedActionId,
+      idempotencyKey,
+    }),
+  });
+  const createdAt = new Date().toISOString();
+  return {
+    threadId: result.conversationId,
+    userMsg: {
+      id: result.messageId,
+      role: "user",
+      content: { text: data.message },
+      created_at: createdAt,
+    } satisfies ChatMessage,
+    aiMsg: {
+      id: result.assistantMessageId,
+      role: "assistant",
+      content: mapAssistantBlock(result, result.textAnswer ?? ""),
+      created_at: createdAt,
+    } satisfies ChatMessage,
+  };
+}
 
 export const getCapabilityStarterPrompts = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])

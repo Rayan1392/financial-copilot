@@ -8,6 +8,22 @@ type FinancialCopilotServerContext = {
   correlationId: string;
 };
 
+/**
+ * A non-success API response. The message is unchanged from earlier releases, so callers that only read
+ * `message` behave as before. Server functions that need a stable failure code read `status` and `problemCode`
+ * here, because TanStack serializes only an error's message to the browser.
+ */
+export class FinancialCopilotApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly problemCode: string | null,
+  ) {
+    super(message);
+    this.name = "FinancialCopilotApiError";
+  }
+}
+
 export const requireFinancialCopilotAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
     const request = getRequest();
@@ -41,16 +57,23 @@ export async function financialCopilotServerApi<T>(
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
     const code = typeof problem?.code === "string" ? problem.code : problem?.title;
+    const problemCode = typeof code === "string" ? code : null;
     if (code === "SUBSCRIPTION_COOLDOWN_ACTIVE") {
-      throw new Error(formatSubscriptionCooldownDeniedMessage(
-        typeof problem?.cooldownUntilUtc === "string" ? problem.cooldownUntilUtc : null,
-        typeof problem?.freePlanCredits === "number" ? problem.freePlanCredits : null,
-      ));
+      throw new FinancialCopilotApiError(
+        formatSubscriptionCooldownDeniedMessage(
+          typeof problem?.cooldownUntilUtc === "string" ? problem.cooldownUntilUtc : null,
+          typeof problem?.freePlanCredits === "number" ? problem.freePlanCredits : null,
+        ),
+        response.status,
+        problemCode,
+      );
     }
-    throw new Error(
+    throw new FinancialCopilotApiError(
       problem?.detail ??
         problem?.title ??
         `FinancialCopilot API request failed (${response.status}).`,
+      response.status,
+      problemCode,
     );
   }
 

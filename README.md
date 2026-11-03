@@ -279,3 +279,18 @@ Feature 098 adds Telegram-visible Billing products, checkout intents, manual rec
 exactly-once credit/subscription fulfillment, reconciliation, and Telegram status notifications.
 Apply the Billing migration before enabling `/plans`, `/buy`, or receipt review. See
 [docs/telegram-billing-purchases.md](docs/telegram-billing-purchases.md).
+
+## Mobile Workspace and PWA (Feature 153)
+
+Phones get a dedicated workspace at `/m` (chat, history, market, watchlist, account) built on the
+existing APIs; no backend change is required. Automatic phone redirects from `/chat`, `/c/<id>` and
+`/followed-symbols` are behind the build-time flag `VITE_MOBILE_AUTO_REDIRECT` (default `false`).
+Keep it off in production until the live frontend/API origins and refresh-cookie behavior are
+verified (spec D-Q5). `/m` works with the flag off, and users switch manually from the account
+screen or the desktop header.
+
+The app is installable (manifest scope `/`, start URL `/m`). The service worker in
+`src/frontend/public/sw.js` caches static assets only and never caches HTML, server-function or API
+responses. Update, header verification and kill-switch steps are in
+[docs/deplyment/pwa-service-worker.md](docs/deplyment/pwa-service-worker.md). Specs, decisions and the
+implementation report: [specs/153-mobile-pwa-workspace/](specs/153-mobile-pwa-workspace/).

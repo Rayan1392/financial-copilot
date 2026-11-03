@@ -3,11 +3,16 @@ import { isAuthenticated } from "@/integrations/financial-copilot/auth";
 import { ConversationSidebar } from "@/components/app/sidebar";
 import { ContextPanel } from "@/components/app/context-panel";
 import { ChatHeader } from "@/components/app/chat-header";
+import { ExperienceBanner } from "@/components/app/experience-banner";
+import { clientMobileRedirectTarget } from "@/lib/experience/client";
 
 export const Route = createFileRoute("/_app")({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     if (typeof window === "undefined") return;
-    if (!(await isAuthenticated())) throw redirect({ to: "/auth" });
+    // Keep the requested path so login returns to it; /auth sanitizes the value with safeInternalPath.
+    if (!(await isAuthenticated())) throw redirect({ to: "/auth", search: { redirect: location.href } });
+    const mobileTarget = clientMobileRedirectTarget(location.href);
+    if (mobileTarget) throw redirect({ href: mobileTarget, replace: true });
   },
   component: AppLayout,
 });
@@ -18,6 +23,7 @@ function AppLayout() {
       <ConversationSidebar />
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <ChatHeader />
+        <ExperienceBanner />
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
           <Outlet />
         </div>

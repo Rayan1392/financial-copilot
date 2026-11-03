@@ -121,8 +121,9 @@ fi
 # 6. Keep the newest images per service (always the current and previous tags), drop dangling layers.
 for service in "${SERVICES[@]}"; do
   repository="financial-copilot-$service"
+  # grep exits 1 when only the current and previous tags exist; that is not a failure.
   docker images "$repository" --format '{{.Tag}}' |
-    grep -vx -e '<none>' -e "$new_tag" -e "$prev_tag" |
+    { grep -vx -e '<none>' -e "$new_tag" -e "$prev_tag" || true; } |
     tail -n +"$((KEEP_TAGS_PER_IMAGE - 1))" |
     while read -r old_tag; do docker rmi "$repository:$old_tag" >/dev/null 2>&1 || true; done
 done

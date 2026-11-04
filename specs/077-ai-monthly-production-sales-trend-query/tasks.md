@@ -286,6 +286,159 @@ Update docs/spec references:
 
 ---
 
+## Proposed Enhancement - Grounded LLM/RAG Analysis Before the Chart
+
+This enhancement changes the narrative section only. Keep the canonical trend response and chart
+payload deterministic and unchanged. These tasks are pending; do not treat them as implemented by
+the completed checklist above.
+
+### Mandatory Review and Approval Gate
+
+Before starting any implementation task below, obtain a new review of the current proposal and
+explicit user approval after that review. Earlier reviews do not satisfy this gate. Until both steps
+are complete, do not implement code, prompts, configuration, migrations, or UI changes for this
+enhancement. Spec and review-document edits may continue without implementation.
+
+### Task 11 - Build a Grounded Analysis Context
+
+Prepare a bounded context from the same persisted trend response already loaded for the chart and
+the deterministic Persian trend sentences already rendered from that response. The v1 grounding
+source is `MonthlyActivityTrendResponse`; no separate vector index, semantic search, external
+analysis corpus, or database reads beyond those already required for the chart are needed.
+
+Include only:
+
+1. The resolved company's chart/query-period data: `ChartPoints`, latest-period facts and
+   comparisons, YTD fields, `Insights`, `MissingDataPoints`, and per-point reported/null flags.
+   The current contract exposes completeness/comparability caveats through `Insights`; do not read
+   hidden snapshot properties. If future model behavior requires a signal absent from the response,
+   add it explicitly to the response contract as a separate scope item before using it.
+2. The deterministic pre-chart summary string currently produced from that response, as a
+   readability hint and comparison target for avoiding repetition. It is derived data, not a
+   separate source of evidence and must never be indexed as a standalone document.
+3. Provenance already present on the response: `CompanySymbol`, `CompanyName`, report period,
+   `SourceProviderName`, and `CalculatedAtUtc`.
+
+Rules:
+
+- Use the existing Companies-first resolution and `ExternalCompanyId`-scoped snapshot query. Do not
+  fetch conversation memory, tenant documents, another company, or additional report corpora.
+- The exact chart points and report period define relevance; `CalculatedAtUtc` and
+  `SourceProviderName` define provenance. Preserve the existing freshness display and completeness
+  caveats; do not add an arbitrary second freshness window.
+- Do not retrieve values with semantic similarity. All numeric history must be the same structured
+  data used by the chart.
+- No generated-sentence or embedding search is performed in v1. If an external/private corpus is
+  proposed later, it requires a separate source approval and access-filter design before retrieval.
+
+### Task 12 - Generate and Validate the Pre-chart Analysis
+
+Use the configured LLM through the existing provider abstraction to add a `برداشت ترکیبی` section
+after the existing deterministic insight/note sentences and before the chart. Preserve the
+deterministic latest-month, prior-year, 12-month-average, source/freshness summary and its current
+insight/note sentences verbatim. The LLM analysis must relate comparison horizons, not restate the
+fixed bullets or narrate chart points. If generation is disabled or fails, render the existing
+complete deterministic response unchanged. Require structured output, for example:
+
+```json
+{
+  "headline": {
+    "text": "...",
+    "evidenceKeys": ["yoy_comparison", "mom_change"]
+  },
+  "observations": [
+    {
+      "classification": "above_average",
+      "evidenceKeys": ["latest_vs_average"],
+      "text": "..."
+    }
+  ],
+  "caveats": [
+    { "text": "...", "evidenceKeys": ["missing_periods"] }
+  ]
+}
+```
+
+The backend, not the LLM, attaches `SourceProviderName`, report period, and `CalculatedAtUtc` to
+the displayed source/freshness note.
+
+The generation prompt and validation must enforce:
+
+- Use only the supplied structured response; never calculate, alter, or introduce numeric claims.
+  Reject numeric literals in model-authored text; numeric values remain rendered by the backend.
+- Allow at most one headline (120 characters), three observations (180 characters each), and two
+  caveats (180 characters each). Require one or more evidence keys for the headline, every
+  observation, and each caveat; reject unknown keys or unsupported classification/data combinations.
+- When at least two comparison dimensions are available, the analysis must connect them in one
+  synthesis (for example, strong year-over-year growth with a month-over-month pullback). It should
+  explain what the combination says about the difference between annual comparison and recent
+  momentum. A single-metric paraphrase or chart-point narration does not satisfy the task.
+- A low-base or high-base comparison may be described only when the supplied same-period values
+  support it. State it as a comparison effect, not as an external cause. Do not infer why sales
+  changed.
+- Allow only `rising`, `falling`, `mixed`, `above_average`, `below_average`, and
+  `insufficient_data`. Permit `rising` or `falling` recent-direction classifications only when at
+  least three consecutive reported monthly sales observations are present, and only if the latest
+  three observations move strictly in the same direction at each step. `mixed` covers flat or
+  non-monotonic movement. Permit average
+  classifications only when a matching `VsAverage12Month` insight and average value exist; preserve
+  the existing partial-period caveat from `Insights`. Gaps are missing data, not zero; with fewer
+  points, require `insufficient_data` or omit recent-direction claims.
+- Define evidence keys from available fields (for example `latest_vs_average`, `yoy_comparison`,
+  `mom_change`, `recent_monthly_series`, `missing_periods`, `ytd_comparison`) and reject keys whose
+  backing values are absent. Backend validation must ensure the classification is supported by the
+  referenced fields.
+- Do not assert causes, forecast, recommend buying/selling, or judge investment suitability.
+- Avoid restating the deterministic numeric summary. The backend retains the original source,
+  report-period and freshness sentence; no citation to generated prose is presented as independent
+  evidence.
+- Return no rewritten chart payload. Keep the canonical chart contract and numeric summary
+  byte-for-byte unchanged.
+- Guard the LLM step with a feature flag that is off by default. Use a configurable additional
+  latency budget (initial target: at most 2 seconds). On timeout, budget exhaustion, provider error,
+  invalid schema, or validation failure, fall back to the complete current deterministic response
+  and render the chart normally.
+- Charge this as part of the existing monthly-trend AI query operation, not as a second
+  customer-billable operation. Record token usage and failures with the existing request/correlation
+  identifiers.
+- Cache only generated data-derived analysis, keyed by company, chart/report periods, snapshot
+  `CalculatedAtUtc`, reply language, prompt/schema version and model configuration. Do not include
+  user or tenant text in the cache key or cached content.
+
+### Task 13 - Regression and Grounding Evaluation
+
+Extend the monthly trend evaluation set to cover:
+
+1. Compare model input against the chart result and deterministic sentences; verify every input
+   belongs to the resolved company and selected chart/report periods.
+2. Verify no vector, conversation-memory, tenant-document, or other-company retrieval is invoked.
+3. Verify missing months and fewer than three consecutive observations cannot yield rising/falling
+   claims or fabricated zeros.
+4. Verify model-authored numeric literals and unknown evidence keys are rejected.
+5. Verify unchanged latest-month, year-over-year, average, deterministic insight/note, and
+   source/freshness sentences remain, followed by generated qualitative synthesis.
+6. Give a mixed-signal case (e.g. high year-over-year comparison with month-over-month decline and
+   latest sales above average); verify the analysis explains the differing horizons instead of
+   paraphrasing each value or merely describing bars.
+7. Verify disabled flag, latency timeout, provider error, and malformed/over-limit output all use
+   the existing deterministic response and preserve the canonical chart payload.
+8. Verify cache separation by company, period, snapshot calculation timestamp, language, schema
+   version, and model configuration; verify no request/tenant text enters the cache.
+
+Expected assertions:
+
+- The generated synthesis supplements, and does not replace, the existing deterministic
+  insight/note sentences; it appears before the chart.
+- The synthesis connects distinct available comparison dimensions and adds an interpretation beyond
+  restating fixed values or describing chart points.
+- The headline, every observation, and every caveat reference valid evidence keys from the trend
+  response.
+- No model-authored numeric claims, unsupported causes, predictions, or investment-advice language
+  are emitted.
+- The structured chart series and deterministic source/freshness metadata remain unchanged.
+
+---
+
 ## Checklist Gate
 
 Before marking this spec complete:

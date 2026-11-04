@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PromptInput } from "@/components/app/prompt-input";
+import { SapioMark } from "@/components/app/sapio-mark";
 import { MessageList } from "@/components/app/message-list";
-import { ArrowLeft, TrendingUp } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { STARTER_PROMPTS } from "@/lib/chat/starter-prompts";
 import { chatErrorMessage } from "@/lib/chat/chat-errors";
 import { useStartChat } from "@/lib/chat/use-start-chat";
@@ -38,8 +39,8 @@ function NewChatPage() {
           />
         ) : (
         <div dir="rtl" className="max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up">
-          <div className="size-14 mx-auto rounded-2xl bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center mb-5 text-emerald">
-            <TrendingUp className="size-6" aria-hidden="true" />
+          <div className="mb-5 flex justify-center">
+            <SapioMark className="size-14 text-emerald shadow-sm" />
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3 text-balance">
             دستیار هوشمند بازار سرمایه

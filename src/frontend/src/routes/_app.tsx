@@ -25,7 +25,7 @@ function AppLayout() {
     <div dir="rtl" className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       <ConversationSidebar collapsed={historyCollapsed} onToggle={toggleHistory} />
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <ChatHeader />
+        <ChatHeader historyCollapsed={historyCollapsed} />
         <ExperienceBanner />
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
           <Outlet />

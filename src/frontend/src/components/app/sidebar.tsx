@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Plus, Trash2, LogOut, Settings, Send, RefreshCw } from "lucide-react";
+import { SapioMark } from "@/components/app/sapio-mark";
 import { createThread } from "@/lib/chat.functions";
 import { useConversations, useDeleteConversation, useUsage } from "@/lib/workspace/queries";
 import {
@@ -76,9 +77,7 @@ export function ConversationSidebar() {
     <aside className="hidden h-screen w-72 flex-shrink-0 flex-col overflow-hidden border-l border-hairline bg-surface/50 md:flex">
       <div className="flex min-h-0 flex-1 flex-col p-5">
         <Link to="/chat" className="flex items-center gap-3 mb-7">
-          <div className="size-8 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center">
-            <div className="size-3 bg-emerald rounded-full" />
-          </div>
+          <SapioMark className="size-9 shrink-0 object-contain" />
           <h1 className="text-[15px] font-bold tracking-tight text-foreground leading-tight">
             ساپیو - دستیار هوشمند بازار
           </h1>

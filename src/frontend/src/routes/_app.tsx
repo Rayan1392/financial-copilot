@@ -4,6 +4,7 @@ import { ConversationSidebar } from "@/components/app/sidebar";
 import { ContextPanel } from "@/components/app/context-panel";
 import { ChatHeader } from "@/components/app/chat-header";
 import { ExperienceBanner } from "@/components/app/experience-banner";
+import { useSidebarPreferences } from "@/components/app/use-sidebar-preferences";
 import { clientMobileRedirectTarget } from "@/lib/experience/client";
 
 export const Route = createFileRoute("/_app")({
@@ -18,9 +19,11 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
+  const { historyCollapsed, marketCollapsed, toggleHistory, toggleMarket } = useSidebarPreferences();
+
   return (
     <div dir="rtl" className="flex h-screen w-full overflow-hidden bg-background text-foreground">
-      <ConversationSidebar />
+      <ConversationSidebar collapsed={historyCollapsed} onToggle={toggleHistory} />
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <ChatHeader />
         <ExperienceBanner />
@@ -28,7 +31,7 @@ function AppLayout() {
           <Outlet />
         </div>
       </main>
-      <ContextPanel />
+      <ContextPanel collapsed={marketCollapsed} onToggle={toggleMarket} />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Plus, Activity, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
 import { useMarketSummary, useWatchlist } from "@/lib/workspace/queries";
 
-export function ContextPanel() {
+export function ContextPanel({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { data, isLoading, isError } = useMarketSummary();
   const {
     data: watchlist,
@@ -11,13 +11,30 @@ export function ContextPanel() {
     isError: watchlistError,
   } = useWatchlist();
 
+  if (collapsed) {
+    return (
+      <aside className="hidden h-screen w-[4.5rem] shrink-0 flex-col items-center border-r border-hairline bg-surface/70 py-4 lg:flex" aria-label="نوار اطلاعات بازار">
+        <button type="button" onClick={onToggle} className="mb-5 flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50" aria-label="باز کردن پنل بازار و دیده‌بان" title="باز کردن پنل بازار و دیده‌بان">
+          <ChevronRight className="size-5" />
+        </button>
+        <button type="button" onClick={onToggle} className="mb-2 flex size-11 items-center justify-center rounded-xl text-emerald transition hover:bg-emerald-soft/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50" aria-label="وضعیت کلی بازار؛ باز کردن پنل" title="وضعیت کلی بازار">
+          <Activity className="size-5" />
+        </button>
+        <button type="button" onClick={onToggle} className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50" aria-label={`دیده‌بان، ${watchlist?.symbols.length ?? 0} نماد؛ باز کردن پنل`} title={`دیده‌بان (${watchlist?.symbols.length ?? 0} نماد)`}>
+          <span className="relative"><Eye className="size-5" />{(watchlist?.symbols.length ?? 0) > 0 && <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-emerald px-1 text-[9px] font-semibold text-primary-foreground">{Math.min(watchlist?.symbols.length ?? 0, 9)}</span>}</span>
+        </button>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="hidden h-screen w-80 flex-shrink-0 flex-col border-r border-hairline bg-surface/50 lg:flex">
+    <aside className="hidden h-screen w-80 flex-shrink-0 flex-col border-r border-hairline bg-surface/50 transition-[width] duration-200 lg:flex">
       <div className="flex h-full min-h-0 flex-col space-y-8 overflow-hidden p-6">
         <section className="shrink-0">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-            وضعیت کلی بازار
-          </h3>
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">وضعیت کلی بازار</h3>
+            <button type="button" onClick={onToggle} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50" aria-label="جمع کردن پنل بازار و دیده‌بان" title="جمع کردن پنل بازار و دیده‌بان"><ChevronLeft className="size-4" /></button>
+          </div>
           {isLoading && <p className="text-xs text-muted-foreground">در حال بارگذاری...</p>}
           {isError && <p className="text-xs text-rose">داده بازار در دسترس نیست.</p>}
           {!isLoading && !isError && data?.indices.length === 0 && (

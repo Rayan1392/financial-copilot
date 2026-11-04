@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Bell, Eye, FileSearch, Home, Settings, Smartphone } from "lucide-react";
 import { HeaderAccount } from "@/components/app/header-account";
+import { SapioMark } from "@/components/app/sapio-mark";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import {
   adminPermissions,
@@ -48,6 +49,15 @@ export function ChatHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <Link
+          to="/chat"
+          className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-1.5 text-foreground transition hover:bg-surface"
+          aria-label="ساپیو - صفحه اصلی"
+          title="ساپیو"
+        >
+          <SapioMark className="size-8 text-emerald" />
+          <span className="hidden text-base font-bold sm:inline">ساپیو</span>
+        </Link>
         <Link
           to="/chat"
           className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"

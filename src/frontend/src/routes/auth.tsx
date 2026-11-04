@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { login } from "@/integrations/financial-copilot/auth";
 import { safeInternalPath } from "@/lib/safe-redirect";
+import { SapioMark } from "@/components/app/sapio-mark";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { redirect: string; reason?: "expired" } => ({
@@ -41,10 +42,8 @@ export function AuthScreen({ redirect, sessionExpired = false }: { redirect: str
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-3 mb-10 justify-center">
-          <div className="size-10 rounded-xl bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center">
-            <div className="size-3.5 bg-emerald rounded-full" />
-          </div>
+        <div className="mb-10 flex items-center justify-center gap-3">
+          <SapioMark className="size-11 text-emerald shadow-sm" />
           <h1 className="text-lg font-bold text-foreground">ساپیو - دستیار هوشمند بازار</h1>
         </div>
 

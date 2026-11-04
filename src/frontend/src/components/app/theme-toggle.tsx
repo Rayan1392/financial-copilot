@@ -60,9 +60,9 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={nextLabel}
       title={nextLabel}
-      className="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline bg-surface px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:border-emerald/20 hover:bg-emerald-soft/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
     >
-      {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+      {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
       <span>{theme === "dark" ? "تم تیره" : "تم روشن"}</span>
     </button>
   );

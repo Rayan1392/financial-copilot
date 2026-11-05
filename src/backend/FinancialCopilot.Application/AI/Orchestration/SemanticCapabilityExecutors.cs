@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Insights;
@@ -381,11 +382,25 @@ public sealed class ProductSalesTrendCapabilityExecutor(
     }
 }
 
-public sealed class FinancialStatementTableCapabilityExecutor(IFinancialStatementTableQueryUseCase useCase) : IConversationalCapabilityExecutor
+public sealed class FinancialStatementTableCapabilityExecutor(
+    IFinancialStatementTableQueryUseCase useCase,
+    Feature154RoutingScope? feature154 = null) : IConversationalCapabilityExecutor
 {
+    /// <summary>
+    /// Report family of the last statement-table turn (V2 only). It travels inside the governed statementType slot
+    /// value («BalanceSheet;report=…») so Feature 120 carries it; a follow-up without its own alias («همین را برای
+    /// شگل», «با گزارش قبلی مقایسه کن») repeats that report. V1 never writes it.
+    /// </summary>
+    public const string Feature154ReportMarker = "feature154_balance_sheet_report";
+    public const string Feature144ReportMarker = "feature144_quarterly_report";
+
+    private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
+    private bool _feature154 => _scope.IsActive;
+
     public string CapabilityCode => "financial_statement_table";
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
     {
+        if (_feature154) return await ExecuteV2Async(frame, cancellationToken);
         var quarterly = FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(frame.Interpretation.OriginalText);
         var query = new FinancialStatementTableQuery(
             frame.Interpretation.OriginalText,
@@ -402,6 +417,85 @@ public sealed class FinancialStatementTableCapabilityExecutor(IFinancialStatemen
         var result = await useCase.ExecuteAsync(query, cancellationToken);
         return result is null ? NoData(frame) : Success(frame, result);
     }
+
+    private async Task<CapabilityExecutionResult> ExecuteV2Async(ValidatedQueryFrame frame, CancellationToken cancellationToken)
+    {
+        var original = frame.Interpretation.OriginalText;
+        // design §4.6: an explicit alias in the new message overrides the statement type carried from context.
+        var explicitType = FinancialStatementTableIntentRules.ResolveV2StatementType(original);
+        var statementSlot = ParseStatementTypeSlot(frame.Value(QuerySlotType.StatementType), out var carriedReport);
+        // The carried report repeats only for the bare follow-ups the dialogue gate continues («همین را برای X», a
+        // baseline/comparison cue); any other carried-over message behaves exactly as with a Feature 083 task (F154-R-14).
+        var repeat = FinancialStatementTableIntentRules.LooksLikeRepeatForCompany(original);
+        var quarterly = FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(original) ||
+                        explicitType is null && carriedReport == Feature144ReportMarker && repeat;
+        var balanceSheet = FinancialStatementTableIntentRules.ResolveBalanceSheetRequest(original);
+        if (!balanceSheet.Use && explicitType is null && carriedReport == Feature154ReportMarker &&
+            (repeat || FinancialStatementTableIntentRules.LooksLikeBalanceSheetFollowUpCue(original)))
+            balanceSheet = FinancialStatementTableIntentRules.ResolveBalanceSheetFollowUp(original);
+        var statementType = explicitType ??
+                            (quarterly ? FinancialStatementType.IncomeStatement : (FinancialStatementType?)null) ??
+                            statementSlot;
+        var query = new FinancialStatementTableQuery(
+            original,
+            frame.Value(QuerySlotType.CompanyOrSymbol),
+            statementType,
+            ParseInt(frame.Value(QuerySlotType.Period)),
+            ParseBool(frame.Value(QuerySlotType.AuditStatus)),
+            ParseBool(frame.Value(QuerySlotType.RestatementStatus)),
+            ParseBool(frame.Value(QuerySlotType.ConsolidationScope)),
+            UseQuarterlyReportTable: quarterly,
+            QuarterCount: FinancialStatementTableIntentRules.ResolveQuarterCount(original),
+            EndingPeriod: FinancialStatementTableIntentRules.ResolveEndingPeriod(original),
+            UseBalanceSheetReport: balanceSheet.Use && statementType == FinancialStatementType.BalanceSheet,
+            BalanceSheetView: balanceSheet.View,
+            BaselineKind: balanceSheet.BaselineKind,
+            ComparisonDates: balanceSheet.Dates,
+            UnsupportedVariantFilter: balanceSheet.UnsupportedVariantFilter);
+        var result = await useCase.ExecuteAsync(query, cancellationToken);
+        if (result?.BalanceSheetReport is { } report)
+            return BalanceSheetOutcome(frame, result, report);
+        return result is null ? NoData(frame) : Success(frame, result);
+    }
+
+    private const string ReportMarkerSeparator = ";report=";
+
+    public static string WithReportMarker(string statementType, string? marker) =>
+        marker is null ? statementType : $"{statementType}{ReportMarkerSeparator}{marker}";
+
+    public static FinancialStatementType? ParseStatementTypeSlot(string? value, out string? marker)
+    {
+        marker = null;
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var index = value.IndexOf(ReportMarkerSeparator, StringComparison.Ordinal);
+        if (index >= 0)
+        {
+            marker = value[(index + ReportMarkerSeparator.Length)..];
+            value = value[..index];
+        }
+
+        return Enum.TryParse<FinancialStatementType>(value, true, out var parsed) ? parsed : null;
+    }
+
+    /// <summary>Feature 154 typed outcomes map to Feature 117 reason codes instead of a bare NoData (design §4.8).</summary>
+    public static CapabilityExecutionResult BalanceSheetOutcome(ValidatedQueryFrame frame, FinancialStatementTableResult result,
+        BalanceSheetReportResult report) => report.Outcome switch
+    {
+        BalanceSheetOutcomes.Available => Success(frame, result),
+        BalanceSheetOutcomes.NoStandaloneBalanceSheet or BalanceSheetOutcomes.NoSnapshotAtDate =>
+            new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, result),
+        BalanceSheetOutcomes.ClassificationUnavailable or BalanceSheetOutcomes.ConflictingReportRevision or
+            BalanceSheetOutcomes.IneligibleStorageScale or BalanceSheetOutcomes.TooManyReportVersions =>
+            new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.DataStaleOrIneligible, result),
+        BalanceSheetOutcomes.CompanyAmbiguous =>
+            new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, DialogueOutcomeReasonCodes.EntityAmbiguous, result),
+        BalanceSheetOutcomes.CompanyUnresolved or BalanceSheetOutcomes.ProviderUnavailable =>
+            new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.EntityNotFound, result),
+        // A date combined with a Feature 083-only filter has no supported rows; the typed message names both (PD-20).
+        BalanceSheetOutcomes.UnsupportedDateWithVariant =>
+            new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, result),
+        _ => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, result)
+    };
 }
 
 public sealed class FinancialStatementAnalysisCapabilityExecutor(IFinancialStatementAnalysisUseCase useCase) : IConversationalCapabilityExecutor

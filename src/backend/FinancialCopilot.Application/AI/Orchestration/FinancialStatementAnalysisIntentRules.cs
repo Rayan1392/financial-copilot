@@ -3,7 +3,7 @@ using FinancialCopilot.Domain.Financial.Entities;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
-public static class FinancialStatementAnalysisIntentRules
+public static partial class FinancialStatementAnalysisIntentRules
 {
     private static readonly string[] GeneralPhrases =
     [

@@ -1,0 +1,1768 @@
+{
+  "executedAtUtc": "2026-11-05T14:47:15.9128132+00:00",
+  "writeAttempt": "25006: cannot execute UPDATE in a read-only transaction",
+  "sessionReadOnly": "on",
+  "results": [
+    {
+      "ac": "AC-S01+AC-M03",
+      "request": "ترازنامه وبملت",
+      "company": "452",
+      "outcome": "available",
+      "templateId": "BankingBalanceSheet",
+      "expectedAnchor": "409865 2026-09-22 SixMonths (4ce25b02-7ca8-44c2-a71a-7520ac65cf90)",
+      "actualAnchorStatementId": "4ce25b02-7ca8-44c2-a71a-7520ac65cf90",
+      "templateSelection": "PASS-live (classification substituted)",
+      "rows": {
+        "cash": {
+          "group": "assets:none",
+          "stored": 3536996227,
+          "payload": 3536996227
+        },
+        "bank_receivables_banks": {
+          "group": "assets:none",
+          "stored": 2207758628,
+          "payload": 2207758628
+        },
+        "bank_loans_granted": {
+          "group": "assets:none",
+          "stored": 45209234799,
+          "payload": 45209234799
+        },
+        "current_assets_total": {
+          "group": "assets:current",
+          "stored": 51498227670,
+          "payload": 51498227670
+        },
+        "non_current_assets_total": {
+          "group": "assets:non_current",
+          "stored": 7612077011,
+          "payload": 7612077011
+        },
+        "bank_deposits": {
+          "group": "liabilities:none",
+          "stored": 27590264476,
+          "payload": 27590264476
+        },
+        "bank_due_to_banks": {
+          "group": "liabilities:none",
+          "stored": 8454139269,
+          "payload": 8454139269
+        },
+        "current_liabilities_total": {
+          "group": "liabilities:current",
+          "stored": 52501759193,
+          "payload": 52501759193
+        },
+        "non_current_liabilities_total": {
+          "group": "liabilities:non_current",
+          "stored": 126830069,
+          "payload": 126830069
+        },
+        "total_liabilities": {
+          "group": "liabilities",
+          "stored": 52628589262,
+          "payload": 52628589262
+        },
+        "share_capital": {
+          "group": "equity:none",
+          "stored": 3382000000,
+          "payload": 3382000000
+        },
+        "bank_treasury_shares": {
+          "group": "equity:none",
+          "stored": -181354538,
+          "payload": -181354538
+        },
+        "retained_earnings": {
+          "group": "equity:none",
+          "stored": 2021921399,
+          "payload": 2021921399
+        },
+        "total_equity": {
+          "group": "equity",
+          "stored": 6481715419,
+          "payload": 6481715419
+        },
+        "total_assets": {
+          "group": "final",
+          "stored": 59110304681,
+          "payload": 59110304681
+        },
+        "total_liabilities_and_equity": {
+          "group": "final",
+          "stored": 59110304681,
+          "payload": 59110304681
+        }
+      },
+      "expectedRatio": 10.965457637174786803396751050,
+      "payloadRatio": 10.965457637174786803396751050,
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — بانک ملت (وبملت)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۶ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۳۰ | میلیون ریال\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۳٬۵۳۶٬۹۹۶٬۲۲۷\r\n- مطالبات از بانک‌ها و موسسات اعتباری: ۲٬۲۰۷٬۷۵۸٬۶۲۸\r\n- مجموع تسهیلات اعطایی: ۴۵٬۲۰۹٬۲۳۴٬۷۹۹\r\n- جمع دارایی‌های جاری: ۵۱٬۴۹۸٬۲۲۷٬۶۷۰\r\n- جمع دارایی‌های غیرجاری: ۷٬۶۱۲٬۰۷۷٬۰۱۱\r\n- ج",
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-M04",
+      "request": "ترازنامه شگل",
+      "company": "167",
+      "outcome": "available",
+      "templateId": "GeneralBalanceSheet",
+      "expectedAnchor": "388474 2026-03-20 ThreeMonths (edaa0f04-22dd-4f99-b9ef-fdd5e18bd06b)",
+      "actualAnchorStatementId": "edaa0f04-22dd-4f99-b9ef-fdd5e18bd06b",
+      "templateSelection": "PASS-live (classification substituted)",
+      "rows": {
+        "cash": {
+          "group": "assets:none",
+          "stored": 1832716,
+          "payload": 1832716
+        },
+        "trade_receivables": {
+          "group": "assets:none",
+          "stored": 13869662,
+          "payload": 13869662
+        },
+        "inventories": {
+          "group": "assets:none",
+          "stored": 8469982,
+          "payload": 8469982
+        },
+        "orders_prepayments": {
+          "group": "assets:none",
+          "stored": 6175189,
+          "payload": 6175189
+        },
+        "ppe": {
+          "group": "assets:none",
+          "stored": 1611126,
+          "payload": 1611126
+        },
+        "current_assets_total": {
+          "group": "assets:current",
+          "stored": 30433549,
+          "payload": 30433549
+        },
+        "non_current_assets_total": {
+          "group": "assets:non_current",
+          "stored": 7909106,
+          "payload": 7909106
+        },
+        "trade_payables": {
+          "group": "liabilities:none",
+          "stored": 14406886,
+          "payload": 14406886
+        },
+        "advances_received": {
+          "group": "liabilities:none",
+          "stored": 22103,
+          "payload": 22103
+        },
+        "short_term_borrowings": {
+          "group": "liabilities:current",
+          "stored": 9611743,
+          "payload": 9611743
+        },
+        "current_liabilities_total": {
+          "group": "liabilities:current",
+          "stored": 25742416,
+          "payload": 25742416
+        },
+        "non_current_liabilities_total": {
+          "group": "liabilities:non_current",
+          "stored": 927701,
+          "payload": 927701
+        },
+        "total_liabilities": {
+          "group": "liabilities",
+          "stored": 26670117,
+          "payload": 26670117
+        },
+        "share_capital": {
+          "group": "equity:none",
+          "stored": 6149600,
+          "payload": 6149600
+        },
+        "retained_earnings": {
+          "group": "equity:none",
+          "stored": 5090145,
+          "payload": 5090145
+        },
+        "total_equity": {
+          "group": "equity",
+          "stored": 11672538,
+          "payload": 11672538
+        },
+        "total_assets": {
+          "group": "final",
+          "stored": 38342655,
+          "payload": 38342655
+        },
+        "total_liabilities_and_equity": {
+          "group": "final",
+          "stored": 38342655,
+          "payload": 38342655
+        },
+        "net_working_capital": {
+          "group": "analytical",
+          "stored": 4691133,
+          "payload": 4691133
+        },
+        "interest_bearing_liabilities": {
+          "group": "analytical",
+          "stored": 9611743,
+          "payload": 9611743
+        }
+      },
+      "expectedRatio": 30.442696260861434869338077920,
+      "payloadRatio": 30.442696260861434869338077920,
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — گلتاش (شگل)\r\nتاریخ: ۱۴۰۴/۱۲/۲۹ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۱٬۸۳۲٬۷۱۶\r\n- دریافتنی‌های تجاری و سایر دریافتنی‌ها: ۱۳٬۸۶۹٬۶۶۲\r\n- موجودی مواد و کالا: ۸٬۴۶۹٬۹۸۲\r\n- سفارشات و پیش‌پرداخت‌ها: ۶٬۱۷۵٬۱۸۹\r\n- دارایی‌های ثابت مشهود: ۱٬۶۱۱٬۱۲۶\r\n- جمع دارایی‌های جاری: ۳۰٬۴۳۳٬۵۴۹\r\n- جمع دارایی‌های غ",
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-M04",
+      "request": "ترازنامه فاذر",
+      "company": "290",
+      "outcome": "available",
+      "templateId": "GeneralBalanceSheet",
+      "expectedAnchor": "403362 2026-06-21 ThreeMonths (4cc567ec-99a8-41a7-8766-f14d93fddb0b)",
+      "actualAnchorStatementId": "4cc567ec-99a8-41a7-8766-f14d93fddb0b",
+      "templateSelection": "PASS-live (classification substituted)",
+      "rows": {
+        "cash": {
+          "group": "assets:none",
+          "stored": 733835,
+          "payload": 733835
+        },
+        "trade_receivables": {
+          "group": "assets:none",
+          "stored": 36753822,
+          "payload": 36753822
+        },
+        "inventories": {
+          "group": "assets:none",
+          "stored": 3496963,
+          "payload": 3496963
+        },
+        "orders_prepayments": {
+          "group": "assets:none",
+          "stored": 6143034,
+          "payload": 6143034
+        },
+        "ppe": {
+          "group": "assets:none",
+          "stored": 94485984,
+          "payload": 94485984
+        },
+        "current_assets_total": {
+          "group": "assets:current",
+          "stored": 47127677,
+          "payload": 47127677
+        },
+        "non_current_assets_total": {
+          "group": "assets:non_current",
+          "stored": 99629226,
+          "payload": 99629226
+        },
+        "trade_payables": {
+          "group": "liabilities:none",
+          "stored": 30611284,
+          "payload": 30611284
+        },
+        "advances_received": {
+          "group": "liabilities:none",
+          "stored": 10502892,
+          "payload": 10502892
+        },
+        "short_term_borrowings": {
+          "group": "liabilities:current",
+          "stored": 4388395,
+          "payload": 4388395
+        },
+        "current_liabilities_total": {
+          "group": "liabilities:current",
+          "stored": 45795086,
+          "payload": 45795086
+        },
+        "long_term_borrowings": {
+          "group": "liabilities:non_current",
+          "stored": 0,
+          "payload": 0
+        },
+        "non_current_liabilities_total": {
+          "group": "liabilities:non_current",
+          "stored": 7859230,
+          "payload": 7859230
+        },
+        "total_liabilities": {
+          "group": "liabilities",
+          "stored": 53654316,
+          "payload": 53654316
+        },
+        "share_capital": {
+          "group": "equity:none",
+          "stored": 18126475,
+          "payload": 18126475
+        },
+        "capital_increase_funds": {
+          "group": "equity:none",
+          "stored": 0,
+          "payload": 0
+        },
+        "revaluation_surplus": {
+          "group": "equity:none",
+          "stored": 72403849,
+          "payload": 72403849
+        },
+        "retained_earnings": {
+          "group": "equity:none",
+          "stored": 2391369,
+          "payload": 2391369
+        },
+        "total_equity": {
+          "group": "equity",
+          "stored": 93102587,
+          "payload": 93102587
+        },
+        "total_assets": {
+          "group": "final",
+          "stored": 146756903,
+          "payload": 146756903
+        },
+        "total_liabilities_and_equity": {
+          "group": "final",
+          "stored": 146756903,
+          "payload": 146756903
+        },
+        "net_working_capital": {
+          "group": "analytical",
+          "stored": 1332591,
+          "payload": 1332591
+        },
+        "interest_bearing_liabilities": {
+          "group": "analytical",
+          "stored": 4388395,
+          "payload": 4388395
+        }
+      },
+      "expectedRatio": 63.440005271847416949102557720,
+      "payloadRatio": 63.440005271847416949102557720,
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — صنایع آذر آب (فاذر)\r\nتاریخ: ۱۴۰۵/۰۳/۳۱ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۴/۳۰ | میلیون ریال\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۷۳۳٬۸۳۵\r\n- دریافتنی‌های تجاری و سایر دریافتنی‌ها: ۳۶٬۷۵۳٬۸۲۲\r\n- موجودی مواد و کالا: ۳٬۴۹۶٬۹۶۳\r\n- سفارشات و پیش‌پرداخت‌ها: ۶٬۱۴۳٬۰۳۴\r\n- دارایی‌های ثابت مشهود: ۹۴٬۴۸۵٬۹۸۴\r\n- جمع دارایی‌های جا",
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C02",
+      "request": "ترازنامه وبملت را با پایان سال مالی قبل مقایسه کن",
+      "company": "452",
+      "baselineKind": "fiscal_year_end",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2026-03-20",
+      "alternatives": [],
+      "anchor": "409865 2026-09-22 SixMonths",
+      "candidates": [
+        "fiscal_year_end=available@2026-03-20",
+        "previous_fiscal_quarter_end=available@2026-06-21",
+        "previous_report=available@2026-06-21",
+        "same_stage_previous_year=available@2025-09-22"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — بانک ملت (وبملت)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۶ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۳۰ | میلیون ریال\r\nمبنای مقایسه: پایان سال مالی قبل (۱۴۰۴/۱۲/۲۹) — تاریخ: ۱۴۰۴/۱۲/۲۹ | گزارش ۱۲ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌شده | تاریخ انتشار: ۱۴۰",
+      "expectedBaseline": "403749 2026-03-20 TwelveMonths (f797c618-8495-49df-beaf-4238762337b9)",
+      "actualBaselineStatementId": "f797c618-8495-49df-beaf-4238762337b9",
+      "rows": {
+        "cash": {
+          "anchor": 3536996227,
+          "baseline": 293493040,
+          "amount": 3243503187,
+          "percent": 1105.1380254196147206761700380
+        },
+        "bank_receivables_banks": {
+          "anchor": 2207758628,
+          "baseline": 3176991551,
+          "amount": -969232923,
+          "percent": -30.507884816216182628431547880
+        },
+        "bank_loans_granted": {
+          "anchor": 45209234799,
+          "baseline": 36811453939,
+          "amount": 8397780860,
+          "percent": 22.812956189983430906831044630
+        },
+        "current_assets_total": {
+          "anchor": 51498227670,
+          "baseline": 41900074927,
+          "amount": 9598152743,
+          "percent": 22.907244819304711788922668050
+        },
+        "non_current_assets_total": {
+          "anchor": 7612077011,
+          "baseline": 6047565407,
+          "amount": 1564511604,
+          "percent": 25.870106376842035534184673930
+        },
+        "bank_deposits": {
+          "anchor": 27590264476,
+          "baseline": 22270416289,
+          "amount": 5319848187,
+          "percent": 23.887511207536907304373379870
+        },
+        "bank_due_to_banks": {
+          "anchor": 8454139269,
+          "baseline": 6676348604,
+          "amount": 1777790665,
+          "percent": 26.628188107716132073920686480
+        },
+        "current_liabilities_total": {
+          "anchor": 52501759193,
+          "baseline": 29029135553,
+          "amount": 23472623640,
+          "percent": 80.85884471876474688353941560
+        },
+        "non_current_liabilities_total": {
+          "anchor": 126830069,
+          "baseline": 13309523743,
+          "amount": -13182693674,
+          "percent": -99.04707282207070029492940362
+        },
+        "total_liabilities": {
+          "anchor": 52628589262,
+          "baseline": 42338659296,
+          "amount": 10289929966,
+          "percent": 24.303863507015099413600477370
+        },
+        "share_capital": {
+          "anchor": 3382000000,
+          "baseline": 3382000000,
+          "amount": 0,
+          "percent": 0
+        },
+        "bank_treasury_shares": {
+          "anchor": -181354538,
+          "baseline": -117232822,
+          "amount": -64121716,
+          "percent": null
+        },
+        "retained_earnings": {
+          "anchor": 2021921399,
+          "baseline": 1305971170,
+          "amount": 715950229,
+          "percent": 54.821288972251967859290492610
+        },
+        "total_equity": {
+          "anchor": 6481715419,
+          "baseline": 5608981038,
+          "amount": 872734381,
+          "percent": 15.559588721861533952292173890
+        },
+        "total_assets": {
+          "anchor": 59110304681,
+          "baseline": 47947640334,
+          "amount": 11162664347,
+          "percent": 23.280946193059011278100240870
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 59110304681,
+          "baseline": 47947640334,
+          "amount": 11162664347,
+          "percent": 23.280946193059011278100240870
+        }
+      },
+      "expectedPp": -0.732680162575565349146781460,
+      "payloadPp": -0.732680162575565349146781460,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C03",
+      "request": "ترازنامه شگل را با پایان سال مالی قبل مقایسه کن",
+      "company": "167",
+      "baselineKind": "fiscal_year_end",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2025-12-21",
+      "alternatives": [],
+      "anchor": "388474 2026-03-20 ThreeMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=available@2025-12-21",
+        "previous_report=available@2025-12-21",
+        "same_stage_previous_year=available@2025-03-20"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — گلتاش (شگل)\r\nتاریخ: ۱۴۰۴/۱۲/۲۹ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\nمبنای مقایسه: پایان سال مالی قبل (۱۴۰۴/۰۹/۳۰) — تاریخ: ۱۴۰۴/۰۹/۳۰ | گزارش ۱۲ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌شده | میلیون ریال\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موج",
+      "expectedBaseline": "387608 2025-12-21 TwelveMonths (6e377554-175a-403a-84a7-b810bf58752d)",
+      "actualBaselineStatementId": "6e377554-175a-403a-84a7-b810bf58752d",
+      "rows": {
+        "cash": {
+          "anchor": 1832716,
+          "baseline": 872424,
+          "amount": 960292,
+          "percent": 110.07170825195088626631087636
+        },
+        "trade_receivables": {
+          "anchor": 13869662,
+          "baseline": 13638261,
+          "amount": 231401,
+          "percent": 1.6967045871904049937158410400
+        },
+        "inventories": {
+          "anchor": 8469982,
+          "baseline": 6228420,
+          "amount": 2241562,
+          "percent": 35.989255702088170033491639930
+        },
+        "orders_prepayments": {
+          "anchor": 6175189,
+          "baseline": 1880380,
+          "amount": 4294809,
+          "percent": 228.40112105000053180740063179
+        },
+        "ppe": {
+          "anchor": 1611126,
+          "baseline": 1544188,
+          "amount": 66938,
+          "percent": 4.3348348776185283139099643300
+        },
+        "current_assets_total": {
+          "anchor": 30433549,
+          "baseline": 23059153,
+          "amount": 7374396,
+          "percent": 31.980342035980246108779450830
+        },
+        "non_current_assets_total": {
+          "anchor": 7909106,
+          "baseline": 7843050,
+          "amount": 66056,
+          "percent": 0.8422233697349883017448569100
+        },
+        "trade_payables": {
+          "anchor": 14406886,
+          "baseline": 9058298,
+          "amount": 5348588,
+          "percent": 59.046279996529149294933772330
+        },
+        "advances_received": {
+          "anchor": 22103,
+          "baseline": 451288,
+          "amount": -429185,
+          "percent": -95.10224069773625711297441988
+        },
+        "short_term_borrowings": {
+          "anchor": 9611743,
+          "baseline": 8795856,
+          "amount": 815887,
+          "percent": 9.275811245659319570488648290
+        },
+        "current_liabilities_total": {
+          "anchor": 25742416,
+          "baseline": 19581093,
+          "amount": 6161323,
+          "percent": 31.465674566787461762221342800
+        },
+        "non_current_liabilities_total": {
+          "anchor": 927701,
+          "baseline": 536524,
+          "amount": 391177,
+          "percent": 72.909506378093058278846799020
+        },
+        "total_liabilities": {
+          "anchor": 26670117,
+          "baseline": 20117617,
+          "amount": 6552500,
+          "percent": 32.570955098707764443472604140
+        },
+        "share_capital": {
+          "anchor": 6149600,
+          "baseline": 6149600,
+          "amount": 0,
+          "percent": 0
+        },
+        "retained_earnings": {
+          "anchor": 5090145,
+          "baseline": 4258890,
+          "amount": 831255,
+          "percent": 19.518113874742010242105337310
+        },
+        "total_equity": {
+          "anchor": 11672538,
+          "baseline": 10784586,
+          "amount": 887952,
+          "percent": 8.233528853124264575385647630
+        },
+        "total_assets": {
+          "anchor": 38342655,
+          "baseline": 30902203,
+          "amount": 7440452,
+          "percent": 24.077416098781048069614972110
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 38342655,
+          "baseline": 30902203,
+          "amount": 7440452,
+          "percent": 24.077416098781048069614972110
+        },
+        "net_working_capital": {
+          "anchor": 4691133,
+          "baseline": 3478060,
+          "amount": 1213073,
+          "percent": 34.877862946585165293295687830
+        },
+        "interest_bearing_liabilities": {
+          "anchor": 9611743,
+          "baseline": 8795856,
+          "amount": 815887,
+          "percent": 9.275811245659319570488648290
+        }
+      },
+      "expectedPp": -4.456388441934673226903474830,
+      "payloadPp": -4.456388441934673226903474830,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C06",
+      "request": "ترازنامه وبملت در مقایسه با مدت مشابه سال قبل",
+      "company": "452",
+      "baselineKind": "same_stage_previous_year",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2025-09-22",
+      "alternatives": [],
+      "anchor": "409865 2026-09-22 SixMonths",
+      "candidates": [
+        "fiscal_year_end=available@2026-03-20",
+        "previous_fiscal_quarter_end=available@2026-06-21",
+        "previous_report=available@2026-06-21",
+        "same_stage_previous_year=available@2025-09-22"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — بانک ملت (وبملت)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۶ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۳۰ | میلیون ریال\r\nمبنای مقایسه: مدت مشابه سال مالی قبل (۱۴۰۴/۰۶/۳۱) — تاریخ: ۱۴۰۴/۰۶/۳۱ | گزارش ۶ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌شده | تاریخ انتشار: ",
+      "expectedBaseline": "384526 2025-09-22 SixMonths (88c595cd-d204-41f7-935a-7913f522ad38)",
+      "actualBaselineStatementId": "88c595cd-d204-41f7-935a-7913f522ad38",
+      "rows": {
+        "cash": {
+          "anchor": 3536996227,
+          "baseline": 172042523,
+          "amount": 3364953704,
+          "percent": 1955.8848855058932145513815791
+        },
+        "bank_receivables_banks": {
+          "anchor": 2207758628,
+          "baseline": 1782300717,
+          "amount": 425457911,
+          "percent": 23.871275309597488087640151020
+        },
+        "bank_loans_granted": {
+          "anchor": 45209234799,
+          "baseline": 24554806979,
+          "amount": 20654427820,
+          "percent": 84.11561873674787969099921956
+        },
+        "current_assets_total": {
+          "anchor": 51498227670,
+          "baseline": 27505070210,
+          "amount": 23993157460,
+          "percent": 87.23176227805746073752705393
+        },
+        "non_current_assets_total": {
+          "anchor": 7612077011,
+          "baseline": 5564639345,
+          "amount": 2047437666,
+          "percent": 36.793717239549151769870900770
+        },
+        "bank_deposits": {
+          "anchor": 27590264476,
+          "baseline": 17179308075,
+          "amount": 10410956401,
+          "percent": 60.601721300699126090967432630
+        },
+        "bank_due_to_banks": {
+          "anchor": 8454139269,
+          "baseline": 3692394399,
+          "amount": 4761744870,
+          "percent": 128.96089516573876700867566233
+        },
+        "current_liabilities_total": {
+          "anchor": 52501759193,
+          "baseline": 17560553464,
+          "amount": 34941205729,
+          "percent": 198.97553798991127287854598795
+        },
+        "non_current_liabilities_total": {
+          "anchor": 126830069,
+          "baseline": 10325413675,
+          "amount": -10198583606,
+          "percent": -98.77167082121772714350836893
+        },
+        "total_liabilities": {
+          "anchor": 52628589262,
+          "baseline": 27885967139,
+          "amount": 24742622123,
+          "percent": 88.72786086158774197212898753
+        },
+        "share_capital": {
+          "anchor": 3382000000,
+          "baseline": 2378440545,
+          "amount": 1003559455,
+          "percent": 42.194010571746286809115928520
+        },
+        "bank_treasury_shares": {
+          "anchor": -181354538,
+          "baseline": -109667891,
+          "amount": -71686647,
+          "percent": null
+        },
+        "retained_earnings": {
+          "anchor": 2021921399,
+          "baseline": 2031948773,
+          "amount": -10027374,
+          "percent": -0.493485570760498694914687200
+        },
+        "total_equity": {
+          "anchor": 6481715419,
+          "baseline": 5183742416,
+          "amount": 1297973003,
+          "percent": 25.039303631170241388012671650
+        },
+        "total_assets": {
+          "anchor": 59110304681,
+          "baseline": 33069709555,
+          "amount": 26040595126,
+          "percent": 78.744553479341859916737330410
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 59110304681,
+          "baseline": 33069709555,
+          "amount": 26040595126,
+          "percent": 78.744553479341859916737330410
+        }
+      },
+      "expectedPp": -4.709740257680144286426665450,
+      "payloadPp": -4.709740257680144286426665450,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C06",
+      "request": "ترازنامه شگل در مقایسه با مدت مشابه سال قبل",
+      "company": "167",
+      "baselineKind": "same_stage_previous_year",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2025-03-20",
+      "alternatives": [],
+      "anchor": "388474 2026-03-20 ThreeMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=available@2025-12-21",
+        "previous_report=available@2025-12-21",
+        "same_stage_previous_year=available@2025-03-20"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — گلتاش (شگل)\r\nتاریخ: ۱۴۰۴/۱۲/۲۹ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\nمبنای مقایسه: مدت مشابه سال مالی قبل (۱۴۰۳/۱۲/۳۰) — تاریخ: ۱۴۰۳/۱۲/۳۰ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n-",
+      "expectedBaseline": "373612 2025-03-20 ThreeMonths (975cd431-e365-4a16-bc52-24d875187e93)",
+      "actualBaselineStatementId": "975cd431-e365-4a16-bc52-24d875187e93",
+      "rows": {
+        "cash": {
+          "anchor": 1832716,
+          "baseline": 548936,
+          "amount": 1283780,
+          "percent": 233.86697174169666409198886573
+        },
+        "trade_receivables": {
+          "anchor": 13869662,
+          "baseline": 7565962,
+          "amount": 6303700,
+          "percent": 83.31656965763243325832194240
+        },
+        "inventories": {
+          "anchor": 8469982,
+          "baseline": 7116598,
+          "amount": 1353384,
+          "percent": 19.017288878759204889752097840
+        },
+        "orders_prepayments": {
+          "anchor": 6175189,
+          "baseline": 1351838,
+          "amount": 4823351,
+          "percent": 356.79948337004877803405437634
+        },
+        "ppe": {
+          "anchor": 1611126,
+          "baseline": 1344751,
+          "amount": 266375,
+          "percent": 19.808499863543511029179379680
+        },
+        "current_assets_total": {
+          "anchor": 30433549,
+          "baseline": 16643334,
+          "amount": 13790215,
+          "percent": 82.85728688735081564787439824
+        },
+        "non_current_assets_total": {
+          "anchor": 7909106,
+          "baseline": 7659648,
+          "amount": 249458,
+          "percent": 3.2567815126752560953192627100
+        },
+        "trade_payables": {
+          "anchor": 14406886,
+          "baseline": 8717650,
+          "amount": 5689236,
+          "percent": 65.261119682483238028597156340
+        },
+        "advances_received": {
+          "anchor": 22103,
+          "baseline": 61235,
+          "amount": -39132,
+          "percent": -63.904629705233934841185596470
+        },
+        "short_term_borrowings": {
+          "anchor": 9611743,
+          "baseline": 5245251,
+          "amount": 4366492,
+          "percent": 83.24657866706474103908468823
+        },
+        "current_liabilities_total": {
+          "anchor": 25742416,
+          "baseline": 18696352,
+          "amount": 7046064,
+          "percent": 37.686838587549057698528568570
+        },
+        "non_current_liabilities_total": {
+          "anchor": 927701,
+          "baseline": 389330,
+          "amount": 538371,
+          "percent": 138.28140651889142886497315902
+        },
+        "total_liabilities": {
+          "anchor": 26670117,
+          "baseline": 19085682,
+          "amount": 7584435,
+          "percent": 39.738873360669008317334429020
+        },
+        "share_capital": {
+          "anchor": 6149600,
+          "baseline": 2600000,
+          "amount": 3549600,
+          "percent": 136.52307692307692307692307692
+        },
+        "retained_earnings": {
+          "anchor": 5090145,
+          "baseline": 2357300,
+          "amount": 2732845,
+          "percent": 115.93115004454248504645144869
+        },
+        "total_equity": {
+          "anchor": 11672538,
+          "baseline": 5217300,
+          "amount": 6455238,
+          "percent": 123.7275602323040653211431200
+        },
+        "total_assets": {
+          "anchor": 38342655,
+          "baseline": 24302982,
+          "amount": 14039673,
+          "percent": 57.769342873232593432361510200
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 38342655,
+          "baseline": 24302982,
+          "amount": 14039673,
+          "percent": 57.769342873232593432361510200
+        },
+        "net_working_capital": {
+          "anchor": 4691133,
+          "baseline": -2053018,
+          "amount": 6744151,
+          "percent": null
+        },
+        "interest_bearing_liabilities": {
+          "anchor": 9611743,
+          "baseline": 5245251,
+          "amount": 4366492,
+          "percent": 83.24657866706474103908468823
+        }
+      },
+      "expectedPp": 8.974960326234153328332122350,
+      "payloadPp": 8.974960326234153328332122350,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C06",
+      "request": "ترازنامه بکهنوج در مقایسه با مدت مشابه سال قبل",
+      "company": "13097",
+      "baselineKind": "same_stage_previous_year",
+      "candidateState": "unavailable",
+      "candidateReason": "fiscal_calendar_changed",
+      "candidateDate": null,
+      "alternatives": [
+        "fiscal_year_end",
+        "previous_report"
+      ],
+      "anchor": "387517 2025-12-21 TwelveMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-01-19",
+        "previous_fiscal_quarter_end=unavailable (fiscal_calendar_changed)",
+        "previous_report=available@2025-10-22",
+        "same_stage_previous_year=unavailable (fiscal_calendar_changed)"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — تولید برق ماه تاب کهنوج (بکهنوج)\r\nتاریخ: ۱۴۰۴/۰۹/۳۰ | گزارش ۱۲ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\nمبنای مقایسه «مدت مشابه سال مالی قبل» در دسترس نیست (سال مالی ناشر تغییر کرده است). مبناهای در دسترس: پایان سال مالی قبل (۱۴۰۳/۱۰/۳۰)، گزارش قبلی (۱۴۰۴/۰۷/۳۰).\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۷۱۷٬۰۱۱\r\n- دریافتنی‌های تجاری و سایر دریافتنی‌ها: ۱۰٬۸۷۳٬۳۴۰\r\n- موجودی مواد و کالا: ۲۸٬۸۳۲\r\n- سفارشات و پیش‌پرداخت‌ها: ۶۸٬۴۳۲\r\n- دارایی‌های ث",
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C13",
+      "request": "ترازنامه وبملت را با فصل قبل مقایسه کن",
+      "company": "452",
+      "baselineKind": "previous_fiscal_quarter_end",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2026-06-21",
+      "alternatives": [],
+      "anchor": "409865 2026-09-22 SixMonths",
+      "candidates": [
+        "fiscal_year_end=available@2026-03-20",
+        "previous_fiscal_quarter_end=available@2026-06-21",
+        "previous_report=available@2026-06-21",
+        "same_stage_previous_year=available@2025-09-22"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — بانک ملت (وبملت)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۶ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۳۰ | میلیون ریال\r\nمبنای مقایسه: پایان فصل قبل (۱۴۰۵/۰۳/۳۱) — تاریخ: ۱۴۰۵/۰۳/۳۱ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۴/",
+      "expectedBaseline": "403733 2026-06-21 ThreeMonths (d0855f5e-f53f-44d1-8404-fe3afa08e5ed)",
+      "actualBaselineStatementId": "d0855f5e-f53f-44d1-8404-fe3afa08e5ed",
+      "rows": {
+        "cash": {
+          "anchor": 3536996227,
+          "baseline": 3363868729,
+          "amount": 173127498,
+          "percent": 5.1466781835885368165328308800
+        },
+        "bank_receivables_banks": {
+          "anchor": 2207758628,
+          "baseline": 3367332600,
+          "amount": -1159573972,
+          "percent": -34.435979742541618846917586940
+        },
+        "bank_loans_granted": {
+          "anchor": 45209234799,
+          "baseline": 39620010732,
+          "amount": 5589224067,
+          "percent": 14.107073581597332718259093080
+        },
+        "current_assets_total": {
+          "anchor": 51498227670,
+          "baseline": 46977915066,
+          "amount": 4520312604,
+          "percent": 9.622207792000438625851552810
+        },
+        "non_current_assets_total": {
+          "anchor": 7612077011,
+          "baseline": 6269367251,
+          "amount": 1342709760,
+          "percent": 21.416990044502977546178527420
+        },
+        "bank_deposits": {
+          "anchor": 27590264476,
+          "baseline": 25842230629,
+          "amount": 1748033847,
+          "percent": 6.7642529474153312649781630400
+        },
+        "bank_due_to_banks": {
+          "anchor": 8454139269,
+          "baseline": 7285380890,
+          "amount": 1168758379,
+          "percent": 16.042515781216759416404376900
+        },
+        "current_liabilities_total": {
+          "anchor": 52501759193,
+          "baseline": 47081553813,
+          "amount": 5420205380,
+          "percent": 11.512375741735590624399429270
+        },
+        "non_current_liabilities_total": {
+          "anchor": 126830069,
+          "baseline": 172689456,
+          "amount": -45859387,
+          "percent": -26.555985560577595426555747560
+        },
+        "total_liabilities": {
+          "anchor": 52628589262,
+          "baseline": 47254243269,
+          "amount": 5374345993,
+          "percent": 11.373255862771818668524237670
+        },
+        "share_capital": {
+          "anchor": 3382000000,
+          "baseline": 3382000000,
+          "amount": 0,
+          "percent": 0
+        },
+        "bank_treasury_shares": {
+          "anchor": -181354538,
+          "baseline": -117232822,
+          "amount": -64121716,
+          "percent": null
+        },
+        "retained_earnings": {
+          "anchor": 2021921399,
+          "baseline": 1632420479,
+          "amount": 389500920,
+          "percent": 23.860330411843601969416361380
+        },
+        "total_equity": {
+          "anchor": 6481715419,
+          "baseline": 5993039048,
+          "amount": 488676371,
+          "percent": 8.154066193896756335634674810
+        },
+        "total_assets": {
+          "anchor": 59110304681,
+          "baseline": 53247282317,
+          "amount": 5863022364,
+          "percent": 11.010932593884029005250686890
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 59110304681,
+          "baseline": 53247282317,
+          "amount": 5863022364,
+          "percent": 11.010932593884029005250686890
+        }
+      },
+      "expectedPp": -0.289650205365059904926663340,
+      "payloadPp": -0.289650205365059904926663340,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C13",
+      "request": "ترازنامه شگل را با فصل قبل مقایسه کن",
+      "company": "167",
+      "baselineKind": "previous_fiscal_quarter_end",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2025-12-21",
+      "alternatives": [],
+      "anchor": "388474 2026-03-20 ThreeMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=available@2025-12-21",
+        "previous_report=available@2025-12-21",
+        "same_stage_previous_year=available@2025-03-20"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — گلتاش (شگل)\r\nتاریخ: ۱۴۰۴/۱۲/۲۹ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\nمبنای مقایسه: پایان فصل قبل (۱۴۰۴/۰۹/۳۰) — تاریخ: ۱۴۰۴/۰۹/۳۰ | گزارش ۱۲ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌شده | میلیون ریال\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی ن",
+      "expectedBaseline": "387608 2025-12-21 TwelveMonths (6e377554-175a-403a-84a7-b810bf58752d)",
+      "actualBaselineStatementId": "6e377554-175a-403a-84a7-b810bf58752d",
+      "rows": {
+        "cash": {
+          "anchor": 1832716,
+          "baseline": 872424,
+          "amount": 960292,
+          "percent": 110.07170825195088626631087636
+        },
+        "trade_receivables": {
+          "anchor": 13869662,
+          "baseline": 13638261,
+          "amount": 231401,
+          "percent": 1.6967045871904049937158410400
+        },
+        "inventories": {
+          "anchor": 8469982,
+          "baseline": 6228420,
+          "amount": 2241562,
+          "percent": 35.989255702088170033491639930
+        },
+        "orders_prepayments": {
+          "anchor": 6175189,
+          "baseline": 1880380,
+          "amount": 4294809,
+          "percent": 228.40112105000053180740063179
+        },
+        "ppe": {
+          "anchor": 1611126,
+          "baseline": 1544188,
+          "amount": 66938,
+          "percent": 4.3348348776185283139099643300
+        },
+        "current_assets_total": {
+          "anchor": 30433549,
+          "baseline": 23059153,
+          "amount": 7374396,
+          "percent": 31.980342035980246108779450830
+        },
+        "non_current_assets_total": {
+          "anchor": 7909106,
+          "baseline": 7843050,
+          "amount": 66056,
+          "percent": 0.8422233697349883017448569100
+        },
+        "trade_payables": {
+          "anchor": 14406886,
+          "baseline": 9058298,
+          "amount": 5348588,
+          "percent": 59.046279996529149294933772330
+        },
+        "advances_received": {
+          "anchor": 22103,
+          "baseline": 451288,
+          "amount": -429185,
+          "percent": -95.10224069773625711297441988
+        },
+        "short_term_borrowings": {
+          "anchor": 9611743,
+          "baseline": 8795856,
+          "amount": 815887,
+          "percent": 9.275811245659319570488648290
+        },
+        "current_liabilities_total": {
+          "anchor": 25742416,
+          "baseline": 19581093,
+          "amount": 6161323,
+          "percent": 31.465674566787461762221342800
+        },
+        "non_current_liabilities_total": {
+          "anchor": 927701,
+          "baseline": 536524,
+          "amount": 391177,
+          "percent": 72.909506378093058278846799020
+        },
+        "total_liabilities": {
+          "anchor": 26670117,
+          "baseline": 20117617,
+          "amount": 6552500,
+          "percent": 32.570955098707764443472604140
+        },
+        "share_capital": {
+          "anchor": 6149600,
+          "baseline": 6149600,
+          "amount": 0,
+          "percent": 0
+        },
+        "retained_earnings": {
+          "anchor": 5090145,
+          "baseline": 4258890,
+          "amount": 831255,
+          "percent": 19.518113874742010242105337310
+        },
+        "total_equity": {
+          "anchor": 11672538,
+          "baseline": 10784586,
+          "amount": 887952,
+          "percent": 8.233528853124264575385647630
+        },
+        "total_assets": {
+          "anchor": 38342655,
+          "baseline": 30902203,
+          "amount": 7440452,
+          "percent": 24.077416098781048069614972110
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 38342655,
+          "baseline": 30902203,
+          "amount": 7440452,
+          "percent": 24.077416098781048069614972110
+        },
+        "net_working_capital": {
+          "anchor": 4691133,
+          "baseline": 3478060,
+          "amount": 1213073,
+          "percent": 34.877862946585165293295687830
+        },
+        "interest_bearing_liabilities": {
+          "anchor": 9611743,
+          "baseline": 8795856,
+          "amount": 815887,
+          "percent": 9.275811245659319570488648290
+        }
+      },
+      "expectedPp": -4.456388441934673226903474830,
+      "payloadPp": -4.456388441934673226903474830,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C13",
+      "request": "ترازنامه بکهنوج را با فصل قبل مقایسه کن",
+      "company": "13097",
+      "baselineKind": "previous_fiscal_quarter_end",
+      "candidateState": "unavailable",
+      "candidateReason": "fiscal_calendar_changed",
+      "candidateDate": null,
+      "alternatives": [
+        "previous_report",
+        "fiscal_year_end"
+      ],
+      "anchor": "387517 2025-12-21 TwelveMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-01-19",
+        "previous_fiscal_quarter_end=unavailable (fiscal_calendar_changed)",
+        "previous_report=available@2025-10-22",
+        "same_stage_previous_year=unavailable (fiscal_calendar_changed)"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — تولید برق ماه تاب کهنوج (بکهنوج)\r\nتاریخ: ۱۴۰۴/۰۹/۳۰ | گزارش ۱۲ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\nمبنای مقایسه «پایان فصل قبل» در دسترس نیست (سال مالی ناشر تغییر کرده است). مبناهای در دسترس: گزارش قبلی (۱۴۰۴/۰۷/۳۰)، پایان سال مالی قبل (۱۴۰۳/۱۰/۳۰).\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۷۱۷٬۰۱۱\r\n- دریافتنی‌های تجاری و سایر دریافتنی‌ها: ۱۰٬۸۷۳٬۳۴۰\r\n- موجودی مواد و کالا: ۲۸٬۸۳۲\r\n- سفارشات و پیش‌پرداخت‌ها: ۶۸٬۴۳۲\r\n- دارایی‌های ثابت مشهود",
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C13",
+      "request": "ترازنامه ومعین را با فصل قبل مقایسه کن",
+      "company": "12548",
+      "baselineKind": "previous_fiscal_quarter_end",
+      "candidateState": "unavailable",
+      "candidateReason": "no_snapshot_at_date",
+      "candidateDate": "2026-03-20",
+      "alternatives": [
+        "previous_report",
+        "fiscal_year_end",
+        "same_stage_previous_year"
+      ],
+      "anchor": "403340 2026-06-21 SixMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=unavailable@2026-03-20 (no_snapshot_at_date)",
+        "previous_report=available@2025-12-21",
+        "same_stage_previous_year=available@2025-06-21"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — سرمایه گذاری توسعه معین ملت (ومعین)\r\nتاریخ: ۱۴۰۵/۰۳/۳۱ | گزارش ۶ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌شده | تاریخ انتشار: ۱۴۰۵/۰۴/۳۰ | میلیون ریال\r\nمبنای مقایسه «پایان فصل قبل (۱۴۰۴/۱۲/۲۹)» در دسترس نیست (در این تاریخ ترازنامه جداگانه موجود نیست). مبناهای در دسترس: گزارش قبلی (۱۴۰۴/۰۹/۳۰)، پایان سال مالی قبل (۱۴۰۴/۰۹/۳۰)، مدت مشابه سال مالی قبل (۱۴۰۴/۰۳/۳۱).\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۱٬۷۱۹٬۱۵۸\r\n- دریافتنی‌های تجاری و سایر دریافتنی‌ها: —\r\n- سفا",
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C03",
+      "request": "ترازنامه ساربیل را با پایان سال مالی قبل مقایسه کن",
+      "company": "236",
+      "baselineKind": "fiscal_year_end",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2025-12-21",
+      "alternatives": [],
+      "anchor": "409030 2026-09-22 NineMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=unavailable@2026-06-21 (no_snapshot_at_date)",
+        "previous_report=available@2026-03-20",
+        "same_stage_previous_year=available@2025-09-22"
+      ],
+      "previousReportDate": "2026-03-20",
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — سیمان آرتا اردبیل (ساربیل)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۹ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۲۰ | میلیون ریال\r\nمبنای مقایسه: پایان سال مالی قبل (۱۴۰۴/۰۹/۳۰) — تاریخ: ۱۴۰۴/۰۹/۳۰ | گزارش ۱۲ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌شده | میلیون ",
+      "expectedBaseline": "387010 2025-12-21 TwelveMonths (2d815cfe-44cd-4f66-a132-b46983ff03db)",
+      "actualBaselineStatementId": "2d815cfe-44cd-4f66-a132-b46983ff03db",
+      "rows": {
+        "cash": {
+          "anchor": 1335138,
+          "baseline": 2974494,
+          "amount": -1639356,
+          "percent": -55.113777334901331117158077980
+        },
+        "trade_receivables": {
+          "anchor": 594919,
+          "baseline": 1104415,
+          "amount": -509496,
+          "percent": -46.132658466246836560532046380
+        },
+        "inventories": {
+          "anchor": 12825540,
+          "baseline": 8322315,
+          "amount": 4503225,
+          "percent": 54.110244565364324710131736180
+        },
+        "orders_prepayments": {
+          "anchor": 1520568,
+          "baseline": 567577,
+          "amount": 952991,
+          "percent": 167.90514767159345780396316271
+        },
+        "ppe": {
+          "anchor": 11554448,
+          "baseline": 8032561,
+          "amount": 3521887,
+          "percent": 43.845132330772215735429833650
+        },
+        "current_assets_total": {
+          "anchor": 18966165,
+          "baseline": 18658801,
+          "amount": 307364,
+          "percent": 1.6472869826951903286818911900
+        },
+        "non_current_assets_total": {
+          "anchor": 12010239,
+          "baseline": 8430853,
+          "amount": 3579386,
+          "percent": 42.455798956523141845789506710
+        },
+        "trade_payables": {
+          "anchor": 2694494,
+          "baseline": 2325156,
+          "amount": 369338,
+          "percent": 15.884439581688282420620379880
+        },
+        "advances_received": {
+          "anchor": 2465636,
+          "baseline": 1026697,
+          "amount": 1438939,
+          "percent": 140.15225524180941407250629933
+        },
+        "short_term_borrowings": {
+          "anchor": 2867799,
+          "baseline": 2635741,
+          "amount": 232058,
+          "percent": 8.804279327900579002261603090
+        },
+        "current_liabilities_total": {
+          "anchor": 11170841,
+          "baseline": 8641870,
+          "amount": 2528971,
+          "percent": 29.264163890454265106973374980
+        },
+        "long_term_borrowings": {
+          "anchor": 0,
+          "baseline": 0,
+          "amount": 0,
+          "percent": null
+        },
+        "non_current_liabilities_total": {
+          "anchor": 1147161,
+          "baseline": 737846,
+          "amount": 409315,
+          "percent": 55.474313068038587998037530870
+        },
+        "total_liabilities": {
+          "anchor": 12318002,
+          "baseline": 9379716,
+          "amount": 2938286,
+          "percent": 31.325959122856171764688824270
+        },
+        "share_capital": {
+          "anchor": 1440000,
+          "baseline": 1440000,
+          "amount": 0,
+          "percent": 0
+        },
+        "capital_increase_funds": {
+          "anchor": 0,
+          "baseline": 0,
+          "amount": 0,
+          "percent": null
+        },
+        "revaluation_surplus": {
+          "anchor": 0,
+          "baseline": 0,
+          "amount": 0,
+          "percent": null
+        },
+        "retained_earnings": {
+          "anchor": 17074402,
+          "baseline": 16125938,
+          "amount": 948464,
+          "percent": 5.8816051506585229336736876900
+        },
+        "total_equity": {
+          "anchor": 18658402,
+          "baseline": 17709938,
+          "amount": 948464,
+          "percent": 5.3555466992600425817413928800
+        },
+        "total_assets": {
+          "anchor": 30976404,
+          "baseline": 27089654,
+          "amount": 3886750,
+          "percent": 14.347728472279490908226439510
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 30976404,
+          "baseline": 27089654,
+          "amount": 3886750,
+          "percent": 14.347728472279490908226439510
+        },
+        "net_working_capital": {
+          "anchor": 7795324,
+          "baseline": 10016931,
+          "amount": -2221607,
+          "percent": -22.178519548552346022948545820
+        },
+        "interest_bearing_liabilities": {
+          "anchor": 2867799,
+          "baseline": 2635741,
+          "amount": 232058,
+          "percent": 8.804279327900579002261603090
+        }
+      },
+      "expectedPp": -5.141041603308909021726793520,
+      "payloadPp": -5.141041603308909021726793520,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C03 (contrast)",
+      "request": "ترازنامه ساربیل را با گزارش قبلی مقایسه کن",
+      "company": "236",
+      "baselineKind": "previous_report",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2026-03-20",
+      "alternatives": [],
+      "anchor": "409030 2026-09-22 NineMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=unavailable@2026-06-21 (no_snapshot_at_date)",
+        "previous_report=available@2026-03-20",
+        "same_stage_previous_year=available@2025-09-22"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — سیمان آرتا اردبیل (ساربیل)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۹ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۲۰ | میلیون ریال\r\nمبنای مقایسه: گزارش قبلی (۱۴۰۴/۱۲/۲۹) — تاریخ: ۱۴۰۴/۱۲/۲۹ | گزارش ۳ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میلیون ریال\r\n\r\n",
+      "expectedBaseline": "388181 2026-03-20 ThreeMonths (a2d357e9-6668-4cd6-ae4e-96928dc96912)",
+      "actualBaselineStatementId": "a2d357e9-6668-4cd6-ae4e-96928dc96912",
+      "rows": {
+        "cash": {
+          "anchor": 1335138,
+          "baseline": 1682547,
+          "amount": -347409,
+          "percent": -20.647803597759824836988208950
+        },
+        "trade_receivables": {
+          "anchor": 594919,
+          "baseline": 926128,
+          "amount": -331209,
+          "percent": -35.762767133700741150251369140
+        },
+        "inventories": {
+          "anchor": 12825540,
+          "baseline": 10212546,
+          "amount": 2612994,
+          "percent": 25.586117311001585696651941640
+        },
+        "orders_prepayments": {
+          "anchor": 1520568,
+          "baseline": 494375,
+          "amount": 1026193,
+          "percent": 207.57380530973451327433628319
+        },
+        "ppe": {
+          "anchor": 11554448,
+          "baseline": 8916171,
+          "amount": 2638277,
+          "percent": 29.589798131955970786114353350
+        },
+        "current_assets_total": {
+          "anchor": 18966165,
+          "baseline": 16005596,
+          "amount": 2960569,
+          "percent": 18.497086893858872859217488680
+        },
+        "non_current_assets_total": {
+          "anchor": 12010239,
+          "baseline": 9299238,
+          "amount": 2711001,
+          "percent": 29.152937047099988192580940500
+        },
+        "trade_payables": {
+          "anchor": 2694494,
+          "baseline": 1663706,
+          "amount": 1030788,
+          "percent": 61.957341020588974253864565010
+        },
+        "advances_received": {
+          "anchor": 2465636,
+          "baseline": 2245914,
+          "amount": 219722,
+          "percent": 9.783188492524646981139972410
+        },
+        "short_term_borrowings": {
+          "anchor": 2867799,
+          "baseline": 1592906,
+          "amount": 1274893,
+          "percent": 80.03567065476556683194111894
+        },
+        "current_liabilities_total": {
+          "anchor": 11170841,
+          "baseline": 16627233,
+          "amount": -5456392,
+          "percent": -32.815995301202551260332973020
+        },
+        "long_term_borrowings": {
+          "anchor": 0,
+          "baseline": null,
+          "amount": null,
+          "percent": null
+        },
+        "non_current_liabilities_total": {
+          "anchor": 1147161,
+          "baseline": 758750,
+          "amount": 388411,
+          "percent": 51.190906095551894563426688630
+        },
+        "total_liabilities": {
+          "anchor": 12318002,
+          "baseline": 17385983,
+          "amount": -5067981,
+          "percent": -29.149809935969683163730230270
+        },
+        "share_capital": {
+          "anchor": 1440000,
+          "baseline": 1440000,
+          "amount": 0,
+          "percent": 0
+        },
+        "capital_increase_funds": {
+          "anchor": 0,
+          "baseline": null,
+          "amount": null,
+          "percent": null
+        },
+        "revaluation_surplus": {
+          "anchor": 0,
+          "baseline": null,
+          "amount": null,
+          "percent": null
+        },
+        "retained_earnings": {
+          "anchor": 17074402,
+          "baseline": 6334851,
+          "amount": 10739551,
+          "percent": 169.53123285772625117780986483
+        },
+        "total_equity": {
+          "anchor": 18658402,
+          "baseline": 7918851,
+          "amount": 10739551,
+          "percent": 135.62006659804560030236709846
+        },
+        "total_assets": {
+          "anchor": 30976404,
+          "baseline": 25304834,
+          "amount": 5671570,
+          "percent": 22.412990340106558296331839210
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 30976404,
+          "baseline": 25304834,
+          "amount": 5671570,
+          "percent": 22.412990340106558296331839210
+        },
+        "net_working_capital": {
+          "anchor": 7795324,
+          "baseline": -621637,
+          "amount": 8416961,
+          "percent": null
+        },
+        "interest_bearing_liabilities": {
+          "anchor": 2867799,
+          "baseline": 1592906,
+          "amount": 1274893,
+          "percent": 80.03567065476556683194111894
+        }
+      },
+      "expectedPp": 28.940414420997893775163002100,
+      "payloadPp": 28.940414420997893775163002100,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C06",
+      "request": "ترازنامه ساربیل در مقایسه با مدت مشابه سال قبل",
+      "company": "236",
+      "baselineKind": "same_stage_previous_year",
+      "candidateState": "available",
+      "candidateReason": null,
+      "candidateDate": "2025-09-22",
+      "alternatives": [],
+      "anchor": "409030 2026-09-22 NineMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=unavailable@2026-06-21 (no_snapshot_at_date)",
+        "previous_report=available@2026-03-20",
+        "same_stage_previous_year=available@2025-09-22"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — سیمان آرتا اردبیل (ساربیل)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۹ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۲۰ | میلیون ریال\r\nمبنای مقایسه: مدت مشابه سال مالی قبل (۱۴۰۴/۰۶/۳۱) — تاریخ: ۱۴۰۴/۰۶/۳۱ | گزارش ۹ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | میل",
+      "expectedBaseline": "382074 2025-09-22 NineMonths (f1fb48ef-9441-4db0-8847-6ee31111596a)",
+      "actualBaselineStatementId": "f1fb48ef-9441-4db0-8847-6ee31111596a",
+      "rows": {
+        "cash": {
+          "anchor": 1335138,
+          "baseline": 2652344,
+          "amount": -1317206,
+          "percent": -49.661959383850661905092250480
+        },
+        "trade_receivables": {
+          "anchor": 594919,
+          "baseline": 521820,
+          "amount": 73099,
+          "percent": 14.008470353761833582461385150
+        },
+        "inventories": {
+          "anchor": 12825540,
+          "baseline": 7931128,
+          "amount": 4894412,
+          "percent": 61.711423646169876466500099360
+        },
+        "orders_prepayments": {
+          "anchor": 1520568,
+          "baseline": 834246,
+          "amount": 686322,
+          "percent": 82.26853949554447968584805921
+        },
+        "ppe": {
+          "anchor": 11554448,
+          "baseline": 6129786,
+          "amount": 5424662,
+          "percent": 88.49675991951431909694726700
+        },
+        "current_assets_total": {
+          "anchor": 18966165,
+          "baseline": 15479538,
+          "amount": 3486627,
+          "percent": 22.524102463523136155613946620
+        },
+        "non_current_assets_total": {
+          "anchor": 12010239,
+          "baseline": 6487388,
+          "amount": 5522851,
+          "percent": 85.13212097072041937371404331
+        },
+        "trade_payables": {
+          "anchor": 2694494,
+          "baseline": 2145383,
+          "amount": 549111,
+          "percent": 25.595010308182734737806722620
+        },
+        "advances_received": {
+          "anchor": 2465636,
+          "baseline": 1396717,
+          "amount": 1068919,
+          "percent": 76.530821920260152915730244570
+        },
+        "short_term_borrowings": {
+          "anchor": 2867799,
+          "baseline": 2572074,
+          "amount": 295725,
+          "percent": 11.497530786439270409793808420
+        },
+        "current_liabilities_total": {
+          "anchor": 11170841,
+          "baseline": 7955560,
+          "amount": 3215281,
+          "percent": 40.415520717586191292630562780
+        },
+        "long_term_borrowings": {
+          "anchor": 0,
+          "baseline": 0,
+          "amount": 0,
+          "percent": null
+        },
+        "non_current_liabilities_total": {
+          "anchor": 1147161,
+          "baseline": 701050,
+          "amount": 446111,
+          "percent": 63.634690820911489907995150130
+        },
+        "total_liabilities": {
+          "anchor": 12318002,
+          "baseline": 8656610,
+          "amount": 3661392,
+          "percent": 42.295910292828254940444354080
+        },
+        "share_capital": {
+          "anchor": 1440000,
+          "baseline": 1440000,
+          "amount": 0,
+          "percent": 0
+        },
+        "capital_increase_funds": {
+          "anchor": 0,
+          "baseline": 0,
+          "amount": 0,
+          "percent": null
+        },
+        "revaluation_surplus": {
+          "anchor": 0,
+          "baseline": 0,
+          "amount": 0,
+          "percent": null
+        },
+        "retained_earnings": {
+          "anchor": 17074402,
+          "baseline": 11726316,
+          "amount": 5348086,
+          "percent": 45.607554836489141176137501330
+        },
+        "total_equity": {
+          "anchor": 18658402,
+          "baseline": 13310316,
+          "amount": 5348086,
+          "percent": 40.180007747374292240695111970
+        },
+        "total_assets": {
+          "anchor": 30976404,
+          "baseline": 21966926,
+          "amount": 9009478,
+          "percent": 41.013831430032586261728199930
+        },
+        "total_liabilities_and_equity": {
+          "anchor": 30976404,
+          "baseline": 21966926,
+          "amount": 9009478,
+          "percent": 41.013831430032586261728199930
+        },
+        "net_working_capital": {
+          "anchor": 7795324,
+          "baseline": 7523978,
+          "amount": 271346,
+          "percent": 3.6064167120105880160734122300
+        },
+        "interest_bearing_liabilities": {
+          "anchor": 2867799,
+          "baseline": 2572074,
+          "amount": 295725,
+          "percent": 11.497530786439270409793808420
+        }
+      },
+      "expectedPp": -0.358287446937533919071466370,
+      "payloadPp": -0.358287446937533919071466370,
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C13",
+      "request": "ترازنامه ساربیل را با فصل قبل مقایسه کن",
+      "company": "236",
+      "baselineKind": "previous_fiscal_quarter_end",
+      "candidateState": "unavailable",
+      "candidateReason": "no_snapshot_at_date",
+      "candidateDate": "2026-06-21",
+      "alternatives": [
+        "previous_report",
+        "fiscal_year_end",
+        "same_stage_previous_year"
+      ],
+      "anchor": "409030 2026-09-22 NineMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=unavailable@2026-06-21 (no_snapshot_at_date)",
+        "previous_report=available@2026-03-20",
+        "same_stage_previous_year=available@2025-09-22"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — سیمان آرتا اردبیل (ساربیل)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۹ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۲۰ | میلیون ریال\r\nمبنای مقایسه «پایان فصل قبل (۱۴۰۵/۰۳/۳۱)» در دسترس نیست (در این تاریخ ترازنامه جداگانه موجود نیست). مبناهای در دسترس: گزارش قبلی (۱۴۰۴/۱۲/۲۹)، پایان سال مالی قبل (۱۴۰۴/۰۹/۳۰)، مدت مشابه سال مالی قبل (۱۴۰۴/۰۶/۳۱).\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۱٬۳۳۵٬۱۳۸\r\n- دریافتنی‌های تجاری و سایر دریافتنی‌ها: ۵۹۴٬۹۱۹\r\n- موجود",
+      "result": "PASS-live",
+      "failures": []
+    },
+    {
+      "ac": "AC-C06",
+      "request": "ترازنامه منجیل در مقایسه با مدت مشابه سال قبل",
+      "company": "15763",
+      "baselineKind": "same_stage_previous_year",
+      "candidateState": "unavailable",
+      "candidateReason": "no_matching_stage",
+      "candidateDate": "2025-09-22",
+      "alternatives": [
+        "fiscal_year_end",
+        "previous_fiscal_quarter_end",
+        "previous_report"
+      ],
+      "anchor": "409088 2026-09-22 NineMonths",
+      "candidates": [
+        "fiscal_year_end=available@2025-12-21",
+        "previous_fiscal_quarter_end=available@2026-06-21",
+        "previous_report=available@2026-06-21",
+        "same_stage_previous_year=unavailable@2025-09-22 (no_matching_stage)"
+      ],
+      "textExcerpt": "### ترازنامه (صورت وضعیت مالی) — تولید نیروی برق سبز منجیل (منجیل)\r\nتاریخ: ۱۴۰۵/۰۶/۳۱ | گزارش ۹ ماهه | جداگانه (غیرتلفیقی) | حسابرسی‌نشده | تاریخ انتشار: ۱۴۰۵/۰۷/۲۲ | میلیون ریال\r\nمبنای مقایسه «مدت مشابه سال مالی قبل (۱۴۰۴/۰۶/۳۱)» در دسترس نیست (گزارش هم‌دوره سال قبل موجود نیست). مبناهای در دسترس: پایان سال مالی قبل (۱۴۰۴/۰۹/۳۰)، پایان فصل قبل (۱۴۰۵/۰۳/۳۱)، گزارش قبلی (۱۴۰۵/۰۳/۳۱).\r\n\r\n**دارایی‌ها** (اقلام منتخب)\r\n- موجودی نقد: ۸۰۰٬۸۹۳\r\n- دریافتنی‌های تجاری و سایر دریافتنی‌ها: ۱۲٬۰۸۱٬۰۵۲\r\n- موجود",
+      "result": "PASS-live",
+      "failures": []
+    }
+  ]
+}

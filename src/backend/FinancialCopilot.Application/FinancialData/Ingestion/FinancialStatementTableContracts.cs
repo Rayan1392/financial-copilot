@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
 using FinancialCopilot.Domain.Financial.Entities;
 
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
@@ -19,7 +20,12 @@ public sealed record FinancialStatementTableQuery(
     bool? IsComposing = null,
     bool UseQuarterlyReportTable = false,
     int QuarterCount = 5,
-    DateOnly? EndingPeriod = null);
+    DateOnly? EndingPeriod = null,
+    bool UseBalanceSheetReport = false,
+    string BalanceSheetView = BalanceSheetViews.Default,
+    string? BaselineKind = null,
+    IReadOnlyList<DateOnly>? ComparisonDates = null,
+    string? UnsupportedVariantFilter = null);
 
 public sealed record FinancialStatementTableSelection(
     string ExternalCompanyId,
@@ -75,7 +81,8 @@ public sealed record FinancialStatementTableResult(
     IReadOnlyList<string> Warnings,
     string? RenderedAnswer,
     DateTimeOffset GeneratedAtUtc,
-    QuarterlyFinancialReportTableResult? QuarterlyResult = null);
+    QuarterlyFinancialReportTableResult? QuarterlyResult = null,
+    BalanceSheetReportResult? BalanceSheetReport = null);
 
 public interface IFinancialStatementTableRepository
 {

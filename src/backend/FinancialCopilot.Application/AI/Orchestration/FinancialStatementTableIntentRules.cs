@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
-public static class FinancialStatementTableIntentRules
+public static partial class FinancialStatementTableIntentRules
 {
     public static bool LooksLikeQuarterlyReportTableQuery(string? query)
     {

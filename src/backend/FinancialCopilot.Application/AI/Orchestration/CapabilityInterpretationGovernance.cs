@@ -60,7 +60,11 @@ public static class CapabilityRoutingPrecedence
                           text.Contains("تحلیل", StringComparison.Ordinal) ||
                           text.Contains("بررسی", StringComparison.Ordinal);
         var hasStatement = candidates.Any(candidate => candidate.CapabilityCode is "financial_statement_table" or "financial_statement_period_analysis");
-        var isQuarterlyReportRequest = FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(text) &&
+        // Feature 154 (V2 only): the interpreter marks governed report tables with evidence; V1 never adds it.
+        var isGovernedReportTable = interpretation.Evidence.Any(item =>
+            item.Category == "financial_statement_table" &&
+            item.Value == DeterministicCapabilityInterpreter.Feature154GovernedReportEvidence);
+        var isQuarterlyReportRequest = (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(text) || isGovernedReportTable) &&
                                        candidates.Any(candidate => candidate.CapabilityCode == "financial_statement_table");
         var hasProduct = candidates.Any(candidate => candidate.CapabilityCode == "product_revenue_mix");
         var hasProductScope = interpretation.EntityMentions.Any(entity =>
@@ -329,8 +333,12 @@ public sealed class HybridCapabilityInterpreter(
     QueryInterpretationValidator validator,
     IQueryInterpretationProposalProvider proposalProvider,
     ISemanticRoutingLatencySink? latencySink = null,
-    SemanticRoutingOptions? routingOptions = null)
+    SemanticRoutingOptions? routingOptions = null,
+    Feature154RoutingScope? feature154 = null)
 {
+    private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
+    private bool _feature154 => _scope.IsActive;
+
     public async Task<HybridInterpretationResult> InterpretAsync(
         string message,
         Guid tenantId,
@@ -338,7 +346,12 @@ public sealed class HybridCapabilityInterpreter(
         CancellationToken cancellationToken)
     {
         var totalStart = Stopwatch.GetTimestamp();
-        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message))
+        // Governed report tables are recognized deterministically so both V2 paths produce identical results
+        // (Feature 144; Feature 154 balance-sheet reports in V2 only).
+        if (_feature154
+                ? FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(message) ||
+                  FinancialStatementTableIntentRules.LooksLikeBalanceSheetReportQuery(message)
+                : FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message))
         {
             var tableInterpretation = deterministicInterpreter.Interpret(message);
             latencySink?.Record(new SemanticRoutingLatencySample(

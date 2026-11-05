@@ -89,10 +89,48 @@ export function ConversationSidebar({ collapsed, onToggle }: { collapsed: boolea
           <MessageSquare className="size-5" />
         </button>
         <div className="my-3 h-px w-8 bg-hairline" />
-        <button type="button" onClick={() => void refreshUsage()} disabled={usageRefreshing || usageFetching} className="flex size-11 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:opacity-60" aria-label="اعتبار هوش مصنوعی؛ برای به‌روزرسانی کلیک کنید" title={usage ? creditQuotaLabel(usage.creditQuotaMode, credit?.limit != null ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}` : formatNumber(credit?.remaining ?? 0)) : "اعتبار هوش مصنوعی"}>
-          <Wallet className={`size-5 ${usageRefreshing || usageFetching ? "animate-pulse" : ""}`} />
-          {credit && <span className="h-1 w-6 overflow-hidden rounded-full bg-muted"><span className={`block h-full ${credit.tone ? CREDIT_TONE_CLASS[credit.tone] : "bg-muted"}`} style={{ width: `${credit.percentage}%` }} /></span>}
-        </button>
+        <div className="group/credit relative">
+          <button type="button" onClick={() => void refreshUsage()} disabled={usageRefreshing || usageFetching} className="flex size-11 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 disabled:opacity-60" aria-label="اعتبار هوش مصنوعی؛ برای به‌روزرسانی کلیک کنید" aria-describedby="compact-credit-tooltip">
+            <Wallet className={`size-5 ${usageRefreshing || usageFetching ? "animate-pulse" : ""}`} />
+            {credit?.percentage != null && <span className="h-1 w-6 overflow-hidden rounded-full bg-muted"><span className={`block h-full ${credit.tone ? CREDIT_TONE_CLASS[credit.tone] : "bg-muted"}`} style={{ width: `${credit.percentage}%` }} /></span>}
+          </button>
+          <div id="compact-credit-tooltip" role="tooltip" dir="rtl" className="invisible pointer-events-none absolute right-full top-1/2 z-50 mr-3 w-60 -translate-y-1/2 translate-x-2 rounded-2xl border border-hairline bg-surface p-4 text-right font-sans text-foreground opacity-0 shadow-2xl ring-1 ring-black/5 transition-all duration-150 group-hover/credit:visible group-hover/credit:translate-x-0 group-hover/credit:opacity-100 group-focus-within/credit:visible group-focus-within/credit:translate-x-0 group-focus-within/credit:opacity-100">
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-soft/70 text-emerald"><Wallet className="size-4" /></span>
+              <div>
+                <p className="text-sm font-bold">اعتبار هوش مصنوعی</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">مانده سهمیه حساب شما</p>
+              </div>
+            </div>
+            {usageLoading && <p className="rounded-lg bg-background/70 px-3 py-2.5 text-xs leading-6 text-muted-foreground">در حال دریافت اطلاعات اعتبار…</p>}
+            {usageError && <p className="rounded-lg bg-rose/10 px-3 py-2.5 text-xs leading-6 text-rose">اطلاعات اعتبار در دسترس نیست. برای تلاش دوباره روی آیکون کلیک کنید.</p>}
+            {usage && usage.creditQuotaMode === "Unlimited" && (
+              <div className="rounded-xl bg-emerald-soft/50 px-3 py-3">
+                <p className="text-base font-bold text-emerald">اعتبار نامحدود</p>
+                {usage.subscriptionExpiresAtUtc && <p className="mt-1 text-xs text-muted-foreground">اعتبار تا {new Date(usage.subscriptionExpiresAtUtc).toLocaleDateString("fa-IR")} فعال است</p>}
+              </div>
+            )}
+            {usage && usage.creditQuotaMode !== "Unlimited" && credit && (
+              <div className="rounded-xl bg-background/70 px-3 py-3">
+                <div className="flex items-end justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">اعتبار باقی‌مانده</p>
+                    <p className="mt-1 text-2xl font-bold leading-none tracking-tight tabular-nums">{formatNumber(credit.remaining)}</p>
+                  </div>
+                  {credit.percentage != null && <span className="rounded-full bg-surface px-2 py-1 text-[11px] font-semibold text-muted-foreground ring-1 ring-hairline">{formatNumber(credit.percentage, { maximumFractionDigits: 0 })}٪</span>}
+                </div>
+                {credit.limit != null ? (
+                  <>
+                    <p className="mt-2 text-xs text-muted-foreground">از {formatNumber(credit.limit)} اعتبار دوره</p>
+                    <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="درصد اعتبار باقی‌مانده" aria-valuemin={0} aria-valuemax={100} aria-valuenow={credit.percentage != null ? Math.round(credit.percentage) : undefined}>
+                      <div className={`h-full rounded-full transition-all ${credit.tone ? CREDIT_TONE_CLASS[credit.tone] : "bg-muted"}`} style={{ width: `${credit.percentage ?? 0}%` }} />
+                    </div>
+                  </>
+                ) : <p className="mt-2 text-xs text-muted-foreground">سقف دوره برای این حساب مشخص نشده است.</p>}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="mt-auto flex flex-col items-center gap-2">
           <Link to="/telegram-link" className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground" aria-label="اتصال تلگرام" title="اتصال تلگرام"><Send className="size-5" /></Link>
           {showAdmin && <Link to="/admin" className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground" aria-label="پنل مدیریت" title="پنل مدیریت"><Settings className="size-5" /></Link>}

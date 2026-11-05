@@ -683,7 +683,8 @@ public sealed class AiFacadeController(
                 row.LiabilityOrEquity is null ? null : MapFinancialStatementTableLineItem(row.LiabilityOrEquity))).ToList(),
             result.Warnings,
             result.GeneratedAtUtc,
-            result.QuarterlyResult);
+            result.QuarterlyResult,
+            result.BalanceSheetReport);
     }
 
     private static FinancialStatementTableLineItemHttpResponse MapFinancialStatementTableLineItem(

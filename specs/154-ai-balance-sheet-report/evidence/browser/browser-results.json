@@ -1,0 +1,105 @@
+{
+  "executedAt": "2026-11-05T14:59:59.745Z",
+  "results": [
+    {
+      "check": "contrast wide default light",
+      "detail": "8 text nodes, min 12.9:1"
+    },
+    {
+      "check": "contrast wide default dark",
+      "detail": "8 text nodes, min 12.9:1"
+    },
+    {
+      "check": "wide default 1280",
+      "detail": "assets right, chart above, totals aligned, full-width ratio"
+    },
+    {
+      "check": "single-date PNG",
+      "detail": "2400x2888, no compressed text"
+    },
+    {
+      "check": "contrast wide comparison light",
+      "detail": "22 text nodes, min 4.59:1"
+    },
+    {
+      "check": "contrast wide comparison dark",
+      "detail": "22 text nodes, min 4.59:1"
+    },
+    {
+      "check": "wide comparison 1440",
+      "detail": "four columns per side, no request"
+    },
+    {
+      "check": "comparison PNG",
+      "detail": "3200x3040, longest labels and widest amounts unclipped"
+    },
+    {
+      "check": "comparison PNG badges",
+      "detail": "anchor «حسابرسی‌نشده», baseline «حسابرسی‌شده» on the date columns"
+    },
+    {
+      "check": "restated baseline PNG",
+      "detail": "baseline column «حسابرسی‌شده · تجدید ارائه‌شده»; anchor column unchanged"
+    },
+    {
+      "check": "restated anchor single-date PNG",
+      "detail": "header metadata carries «تجدید ارائه‌شده»"
+    },
+    {
+      "check": "stacked comparison 900",
+      "detail": "sections stacked, four columns kept"
+    },
+    {
+      "check": "x-axis ticks mobile 320",
+      "detail": "5 labels, no overlap"
+    },
+    {
+      "check": "mobile 320",
+      "detail": "no horizontal scroll, amounts on one line, 44 px headers, chart below"
+    },
+    {
+      "check": "PNG device independence",
+      "detail": "byte-identical"
+    },
+    {
+      "check": "mobile badges",
+      "detail": "anchor and baseline carry their own status; restated baseline shows «تجدید ارائه‌شده»"
+    },
+    {
+      "check": "x-axis ticks mobile 360",
+      "detail": "5 labels, no overlap"
+    },
+    {
+      "check": "mobile 360",
+      "detail": "no horizontal scroll, amounts on one line, 44 px headers, chart below"
+    },
+    {
+      "check": "x-axis ticks mobile 390",
+      "detail": "5 labels, no overlap"
+    },
+    {
+      "check": "mobile 390",
+      "detail": "no horizontal scroll, amounts on one line, 44 px headers, chart below"
+    },
+    {
+      "check": "فاذر default + PNG",
+      "detail": "general template"
+    },
+    {
+      "check": "negative equity chart note",
+      "detail": "S-8"
+    },
+    {
+      "check": "G04 single snapshot",
+      "detail": "one bar, labelled ratio point"
+    },
+    {
+      "check": "G05/G08 gaps",
+      "detail": "2 line segments, conflict note present"
+    },
+    {
+      "check": "PNG fonts",
+      "detail": "Vazirmatn loaded before all 6 PNG exports"
+    }
+  ]
+}

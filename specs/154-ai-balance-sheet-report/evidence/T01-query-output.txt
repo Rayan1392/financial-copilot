@@ -1,0 +1,566 @@
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+     current_user      
+-----------------------
+ feature141_app_reader
+(1 row)
+
+ table_schema |          table_name           | table_type 
+--------------+-------------------------------+------------
+ public       | Companies                     | BASE TABLE
+ public       | FinancialStatementLineItems   | BASE TABLE
+ public       | FinancialStatementSourceItems | BASE TABLE
+ public       | FinancialStatements           | BASE TABLE
+(4 rows)
+
+          table_name           | privilege_type 
+-------------------------------+----------------
+ Companies                     | SELECT
+ FinancialStatementLineItems   | SELECT
+ FinancialStatementSourceItems | SELECT
+ FinancialStatements           | SELECT
+(4 rows)
+
+ column_name | data_type 
+-------------+-----------
+(0 rows)
+
+ column_name | data_type 
+-------------+-----------
+(0 rows)
+
+== Companies columns
+        column_name         |        data_type         
+----------------------------+--------------------------
+ Id                         | uuid
+ ProviderName               | text
+ ExternalCompanyId          | text
+ Name                       | text
+ LastSynchronizedAt         | timestamp with time zone
+ CompanyIsin                | text
+ CompanySymbol              | text
+ GroupId                    | uuid
+ IndustryId                 | uuid
+ InstrumentCode             | text
+ InstrumentRefPlaceholder   | text
+ MarketId                   | uuid
+ NameEnglish                | text
+ SourceModifiedAt           | timestamp with time zone
+ SymbolIsin                 | text
+ TseSymbol                  | text
+ AcceptionDateGregorian     | text
+ AcceptionDateJalali        | text
+ BusinessStartDateGregorian | text
+ BusinessStartDateJalali    | text
+ CompanyCode                | text
+ CompanySymbolEnglish       | text
+ CompanySymbolPinglish      | text
+ EnlistedDateGregorian      | text
+ EnlistedDateJalali         | text
+ EstablishmentDateGregorian | text
+ EstablishmentDateJalali    | text
+ FundTypeId                 | integer
+ FundTypeTitle              | text
+ InExchange                 | integer
+ IpoDateGregorian           | text
+ IpoDateJalali              | text
+ MarketBoard                | text
+ NationalId                 | text
+ PrecedencyRight            | integer
+ RegistrationCity           | text
+ RegistrationDateGregorian  | text
+ RegistrationDateJalali     | text
+ RegistrationNumber         | text
+ RegistrationProvince       | text
+ LogicalVendor              | character varying
+ SourceMode                 | character varying
+ EnTicker                   | character varying
+ Ticker                     | character varying
+ ReportingType              | integer
+(45 rows)
+
+== Fixture companies
+                  Id                  |    ProviderName    | ExternalCompanyId | CompanySymbol | TseSymbol |     Name     
+--------------------------------------+--------------------+-------------------+---------------+-----------+--------------
+ 225ff342-3a18-4796-9e86-6af20691bbb2 | NoavaranCurrentApi | 167               | شگل           | شگل       | گلتاش
+ 7ac9fcd3-fba5-42eb-b484-fa313faf07b1 | NoavaranCurrentApi | 290               | فاذر          | فاذر      | صنایع آذر آب
+ 308d5136-079d-489b-a8d3-8db222706f41 | NoavaranCurrentApi | 452               | وبملت         | وبملت     | بانک ملت
+(3 rows)
+
+== E-4 fixture statements (BalanceSheet, NoavaranCurrentApi)
+ ExternalCompanyId |                  Id                  | ExternalStatementId |  PeriodType  | PeriodEnd  | IsAudited | IsRepresented | IsComposing | PublishedAt | company_id_blank 
+-------------------+--------------------------------------+---------------------+--------------+------------+-----------+---------------+-------------+-------------+------------------
+ 167               | edaa0f04-22dd-4f99-b9ef-fdd5e18bd06b | 388474              | ThreeMonths  | 2026-03-20 | f         | f             | f           |             | t
+ 167               | 6e377554-175a-403a-84a7-b810bf58752d | 387608              | TwelveMonths | 2025-12-21 | t         | f             | f           |             | t
+ 167               | 462dd3d5-5a40-4785-bbf8-a9a1c9637e4d | 387608              | TwelveMonths | 2025-12-21 | f         | f             | f           |             | t
+ 167               | 58192164-01b6-4931-a981-551b81495bf9 | 382183              | NineMonths   | 2025-09-22 | f         | f             | f           |             | t
+ 167               | daab1ea3-be53-4474-8c8d-2e1108b1b368 | 383026              | SixMonths    | 2025-06-21 | f         | f             | f           |             | t
+ 167               | 975cd431-e365-4a16-bc52-24d875187e93 | 373612              | ThreeMonths  | 2025-03-20 | f         | f             | f           |             | t
+ 167               | 814749cc-edf4-4464-beab-7939cde10d3b | 387609              | TwelveMonths | 2024-12-20 | f         | f             | f           |             | t
+ 167               | 08742354-5f00-4133-86cf-42f740d8df68 | 387609              | TwelveMonths | 2024-12-20 | t         | t             | f           |             | t
+ 167               | 1a055115-a016-427c-8b1b-b47d4893313a | 368623              | NineMonths   | 2024-09-21 | f         | f             | f           |             | t
+ 167               | dbf51161-5a11-4a06-a60a-90fe65b0dc84 | 367411              | SixMonths    | 2024-06-20 | t         | f             | f           |             | t
+ 167               | 51060095-22b5-47cc-a348-c0703d19dc6b | 367411              | SixMonths    | 2024-06-20 | f         | f             | f           |             | t
+ 167               | 7921cf0a-9701-4697-ba7d-c5b4f095c698 | 360446              | ThreeMonths  | 2024-03-19 | f         | f             | f           |             | t
+ 290               | 4cc567ec-99a8-41a7-8766-f14d93fddb0b | 403362              | ThreeMonths  | 2026-06-21 | f         | f             | f           | 2026-07-21  | t
+ 290               | 7ccff89c-d834-4cf7-ac83-664e0dc6d0b1 | 394350              | TwelveMonths | 2026-03-20 | f         | f             | f           |             | t
+ 290               | 2180a011-8510-4149-b7f5-11768db0fddf | 394349              | TwelveMonths | 2026-03-20 | f         | f             | f           |             | t
+ 290               | 2005ade7-6d2d-4c8d-ae30-2a1e0644c518 | 394350              | TwelveMonths | 2026-03-20 | f         | f             | t           |             | t
+ 290               | 5b8eabd4-575f-4dc0-a404-b5d2041334ca | 386232              | NineMonths   | 2025-12-21 | f         | f             | f           |             | t
+ 290               | 578ee778-cfaf-4060-9ae1-960a3d104efc | 384549              | SixMonths    | 2025-09-22 | f         | f             | f           |             | t
+ 290               | eca33954-edf0-4984-9cb9-058d762547da | 384548              | SixMonths    | 2025-09-22 | t         | f             | f           |             | t
+ 290               | fb93d217-8a36-4e4e-a76a-a3644a273bf7 | 384549              | SixMonths    | 2025-09-22 | t         | f             | t           |             | t
+ 290               | 413dcc99-667d-49f2-a041-02d6d904f8cb | 377381              | ThreeMonths  | 2025-06-21 | f         | f             | f           |             | t
+ 290               | 85b23f56-ee8b-40e1-9f27-34575a8541f8 | 376697              | TwelveMonths | 2025-03-20 | f         | f             | f           |             | t
+ 290               | e993abf7-2afb-435d-b770-24dacb45c090 | 376695              | TwelveMonths | 2025-03-20 | t         | f             | f           |             | t
+ 290               | 52ffab91-ba93-4d0c-b040-5b5a6690a424 | 376697              | TwelveMonths | 2025-03-20 | t         | f             | t           |             | t
+ 290               | e6ae12a2-80b2-4cb7-be8c-80ad8a2927f3 | 371261              | NineMonths   | 2024-12-20 | f         | f             | f           |             | t
+ 290               | 7acb8f82-9b15-4d7e-afa3-75c7f9ba88cd | 370055              | SixMonths    | 2024-09-21 | f         | f             | f           |             | t
+ 290               | 88a3df36-13ff-4cd0-8d9d-28015ec10f59 | 370054              | SixMonths    | 2024-09-21 | t         | f             | f           |             | t
+ 290               | cce71ce3-6db1-410d-94b1-042d52709a8c | 370055              | SixMonths    | 2024-09-21 | t         | f             | t           |             | t
+ 290               | 9d9e1894-e8b8-4fa7-bf0d-ed4143f92385 | 366698              | ThreeMonths  | 2024-06-20 | f         | f             | f           |             | t
+ 452               | 4ce25b02-7ca8-44c2-a71a-7520ac65cf90 | 409865              | SixMonths    | 2026-09-22 | f         | f             | f           | 2026-10-22  | t
+ 452               | d0855f5e-f53f-44d1-8404-fe3afa08e5ed | 403733              | ThreeMonths  | 2026-06-21 | f         | f             | f           | 2026-07-21  | t
+ 452               | f797c618-8495-49df-beaf-4238762337b9 | 403749              | TwelveMonths | 2026-03-20 | t         | f             | f           | 2026-07-22  | t
+ 452               | e31f6490-de70-4bcc-9b8e-47dea19675cb | 394247              | TwelveMonths | 2026-03-20 | f         | f             | f           |             | t
+ 452               | 6a4d2e68-0103-4454-af1c-bf84d86b724b | 385967              | NineMonths   | 2025-12-21 | f         | f             | f           | 2026-01-18  | t
+ 452               | 88c595cd-d204-41f7-935a-7913f522ad38 | 384526              | SixMonths    | 2025-09-22 | t         | f             | f           | 2025-12-04  | t
+ 452               | d2a10a0f-829b-4f90-8430-711057e7959f | 384526              | SixMonths    | 2025-09-22 | f         | f             | f           |             | t
+ 452               | 98bf8d75-e38b-4ad6-adf2-44d0f131aab6 | 377564              | ThreeMonths  | 2025-06-21 | f         | f             | f           | 2025-07-21  | t
+ 452               | 4e37d3e6-933d-47c7-9866-500d2fb62510 | 377481              | TwelveMonths | 2025-03-20 | t         | f             | f           |             | t
+ 452               | f2dc664e-4044-4ef9-9d70-aa8fe56a5b67 | 377481              | TwelveMonths | 2025-03-20 | f         | f             | f           |             | t
+ 452               | bc56eced-d345-4545-8798-b259609edb65 | 371456              | NineMonths   | 2024-12-20 | f         | f             | f           |             | t
+ 452               | 4854ff95-7905-40c0-8382-0bdcb291cdd0 | 370048              | SixMonths    | 2024-09-21 | f         | f             | f           |             | t
+ 452               | aa734696-e128-4856-b3f0-aaad3e4287fb | 370047              | SixMonths    | 2024-09-21 | t         | f             | f           |             | t
+ 452               | 8f81eb9a-632e-4bda-a6ff-c3c3dd08c4db | 370048              | SixMonths    | 2024-09-21 | t         | f             | t           |             | t
+ 452               | 71a65549-aa2b-44a9-ae05-96a6a1ec9a5b | 366293              | ThreeMonths  | 2024-06-20 | f         | f             | f           |             | t
+(44 rows)
+
+== Statement 409865 / 403733 any type
+                  Id                  | ExternalCompanyId | ExternalStatementId | StatementType | PeriodType  | PeriodEnd  | IsAudited | IsRepresented | IsComposing | PublishedAt 
+--------------------------------------+-------------------+---------------------+---------------+-------------+------------+-----------+---------------+-------------+-------------
+ d0855f5e-f53f-44d1-8404-fe3afa08e5ed | 452               | 403733              | BalanceSheet  | ThreeMonths | 2026-06-21 | f         | f             | f           | 2026-07-21
+ 4ce25b02-7ca8-44c2-a71a-7520ac65cf90 | 452               | 409865              | BalanceSheet  | SixMonths   | 2026-09-22 | f         | f             | f           | 2026-10-22
+(2 rows)
+
+== Fixture item values at 2026-09-22 standalone (primaries and candidates)
+ ExternalCompanyId | ExternalStatementId | SourceItemId |               TitleFa                |    Value    
+-------------------+---------------------+--------------+--------------------------------------+-------------
+ 452               | 409865              |            1 | موجودی نقد                           |  3536996227
+ 452               | 409865              |            4 | مطالبات از بانک‌ها و موسسات اعتباری   |  2207758628
+ 452               | 409865              |           21 | دارایی‌های ثابت مشهود                 |  1653197643
+ 452               | 409865              |           39 | بدهی به بانک‌ها و موسسات اعتباری      |  8454139269
+ 452               | 409865              |           57 | سرمایه                               |  3382000000
+ 452               | 409865              |           58 | وجوه ناشی از افزایش سرمایه           |           0
+ 452               | 409865              |           60 | صرف سهام                             |           0
+ 452               | 409865              |           64 | مازاد تجدید ارزیابی                  |   141977075
+ 452               | 409865              |           71 | سود (زیان) انباشته                   |  2021921399
+ 452               | 409865              |          135 | جمع دارایی‌های جاری                   | 51498227670
+ 452               | 409865              |          137 | جمع دارایی‌های غیر جاری               |  7612077011
+ 452               | 409865              |          138 | جمع کل دارایی‌ها                      | 59110304681
+ 452               | 409865              |          139 | جمع بدهی‌های جاری                     | 52501759193
+ 452               | 409865              |          140 | جمع بدهی‌های غیر جاری                 |   126830069
+ 452               | 409865              |          143 | جمع کل بدهی‌ها                        | 52628589262
+ 452               | 409865              |          145 | خالص سرمایه در گردش                  | -1003531523
+ 452               | 409865              |          146 | جمع اندوخته‌ها                        |  1031013395
+ 452               | 409865              |          147 | جمع حقوق صاحبان سهام                 |  6481715419
+ 452               | 409865              |          148 | جمع بدهی‌ها و حقوق صاحبان سهام        | 59110304681
+ 452               | 409865              |          160 | جمع حقوق صاحبان سهام شرکت اصلی       |  6481715419
+ 452               | 409865              |          170 | سهام خزانه                           |  -181354538
+ 452               | 409865              |          223 | مجموع سپرده های جذب شده              | 27590264476
+ 452               | 409865              |          286 | نوع دوره مالی                        |           6
+ 452               | 409865              |          291 | مجموع تسهیلات اعطایی                 | 45209234799
+ 452               | 409865              |          300 | جمع کل دارایی‌ها - کدال               | 59110304681
+ 452               | 409865              |          303 | جمع کل بدهی‌ها - کدال                 | 52628589262
+ 452               | 409865              |          304 | جمع حقوق صاحبان سهام - کدال          |  6481715419
+ 452               | 409865              |          305 | جمع بدهی‌ها و حقوق صاحبان سهام - کدال | 59110304681
+(28 rows)
+
+== E-3 JalaliFiscalYearEnd evidence for fixture BS records
+ ExternalCompanyId | ExternalStatementId |  PeriodType  | PeriodEnd  | IsComposing | fye |    scale     
+-------------------+---------------------+--------------+------------+-------------+-----+--------------
+ 167               | 388474              | ThreeMonths  | 2026-03-20 | f           |     | MillionRials
+ 167               | 387608              | TwelveMonths | 2025-12-21 | f           |     | MillionRials
+ 167               | 387608              | TwelveMonths | 2025-12-21 | f           |     | MillionRials
+ 167               | 382183              | NineMonths   | 2025-09-22 | f           |     | MillionRials
+ 167               | 383026              | SixMonths    | 2025-06-21 | f           |     | MillionRials
+ 167               | 373612              | ThreeMonths  | 2025-03-20 | f           |     | MillionRials
+ 167               | 387609              | TwelveMonths | 2024-12-20 | f           |     | MillionRials
+ 167               | 387609              | TwelveMonths | 2024-12-20 | f           |     | MillionRials
+ 167               | 368623              | NineMonths   | 2024-09-21 | f           |     | MillionRials
+ 167               | 367411              | SixMonths    | 2024-06-20 | f           |     | MillionRials
+ 167               | 367411              | SixMonths    | 2024-06-20 | f           |     | MillionRials
+ 167               | 360446              | ThreeMonths  | 2024-03-19 | f           |     | MillionRials
+ 290               | 403362              | ThreeMonths  | 2026-06-21 | f           |     | MillionRials
+ 290               | 394349              | TwelveMonths | 2026-03-20 | f           |     | MillionRials
+ 290               | 394350              | TwelveMonths | 2026-03-20 | f           |     | MillionRials
+ 290               | 394350              | TwelveMonths | 2026-03-20 | t           |     | MillionRials
+ 290               | 386232              | NineMonths   | 2025-12-21 | f           |     | MillionRials
+ 290               | 384549              | SixMonths    | 2025-09-22 | f           |     | MillionRials
+ 290               | 384548              | SixMonths    | 2025-09-22 | f           |     | MillionRials
+ 290               | 384549              | SixMonths    | 2025-09-22 | t           |     | MillionRials
+ 290               | 377381              | ThreeMonths  | 2025-06-21 | f           |     | MillionRials
+ 290               | 376697              | TwelveMonths | 2025-03-20 | t           |     | MillionRials
+ 290               | 376695              | TwelveMonths | 2025-03-20 | f           |     | MillionRials
+ 290               | 376697              | TwelveMonths | 2025-03-20 | f           |     | MillionRials
+ 290               | 371261              | NineMonths   | 2024-12-20 | f           |     | MillionRials
+ 290               | 370055              | SixMonths    | 2024-09-21 | t           |     | MillionRials
+ 290               | 370055              | SixMonths    | 2024-09-21 | f           |     | MillionRials
+ 290               | 370054              | SixMonths    | 2024-09-21 | f           |     | MillionRials
+ 290               | 366698              | ThreeMonths  | 2024-06-20 | f           |     | MillionRials
+ 452               | 409865              | SixMonths    | 2026-09-22 | f           |     | MillionRials
+ 452               | 403733              | ThreeMonths  | 2026-06-21 | f           |     | MillionRials
+ 452               | 394247              | TwelveMonths | 2026-03-20 | f           |     | MillionRials
+ 452               | 403749              | TwelveMonths | 2026-03-20 | f           |     | MillionRials
+ 452               | 385967              | NineMonths   | 2025-12-21 | f           |     | MillionRials
+ 452               | 384526              | SixMonths    | 2025-09-22 | f           |     | MillionRials
+ 452               | 384526              | SixMonths    | 2025-09-22 | f           |     | MillionRials
+ 452               | 377564              | ThreeMonths  | 2025-06-21 | f           |     | MillionRials
+ 452               | 377481              | TwelveMonths | 2025-03-20 | f           |     | MillionRials
+ 452               | 377481              | TwelveMonths | 2025-03-20 | f           |     | MillionRials
+ 452               | 371456              | NineMonths   | 2024-12-20 | f           |     | MillionRials
+ 452               | 370048              | SixMonths    | 2024-09-21 | t           |     | MillionRials
+ 452               | 370047              | SixMonths    | 2024-09-21 | f           |     | MillionRials
+ 452               | 370048              | SixMonths    | 2024-09-21 | f           |     | MillionRials
+ 452               | 366293              | ThreeMonths  | 2024-06-20 | f           |     | MillionRials
+(44 rows)
+
+ ExternalStatementId | PeriodEnd  |                                                                                                                                                                                                                                                     left                                                                                                                                                                                                                                                      
+---------------------+------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 403733              | 2026-06-21 | [{"code":"NadpcoApiStatementSelection","statementID":403733,"sourceStatementType":"BalanceSheet","bourseSymbol":"\u0648\u0628\u0645\u0644\u062A","fullTitle":"\u0628\u0627\u0646\u06A9 \u0645\u0644\u062A","isAudited":false,"isRepresented":false,"isComposing":false,"jalaliFiscalYearEnd":"1405/12/29","jalaliPeriodEnd":"1405/03/31","jalaliAnouncementDate":"1405/04/30","anouncementDate":"2026-07-21T23:41:33+03:30","assumedScale":"MillionRials","sourceAmountUnit":"N/A"}]
+ 409865              | 2026-09-22 | [{"code":"NadpcoApiStatementSelection","statementID":409865,"sourceStatementType":"BalanceSheet","bourseSymbol":"\u0648\u0628\u0645\u0644\u062A","fullTitle":"\u0628\u0627\u0646\u06A9 \u0645\u0644\u062A","isAudited":false,"isRepresented":false,"isComposing":false,"jalaliFiscalYearEnd":"1405/12/29","jalaliPeriodEnd":"1405/06/31","jalaliAnouncementDate":"1405/07/30","anouncementDate":"2026-10-22T20:58:05+03:30","assumedScale":"MillionRials","sourceAmountUnit":"N/A","invalidObservations":[]}]
+(2 rows)
+
+== E-5 eligible GroupIds (replicating the NoavaranEligibleCompanies view predicate on Companies)
+ ExternalCompanyId | CompanySymbol |               GroupId                | ReportingType | PrecedencyRight |               MarketId               
+-------------------+---------------+--------------------------------------+---------------+-----------------+--------------------------------------
+ 167               | شگل           | 97ac765e-c5d6-4e5d-b9de-eb9e0b4e806c |       1000000 |               0 | 037c69ad-f519-419f-ae62-59003b6b2428
+ 290               | فاذر          | baab0118-18a2-4adf-b668-c4c0bb05527d |       1000005 |               0 | 037c69ad-f519-419f-ae62-59003b6b2428
+ 452               | وبملت         | c96520f9-1d2e-444a-ab46-5bdffd3797d2 |       1000003 |               0 | 037c69ad-f519-419f-ae62-59003b6b2428
+(3 rows)
+
+== E-5 eligible companies in configured bank GroupId c96520f9-1d2e-444a-ab46-5bdffd3797d2
+ ExternalCompanyId | CompanySymbol | ReportingType 
+-------------------+---------------+---------------
+ 581               | دی            |       1000003
+ 449               | سامان         |       1000003
+ 461               | سمایه         |       1000003
+ 451               | وبصادر        |       1000003
+ 452               | وبملت         |       1000003
+ 396               | وپارس         |       1000003
+ 448               | وپاسار        |       1000003
+ 554               | وپست          |       1000003
+ 450               | وتجارت        |       1000003
+ 12485             | وخاور         |       1000003
+ 13057             | وسالت         |       1000003
+ 395               | وسینا         |       1000003
+ 12530             | وشهر          |       1000003
+ 393               | وکار          |       1000003
+ 597               | وگردش         |       1000003
+ 609               | وملل          |       1000003
+ 394               | ونوین         |       1000003
+(17 rows)
+
+== E-5 ReportingType 1000003 (Banking) eligible companies and their GroupIds
+               GroupId                | count 
+--------------------------------------+-------
+ c96520f9-1d2e-444a-ab46-5bdffd3797d2 |    17
+(1 row)
+
+== E-5 duplicate eligible rows per fixture company
+ ExternalCompanyId | count 
+-------------------+-------
+ 167               |     1
+ 290               |     1
+ 452               |     1
+(3 rows)
+
+== E-3 JalaliFiscalYearEnd per fixture company and statement type (distinct values)
+ ExternalCompanyId |  StatementType  |    fye     | count |    min     |    max     
+-------------------+-----------------+------------+-------+------------+------------
+ 167               | BalanceSheet    | 1403/09/30 |     6 | 2024-03-19 | 2024-12-20
+ 167               | BalanceSheet    | 1404/09/30 |     5 | 2025-03-20 | 2025-12-21
+ 167               | BalanceSheet    | 1405/09/30 |     1 | 2026-03-20 | 2026-03-20
+ 167               | CashFlow        | 1403/09/30 |     6 | 2024-03-19 | 2024-12-20
+ 167               | CashFlow        | 1404/09/30 |     5 | 2025-03-20 | 2025-12-21
+ 167               | CashFlow        | 1405/09/30 |     1 | 2026-03-20 | 2026-03-20
+ 167               | IncomeStatement | 1403/09/30 |     6 | 2024-03-19 | 2024-12-20
+ 167               | IncomeStatement | 1404/09/30 |     5 | 2025-03-20 | 2025-12-21
+ 167               | IncomeStatement | 1405/09/30 |     1 | 2026-03-20 | 2026-03-20
+ 290               | BalanceSheet    | 1403/12/30 |     8 | 2024-06-20 | 2025-03-20
+ 290               | BalanceSheet    | 1404/12/29 |     8 | 2025-06-21 | 2026-03-20
+ 290               | BalanceSheet    | 1405/12/29 |     1 | 2026-06-21 | 2026-06-21
+ 290               | CashFlow        | 1403/12/30 |     8 | 2024-06-20 | 2025-03-20
+ 290               | CashFlow        | 1404/12/29 |     8 | 2025-06-21 | 2026-03-20
+ 290               | CashFlow        | 1405/12/29 |     1 | 2026-06-21 | 2026-06-21
+ 290               | IncomeStatement | 1403/12/30 |     8 | 2024-06-20 | 2025-03-20
+ 290               | IncomeStatement | 1404/12/29 |     8 | 2025-06-21 | 2026-03-20
+ 290               | IncomeStatement | 1405/12/29 |     1 | 2026-06-21 | 2026-06-21
+ 452               | BalanceSheet    | 1403/12/30 |     7 | 2024-06-20 | 2025-03-20
+ 452               | BalanceSheet    | 1404/12/29 |     6 | 2025-06-21 | 2026-03-20
+ 452               | BalanceSheet    | 1405/12/29 |     2 | 2026-06-21 | 2026-09-22
+ 452               | CashFlow        | 1403/12/30 |     7 | 2024-06-20 | 2025-03-20
+ 452               | CashFlow        | 1404/12/29 |     6 | 2025-06-21 | 2026-03-20
+ 452               | CashFlow        | 1405/12/29 |     2 | 2026-06-21 | 2026-09-22
+ 452               | IncomeStatement | 1403/12/30 |     7 | 2024-06-20 | 2025-03-20
+ 452               | IncomeStatement | 1404/12/29 |     6 | 2025-06-21 | 2026-03-20
+ 452               | IncomeStatement | 1405/12/29 |     2 | 2026-06-21 | 2026-09-22
+(27 rows)
+
+== E-3 BS records lacking parseable fiscal-year end (all companies)
+ missing | total 
+---------+-------
+       0 | 12448
+(1 row)
+
+== E-3 transitional-year candidates: companies whose BS fiscal-year-end month changes
+ ExternalCompanyId | CompanySymbol | months  
+-------------------+---------------+---------
+ 12487             | ارفع          | {09,12}
+ 12548             | ومعین         | {09,10}
+ 12620             | ومشان         | {02,09}
+ 12638             | وتجارت21      | {09,12}
+ 12674             | کگل12         | {09,12}
+ 12692             | فجهان         | {09,12}
+ 12722             | کگل3          | {09,12}
+ 12872             | حگهر          | {09,12}
+ 12873             | کگل11         | {09,12}
+ 12878             | وخاور4        | {09,12}
+ 12939             | غپآذر         | {09,10}
+ 13042             | وپارس25       | {10,12}
+ 13097             | بکهنوج        | {09,10}
+ 13150             | غگلپا         | {09,10}
+ 13156             | آپ            | {10,12}
+(15 rows)
+
+== E-1 primary/candidate coexistence across standalone BalanceSheet statements (all companies)
+ primary_item | fallback_item | statements_with_any | both_present | primary_only | fallback_only | disagree 
+--------------+---------------+---------------------+--------------+--------------+---------------+----------
+          135 |           298 |                6857 |         6357 |          500 |             0 |        5
+          137 |           299 |                6857 |         6357 |          500 |             0 |        6
+          138 |           300 |                6857 |         6842 |           15 |             0 |       11
+          139 |           301 |                6857 |         6357 |          500 |             0 |        6
+          140 |           302 |                6857 |         6309 |          548 |             0 |        3
+          143 |           303 |                6857 |         6842 |           15 |             0 |       10
+          147 |           304 |                6857 |         6842 |           15 |             0 |        5
+          148 |           305 |                6857 |         6842 |           15 |             0 |       10
+          306 |           293 |                6372 |         6108 |            8 |           256 |        0
+          307 |           308 |                6372 |         6107 |            8 |           257 |        0
+(10 rows)
+
+== E-1 disagreement examples
+  p  |  f  | ExternalCompanyId | ExternalStatementId | PeriodEnd  | primary_value | fallback_value 
+-----+-----+-------------------+---------------------+------------+---------------+----------------
+ 135 | 298 | 111               | 384934              | 2025-09-22 |      13546643 |       14169366
+ 135 | 298 | 127               | 392265              | 2026-03-20 |       2707808 |        2601016
+ 135 | 298 | 14                | 392100              | 2026-03-20 |       6341001 |        6410636
+ 135 | 298 | 15610             | 382127              | 2024-09-21 |       4332666 |  4332666656477
+ 135 | 298 | 273               | 381961              | 2025-06-21 |       9654762 |        9656650
+ 137 | 299 | 111               | 384934              | 2025-09-22 |      25930378 |       25711542
+ 137 | 299 | 127               | 392265              | 2026-03-20 |        197179 |         197170
+ 137 | 299 | 14                | 392100              | 2026-03-20 |       1071336 |        3693183
+ 137 | 299 | 15610             | 382127              | 2024-09-21 |      73717188 | 73717187653768
+ 137 | 299 | 273               | 381961              | 2025-06-21 |      11208370 |       11126427
+ 137 | 299 | 740               | 378318              | 2025-06-21 |       2050792 |        1961906
+ 138 | 300 | 111               | 384934              | 2025-09-22 |      39477021 |       39880908
+ 138 | 300 | 127               | 392265              | 2026-03-20 |       2904987 |        2798186
+ 138 | 300 | 14                | 392100              | 2026-03-20 |       7412337 |       10103819
+ 138 | 300 | 15610             | 382127              | 2024-09-21 |      78049854 | 78049854310245
+ 138 | 300 | 273               | 381961              | 2025-06-21 |      20863132 |       20783077
+ 138 | 300 | 394               | 391587              | 2026-03-20 |    6258725516 |     6258725515
+ 138 | 300 | 396               | 385898              | 2025-12-21 |    7509675929 |     7509675928
+ 138 | 300 | 448               | 387606              | 2025-09-22 |   14398753565 |    14398753566
+ 138 | 300 | 448               | 381615              | 2025-03-20 |   12153508560 |    12153508561
+ 138 | 300 | 581               | 385075              | 2025-09-22 |    1529030929 |     1529030928
+ 138 | 300 | 740               | 378318              | 2025-06-21 |       2279062 |        2190176
+ 139 | 301 | 111               | 384934              | 2025-09-22 |      14048228 |       14713653
+ 139 | 301 | 127               | 392265              | 2026-03-20 |        828944 |         580796
+ 139 | 301 | 14                | 392100              | 2026-03-20 |        407358 |         476993
+ 139 | 301 | 15610             | 382127              | 2024-09-21 |      55603871 | 55603871146163
+ 139 | 301 | 1975              | 400309              | 2025-03-20 |     326187712 |      320598043
+ 139 | 301 | 273               | 381961              | 2025-06-21 |       8498809 |        7344501
+ 140 | 302 | 111               | 384934              | 2025-09-22 |       2912761 |        2975394
+ 140 | 302 | 15610             | 382127              | 2024-09-21 |       7507760 |  7507760150796
+(30 rows)
+
+== E-1 per-company coverage for fixture companies (latest 4 standalone BS)
+ ExternalCompanyId | ExternalStatementId | PeriodEnd  |                                                                                                                                          items                                                                                                                                           
+-------------------+---------------------+------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 167               | 388474              | 2026-03-20 | 135=30433549, 137=7909106, 138=38342655, 139=25742416, 140=927701, 143=26670117, 147=11672538, 148=38342655, 293=13869662, 298=30433549, 299=7909106, 300=38342655, 301=25742416, 302=927701, 303=26670117, 304=11672538, 305=38342655, 306=13869662, 307=14406886, 308=14406886
+ 167               | 387608              | 2025-12-21 | 135=23059153, 137=7843050, 138=30902203, 139=19581093, 140=536524, 143=20117617, 147=10784586, 148=30902203, 293=13638261, 298=23059153, 299=7843050, 300=30902203, 301=19581093, 302=536524, 303=20117617, 304=10784586, 305=30902203, 306=13638261, 307=9058298, 308=9058298
+ 290               | 403362              | 2026-06-21 | 135=47127677, 137=99629226, 138=146756903, 139=45795086, 140=7859230, 143=53654316, 147=93102587, 148=146756903, 293=36753822, 298=47127677, 299=99629226, 300=146756903, 301=45795086, 302=7859230, 303=53654316, 304=93102587, 305=146756903, 306=36753822, 307=30611284, 308=30611284
+ 290               | 394349              | 2026-03-20 | 135=43856637, 137=23246681, 138=67103318, 139=43071826, 140=2407952, 143=45479778, 147=21623540, 148=67103318, 293=32313262, 298=43856637, 299=23246681, 300=67103318, 301=43071826, 302=2407952, 303=45479778, 304=21623540, 305=67103318, 306=32313262, 307=18662576, 308=18662576
+ 290               | 386232              | 2025-12-21 | 135=39094951, 137=19727081, 138=58822032, 139=36118019, 140=2805835, 143=38923854, 147=19898178, 148=58822032, 293=29137155, 298=39094951, 299=19727081, 300=58822032, 301=36118019, 302=2805835, 303=38923854, 304=19898178, 305=58822032, 306=29137155, 307=16381539, 308=16381539
+ 452               | 409865              | 2026-09-22 | 135=51498227670, 137=7612077011, 138=59110304681, 139=52501759193, 140=126830069, 143=52628589262, 147=6481715419, 148=59110304681, 300=59110304681, 303=52628589262, 304=6481715419, 305=59110304681
+ 452               | 403733              | 2026-06-21 | 135=46977915066, 137=6269367251, 138=53247282317, 139=47081553813, 140=172689456, 143=47254243269, 147=5993039048, 148=53247282317, 300=53247282317, 303=47254243269, 304=5993039048, 305=53247282317
+ 452               | 394247              | 2026-03-20 | 135=42972435577, 137=6047565407, 138=49020000984, 139=29029135552, 140=13309523743, 143=42338659295, 147=6681341689, 148=49020000984, 300=49020000984, 303=42338659295, 304=6681341689, 305=49020000984
+ 452               | 403749              | 2026-03-20 | 135=41900074927, 137=6047565407, 138=47947640334, 139=29029135553, 140=13309523743, 143=42338659296, 147=5608981038, 148=47947640334, 300=47947640334, 303=42338659296, 304=5608981038, 305=47947640334
+ 452               | 385967              | 2025-12-21 | 135=28737978236, 137=5880527736, 138=34618505972, 139=29298472888, 140=88336965, 143=29386809853, 147=5231696119, 148=34618505972, 300=34618505972, 303=29386809853, 304=5231696119, 305=34618505972
+(10 rows)
+
+== E-2 restated BalanceSheet records (IsRepresented=true) and matching originals
+ ExternalCompanyId | ExternalStatementId | PeriodEnd  |  PeriodType  | IsAudited | IsComposing | PublishedAt | originals_same_date | original_statement_ids 
+-------------------+---------------------+------------+--------------+-----------+-------------+-------------+---------------------+------------------------
+ 1                 | 394572              | 2025-03-20 | TwelveMonths | t         | f           |             |                   2 | 375208,394572
+ 10                | 400270              | 2025-03-20 | TwelveMonths | t         | f           |             |                   2 | 375958,400121
+ 10                | 400272              | 2025-03-20 | TwelveMonths | t         | t           |             |                   0 | 
+ 1002              | 394263              | 2025-03-20 | TwelveMonths | t         | f           |             |                   2 | 375665,394263
+ 107               | 393654              | 2025-03-20 | TwelveMonths | t         | f           |             |                   2 | 375139,393656
+ 107               | 393656              | 2025-03-20 | TwelveMonths | t         | t           |             |                   0 | 
+ 111               | 394613              | 2025-03-20 | TwelveMonths | t         | f           |             |                   2 | 375714,394613
+ 112               | 393189              | 2025-03-20 | TwelveMonths | t         | f           |             |                   1 | 393189
+ 113               | 391616              | 2024-12-20 | TwelveMonths | t         | f           |             |                   1 | 391618
+ 113               | 391618              | 2024-12-20 | TwelveMonths | t         | t           |             |                   0 | 
+ 115               | 394529              | 2025-03-20 | TwelveMonths | t         | f           |             |                   2 | 376347,394529
+ 1157              | 388293              | 2024-12-20 | TwelveMonths | t         | f           |             |                   1 | 388293
+ 116               | 393256              | 2025-03-20 | TwelveMonths | t         | f           |             |                   1 | 393256
+ 1174              | 387922              | 2024-12-20 | TwelveMonths | t         | f           |             |                   1 | 387922
+ 120               | 386926              | 2024-11-20 | TwelveMonths | t         | f           |             |                   1 | 386928
+ 120               | 386928              | 2024-11-20 | TwelveMonths | t         | t           |             |                   0 | 
+ 121               | 393209              | 2025-03-20 | TwelveMonths | t         | f           |             |                   1 | 393204
+ 121               | 393204              | 2025-03-20 | TwelveMonths | t         | t           |             |                   0 | 
+ 1212              | 392254              | 2024-12-20 | TwelveMonths | t         | f           |             |                   1 | 392254
+ 1216              | 393257              | 2025-03-20 | TwelveMonths | t         | f           |             |                   1 | 393257
+ 12202             | 387102              | 2024-12-20 | TwelveMonths | t         | f           |             |                   1 | 387102
+ 12228             | 387738              | 2025-01-19 | TwelveMonths | t         | f           |             |                   1 | 387738
+ 12264             | 393583              | 2025-03-20 | TwelveMonths | t         | f           |             |                   1 | 393583
+ 12269             | 393264              | 2025-01-19 | TwelveMonths | t         | f           |             |                   1 | 393264
+ 1228              | 388257              | 2024-12-20 | TwelveMonths | t         | f           |             |                   1 | 388482
+(25 rows)
+
+== E-2 count of restated BS records
+ restated | companies 
+----------+-----------
+      484 |       357
+(1 row)
+
+== E-6 consolidated existence for fixture companies
+ ExternalCompanyId | has_consolidated | has_standalone 
+-------------------+------------------+----------------
+ 452               | t                | t
+ 167               | f                | t
+ 290               | t                | t
+(3 rows)
+
+== E-6 a company with consolidated BS but no standalone BS
+ ExternalCompanyId | CompanySymbol 
+-------------------+---------------
+(0 rows)
+
+== E-8 catalog titles for rows 1,306,18,19,21,307,45 and long-term siblings 50,74,79
+ SourceItemId |                TitleFa                | TitleEn | Unit 
+--------------+---------------------------------------+---------+------
+            1 | موجودی نقد                            |         | N/A
+           18 | موجودی مواد و کالا                    |         | N/A
+           19 | سفارشات و پیش پرداخت‌ها                |         | N/A
+           21 | دارایی‌های ثابت مشهود                  |         | N/A
+           45 | پیش دریافت‌ها                          |         | N/A
+           47 | تسهیلات مالی دریافتی کوتاه مدت        |         | N/A
+           50 | حساب‌ها و اسناد پرداختنی بلندمدت       |         | N/A
+           51 | تسهیلات مالی دریافتی بلند مدت         |         | N/A
+           74 | حسابها و اسناد دریافتنی بلند مدت      |         | N/A
+           79 | حصه بلندمدت پیش دریافت از مشتریان     |         | N/A
+          293 | مجموع دریافتنی های تجاری و غیر تجاری  |         | N/A
+          298 | جمع دارایی‌های جاری - کدال             |         | N/A
+          299 | جمع دارایی‌های غیر جاری - کدال         |         | N/A
+          300 | جمع کل دارایی‌ها - کدال                |         | N/A
+          301 | جمع بدهی‌های جاری - کدال               |         | N/A
+          302 | جمع بدهی‌های غیر جاری - کدال           |         | N/A
+          303 | جمع کل بدهی‌ها - کدال                  |         | N/A
+          304 | جمع حقوق صاحبان سهام - کدال           |         | N/A
+          305 | جمع بدهی‌ها و حقوق صاحبان سهام - کدال  |         | N/A
+          306 | دریافتنی های تجاری و سایر دریافتنی ها |         | N/A
+          307 | پرداختنی های تجاری و سایر پرداختنی ها |         | N/A
+          308 | مجموع پرداختنی های تجاری و غیر تجاری  |         | N/A
+(22 rows)
+
+
+== F154-V-02 live view re-check
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+== live NoavaranEligibleCompanies definition (pg_views)
+                                                                                                                                                    definition                                                                                                                                                     
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  SELECT c."Id",                                                                                                                                                                                                                                                                                                  +
+     c."ProviderName",                                                                                                                                                                                                                                                                                            +
+     c."ExternalCompanyId",                                                                                                                                                                                                                                                                                       +
+     c."Name",                                                                                                                                                                                                                                                                                                    +
+     c."LastSynchronizedAt",                                                                                                                                                                                                                                                                                      +
+     c."CompanyIsin",                                                                                                                                                                                                                                                                                             +
+     c."CompanySymbol",                                                                                                                                                                                                                                                                                           +
+     c."GroupId",                                                                                                                                                                                                                                                                                                 +
+     g."Name" AS "GroupTitle",                                                                                                                                                                                                                                                                                    +
+     c."IndustryId",                                                                                                                                                                                                                                                                                              +
+     i."Name" AS "IndustryTitle",                                                                                                                                                                                                                                                                                 +
+     c."InstrumentCode",                                                                                                                                                                                                                                                                                          +
+     c."InstrumentRefPlaceholder",                                                                                                                                                                                                                                                                                +
+     c."MarketId",                                                                                                                                                                                                                                                                                                +
+     c."NameEnglish",                                                                                                                                                                                                                                                                                             +
+     c."SourceModifiedAt",                                                                                                                                                                                                                                                                                        +
+     c."SymbolIsin",                                                                                                                                                                                                                                                                                              +
+     c."TseSymbol",                                                                                                                                                                                                                                                                                               +
+     c."AcceptionDateGregorian",                                                                                                                                                                                                                                                                                  +
+     c."AcceptionDateJalali",                                                                                                                                                                                                                                                                                     +
+     c."BusinessStartDateGregorian",                                                                                                                                                                                                                                                                              +
+     c."BusinessStartDateJalali",                                                                                                                                                                                                                                                                                 +
+     c."CompanyCode",                                                                                                                                                                                                                                                                                             +
+     c."CompanySymbolEnglish",                                                                                                                                                                                                                                                                                    +
+     c."CompanySymbolPinglish",                                                                                                                                                                                                                                                                                   +
+     c."EnlistedDateGregorian",                                                                                                                                                                                                                                                                                   +
+     c."EnlistedDateJalali",                                                                                                                                                                                                                                                                                      +
+     c."EstablishmentDateGregorian",                                                                                                                                                                                                                                                                              +
+     c."EstablishmentDateJalali",                                                                                                                                                                                                                                                                                 +
+     c."FundTypeId",                                                                                                                                                                                                                                                                                              +
+     c."FundTypeTitle",                                                                                                                                                                                                                                                                                           +
+     c."InExchange",                                                                                                                                                                                                                                                                                              +
+     c."IpoDateGregorian",                                                                                                                                                                                                                                                                                        +
+     c."IpoDateJalali",                                                                                                                                                                                                                                                                                           +
+     c."MarketBoard",                                                                                                                                                                                                                                                                                             +
+     c."NationalId",                                                                                                                                                                                                                                                                                              +
+     c."PrecedencyRight",                                                                                                                                                                                                                                                                                         +
+     c."RegistrationCity",                                                                                                                                                                                                                                                                                        +
+     c."RegistrationDateGregorian",                                                                                                                                                                                                                                                                               +
+     c."RegistrationDateJalali",                                                                                                                                                                                                                                                                                  +
+     c."RegistrationNumber",                                                                                                                                                                                                                                                                                      +
+     c."RegistrationProvince",                                                                                                                                                                                                                                                                                    +
+     c."LogicalVendor",                                                                                                                                                                                                                                                                                           +
+     c."SourceMode"                                                                                                                                                                                                                                                                                               +
+    FROM (("Companies" c                                                                                                                                                                                                                                                                                          +
+      JOIN "IndustryGroups" g ON ((c."GroupId" = g."Id")))                                                                                                                                                                                                                                                        +
+      JOIN "Industries" i ON ((c."IndustryId" = i."Id")))                                                                                                                                                                                                                                                         +
+   WHERE ((c."ProviderName" = 'NoavaranCurrentApi'::text) AND (c."PrecedencyRight" = 0) AND (c."MarketId" = ANY (ARRAY['037c69ad-f519-419f-ae62-59003b6b2428'::uuid, 'a3ccb30a-caed-4f26-a84a-ac0eb8c78c76'::uuid, '86c05022-632c-44cd-96c9-5c4f58c51ef5'::uuid, '78ea1ed8-3242-4081-9e09-e6dbf34090e5'::uuid])));
+(1 row)
+
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+== FK constraints on Companies (GroupId, IndustryId)
+               conname               |                             pg_get_constraintdef                             
+-------------------------------------+------------------------------------------------------------------------------
+ FK_Companies_Industries_IndustryId  | FOREIGN KEY ("IndustryId") REFERENCES "Industries"("Id") ON DELETE SET NULL
+ FK_Companies_IndustryGroups_GroupId | FOREIGN KEY ("GroupId") REFERENCES "IndustryGroups"("Id") ON DELETE SET NULL
+ FK_Companies_Markets_MarketId       | FOREIGN KEY ("MarketId") REFERENCES "Markets"("Id") ON DELETE SET NULL
+(3 rows)
+
+== E-5 with the live predicate (4 MarketIds; joins represented by non-null GroupId/IndustryId + FKs)
+ ExternalCompanyId | CompanySymbol |               GroupId                | has_industry | eligible_rows 
+-------------------+---------------+--------------------------------------+--------------+---------------
+ 167               | شگل           | 97ac765e-c5d6-4e5d-b9de-eb9e0b4e806c | t            |             1
+ 290               | فاذر          | baab0118-18a2-4adf-b668-c4c0bb05527d | t            |             1
+ 452               | وبملت         | c96520f9-1d2e-444a-ab46-5bdffd3797d2 | t            |             1
+(3 rows)
+
+== rows in the configured bank GroupId under the live predicate
+ bank_group_rows | banking_reporting_type 
+-----------------+------------------------
+              17 |                     17
+(1 row)
+

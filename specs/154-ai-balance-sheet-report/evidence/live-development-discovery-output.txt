@@ -1,0 +1,197 @@
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+== eligible companies (live predicate) for candidates
+ ExternalCompanyId | CompanySymbol |               GroupId                | ReportingType | has_industry 
+-------------------+---------------+--------------------------------------+---------------+--------------
+ 12548             | ومعین         | 3fa1c65c-a5c5-47b9-8a37-5fb258fe586f |       1000002 | t
+ 12620             | ومشان         | 3fa1c65c-a5c5-47b9-8a37-5fb258fe586f |       1000002 | t
+ 12939             | غپآذر         | bfb4bafe-f750-48e7-95a5-a204647a93df |       1000000 | t
+ 13097             | بکهنوج        | bda2fd40-b81c-4b13-b0f5-aed907b4a0b8 |       1000000 | t
+ 13150             | غگلپا         | bfb4bafe-f750-48e7-95a5-a204647a93df |       1000000 | t
+ 13156             | آپ            | f778f1d7-7ef3-4220-b99c-cbc983f21f93 |       1000005 | t
+ 167               | شگل           | 97ac765e-c5d6-4e5d-b9de-eb9e0b4e806c |       1000000 | t
+ 290               | فاذر          | baab0118-18a2-4adf-b668-c4c0bb05527d |       1000005 | t
+ 452               | وبملت         | c96520f9-1d2e-444a-ab46-5bdffd3797d2 |       1000003 | t
+(9 rows)
+
+== eligible standalone BS snapshots (scope-agreeing, MillionRials) with FYE
+ ExternalCompanyId | ExternalStatementId |  PeriodType  | PeriodEnd  | IsAudited | IsRepresented | PublishedAt |    fye     |    scale     | src_scope 
+-------------------+---------------------+--------------+------------+-----------+---------------+-------------+------------+--------------+-----------
+ 12548             | 403340              | SixMonths    | 2026-06-21 | t         | f             | 2026-07-21  | 1405/09/30 | MillionRials | false
+ 12548             | 385614              | TwelveMonths | 2025-12-21 | t         | f             | 2026-01-05  | 1404/09/30 | MillionRials | false
+ 12548             | 385614              | TwelveMonths | 2025-12-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12548             | 378304              | SixMonths    | 2025-06-21 | t         | f             | 2025-07-28  | 1404/09/30 | MillionRials | false
+ 12548             | 378304              | SixMonths    | 2025-06-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12548             | 385615              | TwelveMonths | 2024-12-20 | t         | t             |             | 1403/09/30 | MillionRials | false
+ 12548             | 371056              | TwelveMonths | 2024-12-20 | t         | f             |             | 1403/09/30 | MillionRials | false
+ 12548             | 371056              | TwelveMonths | 2024-12-20 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 12548             | 385615              | TwelveMonths | 2024-12-20 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 12548             | 367059              | SixMonths    | 2024-07-21 | t         | f             |             | 1403/10/30 | MillionRials | false
+ 12548             | 367059              | SixMonths    | 2024-07-21 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 12620             | 388310              | ThreeMonths  | 2026-03-20 | f         | f             |             | 1405/09/30 | MillionRials | false
+ 12620             | 387842              | TwelveMonths | 2025-12-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 12620             | 387842              | TwelveMonths | 2025-12-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12620             | 382055              | NineMonths   | 2025-09-22 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12620             | 378486              | SixMonths    | 2025-06-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 12620             | 378486              | SixMonths    | 2025-06-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12620             | 373169              | ThreeMonths  | 2025-03-20 | f         | f             |             | 1404/02/31 | MillionRials | false
+ 12620             | 387843              | TwelveMonths | 2024-12-20 | t         | t             |             | 1403/09/30 | MillionRials | false
+ 12620             | 372524              | TwelveMonths | 2024-12-20 | t         | f             |             | 1404/02/31 | MillionRials | false
+ 12620             | 372524              | TwelveMonths | 2024-12-20 | f         | f             |             | 1404/02/31 | MillionRials | false
+ 12620             | 387843              | TwelveMonths | 2024-12-20 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 12620             | 370486              | SixMonths    | 2024-11-20 | t         | f             |             | 1404/02/31 | MillionRials | false
+ 12620             | 370486              | SixMonths    | 2024-11-20 | f         | f             |             | 1404/02/31 | MillionRials | false
+ 12620             | 367656              | ThreeMonths  | 2024-08-21 | f         | f             |             | 1404/02/31 | MillionRials | false
+ 12939             | 388306              | ThreeMonths  | 2026-03-20 | f         | f             |             | 1405/09/30 | MillionRials | false
+ 12939             | 387364              | TwelveMonths | 2025-12-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 12939             | 387364              | TwelveMonths | 2025-12-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12939             | 382565              | NineMonths   | 2025-09-22 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12939             | 381322              | SixMonths    | 2025-06-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 12939             | 381322              | SixMonths    | 2025-06-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12939             | 373439              | ThreeMonths  | 2025-03-20 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 12939             | 387365              | TwelveMonths | 2024-12-20 | t         | t             |             | 1403/10/30 | MillionRials | false
+ 12939             | 387365              | TwelveMonths | 2024-12-20 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 12939             | 369311              | NineMonths   | 2024-10-21 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 12939             | 367602              | SixMonths    | 2024-07-21 | t         | f             |             | 1403/10/30 | MillionRials | false
+ 12939             | 367602              | SixMonths    | 2024-07-21 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 12939             | 362551              | ThreeMonths  | 2024-04-19 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13097             | 387517              | TwelveMonths | 2025-12-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 13097             | 383632              | NineMonths   | 2025-10-22 | f         | f             |             | 1404/10/30 | MillionRials | false
+ 13097             | 381751              | SixMonths    | 2025-07-22 | t         | f             |             | 1404/10/30 | MillionRials | false
+ 13097             | 381751              | SixMonths    | 2025-07-22 | f         | f             |             | 1404/10/30 | MillionRials | false
+ 13097             | 374966              | ThreeMonths  | 2025-04-20 | f         | f             |             | 1404/10/30 | MillionRials | false
+ 13097             | 374549              | TwelveMonths | 2025-01-19 | t         | f             |             | 1403/10/30 | MillionRials | false
+ 13097             | 374549              | TwelveMonths | 2025-01-19 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13097             | 370267              | NineMonths   | 2024-10-21 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13097             | 367677              | SixMonths    | 2024-07-21 | t         | f             |             | 1403/10/30 | MillionRials | false
+ 13097             | 367677              | SixMonths    | 2024-07-21 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13097             | 362588              | ThreeMonths  | 2024-04-19 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13150             | 388385              | ThreeMonths  | 2026-03-20 | f         | f             |             | 1405/09/30 | MillionRials | false
+ 13150             | 387288              | TwelveMonths | 2025-12-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 13150             | 387288              | TwelveMonths | 2025-12-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 13150             | 382427              | NineMonths   | 2025-09-22 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 13150             | 381131              | SixMonths    | 2025-06-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 13150             | 381131              | SixMonths    | 2025-06-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 13150             | 373362              | ThreeMonths  | 2025-03-20 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 13150             | 387289              | TwelveMonths | 2024-12-20 | t         | t             |             | 1403/10/30 | MillionRials | false
+ 13150             | 387289              | TwelveMonths | 2024-12-20 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13150             | 369298              | NineMonths   | 2024-10-21 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13150             | 367615              | SixMonths    | 2024-07-21 | t         | f             |             | 1403/10/30 | MillionRials | false
+ 13150             | 367615              | SixMonths    | 2024-07-21 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13150             | 362642              | ThreeMonths  | 2024-04-19 | f         | f             |             | 1403/10/30 | MillionRials | false
+ 13156             | 392105              | ThreeMonths  | 2026-04-20 | f         | f             |             | 1405/10/30 | MillionRials | false
+ 13156             | 387750              | TwelveMonths | 2026-01-20 | t         | f             |             | 1404/12/29 | MillionRials | false
+ 13156             | 387751              | TwelveMonths | 2026-01-20 | f         | f             |             | 1404/12/29 | MillionRials | true
+ 13156             | 386348              | NineMonths   | 2025-12-21 | f         | f             |             | 1404/10/30 | MillionRials | false
+ 13156             | 385418              | SixMonths    | 2025-09-22 | t         | f             |             | 1404/12/29 | MillionRials | false
+ 13156             | 385419              | SixMonths    | 2025-09-22 | f         | f             |             | 1404/12/29 | MillionRials | true
+ 13156             | 378578              | ThreeMonths  | 2025-06-21 | f         | f             |             | 1404/12/29 | MillionRials | false
+ 13156             | 387720              | TwelveMonths | 2025-03-20 | t         | t             |             | 1403/12/30 | MillionRials | false
+ 13156             | 376279              | TwelveMonths | 2025-03-20 | t         | f             |             | 1403/12/30 | MillionRials | false
+ 13156             | 376281              | TwelveMonths | 2025-03-20 | f         | f             |             | 1403/12/30 | MillionRials | true
+ 13156             | 387722              | TwelveMonths | 2025-03-20 | f         | f             |             | 1403/12/30 | MillionRials | true
+ 13156             | 371414              | NineMonths   | 2024-12-20 | f         | f             |             | 1403/12/30 | MillionRials | false
+ 13156             | 370125              | SixMonths    | 2024-09-21 | t         | f             |             | 1403/12/30 | MillionRials | false
+ 13156             | 370126              | SixMonths    | 2024-09-21 | f         | f             |             | 1403/12/30 | MillionRials | true
+ 13156             | 366566              | ThreeMonths  | 2024-06-20 | f         | f             |             | 1403/12/30 | MillionRials | false
+ 167               | 388474              | ThreeMonths  | 2026-03-20 | f         | f             |             | 1405/09/30 | MillionRials | false
+ 167               | 387608              | TwelveMonths | 2025-12-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 167               | 387608              | TwelveMonths | 2025-12-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 167               | 382183              | NineMonths   | 2025-09-22 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 167               | 383026              | SixMonths    | 2025-06-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 167               | 373612              | ThreeMonths  | 2025-03-20 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 167               | 387609              | TwelveMonths | 2024-12-20 | t         | t             |             | 1403/09/30 | MillionRials | false
+ 167               | 387609              | TwelveMonths | 2024-12-20 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 167               | 368623              | NineMonths   | 2024-09-21 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 167               | 367411              | SixMonths    | 2024-06-20 | t         | f             |             | 1403/09/30 | MillionRials | false
+ 167               | 367411              | SixMonths    | 2024-06-20 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 167               | 360446              | ThreeMonths  | 2024-03-19 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 290               | 403362              | ThreeMonths  | 2026-06-21 | f         | f             | 2026-07-21  | 1405/12/29 | MillionRials | false
+ 290               | 394349              | TwelveMonths | 2026-03-20 | f         | f             |             | 1404/12/29 | MillionRials | false
+ 290               | 394350              | TwelveMonths | 2026-03-20 | f         | f             |             | 1404/12/29 | MillionRials | true
+ 290               | 386232              | NineMonths   | 2025-12-21 | f         | f             |             | 1404/12/29 | MillionRials | false
+ 290               | 384548              | SixMonths    | 2025-09-22 | t         | f             |             | 1404/12/29 | MillionRials | false
+ 290               | 384549              | SixMonths    | 2025-09-22 | f         | f             |             | 1404/12/29 | MillionRials | true
+ 290               | 377381              | ThreeMonths  | 2025-06-21 | f         | f             |             | 1404/12/29 | MillionRials | false
+ 290               | 376695              | TwelveMonths | 2025-03-20 | t         | f             |             | 1403/12/30 | MillionRials | false
+ 290               | 376697              | TwelveMonths | 2025-03-20 | f         | f             |             | 1403/12/30 | MillionRials | true
+ 290               | 371261              | NineMonths   | 2024-12-20 | f         | f             |             | 1403/12/30 | MillionRials | false
+ 290               | 370054              | SixMonths    | 2024-09-21 | t         | f             |             | 1403/12/30 | MillionRials | false
+ 290               | 370055              | SixMonths    | 2024-09-21 | f         | f             |             | 1403/12/30 | MillionRials | true
+ 290               | 366698              | ThreeMonths  | 2024-06-20 | f         | f             |             | 1403/12/30 | MillionRials | false
+ 452               | 409865              | SixMonths    | 2026-09-22 | f         | f             | 2026-10-22  | 1405/12/29 | MillionRials | false
+ 452               | 403733              | ThreeMonths  | 2026-06-21 | f         | f             | 2026-07-21  | 1405/12/29 | MillionRials | false
+ 452               | 403749              | TwelveMonths | 2026-03-20 | t         | f             | 2026-07-22  | 1404/12/29 | MillionRials | false
+ 452               | 394247              | TwelveMonths | 2026-03-20 | f         | f             |             | 1404/12/29 | MillionRials | false
+ 452               | 385967              | NineMonths   | 2025-12-21 | f         | f             | 2026-01-18  | 1404/12/29 | MillionRials | false
+ 452               | 384526              | SixMonths    | 2025-09-22 | t         | f             | 2025-12-04  | 1404/12/29 | MillionRials | false
+ 452               | 384526              | SixMonths    | 2025-09-22 | f         | f             |             | 1404/12/29 | MillionRials | false
+ 452               | 377564              | ThreeMonths  | 2025-06-21 | f         | f             | 2025-07-21  | 1404/12/29 | MillionRials | false
+ 452               | 377481              | TwelveMonths | 2025-03-20 | t         | f             |             | 1403/12/30 | MillionRials | false
+ 452               | 377481              | TwelveMonths | 2025-03-20 | f         | f             |             | 1403/12/30 | MillionRials | false
+ 452               | 371456              | NineMonths   | 2024-12-20 | f         | f             |             | 1403/12/30 | MillionRials | false
+ 452               | 370047              | SixMonths    | 2024-09-21 | t         | f             |             | 1403/12/30 | MillionRials | false
+ 452               | 370048              | SixMonths    | 2024-09-21 | f         | f             |             | 1403/12/30 | MillionRials | true
+ 452               | 366293              | ThreeMonths  | 2024-06-20 | f         | f             |             | 1403/12/30 | MillionRials | false
+(116 rows)
+
+
+######## AC-S01 identity check (2026-11-05)
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+== AC-S01: selected anchor row identity and CompanyId
+                  Id                  | ExternalStatementId | ExternalCompanyId |    ProviderName    | company_id_null | PeriodEnd  | PeriodType 
+--------------------------------------+---------------------+-------------------+--------------------+-----------------+------------+------------
+ 4ce25b02-7ca8-44c2-a71a-7520ac65cf90 | 409865              | 452               | NoavaranCurrentApi | t               | 2026-09-22 | SixMonths
+(1 row)
+
+== all rows for ExternalStatementId 409865
+                  Id                  | StatementType | IsComposing | company_id_null 
+--------------------------------------+---------------+-------------+-----------------
+ 4ce25b02-7ca8-44c2-a71a-7520ac65cf90 | BalanceSheet  | f           | t
+(1 row)
+
+
+######## F154-V-05 candidates (2026-11-05)
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+== F154-V-05 candidates: live predicate classification
+ ExternalCompanyId | CompanySymbol |               GroupId                | has_industry 
+-------------------+---------------+--------------------------------------+--------------
+ 15763             | منجیل         | bda2fd40-b81c-4b13-b0f5-aed907b4a0b8 | t
+ 236               | ساربیل        | b761049c-0137-4003-b6ce-2d163a853513 | t
+(2 rows)
+
+== F154-V-05 candidates: standalone BS snapshots with FYE (2024-03-01 onward)
+ ExternalCompanyId | ExternalStatementId |  PeriodType  | PeriodEnd  | IsAudited | IsRepresented | PublishedAt |    fye     |    scale     | src_scope 
+-------------------+---------------------+--------------+------------+-----------+---------------+-------------+------------+--------------+-----------
+ 15763             | 409088              | NineMonths   | 2026-09-22 | f         | f             | 2026-10-14  | 1405/09/30 | MillionRials | false
+ 15763             | 404753              | SixMonths    | 2026-06-21 | t         | f             | 2026-08-22  | 1405/09/30 | MillionRials | false
+ 15763             | 404745              | ThreeMonths  | 2026-03-20 | f         | f             | 2026-08-11  | 1405/09/30 | MillionRials | false
+ 15763             | 404769              | TwelveMonths | 2025-12-21 | t         | f             | 2026-06-27  | 1404/09/30 | MillionRials | false
+ 15763             | 404751              | SixMonths    | 2025-06-21 | t         | f             | 2026-06-27  | 1404/09/30 | MillionRials | false
+ 236               | 409030              | NineMonths   | 2026-09-22 | f         | f             | 2026-10-12  | 1405/09/30 | MillionRials | false
+ 236               | 388181              | ThreeMonths  | 2026-03-20 | f         | f             |             | 1405/09/30 | MillionRials | false
+ 236               | 387010              | TwelveMonths | 2025-12-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 236               | 387010              | TwelveMonths | 2025-12-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 236               | 382074              | NineMonths   | 2025-09-22 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 236               | 380993              | SixMonths    | 2025-06-21 | t         | f             |             | 1404/09/30 | MillionRials | false
+ 236               | 380993              | SixMonths    | 2025-06-21 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 236               | 373167              | ThreeMonths  | 2025-03-20 | f         | f             |             | 1404/09/30 | MillionRials | false
+ 236               | 387011              | TwelveMonths | 2024-12-20 | t         | t             |             | 1403/09/30 | MillionRials | false
+ 236               | 387011              | TwelveMonths | 2024-12-20 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 236               | 368168              | NineMonths   | 2024-09-21 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 236               | 367337              | SixMonths    | 2024-06-20 | t         | f             |             | 1403/09/30 | MillionRials | false
+ 236               | 367337              | SixMonths    | 2024-06-20 | f         | f             |             | 1403/09/30 | MillionRials | false
+ 236               | 360032              | ThreeMonths  | 2024-03-19 | f         | f             |             | 1403/09/30 | MillionRials | false
+(19 rows)
+

@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, LogOut, Settings, Send, RefreshCw } from "lucide-react";
+import { Plus, Trash2, LogOut, Settings, Send, RefreshCw, MessageSquare, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
 import { SapioMark } from "@/components/app/sapio-mark";
 import { createThread } from "@/lib/chat.functions";
 import { useConversations, useDeleteConversation, useUsage } from "@/lib/workspace/queries";
@@ -21,7 +21,7 @@ const CREDIT_TONE_CLASS: Record<CreditTone, string> = {
   danger: "bg-rose",
 };
 
-export function ConversationSidebar() {
+export function ConversationSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const params = useParams({ strict: false });
@@ -73,15 +73,47 @@ export function ConversationSidebar() {
     navigate({ to: "/auth" });
   }
 
+  if (collapsed) {
+    return (
+      <aside className="hidden h-screen w-[4.5rem] shrink-0 flex-col items-center border-l border-hairline bg-surface/70 py-4 md:flex" aria-label="نوار گفتگو">
+        <Link to="/chat" className="mb-3 rounded-xl p-2 transition hover:bg-white/5" aria-label="صفحه گفتگو">
+          <SapioMark className="size-8" />
+        </Link>
+        <button type="button" onClick={onToggle} className="mb-5 flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50" aria-label="باز کردن پنل گفتگوها" title="باز کردن پنل گفتگوها">
+          <ChevronLeft className="size-5" />
+        </button>
+        <button type="button" onClick={() => newChat.mutate()} disabled={newChat.isPending} className="mb-2 flex size-11 items-center justify-center rounded-xl bg-emerald text-primary-foreground shadow-sm transition hover:brightness-110 disabled:opacity-50" aria-label="گفتگوی جدید" title="گفتگوی جدید">
+          <Plus className="size-5" />
+        </button>
+        <button type="button" onClick={onToggle} className={`mb-2 flex size-11 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 ${activeId ? "bg-emerald-soft/60 text-emerald" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`} aria-label={`گفتگوهای اخیر، ${threads.length} گفتگو. باز کردن پنل`} title={`گفتگوهای اخیر (${threads.length})`}>
+          <MessageSquare className="size-5" />
+        </button>
+        <div className="my-3 h-px w-8 bg-hairline" />
+        <button type="button" onClick={() => void refreshUsage()} disabled={usageRefreshing || usageFetching} className="flex size-11 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:opacity-60" aria-label="اعتبار هوش مصنوعی؛ برای به‌روزرسانی کلیک کنید" title={usage ? creditQuotaLabel(usage.creditQuotaMode, credit?.limit != null ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}` : formatNumber(credit?.remaining ?? 0)) : "اعتبار هوش مصنوعی"}>
+          <Wallet className={`size-5 ${usageRefreshing || usageFetching ? "animate-pulse" : ""}`} />
+          {credit && <span className="h-1 w-6 overflow-hidden rounded-full bg-muted"><span className={`block h-full ${credit.tone ? CREDIT_TONE_CLASS[credit.tone] : "bg-muted"}`} style={{ width: `${credit.percentage}%` }} /></span>}
+        </button>
+        <div className="mt-auto flex flex-col items-center gap-2">
+          <Link to="/telegram-link" className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground" aria-label="اتصال تلگرام" title="اتصال تلگرام"><Send className="size-5" /></Link>
+          {showAdmin && <Link to="/admin" className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground" aria-label="پنل مدیریت" title="پنل مدیریت"><Settings className="size-5" /></Link>}
+          <button onClick={signOut} className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-rose/10 hover:text-rose" aria-label="خروج" title="خروج"><LogOut className="size-5" /></button>
+        </div>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="hidden h-screen w-72 flex-shrink-0 flex-col overflow-hidden border-l border-hairline bg-surface/50 md:flex">
+    <aside className="hidden h-screen w-72 flex-shrink-0 flex-col overflow-hidden border-l border-hairline bg-surface/50 transition-[width] duration-200 md:flex">
       <div className="flex min-h-0 flex-1 flex-col p-5">
-        <Link to="/chat" className="flex items-center gap-3 mb-7">
+        <div className="mb-7 flex items-center gap-2">
+        <Link to="/chat" className="flex min-w-0 flex-1 items-center gap-3">
           <SapioMark className="size-9 shrink-0 object-contain" />
-          <h1 className="text-[15px] font-bold tracking-tight text-foreground leading-tight">
+          <h1 className="truncate text-[15px] font-bold tracking-tight text-foreground leading-tight">
             ساپیو - دستیار هوشمند بازار
           </h1>
         </Link>
+        <button type="button" onClick={onToggle} className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50" aria-label="جمع کردن پنل گفتگوها" title="جمع کردن پنل گفتگوها"><ChevronRight className="size-5" /></button>
+        </div>
         <button
           onClick={() => newChat.mutate()}
           disabled={newChat.isPending}

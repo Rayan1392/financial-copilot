@@ -68,13 +68,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "کوپایلوت هوش مصنوعی بازار سرمایه ایران" },
       {
         property: "og:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/bwtrv7ryw1gzeXPKAE6bV9W35wY2/social-images/social-1779702784036-a92e9a13-c65b-47ce-add4-40e79fb35ddd.webp",
+        content: "https://sapioai.ir/sapio-social-preview.png",
       },
       {
         name: "twitter:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/bwtrv7ryw1gzeXPKAE6bV9W35wY2/social-images/social-1779702784036-a92e9a13-c65b-47ce-add4-40e79fb35ddd.webp",
+        content: "https://sapioai.ir/sapio-social-preview.png",
       },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },

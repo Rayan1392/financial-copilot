@@ -9,8 +9,20 @@ public interface ICapabilityInterpreter
 
 public sealed class DeterministicCapabilityInterpreter(
     IConversationalCapabilityRegistry registry,
-    IQueryInterpretationTelemetrySink? telemetrySink = null) : ICapabilityInterpreter
+    IQueryInterpretationTelemetrySink? telemetrySink = null,
+    Feature154RoutingScope? feature154 = null) : ICapabilityInterpreter
 {
+    // Feature 154 (V2 only): possessive forms and comparison cues are never company hints (R-26).
+    private static readonly HashSet<string> Feature154NonEntityWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "اش", "شان", "همین", "پایان", "دوره", "مدت", "تغییرات", "نسبت", "نشون", "تاریخ", "منتهی", "مبنا", "سود", "زیان"
+    };
+    private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
+    private bool _feature154 => _scope.IsActive;
+
+    /// <summary>Evidence value marking a V2 governed report table (Feature 144 quarterly or Feature 154 balance sheet).</summary>
+    public const string Feature154GovernedReportEvidence = "feature154-v2-governed-report";
+
     private static readonly HashSet<string> FinancialAndPeriodEntityExclusions = new(StringComparer.OrdinalIgnoreCase)
     {
         "\u0633\u0648\u062f", "\u062e\u0627\u0644\u0635", "\u0631\u0634\u062f", "\u0641\u0631\u0648\u0634",
@@ -68,7 +80,9 @@ public sealed class DeterministicCapabilityInterpreter(
     {
         var started = Stopwatch.GetTimestamp();
         var original = message ?? string.Empty;
-        var normalized = QueryNormalization.Normalize(original);
+        // Feature 154 (V2): recognition runs on the alias-canonical text; the interpretation keeps the original text.
+        var routingText = _feature154 ? FinancialStatementTableIntentRules.CanonicalizeV2(original) : original;
+        var normalized = QueryNormalization.Normalize(routingText);
         var language = AiDialogueOutcomePolicy.DetectReplyLanguage(original);
         var evidence = new List<InterpretationEvidence>();
         var scores = new Dictionary<string, decimal>(StringComparer.Ordinal);
@@ -91,7 +105,16 @@ public sealed class DeterministicCapabilityInterpreter(
         AddScore("product_revenue_mix", ProductWords, 0.9m, normalized, scores, evidence, "product-keyword");
         AddScore("financial_statement_table", StatementWords, 0.8m, normalized, scores, evidence, "statement-keyword");
         AddScore("financial_statement_period_analysis", StatementAnalysisWords, 0.98m, normalized, scores, evidence, "statement-analysis-keyword");
-        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(original))
+        var quarterlyReport = _feature154
+            ? FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(original)
+            : FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(original);
+        var balanceSheetReport = _feature154 && FinancialStatementTableIntentRules.LooksLikeBalanceSheetReportQuery(original);
+        if (balanceSheetReport)
+        {
+            scores["financial_statement_table"] = Math.Max(scores.GetValueOrDefault("financial_statement_table"), 0.99m);
+            evidence.Add(new InterpretationEvidence("financial_statement_table", "balance-sheet-report", QueryValueProvenance.UserExplicit));
+        }
+        if (quarterlyReport)
         {
             scores["financial_statement_table"] = Math.Max(
                 scores.GetValueOrDefault("financial_statement_table"), 0.99m);
@@ -103,7 +126,24 @@ public sealed class DeterministicCapabilityInterpreter(
         AddScore("disclosure_listing", DisclosureWords, 0.9m, normalized, scores, evidence, "disclosure-keyword");
         AddScore("monthly_sales_quality_ranking", RankingWords, 0.9m, normalized, scores, evidence, "ranking-keyword");
         var entities = ExtractEntities(original, normalized).ToList();
-        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(original) &&
+        if (_feature154)
+            entities.RemoveAll(entity => Feature154NonEntityWords.Contains(entity.Text));
+        if (_feature154 && (quarterlyReport || balanceSheetReport))
+        {
+            // V2-only marker read by CapabilityRoutingPrecedence: a governed report table outranks the
+            // «بررسی» analysis preference (PD-27). V1 never adds it.
+            evidence.Add(new InterpretationEvidence("financial_statement_table", Feature154GovernedReportEvidence, QueryValueProvenance.UserExplicit));
+            // Same company hint as the deterministic table path, so both V2 paths resolve the same company; a
+            // possessive follow-up has none and takes the company from conversation state.
+            var tableCompany = balanceSheetReport
+                ? FinancialStatementTableIntentRules.BuildV2Query(original).CompanyQuery
+                : FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(original).CompanyQuery;
+            entities = string.IsNullOrWhiteSpace(tableCompany)
+                ? []
+                : [new EntityMention(tableCompany, Math.Max(original.IndexOf(tableCompany, StringComparison.OrdinalIgnoreCase), 0),
+                    tableCompany.Length, QueryValueProvenance.UserExplicit, "company")];
+        }
+        else if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(original) &&
             FinancialStatementTableIntentRules.BuildQuarterlyQuery(original).CompanyQuery is { } quarterlyCompany &&
             !string.IsNullOrWhiteSpace(quarterlyCompany))
         {
@@ -129,7 +169,8 @@ public sealed class DeterministicCapabilityInterpreter(
             MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(original)
                 ? MonthlyProductTrendIntentRules.BuildQuery(original)
                 : null;
-        var productMention = isProductRevenueComposition
+        // Feature 154 (V2): statement-table reports with possessive suffixes («ترازنامه‌اش») are never product mentions.
+        var productMention = isProductRevenueComposition || _feature154 && (quarterlyReport || balanceSheetReport)
             ? null
             : ProductSemanticIntentRules.ExtractProductMention(original) ?? monthlyProductTrendQuery?.ProductText ??
               (ProductSemanticIntentRules.LooksLikeProductSalesValue(original)

@@ -19,8 +19,11 @@ public interface ISemanticQueryFrameEnricher
         DateTimeOffset now);
 }
 
-public sealed class SemanticQueryFrameEnricher : ISemanticQueryFrameEnricher
+public sealed class SemanticQueryFrameEnricher(Feature154RoutingScope? feature154 = null) : ISemanticQueryFrameEnricher
 {
+    private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
+    private bool _feature154 => _scope.IsActive;
+
     public IReadOnlyCollection<ResolvedQuerySlot> Enrich(
         string capabilityCode,
         QueryInterpretation interpretation,
@@ -36,13 +39,19 @@ public sealed class SemanticQueryFrameEnricher : ISemanticQueryFrameEnricher
             case "comprehensive_analysis":
                 AddComprehensiveAnalysis(enriched, capabilityCode, interpretation.OriginalText, now);
                 break;
+            case "financial_statement_table" when _feature154:
+                AddStatementTable(enriched, capabilityCode,
+                    FinancialStatementTableIntentRules.BuildV2Query(interpretation.OriginalText));
+                AddReportMarker(enriched, interpretation.OriginalText);
+                break;
             case "financial_statement_table":
                 AddStatementTable(enriched, capabilityCode,
                     FinancialStatementTableIntentRules.BuildQuery(interpretation.OriginalText));
                 break;
             case "financial_statement_period_analysis":
-                AddStatementAnalysis(enriched, capabilityCode,
-                    FinancialStatementAnalysisIntentRules.BuildQuery(interpretation.OriginalText));
+                AddStatementAnalysis(enriched, capabilityCode, _feature154
+                    ? FinancialStatementAnalysisIntentRules.BuildV2Query(interpretation.OriginalText)
+                    : FinancialStatementAnalysisIntentRules.BuildQuery(interpretation.OriginalText));
                 break;
             case "disclosure_listing":
                 AddDisclosure(enriched, capabilityCode,
@@ -145,6 +154,31 @@ public sealed class SemanticQueryFrameEnricher : ISemanticQueryFrameEnricher
         Add(slots, capabilityCode, QuerySlotType.AuditStatus, Boolean(query.IsAudited));
         Add(slots, capabilityCode, QuerySlotType.RestatementStatus, Boolean(query.IsRepresented));
         Add(slots, capabilityCode, QuerySlotType.ConsolidationScope, Boolean(query.IsComposing));
+    }
+
+    /// <summary>
+    /// Feature 154 (V2): records which report family this statement-table turn requested inside the statementType
+    /// slot, so a follow-up without its own alias repeats it (Feature 120 carries the slot). A follow-up without any
+    /// statement alias adds no statementType slot and keeps the carried one.
+    /// </summary>
+    private static void AddReportMarker(IDictionary<QuerySlotType, ResolvedQuerySlot> slots, string message)
+    {
+        var quarterly = FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(message);
+        if (quarterly && !slots.ContainsKey(QuerySlotType.StatementType))
+            Add(slots, "financial_statement_table", QuerySlotType.StatementType, nameof(FinancialStatementType.IncomeStatement));
+        if (!slots.TryGetValue(QuerySlotType.StatementType, out var slot) || string.IsNullOrWhiteSpace(slot.Value)) return;
+        // Feature 083 turns write the plain statement type, which replaces (and so clears) a carried marker.
+        var marker = quarterly
+            ? FinancialStatementTableCapabilityExecutor.Feature144ReportMarker
+            : FinancialStatementTableIntentRules.LooksLikeBalanceSheetReportQuery(message)
+                ? FinancialStatementTableCapabilityExecutor.Feature154ReportMarker
+                : null;
+        if (marker is null) return;
+        slots[QuerySlotType.StatementType] = slot with
+        {
+            Value = FinancialStatementTableCapabilityExecutor.WithReportMarker(
+                quarterly ? nameof(FinancialStatementType.IncomeStatement) : slot.Value, marker)
+        };
     }
 
     private static void AddStatementAnalysis(

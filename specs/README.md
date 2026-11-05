@@ -25,6 +25,7 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 ## Financial Statement Reporting
 
 - `144-quarterly-financial-reports-table` — proposed, read-only quarterly income-statement comparison table over persisted statement observations, with standalone-quarter normalization, typed comparisons, and traceable source/calculation evidence.
+- `154-ai-balance-sheet-report` — implemented locally (uncommitted), release gates open: V2-only read-only balance-sheet (ترازنامه / صورت وضعیت مالی) report over persisted Noavaran standalone statements. Banking and General templates are selected by `QuarterlyFinancialReports:BankingIndustryGroupId`. It adds a two-date comparison with five typed baselines, a funding-structure chart, and PNG and text renderings. It reuses Feature 144's fiscal-calendar policy and coexists with Feature 083's full statement table. Open gates: E-5 in each non-Development environment, E-1/E-2/E-8 evidence, and E-7 visual sign-off (see `154-ai-balance-sheet-report/ImplementationReport.md`).
 
 ## Mobile Experience
 

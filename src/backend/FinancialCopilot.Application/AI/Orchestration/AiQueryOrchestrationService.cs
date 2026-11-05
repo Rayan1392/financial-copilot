@@ -53,6 +53,8 @@ public sealed class AiQueryOrchestrationService(
         AiQueryRequest request,
         CancellationToken cancellationToken)
     {
+        // POLICY-V1-FREEZE: the shared semantic components keep their pre-Feature 154 behavior while V1 executes.
+        using var frozenV1 = Feature154RoutingScope.EnterFrozenV1();
         var now = timeProvider.GetUtcNow();
 
         var createConversation = request.ConversationId is null;

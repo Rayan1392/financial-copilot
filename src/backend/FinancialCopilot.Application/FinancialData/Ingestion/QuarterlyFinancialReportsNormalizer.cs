@@ -45,7 +45,6 @@ public static class QuarterlyFinancialReportsNormalizer
         (153, "تعداد سهام شرکت (هزار سهم)", "e98e6c00-7204-44b1-a279-bbbb68781d3c", QuarterlyRowPolicy.ComparableShareBasis)
     ];
 
-    private static readonly PersianCalendar Jalali = new();
 
     public static IReadOnlyList<(int SourceItemId, string CatalogId)> ApprovedMappings =>
         DirectRows.Select(row => (row.Id, row.CatalogId)).ToArray();
@@ -520,73 +519,22 @@ public static class QuarterlyFinancialReportsNormalizer
         return JalaliEndAfterMonths(fiscalStart, months) == end;
     }
 
+    // Fiscal-calendar rules have one owner, FiscalCalendarPolicy (Feature 154 T05 extraction, unchanged behavior).
     private static DateOnly JalaliEndAfterMonths(DateOnly fiscalStart, int months) =>
-        DateOnly.FromDateTime(Jalali.AddMonths(fiscalStart.ToDateTime(TimeOnly.MinValue), months).AddDays(-1));
+        FiscalCalendarPolicy.JalaliEndAfterMonths(fiscalStart, months);
 
-    private static DateOnly ResolveFiscalStart(QuarterlyReportObservation report)
-    {
-        if (TryParseJalaliDate(report.FiscalYearEvidence, out var fiscalYearEnd))
-        {
-            var endYear = Jalali.GetYear(fiscalYearEnd.ToDateTime(TimeOnly.MinValue));
-            var endMonth = Jalali.GetMonth(fiscalYearEnd.ToDateTime(TimeOnly.MinValue));
-            return endMonth == 12
-                ? DateOnly.FromDateTime(Jalali.ToDateTime(endYear, 1, 1, 0, 0, 0, 0))
-                : DateOnly.FromDateTime(Jalali.ToDateTime(endYear - 1, endMonth + 1, 1, 0, 0, 0, 0));
-        }
-
-        return report.PeriodStart;
-    }
+    private static DateOnly ResolveFiscalStart(QuarterlyReportObservation report) =>
+        FiscalCalendarPolicy.ResolveFiscalStart(report.FiscalYearEvidence, report.PeriodStart);
 
     // A fiscal year is named by the Jalali year in which it ends, with or without fiscal evidence,
     // so disjoint fiscal years never share a period label.
-    private static int FiscalYearLabel(DateOnly fiscalStart) =>
-        Jalali.GetYear(JalaliEndAfterMonths(fiscalStart, 12).ToDateTime(TimeOnly.MinValue));
+    private static int FiscalYearLabel(DateOnly fiscalStart) => FiscalCalendarPolicy.FiscalYearLabel(fiscalStart);
 
-    // Maps each provider-derived fiscal start to the start its quarters are measured from. Fiscal years
-    // are visited oldest first; one that begins on or before the last report of an accepted fiscal year
-    // is a transitional year and is rebased to the day after that report. Rebased years never push the
-    // accepted boundary, so a regular fiscal year sharing the rebased start is still accepted.
-    private static Dictionary<DateOnly, DateOnly> ResolveEffectiveFiscalStarts(IEnumerable<QuarterlyReportObservation> reports)
-    {
-        var effective = new Dictionary<DateOnly, DateOnly>();
-        var latestAcceptedEnd = DateOnly.MinValue;
-        foreach (var fiscalYear in reports.GroupBy(ResolveFiscalStart).OrderBy(group => group.Key))
-        {
-            if (latestAcceptedEnd >= fiscalYear.Key)
-            {
-                effective[fiscalYear.Key] = latestAcceptedEnd.AddDays(1);
-                continue;
-            }
+    private static Dictionary<DateOnly, DateOnly> ResolveEffectiveFiscalStarts(IEnumerable<QuarterlyReportObservation> reports) =>
+        FiscalCalendarPolicy.ResolveEffectiveFiscalStarts(reports, ResolveFiscalStart, report => report.PeriodEnd);
 
-            effective[fiscalYear.Key] = fiscalYear.Key;
-            var fiscalYearEnd = fiscalYear.Max(report => report.PeriodEnd);
-            if (fiscalYearEnd > latestAcceptedEnd) latestAcceptedEnd = fiscalYearEnd;
-        }
-
-        return effective;
-    }
-
-    private static bool TryParseJalaliDate(string? value, out DateOnly date)
-    {
-        date = default;
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        var parts = value.Split('/', StringSplitOptions.TrimEntries);
-        if (parts.Length != 3 ||
-            !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var year) ||
-            !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month) ||
-            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var day))
-            return false;
-
-        try
-        {
-            date = DateOnly.FromDateTime(Jalali.ToDateTime(year, month, day, 0, 0, 0, 0));
-            return true;
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            return false;
-        }
-    }
+    private static bool TryParseJalaliDate(string? value, out DateOnly date) =>
+        FiscalCalendarPolicy.TryParseJalaliDate(value, out date);
 
     private static int MonthsBetween(DateOnly previousEnd, DateOnly currentEnd) =>
         (currentEnd.Year - previousEnd.Year) * 12 + currentEnd.Month - previousEnd.Month;

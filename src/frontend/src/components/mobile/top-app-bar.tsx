@@ -1,6 +1,11 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { ArrowRight, SquarePen, UserRound } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowRight, Settings, SquarePen, UserRound } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
+import {
+  getStoredAuthenticatedUser,
+  subscribeToAuthChanges,
+} from "@/integrations/financial-copilot/auth";
 import { officialDisplayName } from "@/lib/profile-display-name";
 import { useOwnProfile } from "@/lib/workspace/queries";
 
@@ -47,6 +52,27 @@ export function NewChatButton() {
   return (
     <Link to="/m" state={{ newChat: true }} aria-label="گفتگوی جدید" className={ICON_BUTTON}>
       <SquarePen className="size-5" aria-hidden="true" />
+    </Link>
+  );
+}
+
+/**
+ * Entry to the admin panel, rendered only for users holding an admin read permission (same rule as the desktop
+ * header). The check is a UI convenience; `/admin` and its APIs enforce access on their own.
+ */
+export function AdminSettingsButton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const update = () => setVisible(canAccessAdmin(getStoredAuthenticatedUser()));
+    update();
+    return subscribeToAuthChanges(update);
+  }, []);
+
+  if (!visible) return null;
+  return (
+    <Link to="/admin" aria-label="پنل مدیریت" className={ICON_BUTTON}>
+      <Settings className="size-5" aria-hidden="true" />
     </Link>
   );
 }

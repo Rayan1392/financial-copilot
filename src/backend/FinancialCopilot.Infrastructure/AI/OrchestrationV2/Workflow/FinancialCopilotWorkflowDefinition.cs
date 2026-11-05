@@ -948,14 +948,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticReplyLanguage: unsupportedOutcome.ReplyLanguage);
         }
 
-        var isQuarterlyStatementTable = FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(request.Message);
+        // V2-only recognition (Feature 154 aliases canonicalized); V1 keeps the shared rules.
+        var isQuarterlyStatementTable = FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(request.Message);
         var isFinancialStatementTable = isQuarterlyStatementTable ||
-            FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(request.Message);
+            FinancialStatementTableIntentRules.LooksLikeV2FinancialStatementTableQuery(request.Message);
         if (isFinancialStatementTable)
         {
             var tableQuery = isQuarterlyStatementTable
-                ? FinancialStatementTableIntentRules.BuildQuarterlyQuery(request.Message)
-                : FinancialStatementTableIntentRules.BuildQuery(request.Message);
+                ? FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(request.Message)
+                : FinancialStatementTableIntentRules.BuildV2Query(request.Message);
             stepActivity?.SetTag("workflow.capability_code", "financial_statement_table");
             if (isQuarterlyStatementTable)
             {
@@ -994,10 +995,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 "Completed", false, modelClient, statementTableUsage);
         }
 
-        var isFinancialStatementAnalysis = FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(request.Message);
+        var isFinancialStatementAnalysis = FinancialStatementAnalysisIntentRules.LooksLikeV2FinancialStatementAnalysisQuery(request.Message);
         if (isFinancialStatementAnalysis)
         {
-            var analysisQuery = FinancialStatementAnalysisIntentRules.BuildQuery(request.Message);
+            var analysisQuery = FinancialStatementAnalysisIntentRules.BuildV2Query(request.Message);
             financialStatementAnalysisResult = await financialStatementAnalysisUseCase.ExecuteAsync(analysisQuery, ct);
 
             UsageAccountingResult? statementUsage = null;
@@ -1217,10 +1218,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(msg.Request.Message)
                 ? DetectedIntent.MonthlyActivityTrend
                 : msg.FinancialStatementTableResult is not null ||
-            FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(msg.Request.Message)
+            FinancialStatementTableIntentRules.LooksLikeV2FinancialStatementTableQuery(msg.Request.Message)
                 ? DetectedIntent.FinancialStatementTableLookup
             : msg.FinancialStatementAnalysisResult is not null ||
-            FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(msg.Request.Message)
+            FinancialStatementAnalysisIntentRules.LooksLikeV2FinancialStatementAnalysisQuery(msg.Request.Message)
                 ? DetectedIntent.FinancialStatementPeriodAnalysis
                 : msg.PsVisualizationResult is not null || PsGaugeIntentRules.LooksLikeQuery(msg.Request.Message)
                 ? DetectedIntent.PsGaugeVisualization
@@ -1972,9 +1973,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(message)) return CapabilityExecutionRoutes.MonthlyActivityTrend;
         if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(message) ||
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(message)) return CapabilityExecutionRoutes.ProductRevenueMix;
-        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message) ||
-            FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(message)) return CapabilityExecutionRoutes.FinancialStatementTable;
-        if (FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(message)) return CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis;
+        if (FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(message) ||
+            FinancialStatementTableIntentRules.LooksLikeV2FinancialStatementTableQuery(message)) return CapabilityExecutionRoutes.FinancialStatementTable;
+        if (FinancialStatementAnalysisIntentRules.LooksLikeV2FinancialStatementAnalysisQuery(message)) return CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis;
         if (PsGaugeIntentRules.ExtractCompanySymbol(message) is not null) return CapabilityExecutionRoutes.PsGaugeVisualization;
         return null;
     }

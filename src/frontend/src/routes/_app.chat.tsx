@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PromptInput } from "@/components/app/prompt-input";
 import { SapioMark } from "@/components/app/sapio-mark";
 import { MessageList } from "@/components/app/message-list";
-import { ArrowLeft } from "lucide-react";
+import { StarterCard } from "@/components/app/starter-card";
 import { STARTER_PROMPTS } from "@/lib/chat/starter-prompts";
 import { chatErrorMessage } from "@/lib/chat/chat-errors";
 import { useStartChat } from "@/lib/chat/use-start-chat";
@@ -38,39 +38,34 @@ function NewChatPage() {
             onSuggested={submit}
           />
         ) : (
-        <div dir="rtl" className="max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up">
-          <div className="mb-5 flex justify-center">
-            <SapioMark className="size-14 text-emerald shadow-sm" />
+          <div dir="rtl" className="max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up">
+            <div className="mb-5 flex justify-center">
+              <SapioMark className="size-14 text-emerald shadow-sm" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3 text-balance">
+              دستیار هوشمند بازار سرمایه
+            </h1>
+            <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium text-emerald mb-5">
+              فاز ۱ · تولید، فروش و گزارش‌های مالی
+            </div>
+            <p className="text-base md:text-lg font-medium text-foreground mb-2 max-w-2xl mx-auto text-pretty">
+              گزارش‌های تولید و فروش و صورت‌های مالی شرکت‌ها را با زبان طبیعی بررسی کنید.
+            </p>
+            <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
+              روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه و
+              سود و زیان فصلی و ترازنامه (صورت وضعیت مالی) نمادها را بررسی کنید.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-right">
+              {starterPrompts.map((prompt) => (
+                <StarterCard
+                  key={prompt.text}
+                  prompt={prompt}
+                  disabled={startChat.isPending}
+                  onSelect={submit}
+                />
+              ))}
+            </div>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3 text-balance">
-            دستیار هوشمند بازار سرمایه
-          </h1>
-          <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium text-emerald mb-5">
-            فاز ۱ · تولید، فروش و گزارش‌های مالی
-          </div>
-          <p className="text-base md:text-lg font-medium text-foreground mb-2 max-w-2xl mx-auto text-pretty">
-            گزارش‌های تولید و فروش و صورت‌های مالی شرکت‌ها را با زبان طبیعی بررسی کنید.
-          </p>
-          <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
-            روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه و سود و زیان فصلی نمادها را بررسی کنید. گزارش ترازنامه به‌زودی اضافه می‌شود.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-right">
-            {starterPrompts.map((prompt) => (
-              <button
-                key={prompt.text}
-                onClick={() => submit(prompt.text)}
-                disabled={startChat.isPending}
-                className="group flex min-h-16 items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm leading-6 text-foreground transition hover:border-emerald/30 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-50"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-soft/60 text-emerald">
-                  <prompt.icon className="size-4" aria-hidden="true" />
-                </span>
-                <span className="flex-1">{prompt.text}</span>
-                <ArrowLeft className="size-4 shrink-0 text-muted-foreground/50 transition group-hover:text-emerald" aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-        </div>
         )}
       </div>
       {queryError && (
@@ -78,11 +73,7 @@ function NewChatPage() {
           {queryError}
         </div>
       )}
-      <PromptInput
-        onSubmit={submit}
-        loading={startChat.isPending}
-        showAssistedQuery
-      />
+      <PromptInput onSubmit={submit} loading={startChat.isPending} showAssistedQuery />
     </>
   );
 }

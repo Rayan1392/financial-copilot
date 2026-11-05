@@ -9,6 +9,8 @@ import { formatNumber, formatPercent, toPersianDigits } from "@/lib/format/persi
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { QuarterlyFinancialTable, quarterlyFinancialTableModelFromTypedResult } from "@/components/app/quarterly-financial-table";
+import { BalanceSheetReport } from "@/components/app/balance-sheet-report/balance-sheet-report";
+import { isRenderableBalanceSheet } from "@/components/app/balance-sheet-report/balance-sheet-report-model";
 import { FinancialStatementAnalysisCard } from "@/components/app/financial-statement-analysis";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
@@ -138,6 +140,10 @@ function AssistantBlock({
         typedQuarterly.status !== "Unavailable" && typedQuarterly.periodsNewestFirst.length > 0))
     ? quarterlyFinancialTableModelFromTypedResult(typedQuarterly)
     : null;
+  // Feature 154: the typed balance-sheet report replaces its text rendering on screen (the text stays for Telegram/history).
+  const typedBalanceSheet = isRenderableBalanceSheet(block.financialStatementTableResult?.balanceSheetReport)
+    ? block.financialStatementTableResult!.balanceSheetReport!
+    : null;
   const financialStatementAnalysis = block.financialStatementAnalysisResult;
   const dailyTradesSource = "منبع: آمار معاملات روزانه";
   const sourceMatch = message.match(/\s*(منبع: آمار معاملات روزانه)[.。]?\s*$/u);
@@ -180,12 +186,13 @@ function AssistantBlock({
         className={`flex-1 space-y-5 min-w-0 ${isRtlMessage ? "text-right" : "text-left"}`}
         dir={isRtlMessage ? "rtl" : "ltr"}
       >
-        {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource || financialStatementAnalysis) && (
+        {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource || financialStatementAnalysis || typedBalanceSheet) && (
           <div className="space-y-1">
-            {displayMessage.length > 0 && !typedQuarterlyTable && (
+            {displayMessage.length > 0 && !typedQuarterlyTable && !typedBalanceSheet && (
               <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
             )}
             {typedQuarterlyTable && <QuarterlyFinancialTable model={typedQuarterlyTable} />}
+            {typedBalanceSheet && <BalanceSheetReport result={typedBalanceSheet} />}
             {financialStatementAnalysis && <FinancialStatementAnalysisCard data={financialStatementAnalysis} />}
             {tradingDate && (
               <p className="text-xs leading-relaxed text-muted-foreground">{tradingDate}</p>

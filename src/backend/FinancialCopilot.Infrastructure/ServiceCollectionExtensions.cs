@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Headers;
+using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
@@ -982,6 +983,11 @@ public static class ServiceCollectionExtensions
 
         services.Configure<AiOrchestrationOptions>(
             configuration.GetSection(AiOrchestrationOptions.SectionName));
+        // Feature 154 routing is V2-only; the shared semantic components behave as before in V1 mode (POLICY-V1-FREEZE).
+        services.AddSingleton(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiOrchestrationOptions>>().Value.Mode == AiOrchestrationMode.MicrosoftAgentFrameworkV2
+                ? FinancialCopilot.Application.AI.Orchestration.Feature154RoutingScope.V2
+                : FinancialCopilot.Application.AI.Orchestration.Feature154RoutingScope.V1Frozen);
 
         var orchestrationMode = configuration
             .GetSection(AiOrchestrationOptions.SectionName)
@@ -1418,6 +1424,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IQuarterlyFinancialReportsQueryUseCase, QuarterlyFinancialReportsQueryUseCase>();
         services.AddScoped<IFinancialStatementTableRenderer, FinancialStatementTableRenderer>();
         services.AddScoped<IFinancialStatementTableQueryUseCase, FinancialStatementTableQueryUseCase>();
+        // Feature 154 balance-sheet report (read-only, bounded; reuses Feature 144 resolution and classification).
+        services.AddScoped<IBalanceSheetStatementReader, EfCoreBalanceSheetStatementReader>();
+        services.AddScoped<IBalanceSheetReportQueryUseCase, BalanceSheetReportQueryUseCase>();
         // Spec 075 â€” product revenue mix: calculator + repository wired after monthly-activity ingestion.
         services.AddScoped<ICompanyProductRevenueMixRepository, EfCoreProductRevenueMixRepository>();
         services.AddScoped<ICompanyProductRevenueMixCalculator, CompanyProductRevenueMixCalculator>();

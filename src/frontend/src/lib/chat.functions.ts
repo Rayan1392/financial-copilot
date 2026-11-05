@@ -6,6 +6,7 @@ import {
   requireFinancialCopilotAuth,
 } from "@/integrations/financial-copilot/api-client.server";
 import { classifyApiFailure, type ChatFailure } from "@/lib/chat/chat-errors";
+import type { BalanceSheetReportResult } from "@/components/app/balance-sheet-report/balance-sheet-report-types";
 
 export interface ChatThread {
   id: string;
@@ -41,7 +42,7 @@ export interface AssistantChatBlock {
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
-  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
+  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult; balanceSheetReport?: BalanceSheetReportResult | null };
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -306,7 +307,7 @@ interface AssistantContentResponse {
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
-  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
+  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult; balanceSheetReport?: BalanceSheetReportResult | null };
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{

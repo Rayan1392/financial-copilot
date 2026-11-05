@@ -2191,7 +2191,8 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     }
 
     [Theory]
-    [InlineData("آخرین ترازنامه غالبر", "BalanceSheet")]
+    // Feature 154 serves ordinary latest balance-sheet requests; Feature 083 keeps variant and full-table requests (PD-04).
+    [InlineData("ترازنامه تلفیقی غالبر", "BalanceSheet")]
     [InlineData("آخرین جریان وجه نقد غالبر را نمایش بده", "CashFlow")]
     public async Task V2AiQuery_FullStatementTables_ReturnExpectedStatementTypeWithoutToolLoop(
         string message,

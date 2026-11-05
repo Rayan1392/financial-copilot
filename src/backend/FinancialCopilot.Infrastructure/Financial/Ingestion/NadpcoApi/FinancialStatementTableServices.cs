@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -324,7 +325,8 @@ internal sealed class EfCoreFinancialStatementTableRepository(
     private static string FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
 
-    private sealed record StatementMetadata(
+    // Shared with the Feature 154 balance-sheet reader so WarningsJson evidence has one parser.
+    internal sealed record StatementMetadata(
         string? JalaliPeriodEnd,
         string? JalaliFiscalYearEnd,
         string? JalaliAnnouncementDate,
@@ -452,7 +454,8 @@ internal sealed class FinancialStatementTableQueryUseCase(
     IQuarterlyFinancialReportsQueryUseCase quarterlyReportsUseCase,
     IFinancialStatementTableRenderer renderer,
     IOptions<NadpcoApiProviderOptions> providerOptions,
-    TimeProvider timeProvider) : IFinancialStatementTableQueryUseCase
+    TimeProvider timeProvider,
+    IBalanceSheetReportQueryUseCase balanceSheetReportUseCase) : IFinancialStatementTableQueryUseCase
 {
     public async Task<FinancialStatementTableResult?> ExecuteAsync(
         FinancialStatementTableQuery query,
@@ -470,6 +473,17 @@ internal sealed class FinancialStatementTableQueryUseCase(
                     query.QuarterCount, query.EndingPeriod, query.IsComposing, query.IsAudited, query.IsRepresented), ct);
             return new FinancialStatementTableResult(null, [], [], [],
                 RenderQuarterly(quarterlyResult), timeProvider.GetUtcNow(), quarterlyResult);
+        }
+
+        // Feature 154: ordinary, single-date and comparison standalone balance-sheet requests. Feature 083 keeps
+        // full-table and variant-filter requests, which never set UseBalanceSheetReport.
+        if (query.UseBalanceSheetReport && query.StatementType == FinancialStatementType.BalanceSheet)
+        {
+            var report = await balanceSheetReportUseCase.ExecuteAsync(new BalanceSheetReportRequest(
+                query.CompanyQuery, query.BalanceSheetView, query.BaselineKind, query.ComparisonDates,
+                query.UnsupportedVariantFilter), ct);
+            return new FinancialStatementTableResult(null, [], [], [],
+                BalanceSheetReportTextRenderer.Render(report), timeProvider.GetUtcNow(), BalanceSheetReport: report);
         }
 
         var company = await companyResolver.ResolveBySymbolAsync(query.CompanyQuery, ct);
@@ -681,7 +695,7 @@ internal sealed class FinancialStatementTableRenderer : IFinancialStatementTable
 {
     public string Render(FinancialStatementTableResult result)
     {
-        if (result.QuarterlyResult is not null)
+        if (result.QuarterlyResult is not null || result.BalanceSheetReport is not null)
             return result.RenderedAnswer ?? string.Empty;
         if (result.Source is null)
             throw new InvalidOperationException("A persisted source is required for a non-quarterly statement table.");

@@ -113,8 +113,12 @@ public sealed class ConversationDialogueGate(
     HybridCapabilityInterpreter? hybridInterpreter = null,
     ICanonicalQueryProductResolver? productResolver = null,
     ISemanticRoutingLatencySink? latencySink = null,
-    ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null) : IConversationDialogueGate
+    ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null,
+    Feature154RoutingScope? feature154 = null) : IConversationDialogueGate
 {
+    private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
+    private bool _feature154 => _scope.IsActive;
+
     public async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken)
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
@@ -126,6 +130,17 @@ public sealed class ConversationDialogueGate(
         var detectedCapability = request.Context?.InsightEventId is not null
             ? "personalized_insight_explanation"
             : interpretation.CapabilityCandidates.FirstOrDefault()?.CapabilityCode;
+        // Feature 154 (V2, spec §4.4): inside an active statement-table task, «همین را برای X» repeats the active
+        // report for X (only when no other capability was detected), and a bare baseline/comparison cue with no other
+        // subject continues an active balance-sheet report (F154-R-14: anything with its own subject keeps its route).
+        if (_feature154 && request.Context?.InsightEventId is null &&
+            string.Equals(active?.ActiveCapability, "financial_statement_table", StringComparison.Ordinal) &&
+            (FinancialStatementTableIntentRules.LooksLikeRepeatForCompany(request.Message) &&
+             detectedCapability is null or "financial_statement_table" ||
+             FinancialStatementTableCapabilityExecutor.ParseStatementTypeSlot(active!.FindSlot(QuerySlotType.StatementType)?.Value, out var activeReport) is not null &&
+             activeReport == FinancialStatementTableCapabilityExecutor.Feature154ReportMarker &&
+             FinancialStatementTableIntentRules.LooksLikeBalanceSheetFollowUpCue(request.Message)))
+            detectedCapability = "financial_statement_table";
         var capability = detectedCapability ?? (active?.PendingAction is not null ? active.ActiveCapability : null);
         if (!string.IsNullOrWhiteSpace(request.SuggestedActionId) && request.SuggestedActionId.Length <= 160)
         {
@@ -156,9 +171,13 @@ public sealed class ConversationDialogueGate(
         var entityStart = Stopwatch.GetTimestamp();
         var entity = await entityResolver.ResolveFromInterpretationAsync(interpretation, cancellationToken);
         if (capability == "financial_statement_table" &&
-            FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(request.Message) &&
+            (_feature154
+                ? FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(request.Message)
+                : FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(request.Message)) &&
             entity is not EntityResolutionResult.Resolved &&
-            FinancialStatementTableIntentRules.BuildQuarterlyQuery(request.Message).CompanyQuery is { } companyHint)
+            (_feature154
+                ? FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(request.Message)
+                : FinancialStatementTableIntentRules.BuildQuarterlyQuery(request.Message)).CompanyQuery is { } companyHint)
         {
             // A product mention can consume or truncate a ticker in semantic interpretation.
             // Resolve the quarterly parser's company hint through the canonical catalog.

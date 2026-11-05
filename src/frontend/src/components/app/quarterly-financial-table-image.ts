@@ -3,6 +3,7 @@ import { quarterlyPeriodHeaderLines } from "./quarterly-financial-table-header";
 import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
 import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
 import { BANKING_CHART_SERIES, QUARTERLY_CHART_SERIES, quarterlyChartPointsChronologically } from "./quarterly-financial-chart-data";
+import { downloadCanvasPng, drawBrandFooter, drawBrandHeader, exportDate, rtlText, safeFileSymbol, wrap } from "./png-brand";
 
 const WIDTH = 1200;
 const BRAND_HEIGHT = 100;
@@ -23,14 +24,6 @@ function parseDisplayNumber(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function toPersianDigits(value: string): string {
-  return value.replace(/[0-9\u0660-\u0669\u06f0-\u06f9]/g, (digit) => {
-    const code = digit.charCodeAt(0);
-    const numericValue =
-      code >= 0x06f0 ? code - 0x06f0 : code >= 0x0660 ? code - 0x0660 : code - 48;
-    return String.fromCharCode(0x06f0 + numericValue);
-  });
-}
 const PAD = 36;
 const COLORS = {
   ink: "#1f2937",
@@ -45,41 +38,6 @@ const COLORS = {
   positive: "#d1fae5",
   gross: "#fef08a",
 };
-
-function rtlText(
-  context: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth?: number,
-) {
-  context.direction = "rtl";
-  context.textAlign = "right";
-  context.fillText(text, x, y, maxWidth);
-}
-
-function wrap(context: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let line = "";
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (line && context.measureText(candidate).width > maxWidth) {
-      lines.push(line);
-      line = word;
-    } else line = candidate;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
-function exportDate(): string {
-  const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-    timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(new Date());
-  const part = (type: "year" | "month" | "day") => parts.find((item) => item.type === type)?.value ?? "";
-  return toPersianDigits(`${part("year")}/${part("month")}/${part("day")}`);
-}
 
 function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialTableModel, top: number) {
   const points = quarterlyChartPointsChronologically(model);
@@ -226,13 +184,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
   context.fillRect(0, 0, WIDTH, height);
 
   const date = exportDate();
-  context.fillStyle = "#0f766e";
-  context.font = '700 30px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  rtlText(context, "ساپیو", WIDTH - PAD, PAD + 31);
-  context.fillStyle = "#475569";
-  context.font = '400 16px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  rtlText(context, "دستیار هوشمند بازار سرمایه", WIDTH - PAD, PAD + 57);
-  rtlText(context, `تاریخ دریافت: \u2066${date}\u2069`, WIDTH - PAD, PAD + 81);
+  drawBrandHeader(context, WIDTH, PAD, date);
 
   const headerTop = PAD + BRAND_HEIGHT;
   context.fillStyle = COLORS.header;
@@ -339,29 +291,9 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
   });
 
   const footerTop = top + periodHeaderHeight + rowHeight * model.rows.length + 25;
-  context.strokeStyle = "#cbd5e1";
-  context.beginPath();
-  context.moveTo(PAD, footerTop - 10);
-  context.lineTo(WIDTH - PAD, footerTop - 10);
-  context.stroke();
-  context.fillStyle = COLORS.header;
-  context.font = '600 16px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  rtlText(context, "گزارش مالی فصلی | ساپیو - دستیار هوشمند بازار", WIDTH - PAD, footerTop + 15);
-  context.fillStyle = "#64748b";
-  context.font = '400 14px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  rtlText(context, "بر پایه داده‌های گزارش‌شده", WIDTH - PAD, footerTop + 39);
+  drawBrandFooter(context, WIDTH, PAD, footerTop, "گزارش مالی فصلی");
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-  if (!blob) throw new Error("Image generation failed.");
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.href = url;
-  const safeSymbol = model.symbol
-    .replace(/[<>:"\\|?*]/g, "")
-    .replaceAll("/", "")
-    .trim()
-    .replace(/[-\s]+/g, "-");
-  link.download = `\u062c\u062f\u0648\u0644-\u0645\u0627\u0644\u06cc-\u0641\u0635\u0644\u06cc${safeSymbol ? `-${safeSymbol}` : ""}-${date.replaceAll("/", "-")}.png`;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const safeSymbol = safeFileSymbol(model.symbol);
+  await downloadCanvasPng(canvas,
+    `\u062c\u062f\u0648\u0644-\u0645\u0627\u0644\u06cc-\u0641\u0635\u0644\u06cc${safeSymbol ? `-${safeSymbol}` : ""}-${date.replaceAll("/", "-")}.png`);
 }

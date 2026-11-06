@@ -9,7 +9,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 /// <summary>
 /// One-time historical fill for spec 075. Reads already-persisted Noavaran single-month
-/// ProductSales reports and reuses <see cref="ICompanyProductRevenueMixCalculator"/> so the
+/// sales reports (see <see cref="MonthlySalesSourceSelection"/>) and reuses <see cref="ICompanyProductRevenueMixCalculator"/> so the
 /// historical path and the live ingestion path stay identical.
 /// </summary>
 public sealed class ProductRevenueMixBackfillService(
@@ -28,12 +28,11 @@ public sealed class ProductRevenueMixBackfillService(
     {
         var startedAt = timeProvider.GetUtcNow();
 
+        // Same single-month sources as the live calculator, including ServiceSales-only months.
         var reports = await dbContext.MonthlyReports
             .AsNoTracking()
-            .Where(r => r.ProviderName == ProviderName
-                     && r.IsAccepted
-                     && r.ReportType == "ProductSales"
-                     && (r.OutputType == null || r.OutputType == 0))
+            .Where(r => r.ProviderName == ProviderName && r.IsAccepted)
+            .Where(MonthlySalesSourceSelection.IsSingleMonthCandidate)
             .Select(r => new CandidateReport(
                 r.Id,
                 r.ExternalCompanyId,

@@ -33,9 +33,8 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
             .Where(r => r.ProviderName == ProviderName
                      && r.ExternalCompanyId == externalCompanyId
                      && r.IsAccepted
-                     && ((r.ReportType == "ProductSales" && (r.OutputType == 0 || r.OutputType == null)) ||
-                         (r.ReportType == "ServiceSales" && r.OutputType == null))
                      && r.PeriodStart == periodStart)
+            .Where(MonthlySalesSourceSelection.IsSingleMonthCandidate)
             .ToListAsync(ct);
 
         if (candidateReports.Count == 0) return;
@@ -45,17 +44,12 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
             .Where(li => candidateReportIds.Contains(li.MonthlyReportId))
             .ToListAsync(ct);
 
-        var productReports = candidateReports
-            .Where(r => r.ReportType == "ProductSales" && (r.OutputType == 0 || r.OutputType == null))
-            .ToArray();
-        var hasUsableProductSales = productReports.Any(report =>
-            candidateLineItems.Any(item => item.MonthlyReportId == report.Id));
-        var useProductSales = hasUsableProductSales;
-        var reports = useProductSales
-            ? productReports
-            : candidateReports.Where(r => r.ReportType == "ServiceSales" && r.OutputType == null).ToArray();
+        var reportIdsWithLineItems = candidateLineItems.Select(item => item.MonthlyReportId).ToHashSet();
+        var source = MonthlySalesSourceSelection.Choose(candidateReports, reportIdsWithLineItems.Contains);
+        var useProductSales = source.UsesProductSales;
+        var reports = source.Reports;
 
-        if (reports.Length == 0) return;
+        if (reports.Count == 0) return;
 
         var reportIds = reports.Select(r => r.Id).ToHashSet();
         var sourceReportId = reports[0].ExternalReportId;

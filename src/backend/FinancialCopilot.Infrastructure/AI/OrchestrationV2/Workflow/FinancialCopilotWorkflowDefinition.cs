@@ -840,7 +840,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             if (msg.Reservation is not null)
             {
                 trendUsage = await billingFunctions.FinalizeAsync(
-                    msg.Reservation, "Completed", false, CancellationToken.None);
+                    msg.Reservation,
+                    monthlyActivityTrendResult is null ? SemanticBillingCompletionStatus.NoData : "Completed",
+                    false, CancellationToken.None);
             }
 
             stepActivity?.SetTag("workflow.intent", "MonthlyActivityTrend");
@@ -853,7 +855,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     : BuildMonthlyActivityTrendContent(monthlyActivityTrendResult),
                 scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
-                monthlyActivityTrendResult is null ? "Completed" : "Completed", false, modelClient, trendUsage,
+                "Completed", false, modelClient, trendUsage,
                 PsVisualizationResult: monthlyTrendGauge);
         }
 
@@ -883,7 +885,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 if (msg.Reservation is not null)
                 {
                     productRevenueMixUsage = await billingFunctions.FinalizeAsync(
-                        msg.Reservation, "Completed", false, CancellationToken.None);
+                        msg.Reservation, SemanticBillingCompletionStatus.NoData, false, CancellationToken.None);
                 }
 
                 stepActivity?.SetTag("workflow.intent", "ProductRevenueMix");

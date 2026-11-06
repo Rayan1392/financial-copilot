@@ -2,6 +2,8 @@ using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
 using FinancialCopilot.Billing.Usage;
+using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Infrastructure.Billing;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -202,6 +204,31 @@ public sealed class BillingDomainTests
             ProviderCosts: []));
 
         Assert.Equal(0, result.CreditsCharged);
+    }
+
+    // Regression: a supported chat question with no usable rows ("درخواست شما پشتیبانی می‌شود، اما
+    // داده قابل استفاده‌ای ... پیدا نشد") was settled as Completed and cost one credit.
+    [Theory]
+    [InlineData(CapabilityExecutionStatus.NoData, 0)]
+    [InlineData(CapabilityExecutionStatus.Unsupported, 0)]
+    [InlineData(CapabilityExecutionStatus.ClarificationRequired, 0)]
+    [InlineData(CapabilityExecutionStatus.Executed, 1)]
+    public void RegisteredPricingPolicy_ChargesSemanticOutcomeOnlyWhenAnswered(
+        CapabilityExecutionStatus status,
+        decimal expectedCredits)
+    {
+        var calculator = new OperationUsageChargeCalculator(
+            new ConfiguredPricingPolicyProvider([DefaultPricingPolicy.Create()]));
+
+        var result = calculator.Calculate(new UsageChargeRequest(
+            "AiQuery.Scanner",
+            "v1",
+            Cached: false,
+            CompletionStatus: SemanticBillingCompletionStatus.For(status),
+            UsageUnits: [],
+            ProviderCosts: []));
+
+        Assert.Equal(expectedCredits, result.CreditsCharged);
     }
 
     [Theory]

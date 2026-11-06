@@ -100,6 +100,33 @@ describe("MessageList", () => {
     expect(container).not.toHaveTextContent("محصول 20");
   });
 
+  it("keeps the signed month-over-month percent left-to-right in a Persian trend summary", () => {
+    const block: AssistantChatBlock = {
+      message: "### روند فروش ماهانه - معدنی و صنعتی گهر زمین (کگهر)\n" +
+        "**خلاصه آخرین ماه:** فروش 9,216.639 میلیارد تومان\n" +
+        "**تغییر نسبت به ماه قبل:** -40.2٪\n" +
+        "**مقایسه با ماه مشابه سال قبل:** 8,980.082 میلیارد تومان (+2.6٪)",
+      intent: "MonthlyActivityTrend",
+      replyLanguage: "fa",
+      creditsUsed: 0,
+      suggestedQuestions: [],
+      suggestedActions: [],
+      filters: [],
+      citations: [],
+    };
+
+    const { container } = renderMessageList(<MessageList
+      messages={[{ id: "trend", role: "assistant", content: block, created_at: "2026-11-06T00:00:00Z" }]}
+      loading={false}
+      streaming={false}
+      onSuggested={vi.fn()}
+    />);
+
+    expect(container.textContent).toContain("\u2066-۴۰.۲٪\u2069");
+    expect(container.textContent).toContain("(\u2066+۲.۶٪\u2069)");
+    expect(container.textContent).toContain("۹,۲۱۶.۶۳۹");
+  });
+
   it("uses reply language to right-align a Persian assistant answer that starts in English", () => {
     const assistantBlock: AssistantChatBlock = {
       message: "Found metric data for 0 symbol(s). 1 unresolved.\n\nتحلیل بنیادی فولاژ",

@@ -37,7 +37,8 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     icon: PieChart,
     topic: "ترکیب فروش",
     tone: "sales",
-    forSymbol: (s) => `ترکیب فروش محصولات ${s} را بررسی کن`,
+    // Kept static by owner decision: the sales-mix answer is not yet reliable for every company
+    // (e.g. گدنا), so the example stays on a symbol known to work.
   },
   {
     text: "روند فروش ماهانه کگهر را نشان بده",
@@ -98,7 +99,9 @@ export function personalizedStarterPrompts(
 
   let next = 0;
   const prompts = STARTER_PROMPTS.map((prompt) =>
-    prompt.forSymbol ? { ...prompt, text: prompt.forSymbol(symbols[next++ % symbols.length]) } : prompt,
+    prompt.forSymbol
+      ? { ...prompt, text: prompt.forSymbol(symbols[next++ % symbols.length]) }
+      : prompt,
   );
   return { prompts, personalized: true };
 }

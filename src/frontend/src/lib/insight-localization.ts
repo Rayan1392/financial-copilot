@@ -17,6 +17,26 @@ const insightTypeNames: Record<string, string> = {
   TradingValueAnomaly: "ناهنجاری ارزش معاملات",
 };
 
+/**
+ * Insight types the backend can still produce for a followed company. Excluded on purpose:
+ * ComprehensiveAnalysisPublished (legacy CyclicalWaves detector is retired) and
+ * DataFreshnessWarning (market-wide, never bound to a followed symbol).
+ */
+export const FOLLOWED_FEED_INSIGHT_TYPES = [
+  "MonthlyReportPublished",
+  "MonthlySalesAnomaly",
+  "MonthlyQualityRankingChange",
+  "FinancialStatementPublished",
+  "CodalAnnouncementMatched",
+  "PriceMovement",
+  "LargeTradeDetected",
+  "OrderQueueChanged",
+  "BuyerSellerPowerChanged",
+  "RealMoneyFlowChanged",
+  "TradingVolumeAnomaly",
+  "TradingValueAnomaly",
+] as const;
+
 const severityNames: Record<string, string> = {
   Informational: "اطلاع‌رسانی",
   Notice: "قابل توجه",

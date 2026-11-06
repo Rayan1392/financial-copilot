@@ -16,6 +16,7 @@ import { searchSymbolMetadata, type SymbolMetadata } from "@/lib/metadata.functi
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  FOLLOWED_FEED_INSIGHT_TYPES,
   formatInsightScore,
   formatShamsiDate,
   localizeEvidenceLabel,
@@ -177,13 +178,11 @@ function FollowedSymbolsPage() {
                     className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-emerald/50"
                   >
                     <option value="">همه نوع‌ها</option>
-                    <option value="MonthlyReportPublished">گزارش‌های ماهانه</option>
-                    <option value="MonthlySalesAnomaly">ناهنجاری‌های فروش</option>
-                    <option value="MonthlyQualityRankingChange">تغییرات کیفیت</option>
-                    <option value="PriceMovement">حرکت قیمت</option>
-                    <option value="ComprehensiveAnalysisPublished">تحلیل‌های منتشرشده</option>
-                    <option value="FinancialStatementPublished">صورت‌های مالی</option>
-                    <option value="DataFreshnessWarning">هشدار تازگی داده</option>
+                    {FOLLOWED_FEED_INSIGHT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {localizeInsightType(type)}
+                      </option>
+                    ))}
                   </select>
                   <select
                     value={severityFilter}
@@ -274,13 +273,13 @@ function FollowedSymbolsPage() {
           <TabsContent value="add" className="mt-0">
             <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="symbol-search">
-                افزودن نماد با جستجوی شرکت
+                افزودن نماد با جستجوی نماد یا نام شرکت
               </label>
               <input
                 id="symbol-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="نام نماد یا شرکت را جستجو کنید"
+                placeholder="مثلاً خودرو یا ایران خودرو"
                 className="mt-2 w-full rounded-xl border border-hairline bg-background px-4 py-3 text-sm outline-none focus:border-emerald/50"
               />
               <div className="mt-4 grid gap-2 md:grid-cols-2">

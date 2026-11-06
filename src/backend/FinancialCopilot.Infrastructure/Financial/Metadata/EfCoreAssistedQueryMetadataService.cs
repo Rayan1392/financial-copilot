@@ -43,19 +43,53 @@ public sealed class EfCoreAssistedQueryMetadataService(FinancialIngestionDbConte
             };
 
         var normalizedSearch = NormalizeSearch(search);
-        if (normalizedSearch is not null)
-        {
-            query = query.Where(row =>
-                (row.SymbolCode != null && row.SymbolCode.ToLower().Contains(normalizedSearch)) ||
-                row.Name.ToLower().Contains(normalizedSearch) ||
-                (row.NameEnglish != null && row.NameEnglish.ToLower().Contains(normalizedSearch)));
-        }
 
-        var rows = await query
-            .OrderBy(row => row.SymbolCode)
-            .ThenBy(row => row.Name)
-            .Take(limit * 3)
-            .ToListAsync(cancellationToken);
+        // Relevance ranking runs in SQL *before* Take, so a strong symbol match is never cut off by
+        // alphabetically earlier rows whose company name merely contains the term (e.g. searching
+        // «خودرو» must return the «خودرو» symbol first, not «خاور…» rows of «ایران خودرو دیزل»).
+        // Lower rank = better match:
+        //   0 exact symbol · 1 symbol prefix · 2 exact company name · 3 company-name prefix
+        //   4 symbol contains · 5 company name contains (Persian or English)
+        //
+        // Both sides are folded the same way (see NormalizeSearch): Arabic «ي»/«ى»/«ك» stored by some
+        // vendor feeds must match Persian «ی»/«ک» typed by the user, and vice versa. The stored
+        // columns are folded in SQL (nested replace()) with the same constants as the search term.
+        var ranked = normalizedSearch is null
+            ? query.Select(row => new { Row = row, Rank = 0 })
+            : query
+                .Select(row => new
+                {
+                    Row = row,
+                    Symbol = row.SymbolCode.ToLower()
+                        .Replace(ArabicYeh, PersianYeh).Replace(ArabicAlefMaksura, PersianYeh).Replace(ArabicKaf, PersianKaf),
+                    Name = row.Name.ToLower()
+                        .Replace(ArabicYeh, PersianYeh).Replace(ArabicAlefMaksura, PersianYeh).Replace(ArabicKaf, PersianKaf),
+                    NameEnglish = row.NameEnglish == null ? null : row.NameEnglish.ToLower()
+                })
+                .Where(item =>
+                    item.Symbol.Contains(normalizedSearch) ||
+                    item.Name.Contains(normalizedSearch) ||
+                    (item.NameEnglish != null && item.NameEnglish.Contains(normalizedSearch)))
+                .Select(item => new
+                {
+                    item.Row,
+                    Rank =
+                        item.Symbol == normalizedSearch ? 0 :
+                        item.Symbol.StartsWith(normalizedSearch) ? 1 :
+                        item.Name == normalizedSearch ? 2 :
+                        item.Name.StartsWith(normalizedSearch) ||
+                            (item.NameEnglish != null && item.NameEnglish.StartsWith(normalizedSearch)) ? 3 :
+                        item.Symbol.Contains(normalizedSearch) ? 4 :
+                        5
+                });
+
+        var rows = (await ranked
+                .OrderBy(item => item.Rank)
+                .ThenBy(item => item.Row.SymbolCode)
+                .ThenBy(item => item.Row.Name)
+                .Take(limit * 3)
+                .ToListAsync(cancellationToken))
+            .Select(item => item.Row);
 
         return rows
             .GroupBy(row => row.SymbolCode, StringComparer.OrdinalIgnoreCase)
@@ -79,7 +113,9 @@ public sealed class EfCoreAssistedQueryMetadataService(FinancialIngestionDbConte
         var normalizedSearch = NormalizeSearch(search);
         if (normalizedSearch is not null)
         {
-            query = query.Where(row => row.Name.ToLower().Contains(normalizedSearch));
+            query = query.Where(row => row.Name.ToLower()
+                .Replace(ArabicYeh, PersianYeh).Replace(ArabicAlefMaksura, PersianYeh).Replace(ArabicKaf, PersianKaf)
+                .Contains(normalizedSearch));
         }
 
         var rows = await query
@@ -101,6 +137,19 @@ public sealed class EfCoreAssistedQueryMetadataService(FinancialIngestionDbConte
         string displayNameFa) =>
         new(type.ToString(), displayName, displayNameFa);
 
+    // Arabic look-alike letters folded to their Persian form on both sides of a search comparison.
+    // Strings (not chars) so EF Core translates the column-side Replace calls to SQL replace().
+    private const string ArabicYeh = "ي";          // ي
+    private const string ArabicAlefMaksura = "ى";  // ى
+    private const string ArabicKaf = "ك";          // ك
+    private const string PersianYeh = "ی";         // ی
+    private const string PersianKaf = "ک";         // ک
+
     private static string? NormalizeSearch(string? search) =>
-        string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLowerInvariant();
+        string.IsNullOrWhiteSpace(search)
+            ? null
+            : search.Trim().ToLowerInvariant()
+                .Replace(ArabicYeh, PersianYeh)
+                .Replace(ArabicAlefMaksura, PersianYeh)
+                .Replace(ArabicKaf, PersianKaf);
 }

@@ -82,6 +82,23 @@ export interface StarterPromptSet {
 }
 
 /**
+ * Off by owner decision (2026-11-06): a watchlist symbol is not known to have the data a card asks about —
+ * e.g. a non-producing company such as ثبهساز has no monthly sales trend — so personalized cards could
+ * promise answers the assistant cannot give. Turn back on only once a card is offered just for symbols
+ * that support its capability.
+ */
+export const WATCHLIST_STARTER_PROMPTS_ENABLED = false;
+
+/** The cards the new-chat pages show: the fixed six while watchlist personalization is off. */
+export function homeStarterPrompts(
+  followed: readonly { symbol: string; followedAtUtc?: string }[],
+): StarterPromptSet {
+  return WATCHLIST_STARTER_PROMPTS_ENABLED
+    ? personalizedStarterPrompts(followed)
+    : { prompts: STARTER_PROMPTS, personalized: false };
+}
+
+/**
  * The same six capability cards, with examples taken from the user's watchlist: symbols, newest followed
  * first, are dealt across the cards that can take one, so different cards show different symbols. Rights
  * issues (شگلح) are skipped because they have no statements or monthly sales of their own. With no usable

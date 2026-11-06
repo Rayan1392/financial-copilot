@@ -1,7 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { personalizedStarterPrompts, STARTER_PROMPTS } from "../starter-prompts";
+import {
+  homeStarterPrompts,
+  personalizedStarterPrompts,
+  STARTER_PROMPTS,
+  WATCHLIST_STARTER_PROMPTS_ENABLED,
+} from "../starter-prompts";
 
 const followed = (symbol: string, followedAtUtc: string) => ({ symbol, followedAtUtc });
+
+describe("homeStarterPrompts", () => {
+  it("shows the fixed six cards whatever the watchlist holds while personalization is off", () => {
+    expect(WATCHLIST_STARTER_PROMPTS_ENABLED).toBe(false);
+
+    const set = homeStarterPrompts([
+      followed("ثبهساز", "2026-11-06T10:00:00Z"),
+      followed("فاذر", "2026-11-05T10:00:00Z"),
+    ]);
+
+    expect(set.personalized).toBe(false);
+    expect(set.prompts).toBe(STARTER_PROMPTS);
+    expect(set.prompts).toHaveLength(6);
+    expect(set.prompts.every((prompt) => !prompt.text.includes("ثبهساز"))).toBe(true);
+  });
+});
 
 describe("personalizedStarterPrompts", () => {
   it("falls back to the current static cards when the watchlist is empty", () => {

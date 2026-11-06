@@ -912,7 +912,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
             <Input
               value={externalId}
               onChange={(e) => setExternalId(e.target.value)}
-              placeholder="شناسه خارجی TahlilApp"
+              placeholder="شناسه خارجی تحلیل‌اپ"
               className="rounded-xl border-slate-200 bg-white"
             />
             <select

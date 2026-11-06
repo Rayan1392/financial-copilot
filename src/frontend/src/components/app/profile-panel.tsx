@@ -16,7 +16,7 @@ import { MISSING_PROFILE_VALUE, profileDisplayName } from "@/lib/profile-display
 
 const ACCOUNT_STATE_LABELS: Record<AccountAuthState, string> = {
   A: "ورود فقط از طریق تحلیل‌اپ",
-  B: "ایمیل تایید شد؛ گذرواژه تعیین نشده",
+  B: "ایمیل تأیید شد؛ گذرواژه تعیین نشده",
   C: "ورود مستقیم فعال است",
   D: "حساب ایمیلی",
 };
@@ -141,7 +141,7 @@ function AccountLoadState({
 
 function AccountSummaryCard({ summary }: { summary: AccountSummary }) {
   const emailStatus =
-    summary.email === null ? null : summary.emailConfirmed ? "تایید شده" : "تایید نشده";
+    summary.email === null ? null : summary.emailConfirmed ? "تأیید شده" : "تأیید نشده";
   return (
     <section
       aria-labelledby="account-state-heading"
@@ -306,7 +306,7 @@ function EmailEnrollmentCard() {
       // Generic on purpose: the response never reveals whether the address is already registered.
       setNotice({
         tone: "success",
-        text: "در صورت امکان استفاده از این نشانی، پیام تایید ارسال شد. پوشه‌های ناخواسته را نیز بررسی کنید.",
+        text: "در صورت امکان استفاده از این نشانی، پیام تأیید ارسال شد. پوشه‌های ناخواسته را نیز بررسی کنید.",
       });
     } catch (error) {
       setNotice({ tone: "error", ...enrollmentFailure(error) });
@@ -321,10 +321,10 @@ function EmailEnrollmentCard() {
       className="rounded-2xl border border-border bg-surface p-5"
     >
       <h2 id="email-enrollment-heading" className="text-base font-semibold">
-        تایید نشانی ایمیل
+        تأیید نشانی ایمیل
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        با ثبت ایمیل، پیوند تایید به آن ارسال می‌شود. پس از تایید می‌توانید گذرواژه تعیین کنید.
+        با ثبت ایمیل، پیوند تأیید به آن ارسال می‌شود. پس از تأیید می‌توانید گذرواژه تعیین کنید.
       </p>
       <form onSubmit={submit} className="mt-4 space-y-3">
         <div>
@@ -347,7 +347,7 @@ function EmailEnrollmentCard() {
           disabled={submitting}
           className="w-full rounded-lg bg-emerald py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 sm:w-auto sm:px-6"
         >
-          {submitting ? "در حال ارسال…" : "ارسال پیوند تایید"}
+          {submitting ? "در حال ارسال…" : "ارسال پیوند تأیید"}
         </button>
       </form>
       <StatusMessage notice={notice} />
@@ -515,7 +515,7 @@ function passwordFailure(error: unknown): { text: string; signIn?: boolean } {
   if (problemIs(error, "password-already-set"))
     return { text: "گذرواژه قبلاً برای این حساب تعیین شده است." };
   if (problemIs(error, "email-not-confirmed"))
-    return { text: "ابتدا نشانی ایمیل خود را تایید کنید." };
+    return { text: "ابتدا نشانی ایمیل خود را تأیید کنید." };
   if (statusOf(error) === 401) return { text: SESSION_EXPIRED_TEXT, signIn: true };
   return { text: "تعیین گذرواژه انجام نشد. کمی بعد دوباره تلاش کنید." };
 }

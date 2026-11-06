@@ -8,7 +8,7 @@ describe("closed registration auth page", () => {
 
     expect(screen.getByRole("heading", { name: "ورود به حساب" })).toBeInTheDocument();
     expect(screen.getByLabelText("ایمیل")).toHaveAttribute("type", "email");
-    expect(screen.getByLabelText("رمز عبور")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("گذرواژه")).toHaveAttribute("type", "password");
     expect(screen.getByRole("button", { name: "ورود" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "گذرواژه را فراموش کرده‌اید؟" })).toHaveAttribute(
       "href",

@@ -77,7 +77,7 @@ export function AuthScreen({ redirect, sessionExpired = false }: { redirect: str
             </div>
             <div>
               <label htmlFor="auth-password" className="block text-xs text-muted-foreground mb-1.5">
-                رمز عبور
+                گذرواژه
               </label>
               <input
                 id="auth-password"

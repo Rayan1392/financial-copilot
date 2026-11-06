@@ -571,10 +571,10 @@ public sealed class OwnedIdentityService(
         if (user is null) return;
         var link = BuildEmailLink(purpose, rawToken);
         var verification = verificationLike;
-        var subject = verification ? "تایید نشانی ایمیل" : "بازیابی گذرواژه";
-        var action = verification ? "تایید ایمیل" : "انتخاب گذرواژه جدید";
+        var subject = verification ? "تأیید نشانی ایمیل" : "بازیابی گذرواژه";
+        var action = verification ? "تأیید ایمیل" : "انتخاب گذرواژه جدید";
         var plain = verification
-            ? $"برای تایید نشانی ایمیل خود این پیوند را باز کنید: {link}\nاین پیوند تا ۲۴ ساعت معتبر است."
+            ? $"برای تأیید نشانی ایمیل خود این پیوند را باز کنید: {link}\nاین پیوند تا ۲۴ ساعت معتبر است."
             : $"برای بازیابی گذرواژه خود این پیوند را باز کنید: {link}\nاین پیوند تا ۳۰ دقیقه معتبر است. اگر شما این درخواست را نداده‌اید، این پیام را نادیده بگیرید.";
         var html = $"<!doctype html><html lang=\"fa\" dir=\"rtl\"><head><meta charset=\"utf-8\"><meta name=\"referrer\" content=\"no-referrer\"></head><body style=\"font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right\"><h2>{action}</h2><p>برای ادامه روی پیوند زیر بزنید:</p><p><a rel=\"noreferrer\" href=\"{HtmlEncoder.Default.Encode(link)}\">{action}</a></p><p>اگر شما این درخواست را نداده‌اید، این پیام را نادیده بگیرید.</p></body></html>";
         try

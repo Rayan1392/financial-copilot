@@ -53,7 +53,7 @@ export function AddSymbolSheet({
         <div className="flex items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-hairline focus-within:ring-2 focus-within:ring-emerald/40">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <label htmlFor="add-symbol-search" className="sr-only">
-            جستجوی نماد یا نام شرکت
+            جست‌وجوی نماد یا نام شرکت
           </label>
           {/* Autofocus is acceptable here: the user opened this sheet to type. */}
           <input
@@ -80,11 +80,11 @@ export function AddSymbolSheet({
       </div>
       {term.length === 0 ? null : results.isLoading ? (
         <p role="status" className="px-4 py-6 text-center text-sm text-muted-foreground">
-          در حال جستجو…
+          در حال جست‌وجو…
         </p>
       ) : results.isError ? (
         <div role="alert" className="px-4 py-6 text-center text-sm">
-          <p>جستجو ناموفق بود</p>
+          <p>جست‌وجو ناموفق بود</p>
           <button
             type="button"
             onClick={() => void results.refetch()}

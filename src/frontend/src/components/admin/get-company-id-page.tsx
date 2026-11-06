@@ -282,7 +282,7 @@ export function GetCompanyIdPage() {
             </div>
             <Button type="submit" disabled={loading} className="sm:min-w-32">
               <Search className="ml-2 size-4" />
-              {loading ? "در حال جستجو..." : "جستجو"}
+              {loading ? "در حال جست‌وجو..." : "جست‌وجو"}
             </Button>
           </form>
 

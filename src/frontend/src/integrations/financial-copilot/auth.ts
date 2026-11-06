@@ -164,7 +164,7 @@ function authProblemMessage(problem: unknown, fallback: string) {
   };
 
   if (details.type === "https://financialcopilot/errors/invalid-credentials") {
-    return "ایمیل یا رمز عبور واردشده نادرست است.";
+    return "ایمیل یا گذرواژه واردشده نادرست است.";
   }
 
   if (typeof details.detail === "string" && details.detail.trim()) return details.detail;

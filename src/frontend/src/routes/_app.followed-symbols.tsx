@@ -273,7 +273,7 @@ function FollowedSymbolsPage() {
           <TabsContent value="add" className="mt-0">
             <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="symbol-search">
-                افزودن نماد با جستجوی نماد یا نام شرکت
+                افزودن نماد با جست‌وجوی نماد یا نام شرکت
               </label>
               <input
                 id="symbol-search"
@@ -321,7 +321,7 @@ function FollowedSymbolsPage() {
                     className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald px-4 py-2 text-sm font-medium text-primary-foreground transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
                   >
                     <Plus className="size-4" aria-hidden="true" />
-                    جستجو و افزودن نماد
+                    جست‌وجو و افزودن نماد
                   </button>
                 </div>
               )}

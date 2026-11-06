@@ -11,7 +11,7 @@ describe("personalizedStarterPrompts", () => {
     expect(set.prompts).toBe(STARTER_PROMPTS);
   });
 
-  it("deals card types across the watchlist, newest followed first, and keeps the ranking card", () => {
+  it("keeps the same six capability cards and only swaps in watchlist symbols, newest first", () => {
     const set = personalizedStarterPrompts([
       followed("شگل", "2026-11-01T10:00:00Z"),
       followed("فاذر", "2026-11-05T10:00:00Z"),
@@ -20,29 +20,35 @@ describe("personalizedStarterPrompts", () => {
     ]);
 
     expect(set.personalized).toBe(true);
+    // Same topics, same order, each once: no capability is dropped or repeated.
+    expect(set.prompts.map((prompt) => prompt.topic)).toEqual(
+      STARTER_PROMPTS.map((prompt) => prompt.topic),
+    );
     expect(set.prompts.map((prompt) => prompt.text)).toEqual([
       "ترکیب فروش محصولات فاذر را بررسی کن",
       "روند فروش ماهانه اخابر را نشان بده",
+      // Product card: the product name is company-specific, so its static example stays.
+      "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
+      "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
       "عملکرد مالی فصلی کگهر را بررسی کن",
       "صورت وضعیت مالی شگل را بررسی کن",
-      "روند فروش ماهانه فاذر را نشان بده",
-      "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
     ]);
   });
 
-  it("fills a one-symbol watchlist to the full set without duplicate cards", () => {
+  it("uses a single followed symbol on every card that takes one", () => {
     const set = personalizedStarterPrompts([followed("فاذر", "2026-11-05T10:00:00Z")]);
     const texts = set.prompts.map((prompt) => prompt.text);
 
     expect(texts).toHaveLength(STARTER_PROMPTS.length);
     expect(new Set(texts).size).toBe(texts.length);
-    expect(texts.slice(0, 4)).toEqual([
+    expect(texts).toEqual([
       "ترکیب فروش محصولات فاذر را بررسی کن",
       "روند فروش ماهانه فاذر را نشان بده",
+      "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
+      "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
       "عملکرد مالی فصلی فاذر را بررسی کن",
       "صورت وضعیت مالی فاذر را بررسی کن",
     ]);
-    expect(texts).toContain("رتبه‌بندی گزارش‌های ماهانه را نشان بده");
   });
 
   it("leaves rights issues (symbol + «ح») out, falling back when only they are followed", () => {

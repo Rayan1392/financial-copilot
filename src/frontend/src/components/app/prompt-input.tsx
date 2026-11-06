@@ -62,7 +62,8 @@ export function PromptInput({
             </button>
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground/70 text-center mt-3">
+        {/* Legal notice: full muted color (no opacity) and 12px keep it at WCAG AA contrast in both themes. */}
+        <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
           داده‌ها و تحلیل‌ها صرفاً جنبه آموزشی دارند و توصیه سرمایه‌گذاری نیستند.
         </p>
       </div>

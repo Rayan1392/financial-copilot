@@ -6,7 +6,7 @@ import { StarterCard } from "@/components/app/starter-card";
 import { useMemo } from "react";
 import { personalizedStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useFollowedSymbols } from "@/lib/workspace/queries";
-import { chatErrorMessage } from "@/lib/chat/chat-errors";
+import { ChatErrorNotice } from "@/components/app/chat-error-notice";
 import { useStartChat } from "@/lib/chat/use-start-chat";
 
 export const Route = createFileRoute("/_app/chat")({
@@ -19,7 +19,6 @@ function NewChatPage() {
     navigateToThread: (threadId) => navigate({ to: "/c/$threadId", params: { threadId } }),
   });
   const { submit, pendingMessage } = startChat;
-  const queryError = startChat.failure ? chatErrorMessage(startChat.failure) : null;
   // Cards come from the user's watchlist; with nothing followed they fall back to the static set.
   const followed = useFollowedSymbols();
   const starterSet = useMemo(
@@ -88,11 +87,7 @@ function NewChatPage() {
           </div>
         )}
       </div>
-      {queryError && (
-        <div className="mx-4 mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive text-right">
-          {queryError}
-        </div>
-      )}
+      <ChatErrorNotice failure={startChat.failure} />
       <PromptInput onSubmit={submit} loading={startChat.isPending} showAssistedQuery />
     </>
   );

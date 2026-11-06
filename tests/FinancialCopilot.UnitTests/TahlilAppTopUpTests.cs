@@ -39,6 +39,28 @@ public sealed class TahlilAppTopUpTests
     }
 
     [Fact]
+    public async Task Purchase_history_lists_only_the_callers_own_receipts_newest_first()
+    {
+        var (billingOptions, authOptions, request, userId, tenantId, _) = await SeedAsync(500, "TA-TOPUP-500");
+        await using var billing = new BillingDbContext(billingOptions);
+        await using var auth = new AuthDbContext(authOptions);
+        var service = new TahlilAppTopUpService(billing, auth, new FixedTimeProvider(Now), new NoOpRefresher());
+        await service.DeliverAsync(request, CancellationToken.None);
+
+        var mine = await service.ListPurchasesAsync(userId, tenantId, 20, CancellationToken.None);
+        var purchase = Assert.Single(mine);
+        Assert.Equal(request.InvoiceId, purchase.InvoiceId);
+        Assert.Equal(500, purchase.CreditsPurchased);
+        Assert.Equal("granted", purchase.Status);
+        Assert.Equal(WindowEnd, purchase.ExpiresAtUtc);
+
+        Assert.Empty(await service.ListPurchasesAsync(Guid.NewGuid(), tenantId, 20, CancellationToken.None));
+        Assert.Empty(await service.ListPurchasesAsync(userId, Guid.NewGuid(), 20, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.ListPurchasesAsync(userId, tenantId, TahlilAppTopUpService.MaxPurchaseHistory + 1, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Delayed_delivery_after_original_window_expiry_is_persisted_without_credit()
     {
         var (billingOptions, authOptions, request, _, _, accountId) = await SeedAsync(100, "TA-TOPUP-100");

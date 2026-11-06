@@ -120,13 +120,19 @@ export function AccountMenu({
           </span>
         </DropdownMenuLabel>
         {creditSummary && (
-          <div className="mx-1 mb-1 flex items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2 text-[12px]">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Wallet className="size-3.5" aria-hidden="true" />
-              اعتبار هوش مصنوعی
-            </span>
-            <span className="font-semibold tabular-nums text-foreground">{creditSummary}</span>
-          </div>
+          // Links to the account page: plan, expiry, purchases and how to top up (purchase stays text-only, D-Q6).
+          <DropdownMenuItem
+            asChild
+            className="mx-1 mb-1 flex cursor-pointer items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2 text-[12px] focus:bg-emerald-soft/50"
+          >
+            <Link to="/profile" aria-label={`اعتبار هوش مصنوعی: ${creditSummary}. مشاهدهٔ اشتراک و خریدها`}>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Wallet className="size-3.5" aria-hidden="true" />
+                اعتبار هوش مصنوعی
+              </span>
+              <span className="font-semibold tabular-nums text-foreground">{creditSummary}</span>
+            </Link>
+          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator className="bg-hairline" />
         <DropdownMenuItem asChild className={ITEM_CLASS}>

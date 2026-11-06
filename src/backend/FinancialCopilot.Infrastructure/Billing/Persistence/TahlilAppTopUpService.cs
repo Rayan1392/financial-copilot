@@ -12,6 +12,10 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence;
 public sealed record TopUpDeliveryRequest(string InvoiceId, string UserId, int CreditsPurchased, DateTimeOffset PaidAtUtc);
 public sealed record TopUpDeliveryResponse(string Status, string InvoiceId, Guid? GrantId, int CreditsGranted, DateTimeOffset? ExpiresAtUtc, DateTimeOffset? GrantedAtUtc);
 public sealed record TopUpStatusResponse(string Status, string InvoiceId, Guid? GrantId, int CreditsGranted, DateTimeOffset? ExpiresAtUtc, DateTimeOffset? GrantedAtUtc);
+/// <summary>One of the caller's own TahlilApp credit purchases, for the account page's purchase history.</summary>
+public sealed record MyTopUpPurchase(string InvoiceId, int CreditsPurchased, string Status, DateTimeOffset PaidAtUtc,
+    DateTimeOffset? GrantedAtUtc, DateTimeOffset? ExpiresAtUtc);
+public sealed record MyTopUpPurchasesResponse(IReadOnlyList<MyTopUpPurchase> Items);
 public sealed record TahlilAppCreditBalanceResponse(string Plan, DateTimeOffset? SubscriptionStartsAtUtc,
     DateTimeOffset? SubscriptionExpiresAtUtc, string QuotaMode, decimal? AvailableCredits, DateTimeOffset AsOfUtc);
 public sealed record TopUpReconciliationPurchase(string InvoiceId, string? LegacyPaymentId, string ExternalUserId,
@@ -153,6 +157,26 @@ public sealed class TahlilAppTopUpService(BillingDbContext billing, AuthDbContex
         if (accountId is null) return null;
         var row = await billing.TahlilAppTopUpPurchases.AsNoTracking().SingleOrDefaultAsync(item => item.CustomerAccountId == accountId && item.InvoiceId == invoiceId, ct);
         return row is null ? null : new(row.Status, row.InvoiceId, row.GrantId, row.Status == "granted" ? row.CreditsPurchased : 0, row.PlanExpiresAtUtc, row.GrantedAtUtc);
+    }
+
+    public const int MaxPurchaseHistory = 50;
+
+    /// <summary>
+    /// The caller's own top-up receipts, newest payment first. Read-only and bounded; scoped to the caller's
+    /// customer account in their tenant, so no other account's receipt can appear.
+    /// </summary>
+    public async Task<IReadOnlyList<MyTopUpPurchase>> ListPurchasesAsync(Guid userId, Guid tenantId, int limit, CancellationToken ct)
+    {
+        if (limit is < 1 or > MaxPurchaseHistory) throw new ArgumentOutOfRangeException(nameof(limit));
+        var accountId = await billing.CustomerAccounts.AsNoTracking().Where(row => row.UserId == userId && row.TenantId == tenantId).Select(row => (Guid?)row.Id).SingleOrDefaultAsync(ct);
+        if (accountId is null) return [];
+        return await billing.TahlilAppTopUpPurchases.AsNoTracking()
+            .Where(row => row.CustomerAccountId == accountId)
+            .OrderByDescending(row => row.PaidAtUtc).ThenBy(row => row.Id)
+            .Take(limit)
+            .Select(row => new MyTopUpPurchase(row.InvoiceId, row.CreditsPurchased, row.Status, row.PaidAtUtc,
+                row.GrantedAtUtc, row.PlanExpiresAtUtc))
+            .ToListAsync(ct);
     }
 
     public async Task<TopUpReconciliationResponse> GetReconciliationAsync(Guid tenantId, int limit, CancellationToken ct)

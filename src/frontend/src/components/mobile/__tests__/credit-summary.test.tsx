@@ -51,6 +51,12 @@ describe("CreditSummary (AC-07, AC-19, D-Q6)", () => {
     expect(container.innerHTML).not.toContain("tahlilapp.com");
   });
 
+  it("shows the subscription end for finite plans too", async () => {
+    getUsage.mockResolvedValue(usage({ subscriptionExpiresAtUtc: "2026-12-20T00:00:00Z" }));
+    renderSummary();
+    expect(await screen.findByText(/^اشتراک تا /)).toBeInTheDocument();
+  });
+
   it("shows «نامحدود» and the expiry for unlimited plans", async () => {
     getUsage.mockResolvedValue(
       usage({

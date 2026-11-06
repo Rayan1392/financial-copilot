@@ -104,6 +104,11 @@ export function CreditSummary() {
                   وضعیت اعتبار: {TONE_LABEL[credit.tone]}
                 </p>
               )}
+              {data.subscriptionExpiresAtUtc && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  اشتراک تا {new Date(data.subscriptionExpiresAtUtc).toLocaleDateString("fa-IR")}
+                </p>
+              )}
             </>
           )}
         </>

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { deleteThread, listThreads, type ChatThread } from "@/lib/chat.functions";
-import { getMarketSummary, getUsage, getWatchlist } from "@/lib/market-view.functions";
+import { getMarketSummary, getMyTopUps, getUsage, getWatchlist } from "@/lib/market-view.functions";
 import { getFollowedSymbols } from "@/lib/followed-symbols.functions";
 import { getOwnProfile } from "@/integrations/financial-copilot/auth";
 import { joinWatchlistWithFollowed } from "@/lib/workspace/watchlist-join";
@@ -114,6 +114,16 @@ export function useWatchlistWithNames(options?: ReadOptions) {
 export function useUsage(options?: ReadOptions) {
   const fetchUsage = useServerFn(getUsage);
   return useQuery({ queryKey: ["usage"], queryFn: () => fetchUsage(), ...readOptions(options) });
+}
+
+/** The signed-in user's recent credit purchases, newest first (bounded by the API at 50). */
+export function useMyTopUps(limit = 10, options?: ReadOptions) {
+  const fetchTopUps = useServerFn(getMyTopUps);
+  return useQuery({
+    queryKey: ["top-ups", { limit }],
+    queryFn: () => fetchTopUps({ data: { limit } }),
+    ...readOptions(options),
+  });
 }
 
 /** The raw profile. `HeaderAccount` shares the key with a `select`, so both read one cached response. */

@@ -1,5 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   FinancialCopilotAuthError,
   getAccountSummary,
@@ -38,11 +46,14 @@ export function ProfilePanel({
   as: Container = "main",
   signInRedirect = "/profile",
   showHeading = true,
+  subscription,
 }: {
   as?: "main" | "div";
   signInRedirect?: string;
   /** The mobile top bar already shows the title. */
   showHeading?: boolean;
+  /** Plan, credit and purchases, shown first. Desktop passes it; mobile shows credit on its account screen. */
+  subscription?: ReactNode;
 } = {}) {
   const [summary, setSummary] = useState<AccountSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +96,7 @@ export function ProfilePanel({
           />
         ) : (
           <div className={showHeading ? "mt-5 space-y-4" : "space-y-4"}>
+            {subscription}
             <AccountSummaryCard summary={summary} />
             {summary.hasTahlilAppIdentity ? <TahlilAppProfileCard /> : null}
             {!summary.emailConfirmed ? <EmailEnrollmentCard /> : null}

@@ -3,7 +3,7 @@ import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
 import { StarterCard } from "@/components/app/starter-card";
 import { useMemo } from "react";
-import { personalizedStarterPrompts } from "@/lib/chat/starter-prompts";
+import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useFollowedSymbols } from "@/lib/workspace/queries";
 import { ChatErrorNotice } from "@/components/app/chat-error-notice";
 import { useStartChat } from "@/lib/chat/use-start-chat";
@@ -18,10 +18,10 @@ function NewChatPage() {
     navigateToThread: (threadId) => navigate({ to: "/c/$threadId", params: { threadId } }),
   });
   const { submit, pendingMessage } = startChat;
-  // Cards come from the user's watchlist; with nothing followed they fall back to the static set.
+  // The fixed six cards; watchlist personalization is switched off in starter-prompts.ts.
   const followed = useFollowedSymbols();
   const starterSet = useMemo(
-    () => personalizedStarterPrompts(followed.data?.symbols ?? []),
+    () => homeStarterPrompts(followed.data?.symbols ?? []),
     [followed.data],
   );
   const starterPrompts = starterSet.prompts;

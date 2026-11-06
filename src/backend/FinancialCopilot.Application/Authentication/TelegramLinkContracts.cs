@@ -20,7 +20,9 @@ public sealed record TelegramLinkView(
     long TelegramChatId,
     string? Username,
     DateTimeOffset LinkedAtUtc,
-    DateTimeOffset LastVerifiedAtUtc);
+    DateTimeOffset LastVerifiedAtUtc,
+    // https://t.me/<bot> so the web app can open the configured bot for an already linked account.
+    string? BotUrl = null);
 
 public enum TelegramLinkOutcome
 {

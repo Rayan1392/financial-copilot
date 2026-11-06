@@ -18,6 +18,8 @@ export type TelegramLinkView = {
   username?: string | null;
   linkedAtUtc: string;
   lastVerifiedAtUtc: string;
+  /** https://t.me/<bot> of the configured bot, so a linked user can open it. */
+  botUrl?: string | null;
 };
 
 export type TelegramMembershipVerification = {

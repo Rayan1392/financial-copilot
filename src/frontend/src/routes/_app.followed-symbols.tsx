@@ -14,6 +14,11 @@ import {
 } from "@/lib/followed-symbols.functions";
 import { searchSymbolMetadata, type SymbolMetadata } from "@/lib/metadata.functions";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
+import { ChangePill } from "@/components/app/rail-hover-card";
+import { formatNumber, formatPercent } from "@/lib/format/persian";
+import { isLaggingQuote, marketSessionStatus } from "@/lib/market/market-session";
+import type { WatchlistQuote } from "@/lib/market-view.functions";
+import { useWatchlist } from "@/lib/workspace/queries";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FOLLOWED_FEED_INSIGHT_TYPES,
@@ -106,6 +111,13 @@ function FollowedSymbolsPage() {
       setExplanations((current) => ({ ...current, [insightEventId]: result.text })),
   });
   const followedIds = new Set(followed.data?.symbols.map((item) => item.externalCompanyId) ?? []);
+  // Price and change come from the watchlist query the side panel already loads (shared cache key, one
+  // batched backend lookup for all symbols), so showing them here costs no extra request.
+  const watchlist = useWatchlist();
+  const quoteBySymbol = new Map<string, WatchlistQuote>(
+    (watchlist.data?.symbols ?? []).map((quote) => [quote.symbol.trim(), quote]),
+  );
+  const session = marketSessionStatus(watchlist.data?.symbols ?? []);
 
   useEffect(() => {
     if (window.location.hash === "#symbol-search") setActiveTab("add");
@@ -326,29 +338,72 @@ function FollowedSymbolsPage() {
                 </div>
               )}
               <div className="grid gap-3">
-                {followed.data?.symbols.map((item) => (
-                  <div
-                    key={item.externalCompanyId}
-                    className="flex items-center justify-between rounded-xl border border-hairline bg-background/50 px-4 py-3"
-                  >
-                    <div>
-                      <div className="font-semibold text-foreground">{item.symbol}</div>
-                      <div className="text-xs text-muted-foreground">{item.companyName}</div>
-                      <div className="mt-1 text-[10px] text-muted-foreground">
-                        شناسه شرکت: {item.externalCompanyId}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => remove.mutate(item.externalCompanyId)}
-                      disabled={remove.isPending}
-                      className="rounded-lg border border-rose/30 px-3 py-1.5 text-xs text-rose hover:bg-rose/10 disabled:opacity-50"
+                {followed.data?.symbols.map((item) => {
+                  const quote = quoteBySymbol.get(item.symbol.trim());
+                  const lagging = quote ? isLaggingQuote(quote, session) : false;
+                  return (
+                    <div
+                      key={item.externalCompanyId}
+                      className="flex items-center gap-4 rounded-xl border border-hairline bg-background/50 px-4 py-3"
                     >
-                      لغو دنبال‌کردن
-                    </button>
-                  </div>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <bdi className="text-base font-bold text-foreground">{item.symbol}</bdi>
+                          {lagging && (
+                            <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-medium text-gold">
+                              داده قدیمی
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {item.companyName}
+                        </div>
+                      </div>
+                      <div
+                        className="flex shrink-0 flex-col items-end gap-1"
+                        aria-label={
+                          quote?.latestPrice == null
+                            ? `قیمت ${item.symbol} در دسترس نیست`
+                            : `قیمت ${item.symbol}: ${formatNumber(quote.latestPrice)} ریال${quote.changePercent == null ? "" : `، تغییر ${formatPercent(quote.changePercent)}`}`
+                        }
+                      >
+                        {watchlist.isLoading ? (
+                          <span
+                            className="h-5 w-20 animate-pulse rounded bg-muted"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <span className="text-lg font-semibold leading-none text-foreground tabular-nums">
+                            {quote?.latestPrice == null ? "—" : formatNumber(quote.latestPrice)}
+                            {quote?.latestPrice != null && (
+                              <span className="mr-1 text-[11px] font-normal text-muted-foreground">
+                                ریال
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {quote?.changePercent != null && (
+                          <ChangePill
+                            value={quote.changePercent}
+                            label={formatPercent(quote.changePercent)}
+                          />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => remove.mutate(item.externalCompanyId)}
+                        disabled={remove.isPending}
+                        className="rounded-lg border border-rose/30 px-3 py-1.5 text-xs text-rose hover:bg-rose/10 disabled:opacity-50"
+                      >
+                        لغو دنبال‌کردن
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
+              {session.label && (followed.data?.symbols.length ?? 0) > 0 && (
+                <p className="mt-3 text-xs text-muted-foreground">{session.label}</p>
+              )}
             </section>
           </TabsContent>
         </Tabs>

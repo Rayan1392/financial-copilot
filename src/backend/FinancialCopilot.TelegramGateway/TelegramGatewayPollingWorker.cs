@@ -151,7 +151,7 @@ public sealed class TelegramGatewayPollingWorker(
 
             if (message.Text.StartsWith("/start link_", StringComparison.Ordinal))
             {
-                var success = await primaryApi.ConfirmLinkAsync(
+                var outcome = await primaryApi.ConfirmLinkAsync(
                     new TelegramLinkConfirmRequest(
                         message.Text["/start ".Length..],
                         from.Id,
@@ -159,14 +159,27 @@ public sealed class TelegramGatewayPollingWorker(
                         from.Username,
                         update.UpdateId),
                     cancellationToken);
-                await telegram.SendMessageAsync(
-                    chat.Id,
-                    success
-                        ? "حساب تلگرام شما با موفقیت متصل شد."
-                        : "اتصال حساب تلگرام ناموفق بود.",
-                    null,
-                    null,
-                    cancellationToken);
+                if (outcome != TelegramLinkConfirmOutcome.Linked)
+                {
+                    logger.LogWarning(
+                        "Telegram link confirmation for update {TelegramUpdateId} ended with {Outcome}.",
+                        update.UpdateId,
+                        outcome);
+                }
+                await telegram.SendMessageAsync(chat.Id, LinkOutcomeText(outcome), null, null, cancellationToken);
+                return UpdateCompletion.Complete;
+            }
+
+            if (IsUnlinkCommand(message.Text))
+            {
+                var text = !string.Equals(chat.Type, "private", StringComparison.OrdinalIgnoreCase)
+                    ? "این دستور فقط در گفت‌وگوی خصوصی با ربات کار می‌کند."
+                    : await primaryApi.UnlinkFromTelegramAsync(
+                        new TelegramUnlinkRequest(from.Id, update.UpdateId),
+                        cancellationToken)
+                        ? "اتصال این حساب تلگرام به ساپیو قطع شد. برای اتصال دوباره، در سایت به صفحهٔ «اتصال حساب تلگرام» بروید و یک پیوند تازه بسازید."
+                        : LinkOutcomeText(TelegramLinkConfirmOutcome.Unavailable);
+                await telegram.SendMessageAsync(chat.Id, text, null, null, cancellationToken);
                 return UpdateCompletion.Complete;
             }
 
@@ -375,6 +388,23 @@ public sealed class TelegramGatewayPollingWorker(
                 chatId,
                 exception.GetType().Name);
         }
+    }
+
+    private static string LinkOutcomeText(TelegramLinkConfirmOutcome outcome) => outcome switch
+    {
+        TelegramLinkConfirmOutcome.Linked => "حساب تلگرام شما با موفقیت متصل شد.",
+        TelegramLinkConfirmOutcome.Conflict =>
+            "این حساب تلگرام از قبل به حساب دیگری در ساپیو متصل است. برای اتصال به حساب فعلی، ابتدا دستور /unlink را همین‌جا بفرستید، سپس در سایت به صفحهٔ «اتصال حساب تلگرام» بروید و یک پیوند تازه بسازید.",
+        TelegramLinkConfirmOutcome.InvalidOrExpired =>
+            "این پیوند اتصال منقضی شده یا قبلاً استفاده شده است. در سایت به صفحهٔ «اتصال حساب تلگرام» بروید و یک پیوند تازه بسازید.",
+        _ => "اتصال حساب تلگرام در حال حاضر ممکن نشد. لطفاً چند دقیقه دیگر دوباره تلاش کنید."
+    };
+
+    /// <summary>Accepts "/unlink" and Telegram's group form "/unlink@BotName".</summary>
+    private static bool IsUnlinkCommand(string text)
+    {
+        var command = text.Trim();
+        return command == "/unlink" || command.StartsWith("/unlink@", StringComparison.Ordinal);
     }
 
     private static bool IsAuthenticationFailure(System.Net.HttpStatusCode? statusCode) =>

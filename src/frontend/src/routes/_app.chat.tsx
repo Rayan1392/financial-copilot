@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
 import { StarterCard } from "@/components/app/starter-card";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useNewChatIntent } from "@/lib/chat/new-chat-intent";
 import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useFollowedSymbols } from "@/lib/workspace/queries";
 import { ChatErrorNotice } from "@/components/app/chat-error-notice";
@@ -18,6 +19,13 @@ function NewChatPage() {
     navigateToThread: (threadId) => navigate({ to: "/c/$threadId", params: { threadId } }),
   });
   const { submit, pendingMessage } = startChat;
+  // A symbol row in the market column sends its question here: submit it, or seed the composer with it.
+  const [seed, setSeed] = useState({ text: "", version: 0 });
+  useNewChatIntent("/chat", ({ submitQuestion, prefillQuestion }) => {
+    if (prefillQuestion)
+      setSeed((current) => ({ text: prefillQuestion, version: current.version + 1 }));
+    if (submitQuestion) submit(submitQuestion);
+  });
   // The fixed six cards; watchlist personalization is switched off in starter-prompts.ts.
   const followed = useFollowedSymbols();
   const starterSet = useMemo(
@@ -84,7 +92,14 @@ function NewChatPage() {
         )}
       </div>
       <ChatErrorNotice failure={startChat.failure} />
-      <PromptInput onSubmit={submit} loading={startChat.isPending} showAssistedQuery />
+      <PromptInput
+        key={seed.version}
+        initialValue={seed.text}
+        onSubmit={submit}
+        loading={startChat.isPending}
+        showAssistedQuery
+        showReleaseVersion
+      />
     </>
   );
 }

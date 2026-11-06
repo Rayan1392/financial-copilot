@@ -5,6 +5,7 @@ import { ChevronLeft, Download, LogOut, Monitor, Moon, Send, ShieldCheck, Sun } 
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { CreditSummary } from "@/components/mobile/credit-summary";
 import { IosInstallSheet } from "@/components/mobile/ios-install-sheet";
+import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
 import { useTheme } from "@/components/app/theme-toggle";
 import { getAccountSummary, logout } from "@/integrations/financial-copilot/auth";
 import { officialDisplayName } from "@/lib/profile-display-name";
@@ -160,6 +161,9 @@ function MobileAccount() {
           <LogOut className="size-5" aria-hidden="true" />
           <span className="flex-1">خروج از حساب</span>
         </button>
+        <div className="flex justify-center">
+          <ReleaseVersionLink />
+        </div>
       </div>
       <IosInstallSheet open={iosOpen} onOpenChange={setIosOpen} />
     </MobileScreen>

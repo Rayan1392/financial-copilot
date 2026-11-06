@@ -42,7 +42,10 @@ export interface AssistantChatBlock {
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
-  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult; balanceSheetReport?: BalanceSheetReportResult | null };
+  financialStatementTableResult?: {
+    quarterlyResult?: QuarterlyFinancialReportTableResult;
+    balanceSheetReport?: BalanceSheetReportResult | null;
+  };
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -59,7 +62,20 @@ export interface AssistantChatBlock {
 }
 
 export interface DisclosureListingResult {
-  items: Array<{ disclosureId: string; symbol?: string; companyName?: string; type: string; title: string; publishedAt?: string; reportingPeriodEnd?: string; reportingPeriodType?: string; receivedAt: string; providerName: string; isRevised: boolean; isComposing: boolean }>;
+  items: Array<{
+    disclosureId: string;
+    symbol?: string;
+    companyName?: string;
+    type: string;
+    title: string;
+    publishedAt?: string;
+    reportingPeriodEnd?: string;
+    reportingPeriodType?: string;
+    receivedAt: string;
+    providerName: string;
+    isRevised: boolean;
+    isComposing: boolean;
+  }>;
   page: number;
   totalPages: number;
   hasPreviousPage: boolean;
@@ -107,7 +123,12 @@ export interface PsVisualizationResult {
   providerBoundaryEnd?: number;
   gaugeAxisMin?: number;
   gaugeAxisMax?: number;
-  needle?: { sourceValue: number; normalizedPosition: number; angleDegrees: number; bandOrder: number };
+  needle?: {
+    sourceValue: number;
+    normalizedPosition: number;
+    angleDegrees: number;
+    bandOrder: number;
+  };
 }
 
 export interface MonthlyActivityTrendResult {
@@ -123,6 +144,9 @@ export interface MonthlyActivityTrendResult {
   salesVsAverage12MonthPercent?: number;
   ytdSalesAmount?: number;
   ytdPreviousMonthSalesAmount?: number;
+  /** Optional: answers stored before these fields existed do not carry them. */
+  previousMonthSalesAmount?: number;
+  salesAmountMomGrowthPercent?: number;
   chartPoints: MonthlyActivityTrendChartPoint[];
   insights: MonthlyActivityTrendInsight[];
   missingDataPoints: MonthlyActivityTrendMissingDataPoint[];
@@ -140,9 +164,28 @@ export interface MonthlyProductComparisonResult {
   salesChange?: number;
   salesChangePercent?: number;
   primaryDriver?: string;
-  products: Array<{ title: string; unit?: string; lifecycle: string; currentSales?: number; comparisonSales?: number; salesChange?: number; contributionPercent?: number; quantityEffect?: number; priceEffect?: number; residual?: number; driver: string; warnings: string[] }>;
+  products: Array<{
+    title: string;
+    unit?: string;
+    lifecycle: string;
+    currentSales?: number;
+    comparisonSales?: number;
+    salesChange?: number;
+    contributionPercent?: number;
+    quantityEffect?: number;
+    priceEffect?: number;
+    residual?: number;
+    driver: string;
+    warnings: string[];
+  }>;
   warnings: string[];
-  evidence: Array<{ reportId: string; rowId: string; providerName: string; externalReportId: string; period: string }>;
+  evidence: Array<{
+    reportId: string;
+    rowId: string;
+    providerName: string;
+    externalReportId: string;
+    period: string;
+  }>;
   blockingReason?: string;
   clarificationMessage?: string;
 }
@@ -174,8 +217,20 @@ export interface MonthlyProductTrendResult {
     rateStatus: string;
     isGap: boolean;
   }>;
-  candidates: Array<{ displayTitle: string; unit?: string; productKey: string; providerProductCode?: string; providerProductId?: number }>;
-  evidence: Array<{ reportId: string; rowId: string; providerName: string; externalReportId: string; period: string }>;
+  candidates: Array<{
+    displayTitle: string;
+    unit?: string;
+    productKey: string;
+    providerProductCode?: string;
+    providerProductId?: number;
+  }>;
+  evidence: Array<{
+    reportId: string;
+    rowId: string;
+    providerName: string;
+    externalReportId: string;
+    period: string;
+  }>;
   blockingReason?: string;
   message?: string;
 }
@@ -204,7 +259,12 @@ export interface MonthlyActivityTrendMissingDataPoint {
 }
 
 export interface ScannerTable {
-  columns: Array<{ identifier: string; displayName: string; columnType?: string; metricCode?: string }>;
+  columns: Array<{
+    identifier: string;
+    displayName: string;
+    columnType?: string;
+    metricCode?: string;
+  }>;
   rows: Array<{
     symbolCode: string;
     companyName?: string;
@@ -307,7 +367,10 @@ interface AssistantContentResponse {
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
-  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult; balanceSheetReport?: BalanceSheetReportResult | null };
+  financialStatementTableResult?: {
+    quarterlyResult?: QuarterlyFinancialReportTableResult;
+    balanceSheetReport?: BalanceSheetReportResult | null;
+  };
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
@@ -334,7 +397,13 @@ export interface QuarterlyFinancialReportTableResult {
   companySymbol: string;
   companyName?: string;
   status: string;
-  periodsNewestFirst: Array<{ fiscalYear: number; quarter: number; start: string; end: string; label: string }>;
+  periodsNewestFirst: Array<{
+    fiscalYear: number;
+    quarter: number;
+    start: string;
+    end: string;
+    label: string;
+  }>;
   rows: Array<{
     rowId: string;
     order: number;
@@ -343,7 +412,28 @@ export interface QuarterlyFinancialReportTableResult {
     sourceCatalogTitleFa?: string | null;
     policy: string | number;
     unit: string;
-    cells: Record<string, { value: number | null; state: string | number; reason?: string | null; unit: string; renderZeroAsDash: boolean; sourceReportIds?: string[]; sourceLineItemIds?: string[]; normalizationPolicy?: string; operandValues?: Array<number | null>; comparableEvidence?: { standaloneAttributableProfitMillionRials?: number | null; shareBasisThousand?: number | null; referenceFiscalYear?: number | null; referenceQuarter?: number | null; referenceExternalReportId?: string | null; method?: string | null } }>;
+    cells: Record<
+      string,
+      {
+        value: number | null;
+        state: string | number;
+        reason?: string | null;
+        unit: string;
+        renderZeroAsDash: boolean;
+        sourceReportIds?: string[];
+        sourceLineItemIds?: string[];
+        normalizationPolicy?: string;
+        operandValues?: Array<number | null>;
+        comparableEvidence?: {
+          standaloneAttributableProfitMillionRials?: number | null;
+          shareBasisThousand?: number | null;
+          referenceFiscalYear?: number | null;
+          referenceQuarter?: number | null;
+          referenceExternalReportId?: string | null;
+          method?: string | null;
+        };
+      }
+    >;
   }>;
   comparisons: Array<{
     rowId: string;
@@ -394,7 +484,9 @@ export interface FinancialStatementAnalysisResult {
 }
 
 /** The API accepts 1–100; omitting the limit keeps the API default (20) that desktop has always used. */
-export const listThreadsInput = z.object({ limit: z.number().int().min(1).max(100).optional() }).optional();
+export const listThreadsInput = z
+  .object({ limit: z.number().int().min(1).max(100).optional() })
+  .optional();
 
 export const listThreads = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
@@ -460,28 +552,34 @@ export type ChatSendResult = Awaited<ReturnType<typeof runChatQuery>>;
 export const sendChatMessage = createServerFn({ method: "POST" })
   .middleware([requireFinancialCopilotAuth])
   .inputValidator((d) => sendChatMessageInput.parse(d))
-  .handler(async ({ context, data }): Promise<
-    { ok: true; result: ChatSendResult } | { ok: false; failure: ChatFailure }
-  > => {
-    try {
-      return { ok: true, result: await runChatQuery(context, data) };
-    } catch (error) {
-      if (error instanceof FinancialCopilotApiError) {
+  .handler(
+    async ({
+      context,
+      data,
+    }): Promise<{ ok: true; result: ChatSendResult } | { ok: false; failure: ChatFailure }> => {
+      try {
+        return { ok: true, result: await runChatQuery(context, data) };
+      } catch (error) {
+        if (error instanceof FinancialCopilotApiError) {
+          return {
+            ok: false,
+            failure: {
+              code: classifyApiFailure(error.status, error.problemCode, error.message),
+              message: error.message,
+            },
+          };
+        }
+        // The API could not be reached from the server, so the request's outcome is unknown.
         return {
           ok: false,
           failure: {
-            code: classifyApiFailure(error.status, error.problemCode, error.message),
-            message: error.message,
+            code: "server",
+            message: error instanceof Error ? error.message : "Unknown failure.",
           },
         };
       }
-      // The API could not be reached from the server, so the request's outcome is unknown.
-      return {
-        ok: false,
-        failure: { code: "server", message: error instanceof Error ? error.message : "Unknown failure." },
-      };
-    }
-  });
+    },
+  );
 
 async function runChatQuery(
   context: Parameters<typeof financialCopilotServerApi>[0],
@@ -560,10 +658,10 @@ function mapAssistantBlock(
   const table = normalizeRenderableTable(content?.symbolLookupTable ?? content?.scannerTable);
   const rawMessage = financialStatementAnalysisResult
     ? ""
-    : explanation?.explanationText ??
+    : (explanation?.explanationText ??
       content?.clarificationMessage ??
       content?.textAnswer ??
-      fallbackMessage;
+      fallbackMessage);
   const tableMetadataLabel = isMonthlySalesTechnicalUnitNote(rawMessage, table)
     ? "واحد: میلیون ریال"
     : undefined;
@@ -593,21 +691,26 @@ function mapAssistantBlock(
     financialStatementAnalysisResult,
     financialStatementTableResult: content?.financialStatementTableResult,
     citations: explanation?.dataCitations ?? [],
-    orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
-      ? {
-          mode: content?.aiOrchestrationMode,
-          workflowVersion: content?.workflowVersion,
-          providerSelection: content?.providerSelection,
-          providerFallbackOccurred: content?.providerFallbackOccurred,
-          correlationId: content?.workflowCorrelationId,
-        }
-      : undefined,
+    orchestration:
+      content?.aiOrchestrationMode || content?.workflowCorrelationId
+        ? {
+            mode: content?.aiOrchestrationMode,
+            workflowVersion: content?.workflowVersion,
+            providerSelection: content?.providerSelection,
+            providerFallbackOccurred: content?.providerFallbackOccurred,
+            correlationId: content?.workflowCorrelationId,
+          }
+        : undefined,
   };
 }
 
 function normalizeRenderableTable(table: ScannerTable | undefined): ScannerTable | undefined {
   if (!table) return undefined;
-  if (table.rows.length === 0 && !table.salesGrowthMetadata && table.missingDataWarnings.length === 0) {
+  if (
+    table.rows.length === 0 &&
+    !table.salesGrowthMetadata &&
+    table.missingDataWarnings.length === 0
+  ) {
     return undefined;
   }
   return table;
@@ -616,8 +719,6 @@ function normalizeRenderableTable(table: ScannerTable | undefined): ScannerTable
 function isMonthlySalesTechnicalUnitNote(message: string | undefined, table?: ScannerTable) {
   if (message?.trim() !== "Unit: million Rials") return false;
   return Boolean(
-    table?.columns.some((column) =>
-      column.identifier.toUpperCase().startsWith("MONTHLY_SALES"),
-    ),
+    table?.columns.some((column) => column.identifier.toUpperCase().startsWith("MONTHLY_SALES")),
   );
 }

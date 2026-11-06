@@ -1,20 +1,32 @@
-import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
+import { ChevronRight, ChevronLeft, ShieldCheck } from "lucide-react";
 import type {
   AssistantChatBlock,
   ChatMessage,
   DisclosureListingResult,
   ScannerTable,
 } from "@/lib/chat.functions";
-import { formatNumber, formatPercent, isolateSignedNumbers, toPersianDigits } from "@/lib/format/persian";
+import {
+  formatNumber,
+  formatPercent,
+  isolateSignedNumbers,
+  toPersianDigits,
+  toPersianNumerals,
+} from "@/lib/format/persian";
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
-import { QuarterlyFinancialTable, quarterlyFinancialTableModelFromTypedResult } from "@/components/app/quarterly-financial-table";
+import {
+  QuarterlyFinancialTable,
+  quarterlyFinancialTableModelFromTypedResult,
+} from "@/components/app/quarterly-financial-table";
 import { BalanceSheetReport } from "@/components/app/balance-sheet-report/balance-sheet-report";
 import { isRenderableBalanceSheet } from "@/components/app/balance-sheet-report/balance-sheet-report-model";
 import { FinancialStatementAnalysisCard } from "@/components/app/financial-statement-analysis";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
+import { MonthlyTrendSummaryCards } from "@/components/app/monthly-trend-summary-cards";
+import { AnswerActions } from "@/components/app/answer-actions";
+import { AnalysisProgress, AssistantAvatar } from "@/components/app/analysis-progress";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import { AnswerDensityContext, useAnswerDensity } from "@/components/app/answer-density";
@@ -53,39 +65,51 @@ export function MessageList({
   const compact = density === "compact";
   return (
     <AnswerDensityContext.Provider value={density}>
-    <div
-      data-density={density}
-      className={compact ? "px-4 py-5 space-y-6 max-w-4xl mx-auto w-full min-w-0" : "p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full"}
-    >
-      {messages.map((message, index) => {
-        const originalQuery = [...messages.slice(0, index)]
-          .reverse()
-          .find((item) => item.role === "user");
-        return (
-          <div key={message.id} data-message-id={message.id} data-role={message.role} className="animate-fade-up">
-            {message.role === "user" ? (
-              <UserBubble text={(message.content as { text: string }).text} compact={compact} />
-            ) : (
-              <AssistantBlock
-                block={message.content as AssistantChatBlock}
-                onSuggested={onSuggested}
-                actionsDisabled={streaming}
-                onPageChange={onPageChange}
-                onDisclosurePageChange={onDisclosurePageChange}
-                disclosureOriginalQuery={
-                  originalQuery && "text" in originalQuery.content
-                    ? originalQuery.content.text
-                    : undefined
-                }
-                showDiagnostics={showDiagnostics}
-                followedSymbols={followedSymbols}
-              />
-            )}
-          </div>
-        );
-      })}
-      {streaming && <StreamingPlaceholder />}
-    </div>
+      <div
+        data-density={density}
+        className={
+          compact
+            ? "px-4 py-5 space-y-6 max-w-4xl mx-auto w-full min-w-0"
+            : "p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full"
+        }
+      >
+        {messages.map((message, index) => {
+          const originalQuery = [...messages.slice(0, index)]
+            .reverse()
+            .find((item) => item.role === "user");
+          const originalQuestion =
+            originalQuery && "text" in originalQuery.content
+              ? originalQuery.content.text
+              : undefined;
+          // Only the latest answer can be asked again; older ones would reorder the conversation.
+          const canRegenerate = index === messages.length - 1 && Boolean(originalQuestion?.trim());
+          return (
+            <div
+              key={message.id}
+              data-message-id={message.id}
+              data-role={message.role}
+              className="animate-fade-up"
+            >
+              {message.role === "user" ? (
+                <UserBubble text={(message.content as { text: string }).text} compact={compact} />
+              ) : (
+                <AssistantBlock
+                  block={message.content as AssistantChatBlock}
+                  onSuggested={onSuggested}
+                  actionsDisabled={streaming}
+                  onPageChange={onPageChange}
+                  onDisclosurePageChange={onDisclosurePageChange}
+                  disclosureOriginalQuery={originalQuestion}
+                  onRegenerate={canRegenerate ? () => onSuggested(originalQuestion!) : undefined}
+                  showDiagnostics={showDiagnostics}
+                  followedSymbols={followedSymbols}
+                />
+              )}
+            </div>
+          );
+        })}
+        {streaming && <StreamingPlaceholder />}
+      </div>
     </AnswerDensityContext.Provider>
   );
 }
@@ -94,9 +118,11 @@ function UserBubble({ text, compact = false }: { text: string; compact?: boolean
   return (
     <div className="flex justify-end" dir="ltr">
       <div
-        className={compact
-          ? "max-w-[85%] bg-surface ring-1 ring-hairline rounded-2xl px-4 py-2.5 text-foreground text-pretty text-[15px] leading-7"
-          : "max-w-[56ch] bg-surface ring-1 ring-hairline rounded-2xl px-5 py-3 text-foreground text-pretty text-sm"}
+        className={
+          compact
+            ? "max-w-[85%] bg-surface ring-1 ring-hairline rounded-2xl px-4 py-2.5 text-foreground text-pretty text-[15px] leading-7"
+            : "max-w-[56ch] bg-surface ring-1 ring-hairline rounded-2xl px-5 py-3 text-foreground text-pretty text-sm"
+        }
         dir="auto"
       >
         {text}
@@ -112,6 +138,7 @@ function AssistantBlock({
   onPageChange,
   onDisclosurePageChange,
   disclosureOriginalQuery,
+  onRegenerate,
   showDiagnostics,
   followedSymbols,
 }: {
@@ -121,6 +148,7 @@ function AssistantBlock({
   onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   disclosureOriginalQuery?: string;
+  onRegenerate?: () => void;
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
 }) {
@@ -134,14 +162,18 @@ function AssistantBlock({
         ? ""
         : replaceProviderDisplayNames(block.message);
   const typedQuarterly = block.financialStatementTableResult?.quarterlyResult;
-  const typedQuarterlyTable = typedQuarterly &&
+  const typedQuarterlyTable =
+    typedQuarterly &&
     (typedQuarterly.templateId === "BankingIncomeStatement" ||
       (typedQuarterly.templateId === "GeneralIncomeStatement" &&
-        typedQuarterly.status !== "Unavailable" && typedQuarterly.periodsNewestFirst.length > 0))
-    ? quarterlyFinancialTableModelFromTypedResult(typedQuarterly)
-    : null;
+        typedQuarterly.status !== "Unavailable" &&
+        typedQuarterly.periodsNewestFirst.length > 0))
+      ? quarterlyFinancialTableModelFromTypedResult(typedQuarterly)
+      : null;
   // Feature 154: the typed balance-sheet report replaces its text rendering on screen (the text stays for Telegram/history).
-  const typedBalanceSheet = isRenderableBalanceSheet(block.financialStatementTableResult?.balanceSheetReport)
+  const typedBalanceSheet = isRenderableBalanceSheet(
+    block.financialStatementTableResult?.balanceSheetReport,
+  )
     ? block.financialStatementTableResult!.balanceSheetReport!
     : null;
   const financialStatementAnalysis = block.financialStatementAnalysisResult;
@@ -154,16 +186,18 @@ function AssistantBlock({
   const isRtlMessage =
     block.replyLanguage === "fa" || (!block.replyLanguage && containsPersianText(message));
   const localizedMessage = isRtlMessage
-    ? isolateSignedNumbers(toPersianDigits(
-        renderedMessage.replace(
-          /(قیمت(?:\s+نماد\s+\S+)?\s+برابر است با\s*)([\d,]+(?:\.\d+)?)(?:\s*ریال)?/u,
-          (_match, label: string, rawPrice: string) => {
-            const fractionDigits = rawPrice.split(".")[1]?.length ?? 0;
-            const price = Number(rawPrice.replace(/,/g, ""));
-            return `${label}${formatNumber(price, { maximumFractionDigits: fractionDigits })} ریال`;
-          },
+    ? isolateSignedNumbers(
+        toPersianNumerals(
+          renderedMessage.replace(
+            /(قیمت(?:\s+نماد\s+\S+)?\s+برابر است با\s*)([\d,]+(?:\.\d+)?)(?:\s*ریال)?/u,
+            (_match, label: string, rawPrice: string) => {
+              const fractionDigits = rawPrice.split(".")[1]?.length ?? 0;
+              const price = Number(rawPrice.replace(/,/g, ""));
+              return `${label}${formatNumber(price, { maximumFractionDigits: fractionDigits })} ریال`;
+            },
+          ),
         ),
-      ))
+      )
     : renderedMessage;
   const tradingDateMatch = localizedMessage.match(
     /\s*(تاریخ معامله:\s*[\d۰-۹]{4}[/-][\d۰-۹]{1,2}[/-][\d۰-۹]{1,2}\.?)\s*$/u,
@@ -177,23 +211,29 @@ function AssistantBlock({
   return (
     <div className={compact ? "flex" : "flex gap-4"} dir={isRtlMessage ? "rtl" : "ltr"}>
       {/* On phones the avatar column would take 44 px from every chart and table; the bubble layout identifies the speaker. */}
-      {!compact && (
-        <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
-          AI
-        </div>
-      )}
+      {!compact && <AssistantAvatar />}
       <div
         className={`flex-1 space-y-5 min-w-0 ${isRtlMessage ? "text-right" : "text-left"}`}
         dir={isRtlMessage ? "rtl" : "ltr"}
       >
-        {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource || financialStatementAnalysis || typedBalanceSheet) && (
+        {block.monthlyActivityTrendResult && (
+          <MonthlyTrendSummaryCards data={block.monthlyActivityTrendResult} />
+        )}
+
+        {(displayMessage.length > 0 ||
+          tradingDate ||
+          hasDailyTradesSource ||
+          financialStatementAnalysis ||
+          typedBalanceSheet) && (
           <div className="space-y-1">
             {displayMessage.length > 0 && !typedQuarterlyTable && !typedBalanceSheet && (
               <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
             )}
             {typedQuarterlyTable && <QuarterlyFinancialTable model={typedQuarterlyTable} />}
             {typedBalanceSheet && <BalanceSheetReport result={typedBalanceSheet} />}
-            {financialStatementAnalysis && <FinancialStatementAnalysisCard data={financialStatementAnalysis} />}
+            {financialStatementAnalysis && (
+              <FinancialStatementAnalysisCard data={financialStatementAnalysis} />
+            )}
             {tradingDate && (
               <p className="text-xs leading-relaxed text-muted-foreground">{tradingDate}</p>
             )}
@@ -219,14 +259,14 @@ function AssistantBlock({
         {!isSuccessfulProductTrend &&
           block.table &&
           (block.table.rows.length > 0 || isRenderableEmptyTable(block.table)) && (
-          <ScannerResultTable
-            table={block.table}
-            metadataLabel={tableMetadataLabel}
-            originalQuery={disclosureOriginalQuery}
-            onPageChange={onPageChange}
-            followedSymbols={followedSymbols}
-          />
-        )}
+            <ScannerResultTable
+              table={block.table}
+              metadataLabel={tableMetadataLabel}
+              originalQuery={disclosureOriginalQuery}
+              onPageChange={onPageChange}
+              followedSymbols={followedSymbols}
+            />
+          )}
 
         {block.monthlyActivityTrendResult && (
           <MonthlyActivityTrendChart
@@ -236,7 +276,10 @@ function AssistantBlock({
         )}
 
         {block.monthlyProductComparisonResult && (
-          <MonthlyProductComparisonCard data={block.monthlyProductComparisonResult} sourceText={block.message} />
+          <MonthlyProductComparisonCard
+            data={block.monthlyProductComparisonResult}
+            sourceText={block.message}
+          />
         )}
 
         {isSuccessfulProductTrend && block.monthlyProductTrendResult && (
@@ -258,9 +301,7 @@ function AssistantBlock({
         {/* Citations are only shown for non-scanner responses (e.g. single-symbol analysis).
             When a scanner table is present the table's freshness indicators already
             show data provenance per cell — a separate citation list would duplicate every row. */}
-        {!isSuccessfulProductTrend &&
-          !block.table &&
-          block.citations.length > 0 && (
+        {!isSuccessfulProductTrend && !block.table && block.citations.length > 0 && (
           <div className="text-[11px] text-muted-foreground space-y-1">
             {block.citations.map((citation, index) => (
               <div key={`${citation.symbolCode}:${citation.metricCode}:${index}`}>
@@ -282,6 +323,12 @@ function AssistantBlock({
           )}
           <span>{toPersianDigits(block.creditsUsed)} اعتبار مصرف شد</span>
         </div>
+
+        <AnswerActions
+          text={displayMessage}
+          onRegenerate={onRegenerate}
+          disabled={actionsDisabled}
+        />
 
         {showDiagnostics && block.orchestration && (
           <OrchestrationDiagnosticsPanel orchestration={block.orchestration} />
@@ -328,8 +375,17 @@ function AssistantBlock({
   );
 }
 
-function MonthlyProductComparisonCard({ data, sourceText }: { data: NonNullable<AssistantChatBlock["monthlyProductComparisonResult"]>; sourceText?: string }) {
-  const format = (value?: number) => value == null ? "—" : new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(value);
+function MonthlyProductComparisonCard({
+  data,
+  sourceText,
+}: {
+  data: NonNullable<AssistantChatBlock["monthlyProductComparisonResult"]>;
+  sourceText?: string;
+}) {
+  const format = (value?: number) =>
+    value == null
+      ? "—"
+      : new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(value);
   const currentPeriod = resolveJalaliPeriod(data.currentPeriod, sourceText, "جاری");
   const comparisonPeriod = resolveJalaliPeriod(data.comparisonPeriod, sourceText, "مقایسه");
   const currentSalesLabel = `فروش ${formatJalaliPeriod(currentPeriod) ?? "دوره جاری"}`;
@@ -338,32 +394,105 @@ function MonthlyProductComparisonCard({ data, sourceText }: { data: NonNullable<
   const visibleProducts = data.products
     .filter((item) => !(item.currentSales === 0 && item.comparisonSales === 0))
     .slice(0, 20);
-  return <section dir="rtl" className="space-y-3 rounded-xl border border-hairline p-3" aria-label="مقایسه فروش محصولات">
-    <div className="text-sm font-medium">مقایسه فروش محصولات {data.companyText}</div>
-    {data.clarificationMessage && <p role="status" className="text-amber-500">{data.clarificationMessage}</p>}
-    {data.currentTotalSales != null && <div className="grid grid-cols-2 gap-2 text-xs"><span>{currentSalesLabel}: {format(data.currentTotalSales)}</span><span>{comparisonSalesLabel}: {format(data.comparisonTotalSales)}</span><span>تغییر فروش: {format(data.salesChange)}</span><span>درصد تغییر: {format(data.salesChangePercent)}٪</span></div>}
-    {visibleProducts.length > 0 && <>
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-xs text-right">
-          <thead><tr className="border-b border-hairline"><th className="p-2">محصول</th><th className="p-2">{currentSalesLabel}</th><th className="p-2">{comparisonSalesLabel}</th><th className="p-2">تغییر</th></tr></thead>
-          <tbody>{visibleProducts.map((item, index) => <tr key={`${item.title}:${index}`} className="border-b border-hairline/60"><td className="p-2">{item.title} {item.unit ? `(${item.unit})` : ""}</td><td className="p-2">{format(item.currentSales)}</td><td className="p-2">{format(item.comparisonSales)}</td><td className="p-2">{format(item.salesChange)}</td></tr>)}</tbody>
-        </table>
-      </div>
-      <div className="md:hidden space-y-2">
-        {visibleProducts.map((item, index) => <article key={`${item.title}:mobile:${index}`} className="rounded-lg border border-hairline/70 p-2.5 text-xs">
-          <div className="mb-2 font-medium">{item.title} {item.unit ? `(${item.unit})` : ""}</div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-md bg-muted/30 p-2"><div className="text-[10px] text-muted-foreground">{currentSalesLabel}</div><div className="mt-1 font-medium">{format(item.currentSales)}</div></div>
-            <div className="rounded-md bg-muted/30 p-2"><div className="text-[10px] text-muted-foreground">{comparisonSalesLabel}</div><div className="mt-1 font-medium">{format(item.comparisonSales)}</div></div>
+  return (
+    <section
+      dir="rtl"
+      className="space-y-3 rounded-xl border border-hairline p-3"
+      aria-label="مقایسه فروش محصولات"
+    >
+      <div className="text-sm font-medium">مقایسه فروش محصولات {data.companyText}</div>
+      {data.clarificationMessage && (
+        <p role="status" className="text-amber-500">
+          {data.clarificationMessage}
+        </p>
+      )}
+      {data.currentTotalSales != null && (
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <span>
+            {currentSalesLabel}: {format(data.currentTotalSales)}
+          </span>
+          <span>
+            {comparisonSalesLabel}: {format(data.comparisonTotalSales)}
+          </span>
+          <span>تغییر فروش: {format(data.salesChange)}</span>
+          <span>درصد تغییر: {format(data.salesChangePercent)}٪</span>
+        </div>
+      )}
+      {visibleProducts.length > 0 && (
+        <>
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-xs text-right">
+              <thead>
+                <tr className="border-b border-hairline">
+                  <th className="p-2">محصول</th>
+                  <th className="p-2">{currentSalesLabel}</th>
+                  <th className="p-2">{comparisonSalesLabel}</th>
+                  <th className="p-2">تغییر</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleProducts.map((item, index) => (
+                  <tr key={`${item.title}:${index}`} className="border-b border-hairline/60">
+                    <td className="p-2">
+                      {item.title} {item.unit ? `(${item.unit})` : ""}
+                    </td>
+                    <td className="p-2">{format(item.currentSales)}</td>
+                    <td className="p-2">{format(item.comparisonSales)}</td>
+                    <td className="p-2">{format(item.salesChange)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="mt-2 flex items-center justify-between rounded-md bg-emerald-soft/50 px-2 py-1.5"><span>تغییر فروش</span><span className="font-medium">{format(item.salesChange)}</span></div>
-          {(item.quantityEffect != null || item.priceEffect != null) && <details className="mt-2"><summary className="cursor-pointer text-[11px] text-muted-foreground">جزئیات اثرگذاری</summary><div className="mt-2 grid grid-cols-2 gap-2 text-[11px]"><span>اثر مقدار: {format(item.quantityEffect)}</span><span>اثر نرخ: {format(item.priceEffect)}</span></div></details>}
-        </article>)}
-      </div>
-    </>}
-    {visibleWarnings.length > 0 && <div className="text-xs text-amber-500" role="status">{visibleWarnings.join(" · ")}</div>}
-    {data.evidence.length > 0 && <div className="text-[11px] text-muted-foreground">منبع: نوآوران امین</div>}
-  </section>;
+          <div className="md:hidden space-y-2">
+            {visibleProducts.map((item, index) => (
+              <article
+                key={`${item.title}:mobile:${index}`}
+                className="rounded-lg border border-hairline/70 p-2.5 text-xs"
+              >
+                <div className="mb-2 font-medium">
+                  {item.title} {item.unit ? `(${item.unit})` : ""}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-md bg-muted/30 p-2">
+                    <div className="text-[10px] text-muted-foreground">{currentSalesLabel}</div>
+                    <div className="mt-1 font-medium">{format(item.currentSales)}</div>
+                  </div>
+                  <div className="rounded-md bg-muted/30 p-2">
+                    <div className="text-[10px] text-muted-foreground">{comparisonSalesLabel}</div>
+                    <div className="mt-1 font-medium">{format(item.comparisonSales)}</div>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between rounded-md bg-emerald-soft/50 px-2 py-1.5">
+                  <span>تغییر فروش</span>
+                  <span className="font-medium">{format(item.salesChange)}</span>
+                </div>
+                {(item.quantityEffect != null || item.priceEffect != null) && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-[11px] text-muted-foreground">
+                      جزئیات اثرگذاری
+                    </summary>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                      <span>اثر مقدار: {format(item.quantityEffect)}</span>
+                      <span>اثر نرخ: {format(item.priceEffect)}</span>
+                    </div>
+                  </details>
+                )}
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+      {visibleWarnings.length > 0 && (
+        <div className="text-xs text-amber-500" role="status">
+          {visibleWarnings.join(" · ")}
+        </div>
+      )}
+      {data.evidence.length > 0 && (
+        <div className="text-[11px] text-muted-foreground">منبع: نوآوران امین</div>
+      )}
+    </section>
+  );
 }
 
 function formatJalaliPeriod(period?: string) {
@@ -371,19 +500,53 @@ function formatJalaliPeriod(period?: string) {
   if (!match) return undefined;
   const year = toPersianDigits(match[1]);
   const month = Number(match[2]);
-  const monthName = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"][month - 1];
+  const monthName = [
+    "فروردین",
+    "اردیبهشت",
+    "خرداد",
+    "تیر",
+    "مرداد",
+    "شهریور",
+    "مهر",
+    "آبان",
+    "آذر",
+    "دی",
+    "بهمن",
+    "اسفند",
+  ][month - 1];
   return monthName ? `${monthName} ${year}` : undefined;
 }
 
-function resolveJalaliPeriod(period: string | undefined, sourceText: string | undefined, qualifier: "جاری" | "مقایسه") {
+function resolveJalaliPeriod(
+  period: string | undefined,
+  sourceText: string | undefined,
+  qualifier: "جاری" | "مقایسه",
+) {
   if (formatJalaliPeriod(period)) return period;
   const normalized = sourceText?.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
-  const numericPeriod = normalized?.match(new RegExp(`دوره ${qualifier}:\\s*(\\d{4}[/-]\\d{1,2})`))?.[1];
+  const numericPeriod = normalized?.match(
+    new RegExp(`دوره ${qualifier}:\\s*(\\d{4}[/-]\\d{1,2})`),
+  )?.[1];
   if (numericPeriod) return numericPeriod;
 
-  const monthNames = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+  const monthNames = [
+    "فروردین",
+    "اردیبهشت",
+    "خرداد",
+    "تیر",
+    "مرداد",
+    "شهریور",
+    "مهر",
+    "آبان",
+    "آذر",
+    "دی",
+    "بهمن",
+    "اسفند",
+  ];
   const monthPattern = monthNames.join("|");
-  const monthPeriod = sourceText?.match(new RegExp(`دوره ${qualifier}:\\s*(${monthPattern})\\s*([۰-۹0-9]{4})`));
+  const monthPeriod = sourceText?.match(
+    new RegExp(`دوره ${qualifier}:\\s*(${monthPattern})\\s*([۰-۹0-9]{4})`),
+  );
   if (!monthPeriod) return undefined;
   const month = monthNames.indexOf(monthPeriod[1]) + 1;
   const year = monthPeriod[2].replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
@@ -636,7 +799,8 @@ function SalesGrowthTableStatus({ table }: { table: ScannerTable }) {
       <div>
         دوره هدف: {formatPeriod(metadata.targetCommonPeriod)} · پوشش:{" "}
         {toPersianDigits(metadata.coverageNumerator)} از{" "}
-        {toPersianDigits(metadata.coverageDenominator)} ({toPersianDigits(metadata.coveragePercent)}
+        {toPersianDigits(metadata.coverageDenominator)} (
+        {toPersianNumerals(metadata.coveragePercent)}
         ٪) · وضعیت: {statusLabel}
       </div>
       {baseline && <div>{baseline}</div>}
@@ -753,12 +917,5 @@ function isRtlFinancialTable(table: ScannerTable) {
 }
 
 function StreamingPlaceholder() {
-  return (
-    <div className="flex gap-4 animate-fade-up">
-      <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center">
-        <Loader2 className="size-3.5 text-emerald animate-spin" />
-      </div>
-      <div className="text-sm text-muted-foreground pt-1">در حال تحلیل...</div>
-    </div>
-  );
+  return <AnalysisProgress className="animate-fade-up gap-4" />;
 }

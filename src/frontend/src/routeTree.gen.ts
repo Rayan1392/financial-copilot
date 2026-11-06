@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEnrollmentRouteImport } from './routes/verify-enrollment'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as MRouteImport } from './routes/m'
 import { Route as LaunchFailedRouteImport } from './routes/launch-failed'
 import { Route as LaunchRouteImport } from './routes/launch'
@@ -59,6 +60,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReleasesRoute = ReleasesRouteImport.update({
+  id: '/releases',
+  path: '/releases',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MRoute = MRouteImport.update({
@@ -236,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/launch': typeof LaunchRoute
   '/launch-failed': typeof LaunchFailedRoute
   '/m': typeof MRouteWithChildren
+  '/releases': typeof ReleasesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/verify-enrollment': typeof VerifyEnrollmentRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/launch': typeof LaunchRoute
   '/launch-failed': typeof LaunchFailedRoute
+  '/releases': typeof ReleasesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/verify-enrollment': typeof VerifyEnrollmentRoute
@@ -311,6 +319,7 @@ export interface FileRoutesById {
   '/launch': typeof LaunchRoute
   '/launch-failed': typeof LaunchFailedRoute
   '/m': typeof MRouteWithChildren
+  '/releases': typeof ReleasesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/verify-enrollment': typeof VerifyEnrollmentRoute
@@ -350,6 +359,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/launch-failed'
     | '/m'
+    | '/releases'
     | '/reset-password'
     | '/verify-email'
     | '/verify-enrollment'
@@ -386,6 +396,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/launch'
     | '/launch-failed'
+    | '/releases'
     | '/reset-password'
     | '/verify-email'
     | '/verify-enrollment'
@@ -424,6 +435,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/launch-failed'
     | '/m'
+    | '/releases'
     | '/reset-password'
     | '/verify-email'
     | '/verify-enrollment'
@@ -463,6 +475,7 @@ export interface RootRouteChildren {
   LaunchRoute: typeof LaunchRoute
   LaunchFailedRoute: typeof LaunchFailedRoute
   MRoute: typeof MRouteWithChildren
+  ReleasesRoute: typeof ReleasesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   VerifyEnrollmentRoute: typeof VerifyEnrollmentRoute
@@ -499,6 +512,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/releases': {
+      id: '/releases'
+      path: '/releases'
+      fullPath: '/releases'
+      preLoaderRoute: typeof ReleasesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/m': {
@@ -790,6 +810,7 @@ const rootRouteChildren: RootRouteChildren = {
   LaunchRoute: LaunchRoute,
   LaunchFailedRoute: LaunchFailedRoute,
   MRoute: MRouteWithChildren,
+  ReleasesRoute: ReleasesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   VerifyEnrollmentRoute: VerifyEnrollmentRoute,

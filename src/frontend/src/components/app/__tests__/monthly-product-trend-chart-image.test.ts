@@ -123,7 +123,7 @@ describe("downloadMonthlyProductTrendChartImage", () => {
     );
     expect(fillTextCalls.some((call) => call.text === "نرخ فروش (تن)")).toBe(false);
     expect(fillTextCalls.some((call) => call.text === "۲۲٬۰۵۸٬۱۶۱٫۷۶")).toBe(false);
-    expect(strokeColors).toContain("#4f46e5");
+    expect(strokeColors).toContain("#71717a");
     expect(strokeColors).toContain("#0f766e");
     expect(fillTextCalls.some((call) => call.text === PRODUCT_TREND_PANEL_LABELS.main)).toBe(true);
     expect(

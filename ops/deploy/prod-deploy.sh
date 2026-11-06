@@ -81,7 +81,8 @@ if (($(free_gb) < MIN_FREE_GB)); then
 fi
 
 # 2. Check out exactly the tagged commit. Defense in depth: reject commits outside origin/prod.
-git fetch --quiet origin +refs/heads/prod:refs/remotes/origin/prod
+# --no-tags: the server deploys by commit, and release tags may be renamed (docs/release/release-process.md).
+git fetch --quiet --no-tags origin +refs/heads/prod:refs/remotes/origin/prod
 git cat-file -e "${target_sha}^{commit}" 2>/dev/null || fail "commit $target_sha not found on origin/prod"
 git merge-base --is-ancestor "$target_sha" origin/prod || fail "commit $target_sha is not reachable from origin/prod"
 if git show-ref --verify --quiet refs/heads/prod; then

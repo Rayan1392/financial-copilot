@@ -66,7 +66,9 @@ describe("product sale-rate display", () => {
     expect(salesRatePanel.querySelectorAll(".recharts-bar")).toHaveLength(1);
     expect(salesRatePanel.querySelectorAll(".recharts-line")).toHaveLength(1);
     expect(quantityPanel.querySelectorAll(".recharts-bar")).toHaveLength(0);
-    expect(quantityPanel.querySelectorAll(".recharts-line")).toHaveLength(2);
+    // The fixture reports no production, so only the sale-quantity line is drawn and the panel says why.
+    expect(quantityPanel.querySelectorAll(".recharts-line")).toHaveLength(1);
+    expect(quantityPanel.querySelector('[data-testid="product-production-unavailable"]')).not.toBeNull();
     expect(quantityPanel.querySelectorAll(".recharts-label-list")).toHaveLength(0);
     const seriesLegend = container.querySelector("[aria-label='راهنمای نمودار']")!;
     expect(seriesLegend.querySelector("svg rect")?.getAttribute("fill")).toBe("#4f9f82");

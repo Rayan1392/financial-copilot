@@ -15,6 +15,7 @@ import { toPersianDigits } from "@/lib/format/persian";
 import {
   createMonthlyTrendChartCardViewModel,
   formatMonthlyTrendAmount,
+  formatMonthlyTrendWholeAmount,
 } from "@/components/app/monthly-activity-trend-chart-view-model";
 import { defaultSelectedMonth, sameMonthChangePercent } from "./monthly-sales-trend-mobile-model";
 import { columnIndexFromTap } from "./chart-tap";
@@ -35,7 +36,7 @@ const CHART_MARGIN = { top: 8, right: 4, left: 0, bottom: 4 };
 const AXIS_DIGIT_WIDTH = 7.5;
 
 function axisAmount(value: number): string {
-  return toPersianDigits(Math.round(value).toLocaleString("en-US"));
+  return formatMonthlyTrendWholeAmount(value);
 }
 
 /**
@@ -135,20 +136,8 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
             className="space-y-1.5 text-[13px] leading-6 text-foreground"
             aria-label="راهنمای نمودار"
           >
-            {[
-              {
-                label: viewModel.previousYearLegend,
-                color: viewModel.palette.previousYear,
-                kind: "bar",
-              },
-              {
-                label: viewModel.currentYearLegend,
-                color: viewModel.palette.currentYear,
-                kind: "bar",
-              },
-              { label: viewModel.averageLegend, color: viewModel.palette.average, kind: "line" },
-            ].map((item) => (
-              <li key={item.label} className="flex items-start gap-2">
+            {viewModel.legendEntries.map((item) => (
+              <li key={item.key} className="flex items-start gap-2">
                 <span
                   aria-hidden="true"
                   className={cn(
@@ -157,7 +146,23 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
                   )}
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="min-w-0">{item.label}</span>
+                {/* Year, total and share as separate isolated runs so the RTL line keeps their order. */}
+                <span className="min-w-0">
+                  <bdi className="font-medium">{item.label}</bdi>
+                  {item.totalLabel && (
+                    <>
+                      {" · "}
+                      <bdi className="tabular-nums">{item.totalLabel}</bdi>
+                    </>
+                  )}
+                  {item.note && (
+                    <span className="text-muted-foreground">
+                      {" ("}
+                      <bdi>{item.note}</bdi>
+                      {")"}
+                    </span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
@@ -210,7 +215,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
                 />
                 <Bar
                   dataKey="previousYear"
-                  name={viewModel.previousYearLegend}
+                  name={viewModel.legendEntries[0].label}
                   fill={viewModel.palette.previousYear}
                   radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
@@ -221,7 +226,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
                 </Bar>
                 <Bar
                   dataKey="currentYear"
-                  name={viewModel.currentYearLegend}
+                  name={viewModel.legendEntries[1].label}
                   fill={viewModel.palette.currentYear}
                   radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
@@ -313,8 +318,8 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
             <thead>
               <tr>
                 <th scope="col">ماه</th>
-                <th scope="col">{viewModel.currentYearLegend}</th>
-                <th scope="col">{viewModel.previousYearLegend}</th>
+                <th scope="col">{viewModel.legendEntries[1].label}</th>
+                <th scope="col">{viewModel.legendEntries[0].label}</th>
                 <th scope="col">{viewModel.averageLegend}</th>
               </tr>
             </thead>

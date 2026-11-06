@@ -1,9 +1,18 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Plus, Activity, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
-import { useMarketSummary, useWatchlist } from "@/lib/workspace/queries";
+import { useMarketSummary, useWatchlistWithNames } from "@/lib/workspace/queries";
+import type { MarketMover } from "@/lib/market-view.functions";
 import { isLaggingQuote, marketSessionStatus } from "@/lib/market/market-session";
 import { ChangePill, RailHoverCard } from "@/components/app/rail-hover-card";
+import { SymbolActionsMenu } from "@/components/app/symbol-actions-menu";
+import { SignedChange } from "@/components/mobile/signed-change";
+
+/** Rows shown per mover list; the column also has to leave room for the watchlist below it. */
+const MOVERS_SHOWN = 3;
+
+const SECTION_TITLE = "text-xs font-semibold text-muted-foreground uppercase tracking-widest";
 
 function MoverRow({ label, symbol, change }: { label: string; symbol: string; change: number }) {
   return (
@@ -17,6 +26,55 @@ function MoverRow({ label, symbol, change }: { label: string; symbol: string; ch
   );
 }
 
+/**
+ * One symbol in the expanded column, laid out like the mobile rows (symbol, company name, price, signed change with
+ * ▲/▼). Clicking it opens the analysis menu, which starts a conversation about the symbol.
+ */
+function SymbolQuoteRow({
+  symbol,
+  companyName,
+  price,
+  changePercent,
+  lagging,
+}: {
+  symbol: string;
+  companyName?: string | null;
+  price?: number | null;
+  changePercent?: number | null;
+  lagging: boolean;
+}) {
+  return (
+    <SymbolActionsMenu
+      symbol={symbol}
+      companyName={companyName}
+      trigger={
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-right transition hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 data-[state=open]:bg-surface-2"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-foreground">
+              <bdi>{symbol}</bdi>
+              {lagging && <span className="text-gold"> *</span>}
+            </span>
+            {companyName && (
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {companyName}
+              </span>
+            )}
+          </span>
+          <span className="flex shrink-0 flex-col items-end gap-0.5 text-xs">
+            <span className="tabular-nums text-foreground">
+              {price == null ? "–" : formatNumber(price)}
+            </span>
+            <SignedChange value={changePercent} />
+          </span>
+        </button>
+      }
+    />
+  );
+}
+
 export function ContextPanel({
   collapsed,
   onToggle,
@@ -25,10 +83,19 @@ export function ContextPanel({
   onToggle: () => void;
 }) {
   const { data, isLoading, isError } = useMarketSummary();
-  const { data: watchlist, isLoading: watchlistLoading, isError: watchlistError } = useWatchlist();
+  const watchlist = useWatchlistWithNames();
+  const watchlistLoading = watchlist.isLoading;
+  const watchlistError = watchlist.isError && !watchlist.join;
+  const symbols = watchlist.join?.rows ?? [];
+  const [moverTab, setMoverTab] = useState<"gainers" | "losers">("gainers");
   // Mark only quotes that are really behind; a day without trading gets one line instead of a star on every row.
-  const session = marketSessionStatus(watchlist?.symbols ?? []);
-  const hasLagging = (watchlist?.symbols ?? []).some((quote) => isLaggingQuote(quote, session));
+  const session = marketSessionStatus(symbols);
+  const hasLagging = symbols.some((quote) => isLaggingQuote(quote, session));
+  const allMovers: MarketMover[] = [...(data?.topGainers ?? []), ...(data?.topLosers ?? [])];
+  const moverSession = marketSessionStatus(allMovers);
+  const movers = (moverTab === "gainers" ? data?.topGainers : data?.topLosers) ?? [];
+  const shownMovers = movers.slice(0, MOVERS_SHOWN);
+  const moversLagging = shownMovers.some((mover) => isLaggingQuote(mover, moverSession));
   const indices = data?.indices.slice(0, 2) ?? [];
   const leadChange = indices[0]?.changePercent;
   const marketTone =
@@ -39,7 +106,6 @@ export function ContextPanel({
         : { label: "بازار منفی", className: "bg-rose/10 text-rose" };
   const topGainer = data?.topGainers?.[0];
   const topLoser = data?.topLosers?.[0];
-  const symbols = watchlist?.symbols ?? [];
   const symbolCount = symbols.length;
   const breadth = {
     up: symbols.filter((quote) => (quote.changePercent ?? 0) > 0).length,
@@ -187,7 +253,7 @@ export function ContextPanel({
             </button>
           }
           footer={
-            watchlist?.asOf
+            watchlist.asOf
               ? `به‌روزرسانی ${relativeTime(watchlist.asOf)} · برای مشاهده همه کلیک کنید`
               : undefined
           }
@@ -291,12 +357,10 @@ export function ContextPanel({
 
   return (
     <aside className="hidden h-screen w-80 flex-shrink-0 flex-col border-r border-hairline bg-surface/50 transition-[width] duration-200 lg:flex">
-      <div className="flex h-full min-h-0 flex-col space-y-8 overflow-hidden p-6">
+      <div className="flex h-full min-h-0 flex-col space-y-6 overflow-hidden p-6">
         <section className="shrink-0">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-              وضعیت کلی بازار
-            </h3>
+            <h3 className={SECTION_TITLE}>وضعیت کلی بازار</h3>
             <button
               type="button"
               onClick={onToggle}
@@ -313,35 +377,72 @@ export function ContextPanel({
             <p className="text-xs text-muted-foreground">داده شاخص در دسترس نیست.</p>
           )}
           <div className="space-y-4">
-            {data?.indices.slice(0, 2).map((index) => (
+            {indices.map((index) => (
               <div key={index.symbol} className="flex justify-between items-end">
                 <div>
                   <div className="text-[11px] text-muted-foreground">
                     {index.name || index.symbol}
                   </div>
-                  <div className="text-lg mt-1 text-foreground">
+                  <div className="text-lg mt-1 text-foreground tabular-nums">
                     {index.value == null ? "-" : formatNumber(index.value)}
                   </div>
                 </div>
-                <div
-                  className={`text-sm ${index.changePercent == null ? "text-muted-foreground" : index.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
-                >
-                  {index.changePercent == null ? "-" : formatPercent(index.changePercent)}
-                </div>
+                <SignedChange value={index.changePercent} className="text-sm" />
               </div>
             ))}
           </div>
+          {(data?.topGainers.length ?? 0) + (data?.topLosers.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <div
+                role="group"
+                aria-label="فهرست نمادهای پرتغییر"
+                className="mb-1.5 grid grid-cols-2 gap-1 rounded-lg bg-background/60 p-0.5 text-[11px] font-medium"
+              >
+                {(
+                  [
+                    ["gainers", "بیشترین رشد"],
+                    ["losers", "بیشترین افت"],
+                  ] as const
+                ).map(([tab, label]) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={moverTab === tab}
+                    onClick={() => setMoverTab(tab)}
+                    className={`rounded-md px-2 py-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 ${moverTab === tab ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {shownMovers.length === 0 ? (
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">موردی برای نمایش نیست.</p>
+              ) : (
+                <div className="space-y-0.5">
+                  {shownMovers.map((mover) => (
+                    <SymbolQuoteRow
+                      key={mover.symbol}
+                      symbol={mover.symbol}
+                      companyName={mover.name || null}
+                      price={mover.latestPrice}
+                      changePercent={mover.changePercent}
+                      lagging={isLaggingQuote(mover, moverSession)}
+                    />
+                  ))}
+                </div>
+              )}
+              {moversLagging && <p className="mt-1 text-[10px] text-gold">* داده قدیمی</p>}
+            </div>
+          )}
           {data?.asOf && (
             <p className="mt-3 text-[10px] text-muted-foreground">
-              بروزرسانی {relativeTime(data.asOf)}
+              به‌روزرسانی {relativeTime(data.asOf)}
             </p>
           )}
         </section>
         <section className="flex min-h-0 flex-1 flex-col">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-              دیده‌بان
-            </h3>
+            <h3 className={SECTION_TITLE}>دیده‌بان</h3>
             <Link
               to="/followed-symbols"
               hash="symbol-search"
@@ -355,7 +456,7 @@ export function ContextPanel({
             <p className="text-xs text-muted-foreground">در حال بارگذاری دیده‌بان...</p>
           )}
           {watchlistError && <p className="text-xs text-rose">داده دیده‌بان در دسترس نیست.</p>}
-          {!watchlistLoading && !watchlistError && watchlist?.symbols.length === 0 && (
+          {!watchlistLoading && !watchlistError && symbolCount === 0 && (
             <div className="mb-2 rounded-lg border border-dashed border-hairline bg-background/40 px-3 py-3">
               <p className="text-xs leading-6 text-muted-foreground">
                 قیمت و تغییرات نمادهایی که دنبال می‌کنید، اینجا نمایش داده می‌شود. برای شروع،
@@ -363,32 +464,21 @@ export function ContextPanel({
               </p>
             </div>
           )}
-          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
-            {watchlist?.symbols.map((quote) => (
-              <div
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1 scrollbar-thin">
+            {symbols.map((quote) => (
+              <SymbolQuoteRow
                 key={quote.symbol}
-                className="flex items-center justify-between gap-2 p-2 rounded-lg"
-              >
-                <div>
-                  <div className="text-sm text-foreground">
-                    {quote.symbol}
-                    {isLaggingQuote(quote, session) ? " *" : ""}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {quote.latestPrice == null ? "-" : formatNumber(quote.latestPrice)}
-                  </div>
-                </div>
-                <span
-                  className={`text-xs ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
-                >
-                  {quote.changePercent == null ? "-" : formatPercent(quote.changePercent)}
-                </span>
-              </div>
+                symbol={quote.symbol}
+                companyName={quote.companyName}
+                price={quote.latestPrice}
+                changePercent={quote.changePercent}
+                lagging={isLaggingQuote(quote, session)}
+              />
             ))}
           </div>
-          {watchlist?.asOf && (
+          {watchlist.asOf && (
             <p className="mt-2 text-[10px] text-muted-foreground">
-              بروزرسانی {relativeTime(watchlist.asOf)}
+              به‌روزرسانی {relativeTime(watchlist.asOf)}
             </p>
           )}
           {session.label && (

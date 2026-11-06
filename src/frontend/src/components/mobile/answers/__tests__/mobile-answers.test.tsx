@@ -80,7 +80,7 @@ describe("monthly sales trend on phones", () => {
     const panel = screen.getByText(/· ماه ۷ از ۱۲/).closest("[aria-live]") as HTMLElement;
     expect(panel).toHaveTextContent("مهر");
     expect(panel).toHaveTextContent("مهر ۱۴۰۵");
-    expect(panel).toHaveTextContent("۵۸,۴۳۰.۹ میلیارد ریال");
+    expect(panel).toHaveTextContent("۵۸٬۴۳۰٫۹ میلیارد ریال");
     expect(panel).toHaveTextContent("تغییر نسبت به ماه مشابه سال قبل");
 
     fireEvent.click(screen.getByRole("button", { name: "ماه قبل" }));
@@ -94,8 +94,14 @@ describe("monthly sales trend on phones", () => {
 
   it("keeps every legend comparison, insight, missing-data note, unit and source", () => {
     renderAnswers("compact");
-    expect(screen.getByText(/۱۴۰۵: .*٪ از ۱۴۰۴\)/, { selector: "li span" })).toBeInTheDocument();
-    expect(screen.getByText("میانگین ۱۲ ماهه", { selector: "li span" })).toBeInTheDocument();
+    const legendRows = within(screen.getByRole("list", { name: "راهنمای نمودار" })).getAllByRole(
+      "listitem",
+    );
+    expect(legendRows.map((row) => row.textContent)).toEqual([
+      expect.stringMatching(/^۱۴۰۴ · [۰-۹٬]+$/),
+      expect.stringMatching(/^۱۴۰۵ · [۰-۹٬]+ \([۰-۹٫]+٪ از ۱۴۰۴\)$/),
+      "میانگین ۱۲ ماهه",
+    ]);
     expect(screen.getByText("واحد: میلیارد ریال")).toBeInTheDocument();
     expect(screen.getByText(/گزارش مرداد ۱۴۰۴ منتشر نشده است/)).toBeInTheDocument();
     expect(screen.getByText(/منبع: نوآوران امین/)).toBeInTheDocument();

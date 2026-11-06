@@ -13,7 +13,7 @@ describe("SignedChange (AC-14, AC-32)", () => {
     expect(container).toHaveTextContent("▲");
     const number = container.querySelector("bdi");
     expect(number).toHaveAttribute("dir", "ltr");
-    expect(number).toHaveTextContent("+۱٫۲۳٪".replace("٫", "."));
+    expect(number).toHaveTextContent("+۱٫۲۳٪");
     expect(container).toHaveTextContent("افزایش");
   });
 

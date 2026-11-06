@@ -1,3 +1,10 @@
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -53,16 +60,30 @@ describe("sign-in form usability", () => {
     expect(screen.getByLabelText("ایمیل")).toHaveAttribute("aria-invalid", "true");
   });
 
-  it("introduces the product beside the form at the site root", () => {
-    render(<AuthScreen redirect="/chat" withIntro />);
+  it("introduces the product beside the form at the site root, with the release version link", async () => {
+    // The intro links to /releases, so it renders inside a router that knows that route.
+    const rootRoute = createRootRoute({
+      component: () => <AuthScreen redirect="/chat" withIntro />,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([
+        createRoute({ getParentRoute: () => rootRoute, path: "/releases" }),
+      ]),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+    render(<RouterProvider router={router} />);
 
     expect(
-      screen.getByRole("heading", {
+      await screen.findByRole("heading", {
         name: "گزارش‌های مالی شرکت‌های بورسی را به زبان فارسی بپرسید",
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("روند فروش ماهانه و ترکیب محصولات")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ورود به حساب" })).toBeInTheDocument();
+    expect(
+      // The «·» separator is aria-hidden, so it is not part of the accessible name.
+      screen.getByRole("link", { name: /^نسخهٔ \d+\.\d+\.\d+\s+تاریخچهٔ نسخه‌ها$/ }),
+    ).toHaveAttribute("href", "/releases");
   });
 });
 

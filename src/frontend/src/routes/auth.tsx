@@ -4,6 +4,7 @@ import { Eye, EyeOff, FileText, Megaphone, Radar, TrendingUp } from "lucide-reac
 import { login } from "@/integrations/financial-copilot/auth";
 import { safeInternalPath } from "@/lib/safe-redirect";
 import { SapioMark } from "@/components/app/sapio-mark";
+import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
 import { TAHLILAPP_SAPIO_URL } from "@/lib/external-links";
 
 export const Route = createFileRoute("/auth")({
@@ -267,6 +268,7 @@ function ProductFeatures() {
       <p className="mt-6 text-xs text-muted-foreground">
         داده‌ها و تحلیل‌ها صرفاً جنبهٔ آموزشی دارند و توصیهٔ سرمایه‌گذاری نیستند.
       </p>
+      <ReleaseVersionLink className="mt-2" />
     </section>
   );
 }

@@ -736,7 +736,9 @@ public sealed class AiFacadeController(
                 m.Month,
                 m.ReasonFa)).ToList(),
             ProviderSources.GetDisplayName(result.SourceProviderName),
-            result.CalculatedAtUtc);
+            result.CalculatedAtUtc,
+            result.PreviousMonthSalesAmount,
+            result.SalesAmountMomGrowthPercent);
     }
 
     private static MonthlySalesQualityRankingHttpResponse? MapMonthlySalesQualityRankingResult(

@@ -21,8 +21,7 @@ function isFinancialStatementMarkdown(content: string): boolean {
 
 const INVESTMENT_DISCLAIMER = "این اطلاعات توصیه به سرمایه گذاری نیست";
 
-const INDUSTRY_RELATIVE_VALUATION_HEADER =
-  "| نماد | P/E | P/S | قیمت به تعادلی |";
+const INDUSTRY_RELATIVE_VALUATION_HEADER = "| نماد | P/E | P/S | قیمت به تعادلی |";
 
 interface IndustryRelativeValuationTable {
   before: string;
@@ -34,7 +33,9 @@ function isIndustryRelativeValuationMarkdown(content: string): boolean {
   return content.includes(INDUSTRY_RELATIVE_VALUATION_HEADER);
 }
 
-function parseIndustryRelativeValuationTable(content: string): IndustryRelativeValuationTable | null {
+function parseIndustryRelativeValuationTable(
+  content: string,
+): IndustryRelativeValuationTable | null {
   const lines = content.split("\n");
   const headerIndex = lines.findIndex((line) => line.trim() === INDUSTRY_RELATIVE_VALUATION_HEADER);
   if (headerIndex < 0 || !lines[headerIndex + 1]?.trim().startsWith("|")) return null;
@@ -45,7 +46,11 @@ function parseIndustryRelativeValuationTable(content: string): IndustryRelativeV
     const cells = splitMarkdownTableRow(lines[endIndex]);
     if (cells.length >= 4 && !cells[0].replace(/[:-]/g, "").trim()) continue;
     if (cells.length >= 4)
-      rows.push({ company: cells[0], metrics: cells.slice(1, 4), benchmark: cells[0].includes("میانگین صنعت") });
+      rows.push({
+        company: cells[0],
+        metrics: cells.slice(1, 4),
+        benchmark: cells[0].includes("میانگین صنعت"),
+      });
     endIndex++;
   }
 
@@ -56,7 +61,11 @@ function parseIndustryRelativeValuationTable(content: string): IndustryRelativeV
   };
 }
 
-function IndustryRelativeValuationTable({ rows }: { rows: IndustryRelativeValuationTable["rows"] }) {
+function IndustryRelativeValuationTable({
+  rows,
+}: {
+  rows: IndustryRelativeValuationTable["rows"];
+}) {
   const benchmark = rows.find((row) => row.benchmark)?.metrics ?? [];
   const members = rows.filter((row) => !row.benchmark);
   const status = (value: string, index: number) => {
@@ -87,7 +96,9 @@ function IndustryRelativeValuationTable({ rows }: { rows: IndustryRelativeValuat
             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">نماد</th>
             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P/E</th>
             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P/S</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">قیمت به تعادلی</th>
+            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+              قیمت به تعادلی
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -95,18 +106,30 @@ function IndustryRelativeValuationTable({ rows }: { rows: IndustryRelativeValuat
             <tr key={`${row.company}:${index}`} className="border-b border-hairline text-slate-800">
               <td className="bg-surface px-3 py-2 align-top font-medium">{row.company}</td>
               {row.metrics.map((value, metricIndex) => (
-                <td key={`${row.company}:${metricIndex}`} className={`px-3 py-2 align-top tabular-nums ${status(value, metricIndex) === "green" ? "bg-emerald-100" : status(value, metricIndex) === "red" ? "bg-rose-100" : "bg-surface"}`}>
+                <td
+                  key={`${row.company}:${metricIndex}`}
+                  className={`px-3 py-2 align-top tabular-nums ${status(value, metricIndex) === "green" ? "bg-emerald-100" : status(value, metricIndex) === "red" ? "bg-rose-100" : "bg-surface"}`}
+                >
                   {value}
                 </td>
               ))}
             </tr>
           ))}
-          {rows.filter((row) => row.benchmark).map((row) => (
-            <tr key={row.company} className="border-t-2 border-slate-300 bg-slate-100 font-semibold text-slate-800">
-              <td className="px-3 py-2">{row.company}</td>
-              {row.metrics.map((value, index) => <td key={index} className="px-3 py-2 tabular-nums">{value}</td>)}
-            </tr>
-          ))}
+          {rows
+            .filter((row) => row.benchmark)
+            .map((row) => (
+              <tr
+                key={row.company}
+                className="border-t-2 border-slate-300 bg-slate-100 font-semibold text-slate-800"
+              >
+                <td className="px-3 py-2">{row.company}</td>
+                {row.metrics.map((value, index) => (
+                  <td key={index} className="px-3 py-2 tabular-nums">
+                    {value}
+                  </td>
+                ))}
+              </tr>
+            ))}
         </tbody>
       </table>
     </div>
@@ -116,9 +139,9 @@ function IndustryRelativeValuationTable({ rows }: { rows: IndustryRelativeValuat
 function parsePersianPercent(value: string): number | null {
   const normalized = value
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٫٬]/g, ".")
+    .replace(/[٬,]/g, "")
+    .replace(/٫/g, ".")
     .replace(/٪/g, "")
-    .replace(/,/g, "")
     .trim();
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : null;
@@ -162,7 +185,9 @@ function parseMonthlySalesQualityTable(content: string): {
   rows: MonthlySalesQualityRow[];
 } | null {
   const lines = content.split("\n");
-  const headerIndex = lines.findIndex((line) => line.trim() === MONTHLY_SALES_QUALITY_RANKING_HEADER);
+  const headerIndex = lines.findIndex(
+    (line) => line.trim() === MONTHLY_SALES_QUALITY_RANKING_HEADER,
+  );
   if (headerIndex < 0 || !lines[headerIndex + 1]?.trim().startsWith("|")) return null;
 
   const rows: MonthlySalesQualityRow[] = [];
@@ -235,15 +260,11 @@ function MonthlySalesQualityRanking({ rows }: { rows: MonthlySalesQualityRow[] }
           </colgroup>
           <thead className="bg-white/5">
             <tr>
-              {[
-                "رتبه",
-                "نماد",
-                "شرکت",
-                "صنعت",
-                "امتیاز کیفیت",
-                "جزئیات",
-              ].map((header) => (
-                <th key={header} className="border-b border-hairline px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+              {["رتبه", "نماد", "شرکت", "صنعت", "امتیاز کیفیت", "جزئیات"].map((header) => (
+                <th
+                  key={header}
+                  className="border-b border-hairline px-3 py-2 text-right text-xs font-medium text-muted-foreground"
+                >
                   {header}
                 </th>
               ))}
@@ -253,7 +274,9 @@ function MonthlySalesQualityRanking({ rows }: { rows: MonthlySalesQualityRow[] }
             {rows.map((row, index) => (
               <Fragment key={`item-${index}`}>
                 <tr key={`row-${index}`} className="border-b border-hairline last:border-b-0">
-                  <td className="px-3 py-3 text-center font-semibold text-foreground">{row.rank}</td>
+                  <td className="px-3 py-3 text-center font-semibold text-foreground">
+                    {row.rank}
+                  </td>
                   <td className="px-3 py-3 font-medium text-foreground">{row.symbol}</td>
                   <td className="px-3 py-3 text-foreground/80">{row.company || "-"}</td>
                   <td className="px-3 py-3 text-foreground/80">{row.industry || "-"}</td>
@@ -266,7 +289,9 @@ function MonthlySalesQualityRanking({ rows }: { rows: MonthlySalesQualityRow[] }
                       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-emerald transition hover:bg-emerald-soft"
                     >
                       جزئیات
-                      <ChevronDown className={`size-3 transition-transform ${expanded.has(index) ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        className={`size-3 transition-transform ${expanded.has(index) ? "rotate-180" : ""}`}
+                      />
                     </button>
                   </td>
                 </tr>
@@ -290,7 +315,9 @@ function MonthlySalesQualityRanking({ rows }: { rows: MonthlySalesQualityRow[] }
               <span className="text-sm font-semibold text-foreground">#{row.rank}</span>
               <div className="min-w-0">
                 <div className="truncate font-medium text-foreground">{row.symbol}</div>
-                <div className="truncate text-xs text-muted-foreground">{row.company || row.industry || "-"}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {row.company || row.industry || "-"}
+                </div>
               </div>
               <div className="text-left">
                 <div className="text-sm font-semibold text-emerald">{row.score || "-"}</div>
@@ -306,10 +333,16 @@ function MonthlySalesQualityRanking({ rows }: { rows: MonthlySalesQualityRow[] }
                 className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-emerald transition hover:bg-emerald-soft"
               >
                 جزئیات
-                <ChevronDown className={`size-3 transition-transform ${expanded.has(index) ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`size-3 transition-transform ${expanded.has(index) ? "rotate-180" : ""}`}
+                />
               </button>
             </div>
-            {expanded.has(index) && <div className="mt-2"><RankingDetails row={row} /></div>}
+            {expanded.has(index) && (
+              <div className="mt-2">
+                <RankingDetails row={row} />
+              </div>
+            )}
           </article>
         ))}
       </div>
@@ -317,7 +350,10 @@ function MonthlySalesQualityRanking({ rows }: { rows: MonthlySalesQualityRow[] }
   );
 }
 
-function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean, isRtl: boolean): Components {
+function createMarkdownComponents(
+  isMonthlySalesQualityRankingTable: boolean,
+  isRtl: boolean,
+): Components {
   const sharedTableCellClass = "px-3 py-2 text-[13px] align-top border-b border-hairline";
   const rankingTableLayoutClass = isMonthlySalesQualityRankingTable
     ? [
@@ -351,7 +387,13 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean, is
       const text = Array.isArray(children) ? children.join("") : String(children ?? "");
       const isDisclaimer = text.trim() === INVESTMENT_DISCLAIMER;
       return (
-        <p className={isDisclaimer ? "text-xs text-muted-foreground leading-relaxed" : "leading-relaxed text-pretty [unicode-bidi:plaintext]"}>
+        <p
+          className={
+            isDisclaimer
+              ? "text-xs text-muted-foreground leading-relaxed"
+              : "leading-relaxed text-pretty [unicode-bidi:plaintext]"
+          }
+        >
           {children}
         </p>
       );
@@ -448,8 +490,12 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
   const isFinancialStatement = isFinancialStatementMarkdown(content);
   const quarterlyTable = parseQuarterlyFinancialTable(content);
   const isIndustryRelativeValuation = isIndustryRelativeValuationMarkdown(content);
-  const industryTable = isIndustryRelativeValuation ? parseIndustryRelativeValuationTable(content) : null;
-  const isRtl = direction === "rtl" || (direction === "auto" && (isFinancialStatement || quarterlyTable !== null));
+  const industryTable = isIndustryRelativeValuation
+    ? parseIndustryRelativeValuationTable(content)
+    : null;
+  const isRtl =
+    direction === "rtl" ||
+    (direction === "auto" && (isFinancialStatement || quarterlyTable !== null));
   const renderedContent = isFinancialStatement
     ? formatFinancialStatementMarkdown(content)
     : content;
@@ -462,13 +508,21 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
       {quarterlyTable ? (
         <>
           {quarterlyTable.before && (
-            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, true)}>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={createMarkdownComponents(false, true)}
+            >
               {quarterlyTable.before}
             </Markdown>
           )}
           <QuarterlyFinancialTable model={quarterlyTable.model} />
           {quarterlyTable.after && (
-            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, true)}>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={createMarkdownComponents(false, true)}
+            >
               {quarterlyTable.after}
             </Markdown>
           )}
@@ -476,23 +530,37 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
       ) : industryTable ? (
         <>
           {industryTable.before && (
-            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, isRtl)}>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={createMarkdownComponents(false, isRtl)}
+            >
               {industryTable.before}
             </Markdown>
           )}
           <IndustryRelativeValuationTable rows={industryTable.rows} />
-          {industryTable.after && <MarkdownMessage content={industryTable.after} direction={isRtl ? "rtl" : "ltr"} />}
+          {industryTable.after && (
+            <MarkdownMessage content={industryTable.after} direction={isRtl ? "rtl" : "ltr"} />
+          )}
         </>
       ) : rankingTable ? (
         <>
           {rankingTable.before && (
-            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, isRtl)}>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={createMarkdownComponents(false, isRtl)}
+            >
               {rankingTable.before}
             </Markdown>
           )}
           <MonthlySalesQualityRanking rows={rankingTable.rows} />
           {rankingTable.after && (
-            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, isRtl)}>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={createMarkdownComponents(false, isRtl)}
+            >
               {rankingTable.after}
             </Markdown>
           )}

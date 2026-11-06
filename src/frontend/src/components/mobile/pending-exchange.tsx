@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { AnalysisProgress } from "@/components/app/analysis-progress";
 
 const LONG_REQUEST_MS = 20_000;
 
@@ -19,7 +19,7 @@ export function MobileUserBubble({ text, uncertain }: { text: string; uncertain?
 }
 
 /**
- * «در حال تحلیل...» in a polite live region. After 20 s it adds a reassurance; there is no client timeout
+ * The analysis stages in a polite live region. After 20 s it adds a reassurance; there is no client timeout
  * (decision D-Q4), so the request runs until the server answers or the connection fails.
  */
 export function PendingAnswer() {
@@ -29,14 +29,8 @@ export function PendingAnswer() {
     return () => window.clearTimeout(timer);
   }, []);
   return (
-    <div aria-live="polite" className="flex items-start gap-3 px-4">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-soft ring-1 ring-emerald/30">
-        <Loader2 className="size-3.5 animate-spin text-emerald" aria-hidden="true" />
-      </span>
-      <div className="text-sm leading-7 text-muted-foreground">
-        <p>در حال تحلیل...</p>
-        {long && <p>تحلیل‌های مفصل ممکن است کمی بیشتر طول بکشد</p>}
-      </div>
-    </div>
+    <AnalysisProgress className="px-4">
+      {long && <p aria-live="polite">تحلیل‌های مفصل ممکن است کمی بیشتر طول بکشد</p>}
+    </AnalysisProgress>
   );
 }

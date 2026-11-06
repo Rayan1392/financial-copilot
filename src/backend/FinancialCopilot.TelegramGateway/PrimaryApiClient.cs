@@ -33,10 +33,29 @@ public sealed class PrimaryApiClient(IHttpClientFactory factory, IOptions<Telegr
         }
     }
 
-    public async Task<bool> ConfirmLinkAsync(TelegramLinkConfirmRequest request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Maps the primary API's documented confirm responses (200, 409 conflict, 400 invalid token) to an outcome
+    /// the bot can explain; anything else is treated as a temporary failure.
+    /// </summary>
+    public async Task<TelegramLinkConfirmOutcome> ConfirmLinkAsync(TelegramLinkConfirmRequest request, CancellationToken cancellationToken)
     {
         using var client = CreateClient("TelegramGateway.PrimaryApi");
         using var response = await client.PostAsJsonAsync("api/v1/telegram/link/confirm", request, cancellationToken);
+        ObserveAuthentication(response.StatusCode);
+        return response.StatusCode switch
+        {
+            _ when response.IsSuccessStatusCode => TelegramLinkConfirmOutcome.Linked,
+            System.Net.HttpStatusCode.Conflict => TelegramLinkConfirmOutcome.Conflict,
+            System.Net.HttpStatusCode.BadRequest => TelegramLinkConfirmOutcome.InvalidOrExpired,
+            _ => TelegramLinkConfirmOutcome.Unavailable
+        };
+    }
+
+    /// <summary>Revokes whatever account link the Telegram user currently has; the primary API is idempotent per update id.</summary>
+    public async Task<bool> UnlinkFromTelegramAsync(TelegramUnlinkRequest request, CancellationToken cancellationToken)
+    {
+        using var client = CreateClient("TelegramGateway.PrimaryApi");
+        using var response = await client.PostAsJsonAsync("api/v1/telegram/link/unlink-from-telegram", request, cancellationToken);
         ObserveAuthentication(response.StatusCode);
         return response.IsSuccessStatusCode;
     }
@@ -92,3 +111,13 @@ public sealed record TelegramLinkConfirmRequest(
     long TelegramChatId,
     string? Username,
     long TelegramUpdateId);
+
+public sealed record TelegramUnlinkRequest(long TelegramUserId, long TelegramUpdateId);
+
+public enum TelegramLinkConfirmOutcome
+{
+    Linked,
+    Conflict,
+    InvalidOrExpired,
+    Unavailable
+}

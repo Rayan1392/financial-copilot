@@ -39,7 +39,7 @@ describe("CreditSummary (AC-07, AC-19, D-Q6)", () => {
   it("shows finite credit with a progress bar and text-only purchase guidance", async () => {
     getUsage.mockResolvedValue(usage({}));
     const { container } = renderSummary();
-    expect(await screen.findByText("۱,۲۰۰ از ۲,۶۰۰")).toBeInTheDocument();
+    expect(await screen.findByText("۱٬۲۰۰ از ۲٬۶۰۰")).toBeInTheDocument();
     expect(
       screen.getByRole("progressbar", { name: "اعتبار باقی‌مانده هوش مصنوعی" }),
     ).toHaveAttribute("aria-valuenow", "46");

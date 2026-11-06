@@ -75,7 +75,10 @@ export function AuthScreen({
         <h2 className="text-base font-semibold mb-1">ورود به حساب</h2>
         <p className="text-xs text-muted-foreground mb-5">برای دسترسی به تحلیل‌های هوشمند بازار</p>
         {sessionExpired && (
-          <p role="status" className="mb-4 rounded-lg bg-gold/10 px-3 py-2 text-xs leading-6 text-gold">
+          <p
+            role="status"
+            className="mb-4 rounded-lg bg-gold/10 px-3 py-2 text-xs leading-6 text-gold"
+          >
             نشست شما به پایان رسید؛ دوباره وارد شوید.
           </p>
         )}
@@ -217,7 +220,10 @@ const FEATURES = [
 /** First-visit introduction: what Sapio answers, in the product's real capabilities. */
 function ProductIntroHeader() {
   return (
-    <section aria-labelledby="intro-title" className="text-right lg:col-start-1 lg:row-start-1 lg:self-end">
+    <section
+      aria-labelledby="intro-title"
+      className="text-right lg:col-start-1 lg:row-start-1 lg:self-end"
+    >
       <div className="mb-6 flex items-center gap-3">
         <SapioMark className="size-11 text-emerald shadow-sm" />
         <span className="text-lg font-bold text-foreground">ساپیو - دستیار هوشمند بازار</span>
@@ -229,8 +235,8 @@ function ProductIntroHeader() {
         گزارش‌های مالی شرکت‌های بورسی را به زبان فارسی بپرسید
       </h1>
       <p className="mt-4 max-w-xl text-sm leading-8 text-muted-foreground md:text-base md:leading-8">
-        ساپیو گزارش‌های ماهانهٔ تولید و فروش، صورت‌های مالی و اطلاعیه‌های کدال را می‌خواند و به پرسش شما با
-        جدول، نمودار و منبع داده پاسخ می‌دهد.
+        ساپیو گزارش‌های ماهانهٔ تولید و فروش، صورت‌های مالی و اطلاعیه‌های کدال را می‌خواند و به پرسش
+        شما با جدول، نمودار و منبع داده پاسخ می‌دهد.
       </p>
     </section>
   );
@@ -238,10 +244,16 @@ function ProductIntroHeader() {
 
 function ProductFeatures() {
   return (
-    <section aria-label="امکانات ساپیو" className="text-right lg:col-start-1 lg:row-start-2 lg:self-start">
+    <section
+      aria-label="امکانات ساپیو"
+      className="text-right lg:col-start-1 lg:row-start-2 lg:self-start"
+    >
       <ul className="grid gap-3 sm:grid-cols-2">
         {FEATURES.map(({ icon: Icon, title, text }) => (
-          <li key={title} className="flex gap-3 rounded-2xl border border-hairline bg-surface/60 p-4">
+          <li
+            key={title}
+            className="flex gap-3 rounded-2xl border border-hairline bg-surface/60 p-4"
+          >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-soft/70 text-emerald">
               <Icon className="size-5" aria-hidden="true" />
             </span>

@@ -125,7 +125,10 @@ export function AccountMenu({
             asChild
             className="mx-1 mb-1 flex cursor-pointer items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2 text-[12px] focus:bg-emerald-soft/50"
           >
-            <Link to="/profile" aria-label={`اعتبار هوش مصنوعی: ${creditSummary}. مشاهدهٔ اشتراک و خریدها`}>
+            <Link
+              to="/profile"
+              aria-label={`اعتبار هوش مصنوعی: ${creditSummary}. مشاهدهٔ اشتراک و خریدها`}
+            >
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Wallet className="size-3.5" aria-hidden="true" />
                 اعتبار هوش مصنوعی

@@ -68,7 +68,10 @@ describe("AccountMenu", () => {
     expect(screen.queryByRole("menuitem", { name: "پنل مدیریت" })).not.toBeInTheDocument();
     expect(screen.getByText("۶۶۴ از ۲٬۶۰۰")).toBeInTheDocument();
     // The credit row leads to the account page (plan, expiry, purchases, top-up guidance).
-    expect(screen.getByRole("menuitem", { name: /اعتبار هوش مصنوعی/ })).toHaveAttribute("href", "/profile");
+    expect(screen.getByRole("menuitem", { name: /اعتبار هوش مصنوعی/ })).toHaveAttribute(
+      "href",
+      "/profile",
+    );
     expect(screen.getAllByText("user@example.com").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("menuitem", { name: "خروج از حساب" }));

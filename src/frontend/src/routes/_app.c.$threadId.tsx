@@ -34,11 +34,7 @@ function ChatThreadPage() {
         />
       </div>
       <ChatErrorNotice failure={thread.failure} />
-      <PromptInput
-        onSubmit={submit}
-        loading={thread.isPending}
-        showAssistedQuery
-      />
+      <PromptInput onSubmit={submit} loading={thread.isPending} showAssistedQuery />
     </>
   );
 }

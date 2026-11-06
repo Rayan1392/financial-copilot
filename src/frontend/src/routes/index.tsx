@@ -8,7 +8,9 @@ export const Route = createFileRoute("/")({
     if (typeof window === "undefined") return;
     if (await isAuthenticated()) {
       const mobileTarget = clientMobileRedirectTarget("/chat");
-      throw mobileTarget ? redirect({ href: mobileTarget, replace: true }) : redirect({ to: "/chat" });
+      throw mobileTarget
+        ? redirect({ href: mobileTarget, replace: true })
+        : redirect({ to: "/chat" });
     }
   },
   component: IndexRoute,

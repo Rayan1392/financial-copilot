@@ -44,7 +44,9 @@ describe("sign-in form usability", () => {
 
     fillAndSubmit();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("ایمیل یا گذرواژه واردشده نادرست است.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "ایمیل یا گذرواژه واردشده نادرست است.",
+    );
     await waitFor(() =>
       expect(screen.getByLabelText("گذرواژه")).toHaveAttribute("aria-describedby", "auth-error"),
     );
@@ -55,7 +57,9 @@ describe("sign-in form usability", () => {
     render(<AuthScreen redirect="/chat" withIntro />);
 
     expect(
-      screen.getByRole("heading", { name: "گزارش‌های مالی شرکت‌های بورسی را به زبان فارسی بپرسید" }),
+      screen.getByRole("heading", {
+        name: "گزارش‌های مالی شرکت‌های بورسی را به زبان فارسی بپرسید",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText("روند فروش ماهانه و ترکیب محصولات")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ورود به حساب" })).toBeInTheDocument();

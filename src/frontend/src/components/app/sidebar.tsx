@@ -414,7 +414,10 @@ export function ConversationSidebar({
               </AlertDialogDescription>
             </AlertDialogHeader>
             {removeChat.isError && (
-              <p role="alert" className="rounded-lg bg-rose/10 px-3 py-2 text-xs leading-6 text-rose">
+              <p
+                role="alert"
+                className="rounded-lg bg-rose/10 px-3 py-2 text-xs leading-6 text-rose"
+              >
                 حذف گفتگو انجام نشد. دوباره تلاش کنید.
               </p>
             )}

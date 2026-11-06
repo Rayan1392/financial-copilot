@@ -42,7 +42,10 @@ function NewChatPage() {
             onSuggested={submit}
           />
         ) : (
-          <div dir="rtl" className="m-auto max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up">
+          <div
+            dir="rtl"
+            className="m-auto max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up"
+          >
             <div className="mb-5 flex justify-center">
               <SapioMark className="size-14 text-emerald shadow-sm" />
             </div>

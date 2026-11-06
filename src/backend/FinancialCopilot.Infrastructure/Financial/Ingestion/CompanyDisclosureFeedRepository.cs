@@ -367,9 +367,8 @@ internal sealed class CompanyDisclosureFeedRepository(
     private static string MonthlyTitle(DateOnly periodEnd) =>
         $"گزارش فعالیت ماهانه تولید و فروش — دوره منتهی به {FormatJalaliDate(periodEnd)}";
 
-    private static string FormatJalaliDate(DateOnly value) =>
-        ShamsiMonthCalculator.FormatJalaliDate(new DateTimeOffset(
-            value.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(3.5)));
+    // Date-only overload: the period end is a calendar date, not an instant (avoids the previous-day shift).
+    private static string FormatJalaliDate(DateOnly value) => ShamsiMonthCalculator.FormatJalaliDate(value);
 
     private sealed record CompanyIdentity(Guid Id, string ProviderName, string ExternalCompanyId, string? Symbol, string Name);
 }

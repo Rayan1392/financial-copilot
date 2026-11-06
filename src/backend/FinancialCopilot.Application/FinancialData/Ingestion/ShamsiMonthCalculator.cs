@@ -96,6 +96,19 @@ public static class ShamsiMonthCalculator
     }
 
     /// <summary>Formats a UTC timestamp as a zero-padded Jalali calendar date.</summary>
+    /// <summary>
+    /// Formats a calendar date (no time, no zone) as yyyy/MM/dd Jalali. Use this for date-only values such as a
+    /// reporting period end: routing one through a midnight-Tehran instant and the UTC overload below lands on
+    /// the previous UTC day and prints the day before (1405/06/30 for 2026-09-22, which is 1405/06/31).
+    /// </summary>
+    public static string FormatJalaliDate(DateOnly date)
+    {
+        var day = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{Calendar.GetYear(day):D4}/{Calendar.GetMonth(day):D2}/{Calendar.GetDayOfMonth(day):D2}");
+    }
+
     public static string FormatJalaliDate(DateTimeOffset utcTimestamp)
     {
         var utcDate = utcTimestamp.UtcDateTime;

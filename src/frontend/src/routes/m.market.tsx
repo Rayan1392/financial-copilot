@@ -12,6 +12,11 @@ import type { MarketMover } from "@/lib/market-view.functions";
 import { formatNumber, relativeTime } from "@/lib/format/persian";
 import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
 import { useFollowedSymbols, useMarketSummary } from "@/lib/workspace/queries";
+import {
+  isLaggingQuote,
+  marketSessionStatus,
+  type MarketSessionStatus,
+} from "@/lib/market/market-session";
 
 export const Route = createFileRoute("/m/market")({
   head: () => ({ meta: [{ title: "بازار — ساپیو" }] }),
@@ -29,6 +34,8 @@ function MobileMarket() {
   const { ask, askAbout } = useOpenNewChat();
   const [subject, setSubject] = useState<SymbolSheetSubject | null>(null);
   const data = summary.data;
+  // One line for a day without trading; the chip is kept for movers that are really behind.
+  const session = marketSessionStatus([...(data?.topGainers ?? []), ...(data?.topLosers ?? [])]);
 
   function openMover(mover: MarketMover) {
     const match = followed.data?.symbols.find((item) => item.symbol === mover.symbol);
@@ -57,6 +64,11 @@ function MobileMarket() {
             busy={summary.isFetching}
           />
         </div>
+        {session.label && (
+          <p role="status" className="mb-2 text-xs text-muted-foreground">
+            {session.label}
+          </p>
+        )}
 
         {summary.isLoading ? (
           <div
@@ -98,8 +110,18 @@ function MobileMarket() {
                 ))}
               </ul>
             )}
-            <MoverList title="بیشترین رشد" movers={data.topGainers} onSelect={openMover} />
-            <MoverList title="بیشترین افت" movers={data.topLosers} onSelect={openMover} />
+            <MoverList
+              title="بیشترین رشد"
+              movers={data.topGainers}
+              session={session}
+              onSelect={openMover}
+            />
+            <MoverList
+              title="بیشترین افت"
+              movers={data.topLosers}
+              session={session}
+              onSelect={openMover}
+            />
           </>
         )}
       </div>
@@ -116,10 +138,12 @@ function MobileMarket() {
 function MoverList({
   title,
   movers,
+  session,
   onSelect,
 }: {
   title: string;
   movers: readonly MarketMover[];
+  session: MarketSessionStatus;
   onSelect: (mover: MarketMover) => void;
 }) {
   if (movers.length === 0) return null;
@@ -137,7 +161,7 @@ function MoverList({
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
                   <bdi className="font-semibold text-foreground">{mover.symbol}</bdi>
-                  {mover.isStale && <StaleChip />}
+                  {isLaggingQuote(mover, session) && <StaleChip />}
                 </span>
                 {mover.name && (
                   <span className="block truncate text-xs text-muted-foreground">{mover.name}</span>

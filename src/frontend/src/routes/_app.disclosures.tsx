@@ -124,11 +124,34 @@ function DisclosuresPage() {
         {query.data && <section className="space-y-3" aria-busy={query.isFetching}>
           {query.isFetching && <p className="text-xs text-muted-foreground" role="status">در حال به‌روزرسانی فهرست…</p>}
           {hasStaleData && <Notice>بخشی از داده‌ها ممکن است به‌روز نباشند؛ زمان تازگی منبع در نتیجه لحاظ شده است.</Notice>}
-          <div className="overflow-x-auto rounded-xl border border-hairline">
-            <table className="w-full min-w-[900px] text-right text-sm">
-              <thead className="bg-background"><tr><Header>نماد</Header><Header>شرکت</Header><Header>عنوان اطلاعیه</Header><Header>نوع</Header><Header>دوره</Header><Header>نوع دوره</Header><Header>دریافت سیستم</Header></tr></thead>
-              <tbody>{query.data.items.map((item) => <tr key={item.disclosureId} className="border-t border-hairline"><Cell><bdi>{item.symbol ?? "—"}</bdi></Cell><Cell>{item.companyName ?? "—"}</Cell><Cell>{item.title}</Cell><Cell>{disclosureTypeLabels[item.type]}</Cell><Cell>{formatDisclosurePeriod(item)}</Cell><Cell>{formatDisclosurePeriodType(item)}</Cell><Cell>{formatDisclosureReceiptDate(item.receivedAt)}</Cell></tr>)}</tbody>
-            </table>
+          {/* The seven-column table needs ~56rem. Its own width (not the viewport) decides the layout, because
+              both side panels can be open: below that it renders as cards instead of clipping columns. */}
+          <div className="@container">
+            <div className="hidden overflow-x-auto rounded-xl border border-hairline @4xl:block">
+              <table className="w-full text-right text-sm">
+                <thead className="bg-background"><tr><Header>نماد</Header><Header>شرکت</Header><Header>عنوان اطلاعیه</Header><Header>نوع</Header><Header>دوره</Header><Header>نوع دوره</Header><Header>دریافت سیستم</Header></tr></thead>
+                <tbody>{query.data.items.map((item) => <tr key={item.disclosureId} className="border-t border-hairline"><Cell><bdi>{item.symbol ?? "—"}</bdi></Cell><Cell>{item.companyName ?? "—"}</Cell><Cell>{item.title}</Cell><Cell>{disclosureTypeLabels[item.type]}</Cell><Cell>{formatDisclosurePeriod(item)}</Cell><Cell>{formatDisclosurePeriodType(item)}</Cell><Cell>{formatDisclosureReceiptDate(item.receivedAt)}</Cell></tr>)}</tbody>
+              </table>
+            </div>
+            <ul aria-label="فهرست اطلاعیه‌ها" className="space-y-2 @4xl:hidden">
+              {query.data.items.map((item) => (
+                <li key={item.disclosureId} className="rounded-xl border border-hairline bg-surface/60 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground"><bdi>{item.symbol ?? "—"}</bdi></p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.companyName ?? "—"}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-emerald-soft/60 px-2.5 py-1 text-[11px] font-medium text-emerald">{disclosureTypeLabels[item.type]}</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-foreground">{item.title}</p>
+                  <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1.5 border-t border-hairline pt-3 text-xs sm:grid-cols-3">
+                    <div className="flex gap-1.5"><dt className="text-muted-foreground">دوره:</dt><dd className="text-foreground">{formatDisclosurePeriod(item)}</dd></div>
+                    <div className="flex gap-1.5"><dt className="text-muted-foreground">نوع دوره:</dt><dd className="text-foreground">{formatDisclosurePeriodType(item)}</dd></div>
+                    <div className="flex gap-1.5"><dt className="text-muted-foreground">دریافت سیستم:</dt><dd className="text-foreground">{formatDisclosureReceiptDate(item.receivedAt)}</dd></div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
           </div>
           {query.data.items.length === 0 && <p className="rounded border border-hairline p-4">اطلاعیه‌ای با این فیلترها یافت نشد.</p>}
           <nav aria-label="صفحه‌بندی اطلاعیه‌ها" className="flex items-center justify-between gap-3">

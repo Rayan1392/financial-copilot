@@ -3,7 +3,9 @@ import { PromptInput } from "@/components/app/prompt-input";
 import { SapioMark } from "@/components/app/sapio-mark";
 import { MessageList } from "@/components/app/message-list";
 import { StarterCard } from "@/components/app/starter-card";
-import { STARTER_PROMPTS } from "@/lib/chat/starter-prompts";
+import { useMemo } from "react";
+import { personalizedStarterPrompts } from "@/lib/chat/starter-prompts";
+import { useFollowedSymbols } from "@/lib/workspace/queries";
 import { chatErrorMessage } from "@/lib/chat/chat-errors";
 import { useStartChat } from "@/lib/chat/use-start-chat";
 
@@ -18,7 +20,13 @@ function NewChatPage() {
   });
   const { submit, pendingMessage } = startChat;
   const queryError = startChat.failure ? chatErrorMessage(startChat.failure) : null;
-  const starterPrompts = STARTER_PROMPTS;
+  // Cards come from the user's watchlist; with nothing followed they fall back to the static set.
+  const followed = useFollowedSymbols();
+  const starterSet = useMemo(
+    () => personalizedStarterPrompts(followed.data?.symbols ?? []),
+    [followed.data],
+  );
+  const starterPrompts = starterSet.prompts;
 
   return (
     <>
@@ -62,6 +70,11 @@ function NewChatPage() {
               روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه و
               سود و زیان فصلی و ترازنامه (صورت وضعیت مالی) نمادها را بررسی کنید.
             </p>
+            {starterSet.personalized && (
+              <p className="mb-3 text-right text-xs text-muted-foreground">
+                پیشنهادها بر اساس نمادهای دیده‌بان شما
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-right">
               {starterPrompts.map((prompt) => (
                 <StarterCard

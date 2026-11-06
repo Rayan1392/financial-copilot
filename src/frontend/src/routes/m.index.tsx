@@ -8,7 +8,7 @@ import { MobileUserBubble, PendingAnswer } from "@/components/mobile/pending-exc
 import { SymbolSheet, type SymbolSheetSubject } from "@/components/mobile/symbol-sheet";
 import { InstallCard } from "@/components/mobile/install-card";
 import { AdminSettingsButton } from "@/components/mobile/top-app-bar";
-import { STARTER_PROMPTS } from "@/lib/chat/starter-prompts";
+import { personalizedStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useStartChat } from "@/lib/chat/use-start-chat";
 import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
 import { restoresDraftImmediately } from "@/lib/chat/send-recovery";
@@ -72,7 +72,10 @@ function MobileNewChat() {
 
   const failure = startChat.failure;
   const exchangeText = startChat.pendingMessage ?? failure?.draft ?? null;
-  const starters = showAllStarters ? STARTER_PROMPTS : STARTER_PROMPTS.slice(0, VISIBLE_STARTERS);
+  // Cards come from the user's watchlist; with nothing followed they fall back to the static set.
+  const starterSet = personalizedStarterPrompts(watchlist.followed);
+  const allStarters = starterSet.prompts;
+  const starters = showAllStarters ? allStarters : allStarters.slice(0, VISIBLE_STARTERS);
   const symbols = watchlist.join?.rows ?? [];
 
   return (
@@ -124,7 +127,7 @@ function MobileNewChat() {
               </li>
             ))}
           </ul>
-          {!showAllStarters && STARTER_PROMPTS.length > VISIBLE_STARTERS && (
+          {!showAllStarters && allStarters.length > VISIBLE_STARTERS && (
             <button
               type="button"
               onClick={() => setShowAllStarters(true)}

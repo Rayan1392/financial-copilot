@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, relativeTime, toPersianDigits } from "@/lib/format/persian";
 import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
 import { useWatchlistWithNames } from "@/lib/workspace/queries";
+import { isLaggingQuote, marketSessionStatus } from "@/lib/market/market-session";
 
 export const Route = createFileRoute("/m/watchlist")({
   head: () => ({ meta: [{ title: "دیده‌بان — ساپیو" }] }),
@@ -26,6 +27,8 @@ function MobileWatchlist() {
   const [subject, setSubject] = useState<SymbolSheetSubject | null>(null);
   const [adding, setAdding] = useState(false);
   const rows = watchlist.join?.rows ?? [];
+  // A day without trading gets one line; the chip is kept for rows that are really behind.
+  const session = marketSessionStatus(rows);
   const followedIds = useMemo(
     () => new Set(watchlist.followed.map((item) => item.externalCompanyId)),
     [watchlist.followed],
@@ -49,6 +52,11 @@ function MobileWatchlist() {
             افزودن
           </button>
         </div>
+        {rows.length > 0 && session.label && (
+          <p role="status" className="mb-2 text-xs text-muted-foreground">
+            {session.label}
+          </p>
+        )}
 
         {watchlist.isLoading ? (
           <div className="space-y-2" aria-busy="true" aria-label="در حال بارگذاری دیده‌بان">
@@ -104,7 +112,7 @@ function MobileWatchlist() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <bdi className="font-semibold text-foreground">{row.symbol}</bdi>
-                      {row.isStale && <StaleChip />}
+                      {isLaggingQuote(row, session) && <StaleChip />}
                     </span>
                     {row.companyName && (
                       <span className="block truncate text-xs text-muted-foreground">

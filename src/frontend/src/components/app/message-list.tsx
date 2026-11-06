@@ -5,7 +5,7 @@ import type {
   DisclosureListingResult,
   ScannerTable,
 } from "@/lib/chat.functions";
-import { formatNumber, formatPercent, toPersianDigits } from "@/lib/format/persian";
+import { formatNumber, formatPercent, isolateSignedNumbers, toPersianDigits } from "@/lib/format/persian";
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { QuarterlyFinancialTable, quarterlyFinancialTableModelFromTypedResult } from "@/components/app/quarterly-financial-table";
@@ -154,7 +154,7 @@ function AssistantBlock({
   const isRtlMessage =
     block.replyLanguage === "fa" || (!block.replyLanguage && containsPersianText(message));
   const localizedMessage = isRtlMessage
-    ? toPersianDigits(
+    ? isolateSignedNumbers(toPersianDigits(
         renderedMessage.replace(
           /(قیمت(?:\s+نماد\s+\S+)?\s+برابر است با\s*)([\d,]+(?:\.\d+)?)(?:\s*ریال)?/u,
           (_match, label: string, rawPrice: string) => {
@@ -163,7 +163,7 @@ function AssistantBlock({
             return `${label}${formatNumber(price, { maximumFractionDigits: fractionDigits })} ریال`;
           },
         ),
-      )
+      ))
     : renderedMessage;
   const tradingDateMatch = localizedMessage.match(
     /\s*(تاریخ معامله:\s*[\d۰-۹]{4}[/-][\d۰-۹]{1,2}[/-][\d۰-۹]{1,2}\.?)\s*$/u,

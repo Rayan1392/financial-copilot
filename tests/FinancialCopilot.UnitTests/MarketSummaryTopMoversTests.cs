@@ -49,6 +49,31 @@ public sealed class MarketSummaryTopMoversTests
     }
 
     [Fact]
+    public async Task AMoverCarriesItsTradingSessionEvenWhenObservedOnALaterDay()
+    {
+        await using var db = CreateDb();
+        var company = Company(db, "کگهر", "معدنی و صنعتی گهر زمین");
+        // Wednesday's session, synced after close on Thursday (production shows such next-day AsOf values).
+        db.LatestMarketQuotes.Add(new LatestMarketQuoteRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",
+            TradingInstrumentId = Instrument(db, "کگهر", company, isActive: true),
+            LatestPrice = 9_550m,
+            PriceChangePercentage = 1.75m,
+            SourceKind = "EndOfDay",
+            TradingDate = new DateOnly(2026, 11, 4),
+            AsOf = DateTimeOffset.Parse("2026-11-05T13:30:00Z")
+        });
+        await db.SaveChangesAsync();
+
+        var summary = await CreateService(db).GetAsync(CancellationToken.None);
+
+        var mover = Assert.Single(summary.TopGainers);
+        Assert.Equal(new DateOnly(2026, 11, 4), mover.TradingDate);
+    }
+
+    [Fact]
     public async Task ACompanyLinkedBothWaysAppearsOnceWithItsLatestQuote()
     {
         await using var db = CreateDb();

@@ -1798,7 +1798,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     // Persisted product sales are in million rials; display them as tomans.
     private static decimal ToToman(decimal millionRial) => millionRial * 100_000m;
 
-    private static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)
+    internal static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)
     {
         var sb = new StringBuilder();
         var companyLabel = result.CompanyName is not null
@@ -1819,6 +1819,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         {
             var momSign = result.SalesAmountMomGrowthPercent.Value >= 0 ? "+" : string.Empty;
             sb.AppendLine($"**تغییر نسبت به ماه قبل:** {momSign}{result.SalesAmountMomGrowthPercent.Value:F1}٪");
+        }
+        else if (result.PreviousMonthSalesAmount is null)
+        {
+            sb.AppendLine("**تغییر نسبت به ماه قبل:** دادهٔ ماه قبل موجود نیست.");
         }
         else
         {

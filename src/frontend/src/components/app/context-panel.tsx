@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Plus, Activity, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
 import { useMarketSummary, useWatchlist } from "@/lib/workspace/queries";
+import { isLaggingQuote, marketSessionStatus } from "@/lib/market/market-session";
 import { ChangePill, RailHoverCard } from "@/components/app/rail-hover-card";
 
 function MoverRow({ label, symbol, change }: { label: string; symbol: string; change: number }) {
@@ -25,6 +26,9 @@ export function ContextPanel({
 }) {
   const { data, isLoading, isError } = useMarketSummary();
   const { data: watchlist, isLoading: watchlistLoading, isError: watchlistError } = useWatchlist();
+  // Mark only quotes that are really behind; a day without trading gets one line instead of a star on every row.
+  const session = marketSessionStatus(watchlist?.symbols ?? []);
+  const hasLagging = (watchlist?.symbols ?? []).some((quote) => isLaggingQuote(quote, session));
   const indices = data?.indices.slice(0, 2) ?? [];
   const leadChange = indices[0]?.changePercent;
   const marketTone =
@@ -256,7 +260,7 @@ export function ContextPanel({
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">
                         {quote.symbol}
-                        {quote.isStale && <span className="text-gold"> *</span>}
+                        {isLaggingQuote(quote, session) && <span className="text-gold"> *</span>}
                       </p>
                       <p className="text-[11px] text-muted-foreground tabular-nums">
                         {quote.latestPrice == null ? "-" : formatNumber(quote.latestPrice)}
@@ -274,9 +278,10 @@ export function ContextPanel({
                   و {formatNumber(symbolCount - topMovers.length)} نماد دیگر
                 </p>
               )}
-              {watchlist?.symbols.some((quote) => quote.isStale) && (
-                <p className="mt-1.5 text-[10px] text-gold">* داده قدیمی</p>
+              {session.label && (
+                <p className="mt-1.5 text-[10px] text-muted-foreground">{session.label}</p>
               )}
+              {hasLagging && <p className="mt-1.5 text-[10px] text-gold">* داده قدیمی</p>}
             </>
           )}
         </RailHoverCard>
@@ -367,7 +372,7 @@ export function ContextPanel({
                 <div>
                   <div className="text-sm text-foreground">
                     {quote.symbol}
-                    {quote.isStale ? " *" : ""}
+                    {isLaggingQuote(quote, session) ? " *" : ""}
                   </div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
                     {quote.latestPrice == null ? "-" : formatNumber(quote.latestPrice)}
@@ -386,10 +391,16 @@ export function ContextPanel({
               بروزرسانی {relativeTime(watchlist.asOf)}
             </p>
           )}
-          {watchlist?.symbols.some((quote) => quote.isStale) && (
-            <p className="text-[10px] text-gold mt-2">* داده قدیمی</p>
+          {session.label && (
+            <p className="mt-2 text-[10px] text-muted-foreground">{session.label}</p>
           )}
+          {hasLagging && <p className="text-[10px] text-gold mt-2">* داده قدیمی</p>}
         </section>
+        {/* Data-source note, deliberately quiet: it moved out of the header, where it competed with navigation. */}
+        <p className="!mt-4 flex shrink-0 items-center gap-1.5 border-t border-hairline pt-3 text-[10px] text-muted-foreground/80">
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-emerald/60" />
+          منابع داده: متصل به نوآوران‌امین · تحلیل‌اپ
+        </p>
       </div>
     </aside>
   );

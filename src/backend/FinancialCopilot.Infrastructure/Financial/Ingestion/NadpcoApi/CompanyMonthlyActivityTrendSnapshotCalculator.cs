@@ -158,44 +158,36 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
         // Load previous-year same-month snapshot (already persisted) for YoY comparison.
         var prevYearSnapshots = await GetSnapshotByPeriodAsync(externalCompanyId, jalaliYear - 1, jalaliMonth, ct);
 
-        decimal? sameMonthPrevYearSales = prevYearSnapshots?.MonthlySalesAmount;
         decimal? sameMonthPrevYearProd = prevYearSnapshots?.MonthlyProductionQuantity;
         decimal? sameMonthPrevYearQty = prevYearSnapshots?.MonthlySalesQuantity;
-        var isComparablePrevYearAvailable = sameMonthPrevYearSales.HasValue;
 
-        // Load previous month snapshot for MoM.
-        var (prevMonthYear, prevMonthMonth) = DecrementMonth(jalaliYear, jalaliMonth);
+        // Load previous calendar month snapshot for MoM.
+        var (prevMonthYear, prevMonthMonth) = MonthlySalesTrendComparison.PreviousMonth(jalaliYear, jalaliMonth);
         var prevMonthSnapshot = await GetSnapshotByPeriodAsync(externalCompanyId, prevMonthYear, prevMonthMonth, ct);
 
         // Trailing 12-month average: current month plus up to 11 persisted prior snapshots.
-        // The current month's snapshot has not been persisted yet, so we read 11 prior months
-        // and prepend the current month's value.
         var priorPeriods = await GetTrailingSnapshotsAsync(externalCompanyId, jalaliYear, jalaliMonth, 11, ct);
-        var allPeriodAmounts = new List<decimal>(priorPeriods.Count + 1) { monthlySalesAmount };
-        allPeriodAmounts.AddRange(priorPeriods.Select(s => s.MonthlySalesAmount));
-        decimal? average12MonthSales = null;
-        var periodCount = allPeriodAmounts.Count;
-        var isAverage12MonthComplete = periodCount >= 12;
 
-        if (periodCount > 0)
-            average12MonthSales = allPeriodAmounts.Average();
+        var comparison = MonthlySalesTrendComparison.Compare(
+            new MonthlySalesPoint(jalaliYear, jalaliMonth, monthlySalesAmount),
+            priorPeriods
+                .Concat(new[] { prevMonthSnapshot, prevYearSnapshots }.OfType<CompanyMonthlyActivityTrendSnapshot>())
+                .Select(s => new MonthlySalesPoint(s.ReportYear, s.ReportMonth, s.MonthlySalesAmount)));
 
-        // Growth percentages.
-        decimal? momGrowth = null;
-        if (prevMonthSnapshot is not null && prevMonthSnapshot.MonthlySalesAmount != 0)
-            momGrowth = Math.Round((monthlySalesAmount - prevMonthSnapshot.MonthlySalesAmount) / prevMonthSnapshot.MonthlySalesAmount * 100m, 4);
+        var sameMonthPrevYearSales = comparison.SameMonthPreviousYearSalesAmount;
+        var isComparablePrevYearAvailable = sameMonthPrevYearSales.HasValue;
+        decimal? average12MonthSales = comparison.Average12MonthSalesAmount;
+        var periodCount = comparison.Average12MonthPeriodCount;
+        var isAverage12MonthComplete = comparison.IsAverage12MonthComplete;
+        var momGrowth = comparison.MonthOverMonthGrowthPercent;
+        var yoyGrowth = comparison.YearOverYearGrowthPercent;
 
-        decimal? yoyGrowth = null;
-        if (sameMonthPrevYearSales.HasValue && sameMonthPrevYearSales.Value != 0)
-            yoyGrowth = Math.Round((monthlySalesAmount - sameMonthPrevYearSales.Value) / sameMonthPrevYearSales.Value * 100m, 4);
-
-        decimal? prodYoYGrowth = null;
-        if (sameMonthPrevYearProd.HasValue && sameMonthPrevYearProd.Value != 0 && monthlyProductionQuantity.HasValue)
-            prodYoYGrowth = Math.Round((monthlyProductionQuantity.Value - sameMonthPrevYearProd.Value) / sameMonthPrevYearProd.Value * 100m, 4);
-
-        decimal? qtyYoYGrowth = null;
-        if (sameMonthPrevYearQty.HasValue && sameMonthPrevYearQty.Value != 0 && monthlySalesQuantity.HasValue)
-            qtyYoYGrowth = Math.Round((monthlySalesQuantity.Value - sameMonthPrevYearQty.Value) / sameMonthPrevYearQty.Value * 100m, 4);
+        var prodYoYGrowth = monthlyProductionQuantity.HasValue
+            ? MonthlySalesTrendComparison.GrowthPercent(monthlyProductionQuantity.Value, sameMonthPrevYearProd)
+            : null;
+        var qtyYoYGrowth = monthlySalesQuantity.HasValue
+            ? MonthlySalesTrendComparison.GrowthPercent(monthlySalesQuantity.Value, sameMonthPrevYearQty)
+            : null;
 
         // Completeness score: simple heuristic (0–1).
         var score = ComputeCompletenessScore(
@@ -253,6 +245,68 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
             CalculatedAtUtc: DateTimeOffset.UtcNow);
 
         await repository.UpsertAsync(row, ct);
+        await RefreshDependentComparisonsAsync(row, ct);
+    }
+
+    /// <summary>
+    /// Later snapshots persist comparisons derived from this month: next month's MoM, the trailing average of the
+    /// next 11 months, and next year's YoY. Refresh them so rebuilding this month cannot leave them stale
+    /// (spec 076 bug-001).
+    /// </summary>
+    private async Task RefreshDependentComparisonsAsync(CompanyMonthlyActivityTrendSnapshotUpsertRow current, CancellationToken ct)
+    {
+        var currentKey = current.ReportYear * 12 + current.ReportMonth;
+        var lastDependentKey = currentKey + MonthlySalesTrendComparison.TrailingAverageMonths;
+        var rows = await dbContext.CompanyMonthlyActivityTrendSnapshots
+            .Where(r => r.ExternalCompanyId == current.ExternalCompanyId
+                     && r.ReportYear * 12 + r.ReportMonth <= lastDependentKey)
+            .ToListAsync(ct);
+
+        var dependents = rows.Where(r => r.ReportYear * 12 + r.ReportMonth > currentKey).ToArray();
+        if (dependents.Length == 0) return;
+
+        var series = rows
+            .Where(r => r.ReportYear * 12 + r.ReportMonth != currentKey)
+            .Select(r => new MonthlySalesPoint(r.ReportYear, r.ReportMonth, r.MonthlySalesAmount))
+            .Append(new MonthlySalesPoint(current.ReportYear, current.ReportMonth, current.MonthlySalesAmount))
+            .ToArray();
+
+        foreach (var dependent in dependents)
+        {
+            var comparison = MonthlySalesTrendComparison.Compare(
+                new MonthlySalesPoint(dependent.ReportYear, dependent.ReportMonth, dependent.MonthlySalesAmount),
+                series);
+
+            dependent.SalesAmountMomGrowthPercent = comparison.MonthOverMonthGrowthPercent;
+            dependent.SameMonthPreviousYearSalesAmount = comparison.SameMonthPreviousYearSalesAmount;
+            dependent.SalesAmountYoYGrowthPercent = comparison.YearOverYearGrowthPercent;
+            dependent.IsComparablePreviousYearAvailable = comparison.SameMonthPreviousYearSalesAmount.HasValue;
+            dependent.Average12MonthSalesAmount = comparison.Average12MonthSalesAmount;
+            dependent.Average12MonthPeriodCount = comparison.Average12MonthPeriodCount;
+            dependent.IsAverage12MonthComplete = comparison.IsAverage12MonthComplete;
+
+            if (dependent.ReportYear == current.ReportYear + 1 && dependent.ReportMonth == current.ReportMonth)
+            {
+                dependent.SameMonthPreviousYearProductionQuantity = current.MonthlyProductionQuantity;
+                dependent.SameMonthPreviousYearSalesQuantity = current.MonthlySalesQuantity;
+                dependent.ProductionQuantityYoYGrowthPercent = dependent.MonthlyProductionQuantity.HasValue
+                    ? MonthlySalesTrendComparison.GrowthPercent(dependent.MonthlyProductionQuantity.Value, current.MonthlyProductionQuantity)
+                    : null;
+                dependent.SalesQuantityYoYGrowthPercent = dependent.MonthlySalesQuantity.HasValue
+                    ? MonthlySalesTrendComparison.GrowthPercent(dependent.MonthlySalesQuantity.Value, current.MonthlySalesQuantity)
+                    : null;
+            }
+
+            dependent.DataCompletenessScore = ComputeCompletenessScore(
+                dependent.IsComparablePreviousYearAvailable,
+                dependent.IsAverage12MonthComplete,
+                dependent.Average12MonthPeriodCount,
+                dependent.YtdSalesAmount.HasValue,
+                dependent.YtdPreviousMonthSalesAmount.HasValue);
+            dependent.CalculatedAtUtc = current.CalculatedAtUtc;
+        }
+
+        await dbContext.SaveChangesAsync(ct);
     }
 
     public async Task RecalculateRangeAsync(
@@ -416,12 +470,6 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
         }
 
         return (industryId, industryTitle, categoryId, categoryTitle);
-    }
-
-    private static (int Year, byte Month) DecrementMonth(int year, byte month)
-    {
-        if (month == 1) return (year - 1, 12);
-        return (year, (byte)(month - 1));
     }
 
     private readonly record struct MonthCursor(int Year, byte Month)

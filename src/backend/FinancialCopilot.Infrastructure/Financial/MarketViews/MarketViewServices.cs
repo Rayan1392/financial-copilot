@@ -194,7 +194,8 @@ public sealed class WatchlistService(
                 observation?.AsOf,
                 observation?.SourceLabel,
                 observation is not null &&
-                    (observation.Source != MarketQuoteSource.LiveQuote || observation.AsOf < staleBefore));
+                    (observation.Source != MarketQuoteSource.LiveQuote || observation.AsOf < staleBefore),
+                observation is null || observation.TradingDate == default ? null : observation.TradingDate);
         }).ToArray();
         var timestamps = result.Select(item => item.AsOf).OfType<DateTimeOffset>().ToArray();
         return new WatchlistView(result, timestamps.Length == 0 ? null : timestamps.Max());
@@ -300,7 +301,8 @@ public sealed class MarketSummaryService(
                 row.quote.LatestPrice,
                 row.quote.PriceChangePercentage,
                 row.quote.AsOf,
-                row.quote.AsOf < staleBefore))
+                row.quote.AsOf < staleBefore,
+                row.quote.TradingDate == default ? null : row.quote.TradingDate))
             .ToArray();
         var timestamps = indices.Select(row => row.AsOf).Concat(movers.Select(row => row.AsOf)).ToArray();
         var summary = new MarketSummary(

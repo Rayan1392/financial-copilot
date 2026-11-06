@@ -5,9 +5,6 @@ import { useEffect, useState } from "react";
 import {
   Plus,
   Trash2,
-  LogOut,
-  Settings,
-  Send,
   RefreshCw,
   MessageSquare,
   Wallet,
@@ -16,7 +13,17 @@ import {
 } from "lucide-react";
 import { SapioMark } from "@/components/app/sapio-mark";
 import { RailHoverCard } from "@/components/app/rail-hover-card";
-import { createThread } from "@/lib/chat.functions";
+import { AccountMenu } from "@/components/app/account-menu";
+import { createThread, type ChatThread } from "@/lib/chat.functions";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useConversations, useDeleteConversation, useUsage } from "@/lib/workspace/queries";
 import {
   getStoredAuthenticatedUser,
@@ -71,8 +78,11 @@ export function ConversationSidebar({
       navigate({ to: "/c/$threadId", params: { threadId: thread.id } });
     },
   });
+  // Deleting is permanent, so desktop asks first, the same as the mobile history (ConfirmSheet).
+  const [confirmDelete, setConfirmDelete] = useState<ChatThread | null>(null);
   const removeChat = useDeleteConversation({
     onDeleted: (id) => {
+      setConfirmDelete(null);
       if (activeId === id) navigate({ to: "/chat" });
     },
   });
@@ -80,6 +90,14 @@ export function ConversationSidebar({
     usage && usage.creditQuotaMode !== "Unlimited"
       ? computeCreditProgress(usage.availableSpendingCapacity, usage.planIncludedCredits)
       : null;
+  const creditSummary = usage
+    ? creditQuotaLabel(
+        usage.creditQuotaMode,
+        credit?.limit != null
+          ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
+          : formatNumber(credit?.remaining ?? 0),
+      )
+    : null;
   const [showAdmin, setShowAdmin] = useState(false);
   useEffect(() => {
     const updateAccess = () => {
@@ -299,32 +317,12 @@ export function ConversationSidebar({
           )}
         </RailHoverCard>
         <div className="mt-auto flex flex-col items-center gap-2">
-          <Link
-            to="/telegram-link"
-            className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
-            aria-label="اتصال تلگرام"
-            title="اتصال تلگرام"
-          >
-            <Send className="size-5" />
-          </Link>
-          {showAdmin && (
-            <Link
-              to="/admin"
-              className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
-              aria-label="پنل مدیریت"
-              title="پنل مدیریت"
-            >
-              <Settings className="size-5" />
-            </Link>
-          )}
-          <button
-            onClick={signOut}
-            className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-rose/10 hover:text-rose"
-            aria-label="خروج"
-            title="خروج"
-          >
-            <LogOut className="size-5" />
-          </button>
+          <AccountMenu
+            variant="rail"
+            creditSummary={creditSummary}
+            showAdmin={showAdmin}
+            onSignOut={() => void signOut()}
+          />
         </div>
       </aside>
     );
@@ -383,12 +381,15 @@ export function ConversationSidebar({
                   <span className="text-sm truncate flex-1">{thread.title}</span>
                 </Link>
                 <button
+                  type="button"
                   onClick={(event) => {
                     event.preventDefault();
-                    removeChat.mutate(thread.id);
+                    removeChat.reset();
+                    setConfirmDelete(thread);
                   }}
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive"
-                  aria-label="حذف"
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
+                  aria-label={`حذف گفتگو: ${thread.title}`}
+                  title="حذف گفتگو"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -396,6 +397,45 @@ export function ConversationSidebar({
             ))}
           </nav>
         </div>
+        <AlertDialog
+          open={confirmDelete !== null}
+          onOpenChange={(open) => {
+            if (!open && !removeChat.isPending) {
+              setConfirmDelete(null);
+              removeChat.reset();
+            }
+          }}
+        >
+          <AlertDialogContent dir="rtl" className="max-w-sm rounded-2xl border-hairline bg-surface">
+            <AlertDialogHeader className="text-right sm:text-right">
+              <AlertDialogTitle className="text-base">حذف گفتگو</AlertDialogTitle>
+              <AlertDialogDescription className="leading-7">
+                گفتگوی «{confirmDelete?.title}» برای همیشه حذف می‌شود و قابل بازگشت نیست.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {removeChat.isError && (
+              <p
+                role="alert"
+                className="rounded-lg bg-rose/10 px-3 py-2 text-xs leading-6 text-rose"
+              >
+                حذف گفتگو انجام نشد. دوباره تلاش کنید.
+              </p>
+            )}
+            <AlertDialogFooter className="gap-2 sm:justify-start sm:space-x-0">
+              <button
+                type="button"
+                onClick={() => confirmDelete && removeChat.mutate(confirmDelete.id)}
+                disabled={removeChat.isPending}
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/50 disabled:opacity-60"
+              >
+                {removeChat.isPending ? "در حال حذف…" : "حذف"}
+              </button>
+              <AlertDialogCancel disabled={removeChat.isPending} className="mt-0 min-h-10">
+                انصراف
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
       <div className="mt-auto shrink-0 border-t border-hairline p-5 space-y-4">
         {usageLoading && <p className="text-xs text-muted-foreground">در حال بارگذاری اعتبار...</p>}
@@ -419,12 +459,7 @@ export function ConversationSidebar({
                 </button>
               </span>
               <span className="shrink-0 whitespace-nowrap text-[11px] text-foreground">
-                {creditQuotaLabel(
-                  usage.creditQuotaMode,
-                  credit?.limit != null
-                    ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
-                    : formatNumber(credit?.remaining ?? 0),
-                )}
+                {creditSummary}
               </span>
             </div>
             {usage.creditQuotaMode === "Unlimited" ? (
@@ -452,32 +487,12 @@ export function ConversationSidebar({
             )}
           </div>
         )}
-        <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-medium text-foreground">حساب کاربری</span>
-          <Link
-            to="/telegram-link"
-            className="p-1.5 text-muted-foreground hover:text-foreground transition"
-            aria-label="اتصال تلگرام"
-          >
-            <Send className="size-4" />
-          </Link>
-          {showAdmin && (
-            <Link
-              to="/admin"
-              className="p-1.5 text-muted-foreground hover:text-foreground transition"
-              aria-label="پنل مدیریت"
-            >
-              <Settings className="size-4" />
-            </Link>
-          )}
-          <button
-            onClick={signOut}
-            className="p-1.5 text-muted-foreground hover:text-foreground transition"
-            aria-label="خروج"
-          >
-            <LogOut className="size-4" />
-          </button>
-        </div>
+        <AccountMenu
+          variant="full"
+          creditSummary={creditSummary}
+          showAdmin={showAdmin}
+          onSignOut={() => void signOut()}
+        />
       </div>
     </aside>
   );

@@ -9,7 +9,10 @@ public sealed record WatchlistQuote(
     decimal? ChangePercent,
     DateTimeOffset? AsOf,
     string? SourceKind,
-    bool IsStale);
+    bool IsStale,
+    // The exchange session the price belongs to. AsOf is when it was observed or synced and can fall on a
+    // later (even non-trading) day, so «last trade» labels must use this date.
+    DateOnly? TradingDate = null);
 
 public sealed record WatchlistView(
     IReadOnlyCollection<WatchlistQuote> Symbols,
@@ -29,7 +32,9 @@ public sealed record MarketMover(
     decimal LatestPrice,
     decimal ChangePercent,
     DateTimeOffset AsOf,
-    bool IsStale);
+    bool IsStale,
+    // Exchange session of the price; see WatchlistQuote.TradingDate.
+    DateOnly? TradingDate = null);
 
 public sealed record MarketIndustryTrend(string Name, decimal ChangePercent);
 

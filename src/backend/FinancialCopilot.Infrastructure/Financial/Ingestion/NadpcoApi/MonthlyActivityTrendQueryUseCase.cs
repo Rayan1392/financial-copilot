@@ -74,6 +74,22 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             latest.ReportMonth,
             ct);
 
+        // Recompute comparisons from the same snapshots that feed the chart. Persisted comparison fields can be stale
+        // when a neighbouring month was rebuilt after this one (spec 076 bug-001).
+        var comparison = MonthlySalesTrendComparison.Compare(
+            ToSalesPoint(latest),
+            annualBase.Select(ToSalesPoint));
+        latest = latest with
+        {
+            SalesAmountMomGrowthPercent = comparison.MonthOverMonthGrowthPercent,
+            SameMonthPreviousYearSalesAmount = comparison.SameMonthPreviousYearSalesAmount,
+            SalesAmountYoYGrowthPercent = comparison.YearOverYearGrowthPercent,
+            IsComparablePreviousYearAvailable = comparison.SameMonthPreviousYearSalesAmount.HasValue,
+            Average12MonthSalesAmount = comparison.Average12MonthSalesAmount,
+            Average12MonthPeriodCount = comparison.Average12MonthPeriodCount,
+            IsAverage12MonthComplete = comparison.IsAverage12MonthComplete
+        };
+
         logger.LogInformation(
             "Monthly activity trend retrieval completed. Route={Route} ExtractedCompanySymbol={CompanySymbol} CompanyResolution={CompanyResolution} RequestedMetric={RequestedMetric} RequestedPeriod={RequestedPeriod} ChartRequested={ChartRequested} GrowthCalculation={GrowthCalculation} DataRetrieval={DataRetrieval} ObservationCount={ObservationCount} LatestReportPeriod={LatestReportPeriod}",
             "monthly_activity_trend", latest.CompanySymbol ?? symbol, "resolved", "monthly_sales_amount",
@@ -87,8 +103,8 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
         var chartPoints = !query.IncludeChartPayload
             ? []
             : requestedPeriods is not null
-                ? BuildLatestAvailableChartPoints(requestedPeriods)
-                : BuildChartPoints(latest.ReportYear, latest.ReportMonth, annualBase);
+                ? BuildLatestAvailableChartPoints(requestedPeriods, latest.Average12MonthSalesAmount)
+                : BuildChartPoints(latest.ReportYear, latest.ReportMonth, annualBase, latest.Average12MonthSalesAmount);
         var insights = BuildInsights(latest);
         var missingPoints = BuildMissingDataPoints(chartPoints);
 
@@ -119,6 +135,7 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             CalculatedAtUtc: latest.CalculatedAtUtc)
         {
             SalesAmountMomGrowthPercent = latest.SalesAmountMomGrowthPercent,
+            PreviousMonthSalesAmount = ConvertMillionRialToBillionTooman(comparison.PreviousMonthSalesAmount),
             RequestedPeriod = query.LastAvailableMonths is > 0
                 ? $"last_available_months:{Math.Clamp(query.LastAvailableMonths.Value, 1, 120)}"
                 : null,
@@ -128,10 +145,10 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
     }
 
     private static IReadOnlyList<MonthlyActivityTrendChartPoint> BuildLatestAvailableChartPoints(
-        IReadOnlyList<CompanyMonthlyActivityTrendSnapshot> snapshots)
+        IReadOnlyList<CompanyMonthlyActivityTrendSnapshot> snapshots,
+        decimal? average)
     {
         var ordered = snapshots.OrderBy(item => item.ReportYear).ThenBy(item => item.ReportMonth).ToArray();
-        var average = ordered.LastOrDefault()?.Average12MonthSalesAmount;
         return ordered.Select((snapshot, index) => new MonthlyActivityTrendChartPoint(
             FiscalMonthIndex: index + 1,
             FiscalMonthNameFa: $"{snapshot.ReportYear}/{snapshot.ReportMonth:D2}",
@@ -147,9 +164,9 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
     private static IReadOnlyList<MonthlyActivityTrendChartPoint> BuildChartPoints(
         int latestYear,
         int latestMonth,
-        IReadOnlyList<CompanyMonthlyActivityTrendSnapshot> snapshots)
+        IReadOnlyList<CompanyMonthlyActivityTrendSnapshot> snapshots,
+        decimal? avg12)
     {
-        var latestSnapshot = snapshots.FirstOrDefault(s => s.ReportYear == latestYear && s.ReportMonth == latestMonth);
         var currentFiscalYear = latestYear;
         var previousFiscalYear = currentFiscalYear - 1;
 
@@ -180,7 +197,6 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             var previousYearSales = previousSnap?.SameMonthPreviousYearSalesAmount
                 ?? previousSnap?.MonthlySalesAmount;
             var isPreviousYearReported = previousSnap is not null;
-            var avg12 = latestSnapshot?.Average12MonthSalesAmount;
 
             points.Add(new MonthlyActivityTrendChartPoint(
                 FiscalMonthIndex: fiscalMonthIdx,
@@ -258,6 +274,9 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
 
         return missing;
     }
+
+    private static MonthlySalesPoint ToSalesPoint(CompanyMonthlyActivityTrendSnapshot snapshot) =>
+        new(snapshot.ReportYear, snapshot.ReportMonth, snapshot.MonthlySalesAmount);
 
     private static decimal ConvertMillionRialToBillionTooman(decimal value) =>
         value * MillionRialToBillionTooman;

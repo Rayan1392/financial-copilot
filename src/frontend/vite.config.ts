@@ -6,6 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { readFileSync } from "node:fs";
+import { releaseChangelog } from "./changelog.vite-plugin";
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
@@ -13,6 +14,8 @@ import { readFileSync } from "node:fs";
 const buildId = process.env.VITE_APP_BUILD_ID ?? Date.now().toString(36);
 
 export default defineConfig({
+  // Release history page: the repository CHANGELOG.md as `virtual:release-changelog`.
+  plugins: [releaseChangelog()],
   vite: {
     define: {
       "import.meta.env.VITE_APP_BUILD_ID": JSON.stringify(buildId),

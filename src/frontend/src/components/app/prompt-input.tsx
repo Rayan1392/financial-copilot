@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { AssistedQueryDialog } from "@/components/app/assisted-query-dialog";
+import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
 
 interface Props {
   onSubmit: (text: string) => void;
@@ -9,6 +10,8 @@ interface Props {
   assistedQueryDisabled?: boolean;
   /** Starting text, focused with the caret at its end. Remount (change `key`) to apply a new one. */
   initialValue?: string;
+  /** Adds the «نسخهٔ x.y.z · تاریخچهٔ نسخه‌ها» link to the fine print. Home page only; needs a router. */
+  showReleaseVersion?: boolean;
 }
 
 export function PromptInput({
@@ -17,6 +20,7 @@ export function PromptInput({
   showAssistedQuery = true,
   assistedQueryDisabled = true,
   initialValue = "",
+  showReleaseVersion = false,
 }: Props) {
   const [value, setValue] = useState(initialValue);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -73,10 +77,14 @@ export function PromptInput({
             </button>
           </div>
         </div>
-        {/* Legal notice: full muted color (no opacity) and 12px keep it at WCAG AA contrast in both themes. */}
-        <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
-          داده‌ها و تحلیل‌ها صرفاً جنبه آموزشی دارند و توصیه سرمایه‌گذاری نیستند.
-        </p>
+        {/* Fine print. Legal notice: full muted color (no opacity) and 12px keep it at WCAG AA contrast in
+            both themes. The release link shares the line on wide screens and wraps under it on narrow ones. */}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 text-center text-xs leading-5 text-muted-foreground">
+          <p>داده‌ها و تحلیل‌ها صرفاً جنبه آموزشی دارند و توصیه سرمایه‌گذاری نیستند.</p>
+          {/* No separator glyph: the column narrows with the side panels, and a wrapped line would leave it
+              dangling. The gap separates the two on one line; wrapped, the link centers on its own. */}
+          {showReleaseVersion && <ReleaseVersionLink className="py-0.5" />}
+        </div>
       </div>
     </div>
   );

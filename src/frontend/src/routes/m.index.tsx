@@ -7,6 +7,7 @@ import { ChatErrorCard } from "@/components/mobile/chat-error-card";
 import { MobileUserBubble, PendingAnswer } from "@/components/mobile/pending-exchange";
 import { SymbolSheet, type SymbolSheetSubject } from "@/components/mobile/symbol-sheet";
 import { InstallCard } from "@/components/mobile/install-card";
+import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
 import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useStartChat } from "@/lib/chat/use-start-chat";
 import { useNewChatIntent, useOpenNewChat } from "@/lib/chat/new-chat-intent";
@@ -153,6 +154,9 @@ function MobileNewChat() {
             </section>
           )}
           <InstallCard />
+          <div className="mt-6 flex justify-center">
+            <ReleaseVersionLink />
+          </div>
         </div>
       )}
       <SymbolSheet

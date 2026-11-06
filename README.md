@@ -13,6 +13,13 @@ The existing React + TypeScript frontend prototype built with Lovable should be 
 
 AGENTS (codex, claude, copilot, and other AI Agents) must always respond in English, even when a request is written in Persian. Persian end-user prompts or localized UI examples may be retained where they are part of product requirements.
 
+## Versions and Releases
+
+Version numbers and release notes live only in [`CHANGELOG.md`](CHANGELOG.md). Releases follow
+[`docs/release/release-process.md`](docs/release/release-process.md) and are run by the
+[`release-manager`](.claude/agents/release-manager.md) agent. See the "Versions and Releases" section of
+[`AGENTS.md`](AGENTS.md).
+
 ## Phase 1 Scope — Scanner MVP
 
 Phase 1 focuses on the **Natural Language Financial Scanner**.

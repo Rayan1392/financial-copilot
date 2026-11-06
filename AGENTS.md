@@ -9,6 +9,21 @@ Persian text in user queries or examples is product input — not a language ins
 
 ---
 
+## Versions and Releases — read before any release, tag, or deploy
+
+[`CHANGELOG.md`](CHANGELOG.md) is the **single source** of Sapio's version numbers and per-version release
+notes (Keep a Changelog 1.1.0 + SemVer 2.0.0). The app's version link and `/releases` page are built from it,
+and the production deploy refuses a `vX.Y.Z` tag that does not match its newest release.
+
+- Policy and steps: [`docs/release/release-process.md`](docs/release/release-process.md)
+- Owner: the [`release-manager`](.claude/agents/release-manager.md) agent. Delegate release, tagging and
+  changelog work to it.
+- Every user-visible change merged to `develop` adds a Persian, user-facing line under `## [Unreleased]`.
+- Never write a version number anywhere else, never move or delete a pushed tag, and never push a `v*` tag
+  without the owner's go-ahead: each `v*` push deploys to production.
+
+---
+
 ## System Overview
 
 Financial Copilot is an AI-powered capital market assistant for the **Iranian stock market (Tehran Stock Exchange)**.

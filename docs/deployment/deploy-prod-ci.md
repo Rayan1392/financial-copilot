@@ -8,6 +8,8 @@ push یا merge به شاخه `prod` دیگر به‌تنهایی چیزی را 
 
 ## ساخت و push تگ انتشار
 
+شمارهٔ نسخه از [`CHANGELOG.md`](../../CHANGELOG.md) می‌آید و قاعده‌ها و مراحل کامل انتشار در [مدیریت نسخه و انتشار](../release/release-process.md) است. workflow پیش از SSH بررسی می‌کند که تگ با بالاترین نسخهٔ منتشرشدهٔ CHANGELOG یکی باشد (`ops/release/check-release-version.sh`)؛ پس اول نسخه را در CHANGELOG ثبت و merge کنید، بعد تگ بزنید.
+
 پس از merge شدن تغییرات موردنظر به `prod`، از checkout تمیز همان شاخه تگ نسخه بسازید و push کنید:
 
 ```bash

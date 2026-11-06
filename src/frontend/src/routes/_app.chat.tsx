@@ -98,6 +98,7 @@ function NewChatPage() {
         onSubmit={submit}
         loading={startChat.isPending}
         showAssistedQuery
+        showReleaseVersion
       />
     </>
   );

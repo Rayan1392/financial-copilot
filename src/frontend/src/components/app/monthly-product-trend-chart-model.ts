@@ -40,8 +40,13 @@ export function productTrendQuantitySeries() {
  * Whether any month reports production. Providers send 0 for products they do not report production for, and a flat
  * line on zero reads as "production stopped"; with no positive figure the chart omits the line and says so instead.
  */
-export function hasProductionData(points: ReadonlyArray<Pick<MonthlyProductTrendChartPoint, "production">>): boolean {
-  return points.some((point) => point.production != null && Number.isFinite(point.production) && point.production !== 0);
+export function hasProductionData(
+  points: ReadonlyArray<Pick<MonthlyProductTrendChartPoint, "production">>,
+): boolean {
+  return points.some(
+    (point) =>
+      point.production != null && Number.isFinite(point.production) && point.production !== 0,
+  );
 }
 
 export interface MonthlyProductTrendChartPoint {

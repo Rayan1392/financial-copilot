@@ -36,16 +36,17 @@ export function isolateSignedNumbers(text: string): string {
     .map((line) =>
       line.trimStart().startsWith("|")
         ? line
-        : line.replace(SIGNED_NUMBER, (_match, prefix: string, sign: string, number: string) =>
-            `${prefix}\u2066${sign}${number}\u2069`),
+        : line.replace(
+            SIGNED_NUMBER,
+            (_match, prefix: string, sign: string, number: string) =>
+              `${prefix}\u2066${sign}${number}\u2069`,
+          ),
     )
     .join("\n");
 }
 
 export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string {
-  return toPersianNumerals(
-    new Intl.NumberFormat("en-US", opts).format(n),
-  );
+  return toPersianNumerals(new Intl.NumberFormat("en-US", opts).format(n));
 }
 
 export function formatPercent(n: number, withSign = true): string {

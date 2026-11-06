@@ -72,8 +72,18 @@ export type MonthlyTrendChartCardViewModel = {
 };
 
 const jalaliMonthNames = [
-  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
-  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
+  "فروردین",
+  "اردیبهشت",
+  "خرداد",
+  "تیر",
+  "مرداد",
+  "شهریور",
+  "مهر",
+  "آبان",
+  "آذر",
+  "دی",
+  "بهمن",
+  "اسفند",
 ] as const;
 
 /**
@@ -115,8 +125,12 @@ export function createMonthlyTrendChartCardViewModel(
 ): MonthlyTrendChartCardViewModel {
   const palette = exportPalettes[theme];
   const points = data.chartPoints.map((point) => mapPoint(point));
-  const currentYear = data.chartPoints.find((point) => point.currentFiscalYear != null)?.currentFiscalYear;
-  const previousYear = data.chartPoints.find((point) => point.previousFiscalYear != null)?.previousFiscalYear;
+  const currentYear = data.chartPoints.find(
+    (point) => point.currentFiscalYear != null,
+  )?.currentFiscalYear;
+  const previousYear = data.chartPoints.find(
+    (point) => point.previousFiscalYear != null,
+  )?.previousFiscalYear;
   const currentYearTotal = sumReportedSales(points, "currentYear");
   const previousYearTotal = sumReportedSales(points, "previousYear");
   const companyLabel = data.companyName
@@ -144,7 +158,14 @@ export function createMonthlyTrendChartCardViewModel(
       note: shareOfPreviousYear(currentYearTotal, previousYearTotal, previousYearLabel),
       color: palette.currentYear,
     },
-    { key: "average", kind: "line", label: AVERAGE_LABEL, totalLabel: null, note: null, color: palette.average },
+    {
+      key: "average",
+      kind: "line",
+      label: AVERAGE_LABEL,
+      totalLabel: null,
+      note: null,
+      color: palette.average,
+    },
   ];
 
   return {
@@ -184,7 +205,9 @@ export type MonthlyTrendSummaryCard = {
  * 12-month average — as small cards, so they are not buried in one dense paragraph. All figures come from the API
  * result; nothing is recomputed here.
  */
-export function createMonthlyTrendSummaryCards(data: MonthlyActivityTrendResult): MonthlyTrendSummaryCard[] {
+export function createMonthlyTrendSummaryCards(
+  data: MonthlyActivityTrendResult,
+): MonthlyTrendSummaryCard[] {
   const unit = data.unitLabelFa;
   const amountWithUnit = (value: number | undefined) =>
     value == null ? null : `${formatMonthlyTrendAmount(value)} ${unit}`;
@@ -227,10 +250,12 @@ export function createMonthlyTrendSummaryCards(data: MonthlyActivityTrendResult)
 
 /** Whether the answer carries enough headline figures for the cards to add anything over the chart. */
 export function hasMonthlyTrendSummary(data: MonthlyActivityTrendResult): boolean {
-  return data.latestMonthlySalesAmount != null
-    || data.salesAmountMomGrowthPercent != null
-    || data.salesAmountYoYGrowthPercent != null
-    || data.salesVsAverage12MonthPercent != null;
+  return (
+    data.latestMonthlySalesAmount != null ||
+    data.salesAmountMomGrowthPercent != null ||
+    data.salesAmountYoYGrowthPercent != null ||
+    data.salesVsAverage12MonthPercent != null
+  );
 }
 
 function changeCard(
@@ -240,7 +265,16 @@ function changeCard(
   caption: string,
 ): MonthlyTrendSummaryCard {
   if (percent == null || !Number.isFinite(percent)) {
-    return { id, label, value: "—", unit: null, direction: null, tone: "neutral", accessibleValue: "قابل محاسبه نیست", caption };
+    return {
+      id,
+      label,
+      value: "—",
+      unit: null,
+      direction: null,
+      tone: "neutral",
+      accessibleValue: "قابل محاسبه نیست",
+      caption,
+    };
   }
   const rounded = Math.round(percent * 10) / 10;
   const magnitude = formatPercentMagnitude(rounded);
@@ -253,7 +287,12 @@ function changeCard(
     unit: null,
     direction,
     tone: direction === "up" ? "positive" : direction === "down" ? "negative" : "neutral",
-    accessibleValue: direction === "up" ? `افزایش ${spoken}` : direction === "down" ? `کاهش ${spoken}` : "بدون تغییر",
+    accessibleValue:
+      direction === "up"
+        ? `افزایش ${spoken}`
+        : direction === "down"
+          ? `کاهش ${spoken}`
+          : "بدون تغییر",
     caption,
   };
 }
@@ -264,8 +303,12 @@ function latestPeriodLabel(year: number, month: number): string {
 }
 
 function mapPoint(point: MonthlyActivityTrendChartPoint): MonthlyTrendChartPointViewModel {
-  const currentYear = point.isCurrentYearReported ? (point.currentFiscalYearSalesAmount ?? null) : null;
-  const previousYear = point.isPreviousYearReported ? (point.previousFiscalYearSalesAmount ?? null) : null;
+  const currentYear = point.isCurrentYearReported
+    ? (point.currentFiscalYearSalesAmount ?? null)
+    : null;
+  const previousYear = point.isPreviousYearReported
+    ? (point.previousFiscalYearSalesAmount ?? null)
+    : null;
   const average = point.average12MonthSalesAmount ?? null;
 
   return {
@@ -322,11 +365,12 @@ function insightPercentage(
   kind: string,
   matchedText?: string,
 ): number | null {
-  const structuredValue = kind === "YoYGrowth"
-    ? data.salesAmountYoYGrowthPercent
-    : kind === "VsAverage12Month"
-      ? data.salesVsAverage12MonthPercent
-      : undefined;
+  const structuredValue =
+    kind === "YoYGrowth"
+      ? data.salesAmountYoYGrowthPercent
+      : kind === "VsAverage12Month"
+        ? data.salesVsAverage12MonthPercent
+        : undefined;
   if (structuredValue !== undefined) return structuredValue;
   if (!matchedText) return null;
 
@@ -382,7 +426,8 @@ function shareOfPreviousYear(
   previousYearTotal: number | null,
   previousYearLabel: string,
 ): string | null {
-  if (currentYearTotal === null || previousYearTotal === null || previousYearTotal === 0) return null;
+  if (currentYearTotal === null || previousYearTotal === null || previousYearTotal === 0)
+    return null;
   return `${formatPercentMagnitude((currentYearTotal / previousYearTotal) * 100)} از ${previousYearLabel}`;
 }
 

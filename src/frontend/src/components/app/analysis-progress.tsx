@@ -5,7 +5,13 @@ import { ANALYSIS_STAGES } from "@/components/app/analysis-stages";
 import { cn } from "@/lib/utils";
 
 /** «در حال تحلیل» as visible stages, with the Sapio mark as the speaker. */
-export function AnalysisProgress({ className, children }: { className?: string; children?: ReactNode }) {
+export function AnalysisProgress({
+  className,
+  children,
+}: {
+  className?: string;
+  children?: ReactNode;
+}) {
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
@@ -40,7 +46,9 @@ export function AnalysisProgress({ className, children }: { className?: string; 
                 <Loader2 className="size-3.5 animate-spin text-emerald" />
               ) : null}
               {item.label}
-              {index < ANALYSIS_STAGES.length - 1 && <span className="ms-1 text-muted-foreground">←</span>}
+              {index < ANALYSIS_STAGES.length - 1 && (
+                <span className="ms-1 text-muted-foreground">←</span>
+              )}
             </li>
           ))}
         </ol>

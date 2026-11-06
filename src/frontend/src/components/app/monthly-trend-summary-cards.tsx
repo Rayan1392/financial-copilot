@@ -33,14 +33,22 @@ export function MonthlyTrendSummaryCards({ data }: { data: MonthlyActivityTrendR
         >
           <span className="text-[11px] leading-5 text-muted-foreground">{card.label}</span>
           <span
-            className={cn("flex items-center gap-1 text-lg font-semibold leading-7 tabular-nums", toneClass[card.tone])}
+            className={cn(
+              "flex items-center gap-1 text-lg font-semibold leading-7 tabular-nums",
+              toneClass[card.tone],
+            )}
             aria-label={card.accessibleValue}
           >
             <DirectionIcon direction={card.direction} />
             <bdi>{card.value}</bdi>
-            {card.unit && <span className="text-[11px] font-normal text-muted-foreground">{card.unit}</span>}
+            {card.unit && (
+              <span className="text-[11px] font-normal text-muted-foreground">{card.unit}</span>
+            )}
           </span>
-          <span className="truncate text-[11px] leading-5 text-muted-foreground" title={card.caption}>
+          <span
+            className="truncate text-[11px] leading-5 text-muted-foreground"
+            title={card.caption}
+          >
             {card.caption}
           </span>
         </li>

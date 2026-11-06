@@ -65,7 +65,9 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     .map(rateForPoint)
     .filter((value): value is number => value != null && Number.isFinite(value));
   const quantityAxis = createProductTrendQuantityAxis(
-    chartData.flatMap((point) => (showProduction ? [point.production, point.quantity] : [point.quantity])),
+    chartData.flatMap((point) =>
+      showProduction ? [point.production, point.quantity] : [point.quantity],
+    ),
   );
   const maxValue = Math.max(...values, 1) * 1.15;
   const maxRate = Math.max(...rates, 1) * 1.15;
@@ -210,7 +212,9 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   );
   drawQuantityLegend(
     context,
-    showProduction ? [quantitySeries.production, quantitySeries.quantity] : [quantitySeries.quantity],
+    showProduction
+      ? [quantitySeries.production, quantitySeries.quantity]
+      : [quantitySeries.quantity],
     WIDTH - PADDING,
     1200,
   );

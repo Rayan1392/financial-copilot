@@ -57,7 +57,11 @@ export function MonthlyTrendLegend({ entries }: { entries: MonthlyTrendLegendEnt
         <li key={entry.key} className="inline-flex items-center gap-1.5">
           <span
             aria-hidden="true"
-            className={entry.kind === "bar" ? "size-2.5 shrink-0 rounded-sm" : "h-0.5 w-3.5 shrink-0 rounded-full"}
+            className={
+              entry.kind === "bar"
+                ? "size-2.5 shrink-0 rounded-sm"
+                : "h-0.5 w-3.5 shrink-0 rounded-full"
+            }
             style={{ backgroundColor: entry.color }}
           />
           <bdi className="font-medium text-foreground">{entry.label}</bdi>
@@ -79,15 +83,26 @@ export function MonthlyTrendLegend({ entries }: { entries: MonthlyTrendLegendEnt
 }
 
 function chooseGaugeSide(
-  points: Array<{ currentYear: number | null; previousYear: number | null; average: number | null }>,
+  points: Array<{
+    currentYear: number | null;
+    previousYear: number | null;
+    average: number | null;
+  }>,
 ): "left" | "center" | "right" {
   if (points.length < 3) return "right";
   const maximum = Math.max(
-    ...points.flatMap((point) => [point.currentYear, point.previousYear, point.average])
+    ...points
+      .flatMap((point) => [point.currentYear, point.previousYear, point.average])
       .filter((value): value is number => value !== null),
     1,
   );
-  const occupancy = (side: Array<{ currentYear: number | null; previousYear: number | null; average: number | null }>) =>
+  const occupancy = (
+    side: Array<{
+      currentYear: number | null;
+      previousYear: number | null;
+      average: number | null;
+    }>,
+  ) =>
     side.reduce((total, point) => {
       const tallest = Math.max(point.currentYear ?? 0, point.previousYear ?? 0, point.average ?? 0);
       return total + Math.pow(tallest / maximum, 2);
@@ -132,7 +147,11 @@ function CustomTooltip({
         // eslint-disable-next-line react/forbid-dom-props
         <p key={entry.name} style={{ color: entry.color }}>
           <bdi>{entry.name}</bdi>:{" "}
-          <bdi>{entry.value != null ? `${formatMonthlyTrendAmount(entry.value)} ${unit}` : "گزارش نشده"}</bdi>
+          <bdi>
+            {entry.value != null
+              ? `${formatMonthlyTrendAmount(entry.value)} ${unit}`
+              : "گزارش نشده"}
+          </bdi>
         </p>
       ))}
     </div>
@@ -142,7 +161,11 @@ function CustomTooltip({
 /** Phone answers (`/m`) get a dedicated layout; desktop rendering is unchanged. */
 export function MonthlyActivityTrendChart(props: Props) {
   const density = useAnswerDensity();
-  return density === "compact" ? <MonthlySalesTrendMobile {...props} /> : <MonthlyActivityTrendChartDesktop {...props} />;
+  return density === "compact" ? (
+    <MonthlySalesTrendMobile {...props} />
+  ) : (
+    <MonthlyActivityTrendChartDesktop {...props} />
+  );
 }
 
 function MonthlyActivityTrendChartDesktop({ data, psVisualization }: Props) {
@@ -166,7 +189,10 @@ function MonthlyActivityTrendChartDesktop({ data, psVisualization }: Props) {
     setDownloadError(null);
     try {
       const theme = document.documentElement.classList.contains("light") ? "light" : "dark";
-      await downloadMonthlyTrendChartImage(createMonthlyTrendChartCardViewModel(data, theme), psVisualization);
+      await downloadMonthlyTrendChartImage(
+        createMonthlyTrendChartCardViewModel(data, theme),
+        psVisualization,
+      );
     } catch {
       setDownloadError("دریافت تصویر نمودار با خطا مواجه شد. لطفاً دوباره تلاش کنید.");
     } finally {

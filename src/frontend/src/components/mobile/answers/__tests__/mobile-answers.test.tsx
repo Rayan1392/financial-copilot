@@ -94,7 +94,9 @@ describe("monthly sales trend on phones", () => {
 
   it("keeps every legend comparison, insight, missing-data note, unit and source", () => {
     renderAnswers("compact");
-    const legendRows = within(screen.getByRole("list", { name: "راهنمای نمودار" })).getAllByRole("listitem");
+    const legendRows = within(screen.getByRole("list", { name: "راهنمای نمودار" })).getAllByRole(
+      "listitem",
+    );
     expect(legendRows.map((row) => row.textContent)).toEqual([
       expect.stringMatching(/^۱۴۰۴ · [۰-۹٬]+$/),
       expect.stringMatching(/^۱۴۰۵ · [۰-۹٬]+ \([۰-۹٫]+٪ از ۱۴۰۴\)$/),

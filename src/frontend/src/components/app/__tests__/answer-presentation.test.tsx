@@ -7,7 +7,10 @@ import { AnalysisProgress } from "../analysis-progress";
 import { analysisStageAt } from "../analysis-stages";
 import { AnswerActions } from "../answer-actions";
 import { MonthlyProductTrendChart } from "../monthly-product-trend-chart";
-import { hasProductionData, PRODUCTION_UNAVAILABLE_MESSAGE } from "../monthly-product-trend-chart-model";
+import {
+  hasProductionData,
+  PRODUCTION_UNAVAILABLE_MESSAGE,
+} from "../monthly-product-trend-chart-model";
 
 vi.mock("../monthly-product-trend-chart-image", () => ({
   downloadMonthlyProductTrendChartImage: vi.fn(),
@@ -60,7 +63,11 @@ describe("monthly sales summary cards", () => {
   it("says a comparison is unavailable instead of showing zero (answers stored before the MoM field)", () => {
     const { previousMonthSalesAmount: _p, salesAmountMomGrowthPercent: _m, ...older } = trend;
     const monthOverMonth = createMonthlyTrendSummaryCards(older)[1];
-    expect(monthOverMonth).toMatchObject({ value: "—", direction: null, caption: "داده ماه قبل موجود نیست" });
+    expect(monthOverMonth).toMatchObject({
+      value: "—",
+      direction: null,
+      caption: "داده ماه قبل موجود نیست",
+    });
   });
 
   it("renders four labelled cards and nothing when the answer has no headline figures", () => {
@@ -71,7 +78,12 @@ describe("monthly sales summary cards", () => {
 
     rerender(
       <MonthlyTrendSummaryCards
-        data={{ ...trend, latestMonthlySalesAmount: undefined, salesAmountMomGrowthPercent: undefined, salesAmountYoYGrowthPercent: undefined }}
+        data={{
+          ...trend,
+          latestMonthlySalesAmount: undefined,
+          salesAmountMomGrowthPercent: undefined,
+          salesAmountYoYGrowthPercent: undefined,
+        }}
       />,
     );
     expect(container).toBeEmptyDOMElement();
@@ -99,7 +111,9 @@ describe("answer actions", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     const onRegenerate = vi.fn();
-    const { rerender } = render(<AnswerActions text={"**فروش:** ۱۲٬۰۰۰"} onRegenerate={onRegenerate} />);
+    const { rerender } = render(
+      <AnswerActions text={"**فروش:** ۱۲٬۰۰۰"} onRegenerate={onRegenerate} />,
+    );
 
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "کپی" })));
     expect(writeText).toHaveBeenCalledWith("فروش: ۱۲٬۰۰۰");
@@ -138,7 +152,10 @@ describe("product chart without production data", () => {
     companySymbol: "نماد",
     productTitle: "کالا",
     productUnit: "تن",
-    points: [point, { ...point, period: "1404/12", fiscalLabel: "۱۴۰۴/۱۲", productionQuantity: undefined }],
+    points: [
+      point,
+      { ...point, period: "1404/12", fiscalLabel: "۱۴۰۴/۱۲", productionQuantity: undefined },
+    ],
     candidates: [],
     evidence: [],
   } satisfies MonthlyProductTrendResult;

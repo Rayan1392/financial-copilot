@@ -241,7 +241,9 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
                   fontSize: 10,
                 }}
               />
-              <Tooltip content={<ProductTooltip points={chartData} showProduction={showProduction} />} />
+              <Tooltip
+                content={<ProductTooltip points={chartData} showProduction={showProduction} />}
+              />
               <Bar
                 yAxisId="value"
                 dataKey="value"
@@ -305,7 +307,10 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
           </ul>
         </div>
         {!showProduction && (
-          <p data-testid="product-production-unavailable" className="px-1 text-[10px] text-muted-foreground">
+          <p
+            data-testid="product-production-unavailable"
+            className="px-1 text-[10px] text-muted-foreground"
+          >
             {PRODUCTION_UNAVAILABLE_MESSAGE}
           </p>
         )}

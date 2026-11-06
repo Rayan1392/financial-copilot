@@ -1,5 +1,5 @@
-import { createFileRoute, useLocation, useRouter } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { MobileComposer } from "@/components/mobile/mobile-composer";
@@ -9,7 +9,7 @@ import { SymbolSheet, type SymbolSheetSubject } from "@/components/mobile/symbol
 import { InstallCard } from "@/components/mobile/install-card";
 import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useStartChat } from "@/lib/chat/use-start-chat";
-import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
+import { useNewChatIntent, useOpenNewChat } from "@/lib/chat/new-chat-intent";
 import { restoresDraftImmediately } from "@/lib/chat/send-recovery";
 import { useWatchlistWithNames } from "@/lib/workspace/queries";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -24,7 +24,6 @@ const VISIBLE_STARTERS = 4;
 
 function MobileNewChat() {
   const router = useRouter();
-  const location = useLocation();
   const online = useOnlineStatus();
   const [draft, setDraft] = useState("");
   const [showAllStarters, setShowAllStarters] = useState(false);
@@ -37,25 +36,15 @@ function MobileNewChat() {
       void router.navigate({ to: "/m/c/$threadId", params: { threadId }, replace: true });
     },
   });
-  const consumedEntry = useRef<string | null>(null);
-  const entryKey = location.state.__TSR_key ?? location.state.key ?? "";
-
   // Consume a router-state intent once per history entry, then clear it so Back never re-submits a question.
-  useEffect(() => {
-    if (consumedEntry.current === entryKey) return;
-    consumedEntry.current = entryKey;
-    const { submitQuestion, prefillQuestion, newChat } = location.state;
-    if (!submitQuestion && !prefillQuestion && !newChat) return;
-    void router.navigate({ to: "/m", replace: true, state: {} });
+  useNewChatIntent("/m", ({ submitQuestion, prefillQuestion, newChat }) => {
     if (newChat) {
       startChat.clearFailure();
       setDraft("");
     }
     if (prefillQuestion) setDraft(prefillQuestion);
     if (submitQuestion) submit(submitQuestion);
-    // Runs per history entry by design; the handlers read the latest state when they fire.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryKey]);
+  });
 
   // A failed first message goes straight back into the composer (spec AC-06a); it is never lost.
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { AssistedQueryDialog } from "@/components/app/assisted-query-dialog";
 
@@ -7,6 +7,8 @@ interface Props {
   loading?: boolean;
   showAssistedQuery?: boolean;
   assistedQueryDisabled?: boolean;
+  /** Starting text, focused with the caret at its end. Remount (change `key`) to apply a new one. */
+  initialValue?: string;
 }
 
 export function PromptInput({
@@ -14,9 +16,18 @@ export function PromptInput({
   loading,
   showAssistedQuery = true,
   assistedQueryDisabled = true,
+  initialValue = "",
 }: Props) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  // A seeded composer is an invitation to keep typing: focus it with the caret after the seed.
+  useEffect(() => {
+    const field = ref.current;
+    if (!initialValue || !field) return;
+    field.focus();
+    field.setSelectionRange(initialValue.length, initialValue.length);
+  }, [initialValue]);
 
   function submit() {
     const text = value.trim();

@@ -129,7 +129,7 @@ export function ConversationSidebar({
         <Link
           to="/chat"
           className="mb-3 rounded-xl p-2 transition hover:bg-white/5"
-          aria-label="صفحه گفتگو"
+          aria-label="ساپیو"
         >
           <SapioMark className="size-8" />
         </Link>
@@ -332,11 +332,16 @@ export function ConversationSidebar({
     <aside className="hidden h-screen w-72 flex-shrink-0 flex-col overflow-hidden border-l border-hairline bg-surface/50 transition-[width] duration-200 md:flex">
       <div className="flex min-h-0 flex-1 flex-col p-5">
         <div className="mb-7 flex items-center gap-2">
-          <Link to="/chat" className="flex min-w-0 flex-1 items-center gap-3">
+          {/* The only brand mark while the sidebar is open; the header and the new-chat page don't repeat it. */}
+          <Link
+            to="/chat"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50"
+            aria-label="ساپیو"
+          >
             <SapioMark className="size-9 shrink-0 object-contain" />
-            <h1 className="truncate text-[15px] font-bold tracking-tight text-foreground leading-tight">
-              ساپیو - دستیار هوشمند بازار
-            </h1>
+            <span className="text-[17px] font-bold tracking-tight text-foreground leading-tight">
+              ساپیو
+            </span>
           </Link>
           <button
             type="button"

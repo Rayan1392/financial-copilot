@@ -211,14 +211,16 @@ describe("ChatHeader account placement", () => {
     const startGroup = header.firstElementChild as HTMLElement;
     expect(startGroup).toContainElement(account);
     expect(startGroup.firstElementChild).toContainElement(account);
-    expect(within(startGroup).getByText("تحلیل بازار، ساده‌تر از همیشه")).toBeInTheDocument();
+    // The marketing tagline was removed: it was truncated at 1440px and crowded the header.
+    expect(screen.queryByText("تحلیل بازار، ساده‌تر از همیشه")).not.toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: "صفحه اصلی" })).toHaveAttribute("href", "/chat");
-    expect(screen.getByRole("link", { name: "دیده‌بان" })).toHaveAttribute(
+    const nav = screen.getByRole("navigation", { name: "ناوبری اصلی" });
+    expect(within(nav).getByRole("link", { name: "خانه" })).toHaveAttribute("href", "/chat");
+    expect(within(nav).getByRole("link", { name: "دیده‌بان" })).toHaveAttribute(
       "href",
       "/followed-symbols",
     );
-    expect(screen.getByRole("link", { name: "اطلاعیه‌ها" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "اطلاعیه‌های کدال" })).toHaveAttribute(
       "href",
       "/disclosures",
     );
@@ -232,7 +234,58 @@ describe("ChatHeader account placement", () => {
 
     await settled(client);
     expect(screen.queryByRole("link", { name: /پروفایل حساب/ })).not.toBeInTheDocument();
-    expect(screen.getByText("تحلیل بازار، ساده‌تر از همیشه")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "صفحه اصلی" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "خانه" })).toBeInTheDocument();
+  });
+
+  it("marks only the current page's link as active", async () => {
+    getOwnProfile.mockResolvedValue(profile(null));
+    const { client } = renderWithClient(<ChatHeader />);
+
+    await settled(client);
+    const home = screen.getByRole("link", { name: "خانه" });
+    expect(home).toHaveAttribute("aria-current", "page");
+    expect(home).toHaveClass("text-emerald");
+    for (const name of ["دیده‌بان", "اطلاعیه‌های کدال"]) {
+      const link = screen.getByRole("link", { name });
+      expect(link).not.toHaveAttribute("aria-current");
+      expect(link).toHaveClass("text-muted-foreground");
+    }
+  });
+
+  it("shows the same visible text as the accessible name on the main links", async () => {
+    getOwnProfile.mockResolvedValue(profile(null));
+    const { client } = renderWithClient(<ChatHeader />);
+
+    await settled(client);
+    for (const name of ["خانه", "دیده‌بان", "اطلاعیه‌های کدال"]) {
+      expect(within(screen.getByRole("link", { name })).getByText(name)).toHaveClass(
+        "hidden",
+        "@3xl:inline",
+      );
+    }
+  });
+
+  it("shows the brand only where no sidebar carries it", async () => {
+    getOwnProfile.mockResolvedValue(profile(null));
+    const { client, unmount } = renderWithClient(<ChatHeader />);
+
+    await settled(client);
+    expect(screen.getByTestId("header-brand")).not.toHaveClass("md:hidden");
+    unmount();
+
+    const second = renderWithClient(<ChatHeader withSidebar />);
+    await settled(second.client);
+    // Below md the sidebar is hidden, so the header keeps the brand there only.
+    expect(screen.getByTestId("header-brand")).toHaveClass("md:hidden");
+  });
+
+  it("renders the theme toggle as a single icon button named by its action", async () => {
+    getOwnProfile.mockResolvedValue(profile(null));
+    const { client } = renderWithClient(<ChatHeader />);
+
+    await settled(client);
+    const toggle = screen.getByRole("button", { name: "تغییر به تم روشن" });
+    expect(toggle).toHaveAttribute("title", "تغییر به تم روشن");
+    expect(toggle).toHaveTextContent("");
   });
 });

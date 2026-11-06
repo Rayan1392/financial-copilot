@@ -22,7 +22,11 @@ function NewChatPage() {
 
   return (
     <>
-      <div className={`flex-1 ${pendingMessage ? "" : "flex items-center justify-center p-8"}`}>
+      {/* The intro scrolls in its own region so the composer below stays pinned on short viewports
+          (same structure as the thread page). m-auto centers without clipping overflowing content. */}
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto scrollbar-thin ${pendingMessage ? "" : "flex p-8"}`}
+      >
         {pendingMessage ? (
           <MessageList
             messages={[
@@ -38,7 +42,7 @@ function NewChatPage() {
             onSuggested={submit}
           />
         ) : (
-          <div dir="rtl" className="max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up">
+          <div dir="rtl" className="m-auto max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up">
             <div className="mb-5 flex justify-center">
               <SapioMark className="size-14 text-emerald shadow-sm" />
             </div>

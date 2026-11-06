@@ -7,7 +7,6 @@ import { ChatErrorCard } from "@/components/mobile/chat-error-card";
 import { MobileUserBubble, PendingAnswer } from "@/components/mobile/pending-exchange";
 import { SymbolSheet, type SymbolSheetSubject } from "@/components/mobile/symbol-sheet";
 import { InstallCard } from "@/components/mobile/install-card";
-import { AdminSettingsButton } from "@/components/mobile/top-app-bar";
 import { personalizedStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useStartChat } from "@/lib/chat/use-start-chat";
 import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
@@ -81,7 +80,6 @@ function MobileNewChat() {
   return (
     <MobileScreen
       title="ساپیو"
-      actions={<AdminSettingsButton />}
       showTabBar={!startChat.isPending}
       footer={
         <MobileComposer

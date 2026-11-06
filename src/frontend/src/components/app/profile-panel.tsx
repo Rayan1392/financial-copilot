@@ -1,5 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   FinancialCopilotAuthError,
   getAccountSummary,
@@ -16,7 +24,7 @@ import { MISSING_PROFILE_VALUE, profileDisplayName } from "@/lib/profile-display
 
 const ACCOUNT_STATE_LABELS: Record<AccountAuthState, string> = {
   A: "ورود فقط از طریق تحلیل‌اپ",
-  B: "ایمیل تایید شد؛ گذرواژه تعیین نشده",
+  B: "ایمیل تأیید شد؛ گذرواژه تعیین نشده",
   C: "ورود مستقیم فعال است",
   D: "حساب ایمیلی",
 };
@@ -38,11 +46,14 @@ export function ProfilePanel({
   as: Container = "main",
   signInRedirect = "/profile",
   showHeading = true,
+  subscription,
 }: {
   as?: "main" | "div";
   signInRedirect?: string;
   /** The mobile top bar already shows the title. */
   showHeading?: boolean;
+  /** Plan, credit and purchases, shown first. Desktop passes it; mobile shows credit on its account screen. */
+  subscription?: ReactNode;
 } = {}) {
   const [summary, setSummary] = useState<AccountSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +96,7 @@ export function ProfilePanel({
           />
         ) : (
           <div className={showHeading ? "mt-5 space-y-4" : "space-y-4"}>
+            {subscription}
             <AccountSummaryCard summary={summary} />
             {summary.hasTahlilAppIdentity ? <TahlilAppProfileCard /> : null}
             {!summary.emailConfirmed ? <EmailEnrollmentCard /> : null}
@@ -141,7 +153,7 @@ function AccountLoadState({
 
 function AccountSummaryCard({ summary }: { summary: AccountSummary }) {
   const emailStatus =
-    summary.email === null ? null : summary.emailConfirmed ? "تایید شده" : "تایید نشده";
+    summary.email === null ? null : summary.emailConfirmed ? "تأیید شده" : "تأیید نشده";
   return (
     <section
       aria-labelledby="account-state-heading"
@@ -159,11 +171,21 @@ function AccountSummaryCard({ summary }: { summary: AccountSummary }) {
         </div>
         <div className="min-w-0">
           <dt className="text-xs text-muted-foreground">نشانی ایمیل</dt>
-          <dd className="mt-1 break-all" dir="ltr">
-            {summary.email ?? "ثبت نشده"}
+          {/* The address is isolated as LTR inside the RTL row and the status is its own badge, so the
+              bidi algorithm cannot glue the brackets to the address or flip their order. */}
+          <dd className="mt-1 flex flex-wrap items-center gap-2">
+            {summary.email ? (
+              <bdi dir="ltr" className="break-all">
+                {summary.email}
+              </bdi>
+            ) : (
+              "ثبت نشده"
+            )}
             {emailStatus ? (
-              <span className="mr-2 text-xs text-muted-foreground" dir="rtl">
-                ({emailStatus})
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${summary.emailConfirmed ? "bg-emerald-soft/70 text-emerald" : "bg-gold/15 text-gold"}`}
+              >
+                {emailStatus}
               </span>
             ) : null}
           </dd>
@@ -306,7 +328,7 @@ function EmailEnrollmentCard() {
       // Generic on purpose: the response never reveals whether the address is already registered.
       setNotice({
         tone: "success",
-        text: "در صورت امکان استفاده از این نشانی، پیام تایید ارسال شد. پوشه‌های ناخواسته را نیز بررسی کنید.",
+        text: "در صورت امکان استفاده از این نشانی، پیام تأیید ارسال شد. پوشه‌های ناخواسته را نیز بررسی کنید.",
       });
     } catch (error) {
       setNotice({ tone: "error", ...enrollmentFailure(error) });
@@ -321,10 +343,10 @@ function EmailEnrollmentCard() {
       className="rounded-2xl border border-border bg-surface p-5"
     >
       <h2 id="email-enrollment-heading" className="text-base font-semibold">
-        تایید نشانی ایمیل
+        تأیید نشانی ایمیل
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        با ثبت ایمیل، پیوند تایید به آن ارسال می‌شود. پس از تایید می‌توانید گذرواژه تعیین کنید.
+        با ثبت ایمیل، پیوند تأیید به آن ارسال می‌شود. پس از تأیید می‌توانید گذرواژه تعیین کنید.
       </p>
       <form onSubmit={submit} className="mt-4 space-y-3">
         <div>
@@ -347,7 +369,7 @@ function EmailEnrollmentCard() {
           disabled={submitting}
           className="w-full rounded-lg bg-emerald py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 sm:w-auto sm:px-6"
         >
-          {submitting ? "در حال ارسال…" : "ارسال پیوند تایید"}
+          {submitting ? "در حال ارسال…" : "ارسال پیوند تأیید"}
         </button>
       </form>
       <StatusMessage notice={notice} />
@@ -515,7 +537,7 @@ function passwordFailure(error: unknown): { text: string; signIn?: boolean } {
   if (problemIs(error, "password-already-set"))
     return { text: "گذرواژه قبلاً برای این حساب تعیین شده است." };
   if (problemIs(error, "email-not-confirmed"))
-    return { text: "ابتدا نشانی ایمیل خود را تایید کنید." };
+    return { text: "ابتدا نشانی ایمیل خود را تأیید کنید." };
   if (statusOf(error) === 401) return { text: SESSION_EXPIRED_TEXT, signIn: true };
   return { text: "تعیین گذرواژه انجام نشد. کمی بعد دوباره تلاش کنید." };
 }

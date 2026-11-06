@@ -159,7 +159,7 @@ export function AssistedQueryDialog({ onCompose, disabled = false }: Props) {
             <input
               value={symbolSearch}
               onChange={(event) => setSymbolSearch(event.target.value)}
-              placeholder="جستجوی نماد یا شرکت"
+              placeholder="جست‌وجوی نماد یا شرکت"
               className="input"
               maxLength={100}
             />
@@ -181,7 +181,7 @@ export function AssistedQueryDialog({ onCompose, disabled = false }: Props) {
             <input
               value={industrySearch}
               onChange={(event) => setIndustrySearch(event.target.value)}
-              placeholder="جستجوی صنعت"
+              placeholder="جست‌وجوی صنعت"
               className="input"
               maxLength={100}
             />
@@ -240,8 +240,8 @@ function SearchState({
 }: {
   query: { isLoading: boolean; isError: boolean; data?: unknown[] };
 }) {
-  if (query.isLoading) return <Hint>در حال جستجو...</Hint>;
-  if (query.isError) return <Hint>جستجو ناموفق بود.</Hint>;
+  if (query.isLoading) return <Hint>در حال جست‌وجو...</Hint>;
+  if (query.isError) return <Hint>جست‌وجو ناموفق بود.</Hint>;
   if (query.data?.length === 0) return <Hint>نتیجه‌ای پیدا نشد.</Hint>;
   if (query.data?.length === RESULT_LIMIT)
     return <Hint>فقط {RESULT_LIMIT} نتیجه اول نمایش داده می‌شود.</Hint>;

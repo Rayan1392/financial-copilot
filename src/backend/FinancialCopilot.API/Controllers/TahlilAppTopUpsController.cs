@@ -46,6 +46,19 @@ public sealed class TahlilAppTopUpsController(TahlilAppTopUpService topUps, ICur
         catch (TopUpContractException exception) { return TopUpProblem(exception.Status, exception.Code); }
     }
 
+    /// <summary>The signed-in user's own credit purchases (newest first) for the account page.</summary>
+    [HttpGet("top-ups")]
+    [Authorize(Policy = AuthorizationPolicies.UsageReadSelf)]
+    [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
+    public async Task<IActionResult> MyPurchases([FromQuery] int limit = 20, CancellationToken ct = default)
+    {
+        if (limit is < 1 or > TahlilAppTopUpService.MaxPurchaseHistory)
+            return ValidationProblem($"limit must be between 1 and {TahlilAppTopUpService.MaxPurchaseHistory}.");
+        var actor = actorContext.Actor;
+        if (actor.UserId is not { } userId) return Ok(new MyTopUpPurchasesResponse([]));
+        return Ok(new MyTopUpPurchasesResponse(await topUps.ListPurchasesAsync(userId, actor.TenantId, limit, ct)));
+    }
+
     [HttpGet("top-ups/{invoiceId}")]
     [Authorize(Policy = AuthorizationPolicies.UsageReadSelf)]
     [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]

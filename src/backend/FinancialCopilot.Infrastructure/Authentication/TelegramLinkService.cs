@@ -43,9 +43,8 @@ public sealed class TelegramLinkService(
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Telegram web link challenge issued for actor {ActorId} with correlation {CorrelationId}.", actor.ActorId, correlationId);
 
-        var botUsername = options.Value.BotUsername.Trim().TrimStart('@');
         return new TelegramLinkChallenge(
-            $"https://t.me/{botUsername}?start=link_{rawToken}",
+            $"{BotUrl()}?start=link_{rawToken}",
             expiresAt,
             correlationId);
     }
@@ -250,8 +249,11 @@ public sealed class TelegramLinkService(
                 candidate.TenantId == actor.TenantId &&
                 candidate.RevokedAtUtc == null,
             cancellationToken);
-        return row is null ? null : Map(row);
+        return row is null ? null : Map(row) with { BotUrl = BotUrl() };
     }
+
+    /// <summary>The configured bot's public address; the single place it is built (deep links append to it).</summary>
+    private string BotUrl() => $"https://t.me/{options.Value.BotUsername.Trim().TrimStart('@')}";
 
     public async Task<CurrentActor?> ResolveActorAsync(long telegramUserId, CancellationToken cancellationToken)
     {

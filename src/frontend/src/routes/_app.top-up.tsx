@@ -39,7 +39,7 @@ function TopUpStatusPage() {
       : status.data?.status === "granted"
         ? status.data.creditsGranted.toLocaleString("fa-IR") + " اعتبار به حساب شما اضافه شد."
         : status.data?.status === "expired-unfulfilled"
-          ? "اعتبار این خرید پس از پایان بازه اشتراک قابل تخصیص نبود. وضعیت بازپرداخت را از TahlilApp پیگیری کنید."
+          ? "اعتبار این خرید پس از پایان بازه اشتراک قابل تخصیص نبود. وضعیت بازپرداخت را از تحلیل‌اپ پیگیری کنید."
           : status.data?.status === "ineligible-unfulfilled"
             ? "این خرید برای تخصیص اعتبار نیازمند بررسی پشتیبانی است."
             : status.data?.status === "ambiguous-unfulfilled"

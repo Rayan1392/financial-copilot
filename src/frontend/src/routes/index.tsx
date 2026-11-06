@@ -8,12 +8,15 @@ export const Route = createFileRoute("/")({
     if (typeof window === "undefined") return;
     if (await isAuthenticated()) {
       const mobileTarget = clientMobileRedirectTarget("/chat");
-      throw mobileTarget ? redirect({ href: mobileTarget, replace: true }) : redirect({ to: "/chat" });
+      throw mobileTarget
+        ? redirect({ href: mobileTarget, replace: true })
+        : redirect({ to: "/chat" });
     }
   },
   component: IndexRoute,
 });
 
 function IndexRoute() {
-  return <AuthScreen redirect="/chat" />;
+  // The site root is where first-time visitors land, so it introduces the product beside the sign-in form.
+  return <AuthScreen redirect="/chat" withIntro />;
 }

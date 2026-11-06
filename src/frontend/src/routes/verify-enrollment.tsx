@@ -67,14 +67,14 @@ function VerifyEnrollmentPage() {
   return (
     <main dir="rtl" className="min-h-screen flex items-center justify-center bg-background p-6">
       <section className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 text-right">
-        <h1 className="text-lg font-bold">تایید نشانی ایمیل</h1>
+        <h1 className="text-lg font-bold">تأیید نشانی ایمیل</h1>
         <div aria-live="polite">
           {outcome === "checking" ? (
-            <p className="mt-3 text-sm text-muted-foreground">در حال تایید پیوند…</p>
+            <p className="mt-3 text-sm text-muted-foreground">در حال تأیید پیوند…</p>
           ) : null}
           {outcome === "success" ? (
             <>
-              <p className="mt-3 text-sm">نشانی ایمیل شما تایید شد. اکنون می‌توانید برای حساب خود گذرواژه تعیین کنید.</p>
+              <p className="mt-3 text-sm">نشانی ایمیل شما تأیید شد. اکنون می‌توانید برای حساب خود گذرواژه تعیین کنید.</p>
               <Link to="/profile" className="mt-5 block text-sm text-emerald">
                 رفتن به پروفایل حساب
               </Link>
@@ -100,7 +100,7 @@ function VerifyEnrollmentPage() {
           ) : null}
           {outcome === "unavailable" ? (
             <>
-              <p className="mt-3 text-sm text-destructive">تایید انجام نشد. کمی بعد دوباره تلاش کنید.</p>
+              <p className="mt-3 text-sm text-destructive">تأیید انجام نشد. کمی بعد دوباره تلاش کنید.</p>
               <Link to="/profile" className="mt-5 block text-sm text-emerald">
                 رفتن به پروفایل حساب
               </Link>
@@ -111,7 +111,7 @@ function VerifyEnrollmentPage() {
               <p className="mt-3 text-sm text-muted-foreground">
                 {outcome === "session"
                   ? "نشست شما معتبر نیست."
-                  : "برای تایید نشانی ایمیل ابتدا وارد حساب شوید."}{" "}
+                  : "برای تأیید نشانی ایمیل ابتدا وارد حساب شوید."}{" "}
                 پس از ورود، پیوند ایمیل را دوباره باز کنید.
               </p>
               <Link to="/auth" search={{ redirect: PROFILE_TARGET }} className="mt-5 block text-sm text-emerald">

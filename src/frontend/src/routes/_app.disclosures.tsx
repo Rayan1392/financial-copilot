@@ -23,6 +23,7 @@ import {
   serializeDisclosureDateOnly,
 } from "@/lib/format/disclosure";
 import { normalizeDisclosureSearch, patchDisclosureSearch } from "@/lib/disclosure-search";
+import { toPersianDigits } from "@/lib/format/persian";
 
 const disclosureTypes: Array<[DisclosureType, string]> = [
   ["MonthlyProductionSales", "تولید و فروش ماهانه"],
@@ -85,7 +86,7 @@ function DisclosuresPage() {
           <p className="text-xs font-semibold text-emerald">اطلاعات شرکت‌ها</p>
           <h1 className="text-2xl font-bold">فهرست اطلاعیه‌های منتشرشده</h1>
           <p className="text-sm text-muted-foreground">
-            داده‌ها از گزارش‌های نرمال‌شدهٔ سیستم نمایش داده می‌شوند و توصیهٔ سرمایه‌گذاری نیستند.
+            گزارش‌های مالی و ماهانهٔ منتشرشدهٔ شرکت‌ها در کدال؛ این فهرست توصیهٔ سرمایه‌گذاری نیست.
           </p>
         </header>
 
@@ -136,6 +137,14 @@ function DisclosuresPage() {
                   </option>
                 ))}
               </select>
+              {/* The default scope silently narrows the list, so say which one is active. */}
+              <span className="block text-[11px] font-normal leading-5 text-muted-foreground">
+                {filters.scope === "NonConsolidated"
+                  ? "فقط گزارش‌های غیرتلفیقی (خود شرکت) نمایش داده می‌شود."
+                  : filters.scope === "Consolidated"
+                    ? "فقط گزارش‌های تلفیقی (گروه شرکت‌ها) نمایش داده می‌شود."
+                    : "گزارش‌های تلفیقی و غیرتلفیقی هر دو نمایش داده می‌شوند."}
+              </span>
             </label>
           </div>
           <div className="grid gap-3 border-t border-hairline/70 pt-4 md:grid-cols-[minmax(0,1.5fr)_minmax(13rem,1fr)] md:items-start">
@@ -216,7 +225,7 @@ function DisclosuresPage() {
                       <Header>نوع</Header>
                       <Header>دوره</Header>
                       <Header>نوع دوره</Header>
-                      <Header>دریافت سیستم</Header>
+                      <Header>زمان دریافت در ساپیو</Header>
                     </tr>
                   </thead>
                   <tbody>
@@ -226,7 +235,7 @@ function DisclosuresPage() {
                           <bdi>{item.symbol ?? "—"}</bdi>
                         </Cell>
                         <Cell>{item.companyName ?? "—"}</Cell>
-                        <Cell>{item.title}</Cell>
+                        <Cell>{toPersianDigits(item.title)}</Cell>
                         <Cell>{disclosureTypeLabels[item.type]}</Cell>
                         <Cell>{formatDisclosurePeriod(item)}</Cell>
                         <Cell>{formatDisclosurePeriodType(item)}</Cell>
@@ -255,7 +264,9 @@ function DisclosuresPage() {
                         {disclosureTypeLabels[item.type]}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm leading-7 text-foreground">{item.title}</p>
+                    <p className="mt-3 text-sm leading-7 text-foreground">
+                      {toPersianDigits(item.title)}
+                    </p>
                     <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1.5 border-t border-hairline pt-3 text-xs sm:grid-cols-3">
                       <div className="flex gap-1.5">
                         <dt className="text-muted-foreground">دوره:</dt>
@@ -266,7 +277,7 @@ function DisclosuresPage() {
                         <dd className="text-foreground">{formatDisclosurePeriodType(item)}</dd>
                       </div>
                       <div className="flex gap-1.5">
-                        <dt className="text-muted-foreground">دریافت سیستم:</dt>
+                        <dt className="text-muted-foreground">زمان دریافت در ساپیو:</dt>
                         <dd className="text-foreground">
                           {formatDisclosureReceiptDate(item.receivedAt)}
                         </dd>

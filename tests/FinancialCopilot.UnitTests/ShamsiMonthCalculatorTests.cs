@@ -4,6 +4,16 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class ShamsiMonthCalculatorTests
 {
+    [Theory]
+    // 1405/01/01 = 2026-03-21; the first six months have 31 days, so 1405/06/31 = 2026-09-22.
+    [InlineData(2026, 9, 22, "1405/06/31")]
+    [InlineData(2026, 9, 21, "1405/06/30")]
+    [InlineData(2026, 3, 21, "1405/01/01")]
+    public void FormatJalaliDate_for_a_date_only_value_keeps_the_same_calendar_day(int year, int month, int day, string expected)
+    {
+        Assert.Equal(expected, ShamsiMonthCalculator.FormatJalaliDate(new DateOnly(year, month, day)));
+    }
+
     [Fact]
     public void LatestPublishedMonth_MidMonth_ReturnsPreviousShamsiMonth()
     {

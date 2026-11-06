@@ -27,17 +27,14 @@ public sealed class PersistedMarketDataProvider(
 
         var observations = new Dictionary<string, MarketQuoteObservation>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var symbol in symbols)
+        // Canonical trade tables, resolved for all symbols at once: a fixed handful of queries instead of
+        // ~4 sequential round trips per symbol (the watchlist took ~1.2 s for four symbols).
+        var instrumentIdsBySymbol = await ResolveInstrumentIdsAsync(
+            symbols.Select(symbol => symbol.Value).Distinct().ToList(),
+            cancellationToken);
+        foreach (var observation in await ResolveFromCanonicalTradeTablesAsync(instrumentIdsBySymbol, today, cancellationToken))
         {
-            var observation = await ResolveFromCanonicalTradeTablesAsync(
-                symbol.Value,
-                today,
-                cancellationToken);
-
-            if (observation is not null)
-            {
-                observations[symbol.Value] = observation;
-            }
+            observations[observation.SymbolCode.Value] = observation;
         }
 
         // Two resolution paths, unioned:
@@ -96,145 +93,209 @@ public sealed class PersistedMarketDataProvider(
         return new BatchMarketQuoteResult(observations.Values.ToArray(), unavailable);
     }
 
-    private async Task<MarketQuoteObservation?> ResolveFromCanonicalTradeTablesAsync(
-        string symbolCode,
+    /// <summary>
+    /// Latest canonical trade per symbol, for all symbols in two aggregate queries: today's latest intraday
+    /// snapshot per instrument, else the latest daily trade per instrument. Same precedence as before (intraday
+    /// today wins; latest TradingTime/TradingDate, then latest ReceivedAt/SourceInsertedAt), but the "latest per
+    /// instrument" is a GROUP BY MAX joined back, which uses the (TradingInstrumentId, TradingDate) indexes.
+    /// </summary>
+    private async Task<IReadOnlyList<MarketQuoteObservation>> ResolveFromCanonicalTradeTablesAsync(
+        IReadOnlyDictionary<string, List<Guid>> instrumentIdsBySymbol,
         DateOnly today,
         CancellationToken cancellationToken)
     {
-        var instrumentIds = await ResolveInstrumentIdsAsync(symbolCode, cancellationToken);
-        if (instrumentIds.Count == 0)
-        {
-            return null;
-        }
-
-        var intraday = await dbContext.IntradayTradeSnapshots.AsNoTracking()
-            .Where(row =>
-                instrumentIds.Contains(row.TradingInstrumentId) &&
-                row.TradingDate == today)
-            .OrderByDescending(row => row.TradingTime)
-            .ThenByDescending(row => row.ReceivedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (intraday is not null)
-        {
-            return new MarketQuoteObservation(
-                new SymbolCode(symbolCode),
-                intraday.LastTradedPrice,
-                CalculatePriceChangePercentage(intraday.LastTradedPrice, intraday.PriceYesterday),
-                intraday.ReceivedAt,
-                MarketQuoteSource.LiveQuote,
-                new FinancialSourceEvidence(intraday.ProviderName, intraday.ReceivedAt, intraday.ReceivedAt),
-                intraday.TradingDate,
-                "IntradayToday");
-        }
-
-        var daily = await dbContext.DailyInstrumentTrades.AsNoTracking()
-            .Where(row =>
-                instrumentIds.Contains(row.TradingInstrumentId))
-            .OrderByDescending(row => row.TradingDate)
-            .ThenByDescending(row => row.SourceInsertedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (daily is null)
-        {
-            return null;
-        }
-
-        return new MarketQuoteObservation(
-            new SymbolCode(symbolCode),
-            daily.LastTradedPrice,
-            CalculatePriceChangePercentage(daily.LastTradedPrice, daily.PriceYesterday),
-            daily.SourceInsertedAt,
-            MarketQuoteSource.PreviousTradingDay,
-            new FinancialSourceEvidence(daily.ProviderName, daily.SourceInsertedAt, daily.SourceInsertedAt),
-            daily.TradingDate,
-            "LatestDailyFallback");
-    }
-
-    private async Task<List<Guid>> ResolveInstrumentIdsAsync(
-        string symbolCode,
-        CancellationToken cancellationToken)
-    {
-        var ids = new List<Guid>();
-
-        ids.AddRange(await ResolveEligibleCompanyInstrumentIdsAsync(symbolCode, cancellationToken));
-        if (ids.Count > 0)
-        {
-            return ids.Distinct().ToList();
-        }
-
-        ids.AddRange(await ResolveCompanyInstrumentIdsAsync(symbolCode, cancellationToken));
-        ids.AddRange(await dbContext.TradingInstruments.AsNoTracking()
-            .Where(row => row.Symbol == symbolCode)
-            .Select(row => row.Id)
-            .ToListAsync(cancellationToken));
-
-        return ids.Distinct().ToList();
-    }
-
-    private async Task<List<Guid>> ResolveEligibleCompanyInstrumentIdsAsync(
-        string symbolCode,
-        CancellationToken cancellationToken)
-    {
-        var instrumentCodes = await NoavaranCompanyScope.EligibleCompanies(
-                dbContext,
-                NadpcoApiCompanyNormalizer.NadpcoApiProviderName)
-            .Where(row =>
-                row.InstrumentCode != null &&
-                (row.Ticker == symbolCode || row.TseSymbol == symbolCode || row.CompanySymbol == symbolCode))
-            .Select(row => row.InstrumentCode!)
-            .ToListAsync(cancellationToken);
-
-        return await ResolveInstrumentIdsByCodeAsync(instrumentCodes, cancellationToken);
-    }
-
-    private async Task<List<Guid>> ResolveCompanyInstrumentIdsAsync(
-        string symbolCode,
-        CancellationToken cancellationToken)
-    {
-        var matchedCompanies = await dbContext.Companies.AsNoTracking()
-            .Where(row =>
-                (row.Ticker == symbolCode || row.TseSymbol == symbolCode || row.CompanySymbol == symbolCode))
-            .Select(row => new { row.Id, row.InstrumentCode })
-            .ToListAsync(cancellationToken);
-
-        var ids = new List<Guid>();
-        ids.AddRange(await ResolveInstrumentIdsByCodeAsync(
-            matchedCompanies.Select(row => row.InstrumentCode!).ToList(),
-            cancellationToken));
-
-        var companyIds = matchedCompanies.Select(row => row.Id).Distinct().ToList();
-        if (companyIds.Count > 0)
-        {
-            ids.AddRange(await dbContext.TradingInstruments.AsNoTracking()
-                .Where(row => row.NormalizedCompanyId != null && companyIds.Contains(row.NormalizedCompanyId.Value))
-                .Select(row => row.Id)
-                .ToListAsync(cancellationToken));
-        }
-
-        return ids;
-    }
-
-    private async Task<List<Guid>> ResolveInstrumentIdsByCodeAsync(
-        IReadOnlyCollection<string> instrumentCodes,
-        CancellationToken cancellationToken)
-    {
-        var parsedCodes = instrumentCodes
-            .Select(code => long.TryParse(code, out var parsed) ? parsed : (long?)null)
-            .Where(code => code is not null)
-            .Select(code => code!.Value)
-            .Distinct()
-            .ToList();
-
-        if (parsedCodes.Count == 0)
+        var allIds = instrumentIdsBySymbol.Values.SelectMany(ids => ids).Distinct().ToList();
+        if (allIds.Count == 0)
         {
             return [];
         }
 
-        return await dbContext.TradingInstruments.AsNoTracking()
-            .Where(row => parsedCodes.Contains(row.InstrumentCode))
-            .Select(row => row.Id)
+        var todays = dbContext.IntradayTradeSnapshots.AsNoTracking()
+            .Where(row => allIds.Contains(row.TradingInstrumentId) && row.TradingDate == today);
+        var latestIntradayTimes = todays
+            .GroupBy(row => row.TradingInstrumentId)
+            .Select(group => new { InstrumentId = group.Key, TradingTime = group.Max(row => row.TradingTime) });
+        var intradayRows = await (
+                from row in todays
+                join latest in latestIntradayTimes
+                    on new { InstrumentId = row.TradingInstrumentId, row.TradingTime }
+                    equals new { latest.InstrumentId, latest.TradingTime }
+                select row)
             .ToListAsync(cancellationToken);
+
+        var needDaily = instrumentIdsBySymbol
+            .Where(entry => !intradayRows.Any(row => entry.Value.Contains(row.TradingInstrumentId)))
+            .SelectMany(entry => entry.Value)
+            .Distinct()
+            .ToList();
+        var dailyRows = new List<DailyInstrumentTradeRow>();
+        if (needDaily.Count > 0)
+        {
+            var trades = dbContext.DailyInstrumentTrades.AsNoTracking()
+                .Where(row => needDaily.Contains(row.TradingInstrumentId));
+            var latestDates = trades
+                .GroupBy(row => row.TradingInstrumentId)
+                .Select(group => new { InstrumentId = group.Key, TradingDate = group.Max(row => row.TradingDate) });
+            dailyRows = await (
+                    from row in trades
+                    join latest in latestDates
+                        on new { InstrumentId = row.TradingInstrumentId, row.TradingDate }
+                        equals new { latest.InstrumentId, latest.TradingDate }
+                    select row)
+                .ToListAsync(cancellationToken);
+        }
+
+        var result = new List<MarketQuoteObservation>();
+        foreach (var (symbolCode, ids) in instrumentIdsBySymbol)
+        {
+            var intraday = intradayRows
+                .Where(row => ids.Contains(row.TradingInstrumentId))
+                .OrderByDescending(row => row.TradingTime)
+                .ThenByDescending(row => row.ReceivedAt)
+                .FirstOrDefault();
+            if (intraday is not null)
+            {
+                result.Add(new MarketQuoteObservation(
+                    new SymbolCode(symbolCode),
+                    intraday.LastTradedPrice,
+                    CalculatePriceChangePercentage(intraday.LastTradedPrice, intraday.PriceYesterday),
+                    intraday.ReceivedAt,
+                    MarketQuoteSource.LiveQuote,
+                    new FinancialSourceEvidence(intraday.ProviderName, intraday.ReceivedAt, intraday.ReceivedAt),
+                    intraday.TradingDate,
+                    "IntradayToday"));
+                continue;
+            }
+
+            var daily = dailyRows
+                .Where(row => ids.Contains(row.TradingInstrumentId))
+                .OrderByDescending(row => row.TradingDate)
+                .ThenByDescending(row => row.SourceInsertedAt)
+                .FirstOrDefault();
+            if (daily is null)
+            {
+                continue;
+            }
+
+            result.Add(new MarketQuoteObservation(
+                new SymbolCode(symbolCode),
+                daily.LastTradedPrice,
+                CalculatePriceChangePercentage(daily.LastTradedPrice, daily.PriceYesterday),
+                daily.SourceInsertedAt,
+                MarketQuoteSource.PreviousTradingDay,
+                new FinancialSourceEvidence(daily.ProviderName, daily.SourceInsertedAt, daily.SourceInsertedAt),
+                daily.TradingDate,
+                "LatestDailyFallback"));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Instrument ids per requested symbol, same precedence as the former per-symbol resolver: eligible
+    /// Noavaran companies first; only when they yield no instrument, all matching companies (by instrument
+    /// code and normalized company link) plus instruments whose own ticker is the symbol. Symbols with no
+    /// instrument are omitted. All symbols share each query.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, List<Guid>>> ResolveInstrumentIdsAsync(
+        IReadOnlyList<string> codes,
+        CancellationToken cancellationToken)
+    {
+        static bool Matches(string symbol, string? ticker, string? tseSymbol, string? companySymbol) =>
+            ticker == symbol || tseSymbol == symbol || companySymbol == symbol;
+
+        var eligible = await NoavaranCompanyScope.EligibleCompanies(
+                dbContext,
+                NadpcoApiCompanyNormalizer.NadpcoApiProviderName)
+            .Where(row =>
+                row.InstrumentCode != null &&
+                (codes.Contains(row.Ticker!) || codes.Contains(row.TseSymbol!) || codes.Contains(row.CompanySymbol!)))
+            .Select(row => new { row.Ticker, row.TseSymbol, row.CompanySymbol, InstrumentCode = row.InstrumentCode! })
+            .ToListAsync(cancellationToken);
+        var eligibleIdsByCode = await ResolveInstrumentIdsByCodeAsync(
+            eligible.Select(row => row.InstrumentCode).ToList(),
+            cancellationToken);
+
+        var result = new Dictionary<string, List<Guid>>(StringComparer.Ordinal);
+        var unresolved = new List<string>();
+        foreach (var code in codes)
+        {
+            var ids = eligible
+                .Where(row => Matches(code, row.Ticker, row.TseSymbol, row.CompanySymbol))
+                .SelectMany(row => eligibleIdsByCode.TryGetValue(row.InstrumentCode, out var found) ? found : [])
+                .Distinct()
+                .ToList();
+            if (ids.Count > 0) result[code] = ids;
+            else unresolved.Add(code);
+        }
+
+        if (unresolved.Count == 0)
+        {
+            return result;
+        }
+
+        var companies = await dbContext.Companies.AsNoTracking()
+            .Where(row =>
+                codes.Contains(row.Ticker!) || codes.Contains(row.TseSymbol!) || codes.Contains(row.CompanySymbol!))
+            .Select(row => new { row.Id, row.InstrumentCode, row.Ticker, row.TseSymbol, row.CompanySymbol })
+            .ToListAsync(cancellationToken);
+        companies = companies
+            .Where(row => unresolved.Any(code => Matches(code, row.Ticker, row.TseSymbol, row.CompanySymbol)))
+            .ToList();
+        var companyIdsByCode = await ResolveInstrumentIdsByCodeAsync(
+            companies.Where(row => row.InstrumentCode != null).Select(row => row.InstrumentCode!).ToList(),
+            cancellationToken);
+        var companyIds = companies.Select(row => row.Id).Distinct().ToList();
+        var linkedInstruments = companyIds.Count == 0
+            ? []
+            : await dbContext.TradingInstruments.AsNoTracking()
+                .Where(row => row.NormalizedCompanyId != null && companyIds.Contains(row.NormalizedCompanyId.Value))
+                .Select(row => new { CompanyId = row.NormalizedCompanyId!.Value, row.Id })
+                .ToListAsync(cancellationToken);
+        var tickerInstruments = await dbContext.TradingInstruments.AsNoTracking()
+            .Where(row => unresolved.Contains(row.Symbol))
+            .Select(row => new { row.Symbol, row.Id })
+            .ToListAsync(cancellationToken);
+
+        foreach (var code in unresolved)
+        {
+            var matched = companies.Where(row => Matches(code, row.Ticker, row.TseSymbol, row.CompanySymbol)).ToList();
+            var ids = matched
+                .Where(row => row.InstrumentCode != null)
+                .SelectMany(row => companyIdsByCode.TryGetValue(row.InstrumentCode!, out var found) ? found : [])
+                .Concat(linkedInstruments.Where(row => matched.Any(company => company.Id == row.CompanyId)).Select(row => row.Id))
+                .Concat(tickerInstruments.Where(row => row.Symbol == code).Select(row => row.Id))
+                .Distinct()
+                .ToList();
+            if (ids.Count > 0) result[code] = ids;
+        }
+
+        return result;
+    }
+
+    /// <summary>Instrument ids per company instrument code (string, as stored on companies), in one query.</summary>
+    private async Task<IReadOnlyDictionary<string, List<Guid>>> ResolveInstrumentIdsByCodeAsync(
+        IReadOnlyCollection<string> instrumentCodes,
+        CancellationToken cancellationToken)
+    {
+        var parsed = instrumentCodes
+            .Distinct()
+            .Select(code => (Code: code, Value: long.TryParse(code, out var value) ? value : (long?)null))
+            .Where(item => item.Value is not null)
+            .ToList();
+        if (parsed.Count == 0)
+        {
+            return new Dictionary<string, List<Guid>>();
+        }
+
+        var values = parsed.Select(item => item.Value!.Value).Distinct().ToList();
+        var rows = await dbContext.TradingInstruments.AsNoTracking()
+            .Where(row => values.Contains(row.InstrumentCode))
+            .Select(row => new { row.InstrumentCode, row.Id })
+            .ToListAsync(cancellationToken);
+        return parsed.ToDictionary(
+            item => item.Code,
+            item => rows.Where(row => row.InstrumentCode == item.Value).Select(row => row.Id).ToList());
     }
 
     // DAILY_CHANGE_PCT = (LastTradedPrice / PriceYesterday - 1) * 100.

@@ -275,9 +275,16 @@ public sealed class SemanticExecutionCoordinator(
 
 public static class SemanticBillingCompletionStatus
 {
+    /// <summary>
+    /// A supported request that found no usable rows. The user received no answer, so this
+    /// status is zero-charge, like a Feature 141 definitive non-answer.
+    /// </summary>
+    public const string NoData = "NoData";
+
     public static string For(CapabilityExecutionStatus status) => status switch
     {
-        CapabilityExecutionStatus.Executed or CapabilityExecutionStatus.Partial or CapabilityExecutionStatus.NoData => "Completed",
+        CapabilityExecutionStatus.Executed or CapabilityExecutionStatus.Partial => "Completed",
+        CapabilityExecutionStatus.NoData => NoData,
             CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired => "ClarificationRequired",
         CapabilityExecutionStatus.Unsupported => "ValidationFailed",
         CapabilityExecutionStatus.TemporarilyUnavailable or CapabilityExecutionStatus.Failed => "ProviderFailed",

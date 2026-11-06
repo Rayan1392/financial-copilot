@@ -460,36 +460,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<SubscriptionCreditAllocationWorker>();
 
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton(new PricingPolicy(
-            "v1",
-            new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["AiQuery.Scanner"] = 1m,
-                ["AiQuery.StockAnalysis"] = 3m,
-                ["AiQuery.CachedResponse"] = 0.2m,
-                ["AiQuery.FinancialComparison"] = 3m,
-                ["AiQuery.DeepResearch"] = 15m,
-                ["AiQuery.PortfolioAnalysis"] = 6m,
-                ["AiQuery.CodalAnalysis"] = 8m,
-                ["AiQuery.Summarization"] = 4m,
-                ["AiQuery.PersonalDigest"] = 4m,
-                ["AiQuery.Embeddings"] = 0.5m,
-                ["AiQuery.RagSearch"] = 2m,
-                ["AiQuery.BackgroundJob"] = 6m
-            },
-            CachedMultiplier: 0.2m,
-            ZeroChargeStatuses: new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "ValidationFailed",
-                "ClarificationRequired",
-                "ProviderFailed",
-                "CancelledBeforeExecution",
-                "TimedOutBeforeExecution"
-            },
-            CompletionMultipliers: new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["PartiallyCompleted"] = 0.5m
-            }));
+        services.AddSingleton(DefaultPricingPolicy.Create());
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
         services
             .AddOptions<UsageBasedCreditBillingOptions>()

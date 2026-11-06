@@ -18,6 +18,8 @@ export type TelegramLinkView = {
   username?: string | null;
   linkedAtUtc: string;
   lastVerifiedAtUtc: string;
+  /** https://t.me/<bot> of the configured bot, so a linked user can open it. */
+  botUrl?: string | null;
 };
 
 export type TelegramMembershipVerification = {
@@ -60,7 +62,9 @@ export type TelegramEntitlement = {
 };
 
 export async function createTelegramLinkChallenge() {
-  return financialCopilotApi<TelegramLinkChallenge>("/api/v1/telegram/link-token", { method: "POST" });
+  return financialCopilotApi<TelegramLinkChallenge>("/api/v1/telegram/link-token", {
+    method: "POST",
+  });
 }
 
 export async function getTelegramLink() {
@@ -72,7 +76,9 @@ export async function unlinkTelegram() {
 }
 
 export async function verifyTelegramMembership() {
-  return financialCopilotApi<TelegramMembershipVerification>("/api/v1/telegram/membership/verify", { method: "POST" });
+  return financialCopilotApi<TelegramMembershipVerification>("/api/v1/telegram/membership/verify", {
+    method: "POST",
+  });
 }
 
 export async function getTelegramEntitlement() {

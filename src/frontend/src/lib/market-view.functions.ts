@@ -78,6 +78,26 @@ export const getUsage = createServerFn({ method: "GET" })
     financialCopilotServerApi<UsageSummary>(context, "/api/v1/usage/me"),
   );
 
+/** One of the signed-in user's own TahlilApp credit purchases (GET /api/v1/billing/top-ups). */
+export interface MyTopUpPurchase {
+  invoiceId: string;
+  creditsPurchased: number;
+  status: TopUpStatus["status"] | (string & {});
+  paidAtUtc: string;
+  grantedAtUtc?: string | null;
+  expiresAtUtc?: string | null;
+}
+
+export const getMyTopUps = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .inputValidator((data: { limit: number }) => data)
+  .handler(async ({ context, data }) =>
+    financialCopilotServerApi<{ items: MyTopUpPurchase[] }>(
+      context,
+      `/api/v1/billing/top-ups?limit=${encodeURIComponent(String(data.limit))}`,
+    ),
+  );
+
 export const getTopUpStatus = createServerFn({ method: "GET" })
   .middleware([requireFinancialCopilotAuth])
   .inputValidator((data: { invoiceId: string }) => data)

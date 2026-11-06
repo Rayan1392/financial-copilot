@@ -22,29 +22,35 @@ internal sealed class CompanyProductRevenueMixCalculator(
         string? fiscalEndDate,
         CancellationToken ct = default)
     {
-        // Load all OutputType=0 (single-month) ProductSales reports for this company/month.
-        var reports = await dbContext.MonthlyReports
+        // The composition reads the same single-month source as the sales trend: ProductSales
+        // (OutputType 0, or null from legacy payloads) when it has rows, otherwise ServiceSales.
+        // A narrower filter here left companies with a visible trend but no composition.
+        var (periodStart, _) = JalaliDateResolver.ResolveMonth(jalaliYear, jalaliMonth);
+        var candidateReports = await dbContext.MonthlyReports
             .Where(r => r.ProviderName == ProviderName
                      && r.ExternalCompanyId == externalCompanyId
                      && r.IsAccepted
-                     && r.ReportType == "ProductSales"
-                     && r.OutputType == 0)
+                     && r.PeriodStart == periodStart)
+            .Where(MonthlySalesSourceSelection.IsSingleMonthCandidate)
             .ToListAsync(ct);
 
-        if (reports.Count == 0) return;
+        if (candidateReports.Count == 0) return;
 
-        // Filter to the target Jalali period via PeriodStart.
-        var (periodStart, _) = JalaliDateResolver.ResolveMonth(jalaliYear, jalaliMonth);
-        var matchingReports = reports
-            .Where(r => r.PeriodStart == periodStart)
+        var candidateReportIds = candidateReports.Select(r => r.Id).ToHashSet();
+        var candidateLineItems = await dbContext.MonthlyReportLineItems
+            .Where(li => candidateReportIds.Contains(li.MonthlyReportId))
+            .ToListAsync(ct);
+
+        var reportIdsWithLineItems = candidateLineItems.Select(li => li.MonthlyReportId).ToHashSet();
+        var sourceReportIds = MonthlySalesSourceSelection
+            .Choose(candidateReports, reportIdsWithLineItems.Contains)
+            .Reports
             .Select(r => r.Id)
             .ToHashSet();
 
-        if (matchingReports.Count == 0) return;
-
-        var lineItems = await dbContext.MonthlyReportLineItems
-            .Where(li => matchingReports.Contains(li.MonthlyReportId) && li.SalesAmount != null)
-            .ToListAsync(ct);
+        var lineItems = candidateLineItems
+            .Where(li => sourceReportIds.Contains(li.MonthlyReportId) && li.SalesAmount != null)
+            .ToList();
 
         if (lineItems.Count == 0) return;
 

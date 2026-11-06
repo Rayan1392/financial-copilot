@@ -78,12 +78,12 @@ export function RailHoverCard({
   );
 }
 
-/** Signed-percent pill for rail cards: emerald when up, rose when down, muted when unknown. */
+/** Signed-percent pill: emerald when up, rose when down, muted when unchanged or unknown. */
 export function ChangePill({ value, label }: { value?: number | null; label: string }) {
   const tone =
-    value == null
+    value == null || value === 0
       ? "bg-muted text-muted-foreground"
-      : value >= 0
+      : value > 0
         ? "bg-emerald-soft/70 text-emerald"
         : "bg-rose/10 text-rose";
   return (

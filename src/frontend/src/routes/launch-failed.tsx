@@ -61,7 +61,7 @@ function LaunchFailedPage() {
           </a>
         ) : null}
         <Link to="/auth" search={{ redirect: "/chat" }} className="mt-5 block text-sm text-emerald">
-          ورود با ایمیل و رمز عبور
+          ورود با ایمیل و گذرواژه
         </Link>
       </section>
     </main>

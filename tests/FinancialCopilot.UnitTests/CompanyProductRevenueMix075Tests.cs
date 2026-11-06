@@ -123,6 +123,88 @@ public sealed class CompanyProductRevenueMix075Tests
         Assert.Empty(repo.Upserted);
     }
 
+    // Regression: the sales trend showed a company while the composition said "no data", because
+    // the composition read only ProductSales OutputType 0. Both must read the same monthly source.
+
+    [Fact]
+    public async Task Calculator_IncludesLegacyProductSalesWithoutOutputType()
+    {
+        var db = CreateDb();
+        var repo = new InMemoryRevenueMixRepository();
+        var calculator = new CompanyProductRevenueMixCalculator(db, repo);
+
+        var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(1405, 6);
+        var reportId = AddReport(db, ExternalId, periodStart, periodEnd, "ProductSales", outputType: null);
+        AddLineItem(db, reportId, "محصول قدیمی", salesAmount: 700m);
+        AddLineItem(db, reportId, "محصول دوم", salesAmount: 300m);
+        await db.SaveChangesAsync();
+
+        await calculator.RecalculateAsync(ExternalId, 1405, 6, Symbol, null, null);
+
+        Assert.Equal(2, repo.Upserted.Count);
+        Assert.Equal(70m, repo.Upserted.Single(r => r.ProductName == "محصول قدیمی").RevenueSharePercentage, precision: 2);
+    }
+
+    [Fact]
+    public async Task Calculator_UsesServiceSalesWhenMonthHasNoProductSales()
+    {
+        var db = CreateDb();
+        var repo = new InMemoryRevenueMixRepository();
+        var calculator = new CompanyProductRevenueMixCalculator(db, repo);
+
+        var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(1405, 7);
+        var reportId = AddReport(db, ExternalId, periodStart, periodEnd, "ServiceSales", outputType: null);
+        AddLineItem(db, reportId, "خدمات حفاری", salesAmount: 800m);
+        AddLineItem(db, reportId, "خدمات مهندسی", salesAmount: 200m);
+        await db.SaveChangesAsync();
+
+        await calculator.RecalculateAsync(ExternalId, 1405, 7, Symbol, null, null);
+
+        Assert.Equal(2, repo.Upserted.Count);
+        var drilling = repo.Upserted.Single(r => r.ProductName == "خدمات حفاری");
+        Assert.Equal(1, drilling.ProductRank);
+        Assert.Equal(80m, drilling.RevenueSharePercentage, precision: 2);
+        Assert.Equal(1000m, drilling.TotalCompanySalesAmount);
+    }
+
+    [Fact]
+    public async Task Calculator_PrefersProductSalesOverServiceSalesInTheSameMonth()
+    {
+        var db = CreateDb();
+        var repo = new InMemoryRevenueMixRepository();
+        var calculator = new CompanyProductRevenueMixCalculator(db, repo);
+
+        var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(1405, 7);
+        var productReport = AddReport(db, ExternalId, periodStart, periodEnd, "ProductSales", outputType: 0);
+        AddLineItem(db, productReport, "محصول", salesAmount: 500m);
+        var serviceReport = AddReport(db, ExternalId, periodStart, periodEnd, "ServiceSales", outputType: null);
+        AddLineItem(db, serviceReport, "خدمات", salesAmount: 900m);
+        await db.SaveChangesAsync();
+
+        await calculator.RecalculateAsync(ExternalId, 1405, 7, Symbol, null, null);
+
+        var row = Assert.Single(repo.Upserted);
+        Assert.Equal("محصول", row.ProductName);
+        Assert.Equal(500m, row.TotalCompanySalesAmount);
+    }
+
+    [Fact]
+    public async Task Calculator_IgnoresReportsOfOtherMonths()
+    {
+        var db = CreateDb();
+        var repo = new InMemoryRevenueMixRepository();
+        var calculator = new CompanyProductRevenueMixCalculator(db, repo);
+
+        var (otherStart, otherEnd) = JalaliDateResolver.ResolveMonth(1405, 6);
+        var otherReport = AddReport(db, ExternalId, otherStart, otherEnd, "ServiceSales", outputType: null);
+        AddLineItem(db, otherReport, "خدمات", salesAmount: 900m);
+        await db.SaveChangesAsync();
+
+        await calculator.RecalculateAsync(ExternalId, 1405, 7, Symbol, null, null);
+
+        Assert.Empty(repo.Upserted);
+    }
+
     [Fact]
     public async Task Calculator_NormalizesArabicYeAndKaf()
     {
@@ -389,9 +471,59 @@ public sealed class CompanyProductRevenueMix075Tests
         Assert.Empty(calculator.Invocations);
     }
 
+    [Fact]
+    public async Task Backfill_ProcessesServiceSalesOnlyCompanyMonths()
+    {
+        var db = CreateDb();
+        var calculator = new CapturingRevenueMixCalculator();
+        var backfill = new ProductRevenueMixBackfillService(
+            db,
+            calculator,
+            TimeProvider.System,
+            NullLogger<ProductRevenueMixBackfillService>.Instance);
+
+        var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(1405, 7);
+        var serviceReport = AddReport(db, ExternalId, periodStart, periodEnd, "ServiceSales", outputType: null);
+        AddLineItem(db, serviceReport, "خدمات", salesAmount: 900m);
+        await db.SaveChangesAsync();
+
+        var result = await backfill.RunAsync(
+            new ProductRevenueMixBackfillRequest("User:test"),
+            CancellationToken.None);
+
+        Assert.Equal(1, result.CompanyMonthsProcessed);
+        var invocation = Assert.Single(calculator.Invocations);
+        Assert.Equal((1405, (byte)7), (invocation.Year, invocation.Month));
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    private static Guid AddReport(
+        FinancialIngestionDbContext db,
+        string externalCompanyId,
+        DateOnly periodStart,
+        DateOnly periodEnd,
+        string reportType,
+        int? outputType)
+    {
+        var id = Guid.NewGuid();
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = id,
+            ProviderName = Provider,
+            ExternalCompanyId = externalCompanyId,
+            ExternalReportId = Guid.NewGuid().ToString(),
+            ReportType = reportType,
+            OutputType = outputType,
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            SourcePayloadChecksum = "chk",
+            LastSynchronizedAt = DateTimeOffset.UtcNow
+        });
+        return id;
+    }
 
     private static FinancialIngestionDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()

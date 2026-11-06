@@ -1,5 +1,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { ArrowRight, Settings, SquarePen, UserRound } from "lucide-react";
+import { ArrowRight, Settings, SquarePen, UserRound, Wallet } from "lucide-react";
+import { computeCreditProgress } from "@/lib/credit-progress";
+import { formatNumber } from "@/lib/format/persian";
 import { useEffect, useState, type ReactNode } from "react";
 import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
 import {
@@ -7,7 +9,7 @@ import {
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
 import { officialDisplayName } from "@/lib/profile-display-name";
-import { useOwnProfile } from "@/lib/workspace/queries";
+import { useOwnProfile, useUsage } from "@/lib/workspace/queries";
 
 const ICON_BUTTON =
   "flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:text-foreground active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40";
@@ -60,6 +62,33 @@ export function NewChatButton() {
  * Entry to the admin panel, rendered only for users holding an admin read permission (same rule as the desktop
  * header). The check is a UI convenience; `/admin` and its APIs enforce access on their own.
  */
+/** Remaining AI credit at a glance on every tab; opens the account screen with plan and purchase guidance. */
+function CreditChip() {
+  const { data } = useUsage();
+  if (!data) return null;
+  const unlimited = data.creditQuotaMode === "Unlimited";
+  const credit = unlimited
+    ? null
+    : computeCreditProgress(data.availableSpendingCapacity, data.planIncludedCredits);
+  const label = unlimited ? "نامحدود" : formatNumber(credit?.remaining ?? 0);
+  const tone =
+    credit?.tone === "danger"
+      ? "text-rose ring-rose/30"
+      : credit?.tone === "warning"
+        ? "text-gold ring-gold/30"
+        : "text-muted-foreground ring-hairline";
+  return (
+    <Link
+      to="/m/account"
+      aria-label={`اعتبار هوش مصنوعی: ${label}. مشاهدهٔ حساب`}
+      className={`flex min-h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-semibold tabular-nums ring-1 transition-colors active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 ${tone}`}
+    >
+      <Wallet className="size-3.5" aria-hidden="true" />
+      {label}
+    </Link>
+  );
+}
+
 export function AdminSettingsButton() {
   const [visible, setVisible] = useState(false);
 
@@ -93,6 +122,9 @@ export function TopAppBar({ title, backFallback, actions, hideNewChat }: TopAppB
       <div className="flex h-14 items-center gap-1 px-[max(4px,env(safe-area-inset-left))]">
         {backFallback ? <BackButton fallback={backFallback} /> : <AccountAvatar />}
         <h1 className="min-w-0 flex-1 truncate px-1 text-lg font-bold text-foreground">{title}</h1>
+        {/* Every tab screen carries the same end icons (credit, admin gear), so tabs do not shift. */}
+        {!backFallback && <CreditChip />}
+        {!backFallback && <AdminSettingsButton />}
         {actions}
         {!hideNewChat && <NewChatButton />}
       </div>

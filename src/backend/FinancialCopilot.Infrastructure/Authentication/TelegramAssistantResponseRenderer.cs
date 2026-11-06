@@ -443,9 +443,8 @@ public sealed class TelegramAssistantResponseRenderer(
         _ => type.ToString()
     };
 
-    private static string FormatJalaliDateOnly(DateOnly value) =>
-        ShamsiMonthCalculator.FormatJalaliDate(new DateTimeOffset(
-            value.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(3.5)));
+    // Date-only overload: a midnight-Tehran instant converted in UTC printed the previous day.
+    private static string FormatJalaliDateOnly(DateOnly value) => ShamsiMonthCalculator.FormatJalaliDate(value);
 
     private static string FormatJalaliReceipt(DateTimeOffset value)
     {

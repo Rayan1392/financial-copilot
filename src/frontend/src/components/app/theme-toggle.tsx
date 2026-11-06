@@ -51,6 +51,10 @@ export function useTheme() {
   return { theme, toggleTheme };
 }
 
+/**
+ * Icon-only toggle. The icon and the label both name the action (the theme you switch to), never the
+ * current state, so the sun in dark mode reads unambiguously as "switch to light".
+ */
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const nextLabel = theme === "dark" ? "تغییر به تم روشن" : "تغییر به تم تیره";
@@ -60,10 +64,13 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={nextLabel}
       title={nextLabel}
-      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline bg-surface px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:border-emerald/20 hover:bg-emerald-soft/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+      className="group flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-emerald-soft/60 hover:text-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
     >
-      {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
-      <span>{theme === "dark" ? "تم تیره" : "تم روشن"}</span>
+      {theme === "dark" ? (
+        <Sun className="size-5 transition-transform group-hover:rotate-12" aria-hidden="true" />
+      ) : (
+        <Moon className="size-5 transition-transform group-hover:-rotate-12" aria-hidden="true" />
+      )}
     </button>
   );
 }

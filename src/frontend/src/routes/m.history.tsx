@@ -45,21 +45,21 @@ function MobileHistory() {
         <div className="flex items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-hairline focus-within:ring-2 focus-within:ring-emerald/40">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <label htmlFor="history-search" className="sr-only">
-            جستجو در عنوان گفتگوها
+            جست‌وجو در عنوان گفتگوها
           </label>
           <input
             id="history-search"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="جستجو در عنوان گفتگوها…"
+            placeholder="جست‌وجو در عنوان گفتگوها…"
             className="min-h-11 min-w-0 flex-1 bg-transparent text-base focus:outline-none"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
-              aria-label="پاک کردن جستجو"
+              aria-label="پاک کردن جست‌وجو"
               className="flex size-11 shrink-0 items-center justify-center text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
             >
               <X className="size-4" aria-hidden="true" />

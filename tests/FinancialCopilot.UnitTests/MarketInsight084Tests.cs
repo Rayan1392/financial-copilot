@@ -326,6 +326,7 @@ public sealed class MarketInsight084Tests
             PeriodEnd = new DateOnly(2026, 6, 21),
             SourcePayloadChecksum = "statement-checksum",
             LastSynchronizedAt = Now,
+            PublishedAt = DateOnly.FromDateTime(Now.UtcDateTime),
             IsAudited = false,
             IsRepresented = false,
             IsComposing = false

@@ -233,10 +233,19 @@ internal sealed class InsightEventRepository(
         return row;
     }
 
+    /// <param name="preserveId">
+    /// True when re-applying a detection to an existing row: keeps the row id and its FIRST detection
+    /// time. Detectors re-run every few minutes over a lookback window; overwriting DetectedAtUtc would
+    /// make every re-scan look like a brand-new event. Expiry is still refreshed because detectors now
+    /// derive it from the source fact's own time (deterministic across runs).
+    /// </param>
     private static void Apply(InsightEventRow row, InsightEvent insight, bool preserveId)
     {
         if (!preserveId)
+        {
             row.Id = insight.Id;
+            row.DetectedAtUtc = insight.DetectedAtUtc;
+        }
         row.ExternalCompanyId = insight.ExternalCompanyId;
         row.Symbol = insight.Symbol;
         row.IndustryCode = insight.IndustryCode;
@@ -252,7 +261,6 @@ internal sealed class InsightEventRepository(
         row.SourceEntityType = insight.SourceEntityType.ToString();
         row.SourceEntityId = insight.SourceEntityId;
         row.SourcePeriod = insight.SourcePeriod;
-        row.DetectedAtUtc = insight.DetectedAtUtc;
         row.ExpiresAtUtc = insight.ExpiresAtUtc;
         row.DeduplicationKey = insight.DeduplicationKey;
         row.SuggestedActionsJson = JsonSerializer.Serialize(insight.SuggestedActions, JsonOptions);

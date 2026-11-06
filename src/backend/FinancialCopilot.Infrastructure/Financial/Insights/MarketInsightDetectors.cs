@@ -101,6 +101,60 @@ internal abstract class InsightDetectorBase(
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? string.Empty;
 }
 
+/// <summary>
+/// Single owner of the "is this source fact newly available?" rule for publication-style insights.
+/// A sync or recalculation timestamp is NOT evidence of a new publication: providers re-sync history
+/// (financial statements overwrite <c>LastSynchronizedAt</c> on every replay) and snapshots are
+/// recalculated by backfills (<c>CalculatedAtUtc = now</c>). Rules:
+/// <list type="bullet">
+/// <item>Financial statement: the source announcement date (<c>PublishedAt</c>) falls inside the window.
+/// Rows without an announcement date cannot prove recency and are skipped.</item>
+/// <item>Monthly report: the accepted revision was first stored inside the window (replayed revisions are
+/// not rewritten) AND it is the company's latest accepted period for its report type, so a historical
+/// backfill of old months never reads as new.</item>
+/// </list>
+/// Event time (and therefore expiry) derives from the source fact, never from the detector run, so
+/// re-running the detector every few minutes cannot keep an event looking fresh.
+/// </summary>
+internal static class InsightSourceFreshness
+{
+    public static readonly TimeSpan PublicationEventLifetime = TimeSpan.FromDays(30);
+    public static readonly TimeSpan PriceMoveEventLifetime = TimeSpan.FromDays(2);
+
+    public static IQueryable<NormalizedFinancialStatementRow> NewlyPublishedStatements(
+        FinancialIngestionDbContext dbContext,
+        InsightDetectionContext context)
+    {
+        var sinceDate = DateOnly.FromDateTime(context.SinceUtc.UtcDateTime);
+        var today = DateOnly.FromDateTime(context.DetectedAtUtc.UtcDateTime);
+        return dbContext.FinancialStatements.AsNoTracking()
+            .Where(statement => statement.PublishedAt != null
+                                && statement.PublishedAt >= sinceDate
+                                && statement.PublishedAt <= today);
+    }
+
+    public static IQueryable<NormalizedMonthlyReportRow> NewlyAvailableMonthlyReports(
+        FinancialIngestionDbContext dbContext,
+        InsightDetectionContext context) =>
+        dbContext.MonthlyReports.AsNoTracking()
+            .Where(report => report.IsAccepted
+                             && (report.OutputType == null || report.OutputType == 0)
+                             && report.LastSynchronizedAt >= context.SinceUtc
+                             && !dbContext.MonthlyReports.Any(newer =>
+                                 newer.IsAccepted
+                                 && (newer.OutputType == null || newer.OutputType == 0)
+                                 && newer.ProviderName == report.ProviderName
+                                 && newer.ExternalCompanyId == report.ExternalCompanyId
+                                 && newer.ReportType == report.ReportType
+                                 && newer.PeriodEnd > report.PeriodEnd));
+
+    public static DateTimeOffset StatementEventTime(DateOnly publishedAt) =>
+        new(publishedAt.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+
+    public static DateTimeOffset MonthlyReportEventTime(DateTimeOffset? providerPublishedAtUtc, DateTimeOffset firstStoredAt) =>
+        providerPublishedAtUtc ?? firstStoredAt;
+}
+
 internal sealed class MonthlyReportPublishedDetector(
     FinancialIngestionDbContext dbContext,
     IInsightScoringService scoring,
@@ -114,9 +168,7 @@ internal sealed class MonthlyReportPublishedDetector(
         CancellationToken cancellationToken = default)
     {
         var rows = await (
-            from report in DbContext.MonthlyReports.AsNoTracking()
-            where report.LastSynchronizedAt >= context.SinceUtc
-                  && (report.OutputType == null || report.OutputType == 0)
+            from report in InsightSourceFreshness.NewlyAvailableMonthlyReports(DbContext, context)
             join company in DbContext.Companies.AsNoTracking()
                 on report.ExternalCompanyId equals company.ExternalCompanyId into companyJoin
             from company in companyJoin.DefaultIfEmpty()
@@ -149,7 +201,8 @@ internal sealed class MonthlyReportPublishedDetector(
                     row.report.ExternalReportId,
                     sourcePeriod,
                     context.DetectedAtUtc,
-                    context.DetectedAtUtc.AddDays(30));
+                    InsightSourceFreshness.MonthlyReportEventTime(row.report.ProviderPublishedAtUtc, row.report.LastSynchronizedAt)
+                        .Add(InsightSourceFreshness.PublicationEventLifetime));
             })
             .ToList();
     }
@@ -169,20 +222,28 @@ internal sealed class MonthlySalesAnomalyDetector(
         InsightDetectionContext context,
         CancellationToken cancellationToken = default)
     {
-        var rows = await DbContext.CompanyMonthlyActivityTrendSnapshots
-            .AsNoTracking()
-            .Where(row => row.CalculatedAtUtc >= context.SinceUtc
-                          && row.MonthlySalesAmount > 0m
-                          && row.Average12MonthSalesAmount.HasValue
-                          && row.Average12MonthSalesAmount.Value > 0m)
+        // Only the snapshot built from a newly available monthly report counts; a backfill that
+        // recalculates historical months (CalculatedAtUtc = now) must not resurface old anomalies.
+        var rows = await (
+            from report in InsightSourceFreshness.NewlyAvailableMonthlyReports(DbContext, context)
+            join snapshot in DbContext.CompanyMonthlyActivityTrendSnapshots.AsNoTracking()
+                on report.ExternalReportId equals snapshot.SourceReportId
+            where snapshot.SourceProviderName == report.ProviderName
+                  && snapshot.MonthlySalesAmount > 0m
+                  && snapshot.Average12MonthSalesAmount.HasValue
+                  && snapshot.Average12MonthSalesAmount.Value > 0m
+            select new { snapshot, report.ProviderPublishedAtUtc, report.LastSynchronizedAt })
             .ToListAsync(cancellationToken);
 
         return rows
-            .Select(row => new
+            .GroupBy(x => x.snapshot.Id)
+            .Select(g => g.First())
+            .Select(x => new
             {
-                row,
-                Average12MonthSalesAmount = row.Average12MonthSalesAmount!.Value,
-                Change = PercentChange(row.MonthlySalesAmount, row.Average12MonthSalesAmount!.Value)
+                row = x.snapshot,
+                EventTime = InsightSourceFreshness.MonthlyReportEventTime(x.ProviderPublishedAtUtc, x.LastSynchronizedAt),
+                Average12MonthSalesAmount = x.snapshot.Average12MonthSalesAmount!.Value,
+                Change = PercentChange(x.snapshot.MonthlySalesAmount, x.snapshot.Average12MonthSalesAmount!.Value)
             })
             .Where(x => Math.Abs(x.Change) >= AnomalyThresholdPercent)
             .Select(x =>
@@ -215,7 +276,7 @@ internal sealed class MonthlySalesAnomalyDetector(
                     row.SourceReportId ?? row.Id.ToString(),
                     period,
                     context.DetectedAtUtc,
-                    context.DetectedAtUtc.AddDays(30));
+                    x.EventTime.Add(InsightSourceFreshness.PublicationEventLifetime));
             })
             .ToList();
     }
@@ -238,22 +299,45 @@ internal sealed class MonthlyQualityRankingChangeDetector(
         InsightDetectionContext context,
         CancellationToken cancellationToken = default)
     {
-        var currentRows = await DbContext.MonthlySalesQualityRankingSnapshots
-            .AsNoTracking()
-            .Where(row => row.CalculatedAtUtc >= context.SinceUtc && row.IsEligible)
+        // Company/month pairs whose monthly report is newly available (latest accepted period, first
+        // stored inside the window). Ranking recalculation alone (CalculatedAtUtc = now) is not news.
+        var freshPeriods = await (
+            from report in InsightSourceFreshness.NewlyAvailableMonthlyReports(DbContext, context)
+            join snapshot in DbContext.CompanyMonthlyActivityTrendSnapshots.AsNoTracking()
+                on report.ExternalReportId equals snapshot.SourceReportId
+            where snapshot.SourceProviderName == report.ProviderName
+            select new
+            {
+                snapshot.ExternalCompanyId,
+                snapshot.ReportYear,
+                snapshot.ReportMonth,
+                report.ProviderPublishedAtUtc,
+                report.LastSynchronizedAt
+            })
             .ToListAsync(cancellationToken);
 
-        if (currentRows.Count == 0) return [];
+        if (freshPeriods.Count == 0) return [];
 
-        var externalIds = currentRows.Select(row => row.ExternalCompanyId).Distinct().ToArray();
+        var eventTimes = freshPeriods
+            .GroupBy(x => (x.ExternalCompanyId, x.ReportYear, x.ReportMonth))
+            .ToDictionary(
+                g => g.Key,
+                g => g.Min(x => InsightSourceFreshness.MonthlyReportEventTime(x.ProviderPublishedAtUtc, x.LastSynchronizedAt)));
+        var externalIds = eventTimes.Keys.Select(key => key.ExternalCompanyId).Distinct().ToArray();
         var allRows = await DbContext.MonthlySalesQualityRankingSnapshots
             .AsNoTracking()
             .Where(row => externalIds.Contains(row.ExternalCompanyId))
             .ToListAsync(cancellationToken);
+        var currentRows = allRows
+            .Where(row => row.IsEligible && eventTimes.ContainsKey((row.ExternalCompanyId, row.ReportYear, row.ReportMonth)))
+            .GroupBy(row => (row.ExternalCompanyId, row.ReportYear, row.ReportMonth))
+            .Select(g => g.OrderByDescending(row => row.CalculatedAtUtc).First())
+            .ToList();
 
         var events = new List<InsightEvent>();
         foreach (var current in currentRows)
         {
+            var eventTime = eventTimes[(current.ExternalCompanyId, current.ReportYear, current.ReportMonth)];
             var previous = allRows
                 .Where(row => row.ExternalCompanyId == current.ExternalCompanyId
                               && IsBefore(row.ReportYear, row.ReportMonth, current.ReportYear, current.ReportMonth))
@@ -291,10 +375,12 @@ internal sealed class MonthlyQualityRankingChangeDetector(
                 ],
                 current.SourceProviderName,
                 InsightSourceEntityType.MonthlySalesQualityRankingSnapshot,
-                current.Id.ToString(),
+                // Stable company/period identity: snapshot ids change on every recalculation, which
+                // previously minted a new deduplication key (and a duplicate event) per recalculation.
+                $"{current.ExternalCompanyId}:{period}",
                 period,
                 context.DetectedAtUtc,
-                context.DetectedAtUtc.AddDays(30)));
+                eventTime.Add(InsightSourceFreshness.PublicationEventLifetime)));
         }
 
         return events;
@@ -359,7 +445,7 @@ internal sealed class PriceMovementDetector(
                 row.quote.Id.ToString(),
                 period,
                 context.DetectedAtUtc,
-                context.DetectedAtUtc.AddDays(2));
+                row.quote.AsOf.Add(InsightSourceFreshness.PriceMoveEventLifetime));
         }).ToList();
     }
 }
@@ -451,8 +537,7 @@ internal sealed class FinancialStatementPublishedDetector(
         CancellationToken cancellationToken = default)
     {
         var rows = await (
-            from statement in DbContext.FinancialStatements.AsNoTracking()
-            where statement.LastSynchronizedAt >= context.SinceUtc
+            from statement in InsightSourceFreshness.NewlyPublishedStatements(DbContext, context)
             join company in DbContext.Companies.AsNoTracking()
                 on statement.ExternalCompanyId equals company.ExternalCompanyId into companyJoin
             from company in companyJoin.DefaultIfEmpty()
@@ -491,7 +576,8 @@ internal sealed class FinancialStatementPublishedDetector(
                     row.statement.ExternalStatementId,
                     period,
                     context.DetectedAtUtc,
-                    context.DetectedAtUtc.AddDays(30));
+                    InsightSourceFreshness.StatementEventTime(row.statement.PublishedAt!.Value)
+                        .Add(InsightSourceFreshness.PublicationEventLifetime));
             })
             .ToList();
     }
@@ -511,9 +597,10 @@ internal sealed class SubscribedCodalAnnouncementDetector(
         InsightDetectionContext context,
         CancellationToken cancellationToken = default)
     {
+        // Same freshness rule as the feed detectors: a re-synced historical announcement must not
+        // trigger a Telegram alert to subscribers.
         var statementRows = await (
-            from statement in DbContext.FinancialStatements.AsNoTracking()
-            where statement.LastSynchronizedAt >= context.SinceUtc
+            from statement in InsightSourceFreshness.NewlyPublishedStatements(DbContext, context)
             join company in DbContext.Companies.AsNoTracking()
                 on statement.ExternalCompanyId equals company.ExternalCompanyId into companyJoin
             from company in companyJoin.DefaultIfEmpty()
@@ -521,9 +608,7 @@ internal sealed class SubscribedCodalAnnouncementDetector(
             .ToArrayAsync(cancellationToken);
 
         var monthlyRows = await (
-            from report in DbContext.MonthlyReports.AsNoTracking()
-            where report.LastSynchronizedAt >= context.SinceUtc
-                  && (report.OutputType == null || report.OutputType == 0)
+            from report in InsightSourceFreshness.NewlyAvailableMonthlyReports(DbContext, context)
             join company in DbContext.Companies.AsNoTracking()
                 on report.ExternalCompanyId equals company.ExternalCompanyId into companyJoin
             from company in companyJoin.DefaultIfEmpty()
@@ -577,7 +662,8 @@ internal sealed class SubscribedCodalAnnouncementDetector(
                 row.statement.ExternalStatementId,
                 period,
                 context.DetectedAtUtc,
-                context.DetectedAtUtc.AddDays(30));
+                InsightSourceFreshness.StatementEventTime(row.statement.PublishedAt!.Value)
+                    .Add(InsightSourceFreshness.PublicationEventLifetime));
             events.Add(insight);
             await PublishIntentsAsync(
                 matching,
@@ -624,7 +710,8 @@ internal sealed class SubscribedCodalAnnouncementDetector(
                 row.report.ExternalReportId,
                 period,
                 context.DetectedAtUtc,
-                context.DetectedAtUtc.AddDays(30));
+                InsightSourceFreshness.MonthlyReportEventTime(row.report.ProviderPublishedAtUtc, row.report.LastSynchronizedAt)
+                    .Add(InsightSourceFreshness.PublicationEventLifetime));
             events.Add(insight);
             await PublishIntentsAsync(
                 matching,

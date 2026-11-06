@@ -33,6 +33,8 @@ export interface WatchlistQuote {
   asOf?: string;
   sourceKind?: string;
   isStale: boolean;
+  /** Exchange session (YYYY-MM-DD) of the price; `asOf` is the sync time and can be a later day. */
+  tradingDate?: string | null;
 }
 
 export interface WatchlistView {
@@ -56,6 +58,8 @@ export interface MarketMover {
   changePercent: number;
   asOf: string;
   isStale: boolean;
+  /** Exchange session (YYYY-MM-DD) of the price; see WatchlistQuote.tradingDate. */
+  tradingDate?: string | null;
 }
 
 export interface MarketSummary {

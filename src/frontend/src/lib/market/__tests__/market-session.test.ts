@@ -6,6 +6,20 @@ const THURSDAY = "2026-11-05T09:00:00Z";
 const FRIDAY_NOW = new Date("2026-11-06T10:00:00Z");
 
 describe("marketSessionStatus", () => {
+  it("names the last trading session from the trading date, not the later sync time", () => {
+    // Production pattern: Wednesday's prices (TradingDate 2026-11-04), synced on Thursday.
+    const quotes = [
+      { asOf: THURSDAY, tradingDate: "2026-11-04", isStale: true },
+      { asOf: "2026-11-04T16:30:00Z", tradingDate: "2026-11-04", isStale: true },
+    ];
+    const status = marketSessionStatus(quotes, FRIDAY_NOW);
+
+    expect(status.closed).toBe(true);
+    expect(status.lastSessionDate).toBe("2026-11-04");
+    expect(status.label).toBe("بازار تعطیل است · آخرین معامله چهارشنبه");
+    expect(quotes.some((quote) => isLaggingQuote(quote, status))).toBe(false);
+  });
+
   it("reports a closed market once, instead of flagging every quote, on a day without trading", () => {
     const quotes = [
       { asOf: THURSDAY, isStale: true },
@@ -14,8 +28,17 @@ describe("marketSessionStatus", () => {
     const status = marketSessionStatus(quotes, FRIDAY_NOW);
 
     expect(status.closed).toBe(true);
-    expect(status.label).toBe("بازار تعطیل است · آخرین معامله پنجشنبه");
     expect(quotes.some((quote) => isLaggingQuote(quote, status))).toBe(false);
+  });
+
+  it("compares sessions by trading date when deciding which quote is behind", () => {
+    const current = { asOf: THURSDAY, tradingDate: "2026-11-04", isStale: true };
+    // Synced on the same Thursday, but its last trade was Saturday: it is really behind.
+    const halted = { asOf: THURSDAY, tradingDate: "2026-10-31", isStale: true };
+    const status = marketSessionStatus([current, halted], FRIDAY_NOW);
+
+    expect(isLaggingQuote(current, status)).toBe(false);
+    expect(isLaggingQuote(halted, status)).toBe(true);
   });
 
   it("flags only the quote whose last trade is from an earlier session", () => {

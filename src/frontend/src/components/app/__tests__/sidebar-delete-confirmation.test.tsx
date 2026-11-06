@@ -26,7 +26,13 @@ vi.mock("@tanstack/react-start", async (importOriginal) => ({
 }));
 vi.mock("@/lib/workspace/queries", () => ({
   useConversations: () => ({ data: threads }),
-  useUsage: () => ({ data: undefined, isLoading: false, isError: false, isFetching: false, refetch: vi.fn() }),
+  useUsage: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
   useDeleteConversation: () => ({ mutate, reset, isPending: false, isError: false }),
 }));
 

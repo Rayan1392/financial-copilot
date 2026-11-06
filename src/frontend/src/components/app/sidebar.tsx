@@ -5,9 +5,6 @@ import { useEffect, useState } from "react";
 import {
   Plus,
   Trash2,
-  LogOut,
-  Settings,
-  Send,
   RefreshCw,
   MessageSquare,
   Wallet,
@@ -16,6 +13,7 @@ import {
 } from "lucide-react";
 import { SapioMark } from "@/components/app/sapio-mark";
 import { RailHoverCard } from "@/components/app/rail-hover-card";
+import { AccountMenu } from "@/components/app/account-menu";
 import { createThread, type ChatThread } from "@/lib/chat.functions";
 import {
   AlertDialog,
@@ -92,6 +90,14 @@ export function ConversationSidebar({
     usage && usage.creditQuotaMode !== "Unlimited"
       ? computeCreditProgress(usage.availableSpendingCapacity, usage.planIncludedCredits)
       : null;
+  const creditSummary = usage
+    ? creditQuotaLabel(
+        usage.creditQuotaMode,
+        credit?.limit != null
+          ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
+          : formatNumber(credit?.remaining ?? 0),
+      )
+    : null;
   const [showAdmin, setShowAdmin] = useState(false);
   useEffect(() => {
     const updateAccess = () => {
@@ -311,32 +317,12 @@ export function ConversationSidebar({
           )}
         </RailHoverCard>
         <div className="mt-auto flex flex-col items-center gap-2">
-          <Link
-            to="/telegram-link"
-            className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
-            aria-label="اتصال تلگرام"
-            title="اتصال تلگرام"
-          >
-            <Send className="size-5" />
-          </Link>
-          {showAdmin && (
-            <Link
-              to="/admin"
-              className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
-              aria-label="پنل مدیریت"
-              title="پنل مدیریت"
-            >
-              <Settings className="size-5" />
-            </Link>
-          )}
-          <button
-            onClick={signOut}
-            className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-rose/10 hover:text-rose"
-            aria-label="خروج"
-            title="خروج"
-          >
-            <LogOut className="size-5" />
-          </button>
+          <AccountMenu
+            variant="rail"
+            creditSummary={creditSummary}
+            showAdmin={showAdmin}
+            onSignOut={() => void signOut()}
+          />
         </div>
       </aside>
     );
@@ -470,12 +456,7 @@ export function ConversationSidebar({
                 </button>
               </span>
               <span className="shrink-0 whitespace-nowrap text-[11px] text-foreground">
-                {creditQuotaLabel(
-                  usage.creditQuotaMode,
-                  credit?.limit != null
-                    ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
-                    : formatNumber(credit?.remaining ?? 0),
-                )}
+                {creditSummary}
               </span>
             </div>
             {usage.creditQuotaMode === "Unlimited" ? (
@@ -503,32 +484,12 @@ export function ConversationSidebar({
             )}
           </div>
         )}
-        <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-medium text-foreground">حساب کاربری</span>
-          <Link
-            to="/telegram-link"
-            className="p-1.5 text-muted-foreground hover:text-foreground transition"
-            aria-label="اتصال تلگرام"
-          >
-            <Send className="size-4" />
-          </Link>
-          {showAdmin && (
-            <Link
-              to="/admin"
-              className="p-1.5 text-muted-foreground hover:text-foreground transition"
-              aria-label="پنل مدیریت"
-            >
-              <Settings className="size-4" />
-            </Link>
-          )}
-          <button
-            onClick={signOut}
-            className="p-1.5 text-muted-foreground hover:text-foreground transition"
-            aria-label="خروج"
-          >
-            <LogOut className="size-4" />
-          </button>
-        </div>
+        <AccountMenu
+          variant="full"
+          creditSummary={creditSummary}
+          showAdmin={showAdmin}
+          onSignOut={() => void signOut()}
+        />
       </div>
     </aside>
   );

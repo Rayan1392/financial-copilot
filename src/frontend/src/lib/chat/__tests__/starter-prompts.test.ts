@@ -45,6 +45,19 @@ describe("personalizedStarterPrompts", () => {
     expect(texts).toContain("رتبه‌بندی گزارش‌های ماهانه را نشان بده");
   });
 
+  it("leaves rights issues (symbol + «ح») out, falling back when only they are followed", () => {
+    const mixed = personalizedStarterPrompts([
+      followed("شگلح", "2026-11-06T10:00:00Z"),
+      followed("شگل", "2026-11-05T10:00:00Z"),
+    ]);
+    expect(mixed.prompts.every((prompt) => !prompt.text.includes("شگلح"))).toBe(true);
+    expect(mixed.prompts[0].text).toBe("ترکیب فروش محصولات شگل را بررسی کن");
+
+    const onlyRights = personalizedStarterPrompts([followed("شگلح", "2026-11-06T10:00:00Z")]);
+    expect(onlyRights.personalized).toBe(false);
+    expect(onlyRights.prompts).toBe(STARTER_PROMPTS);
+  });
+
   it("ignores blank and repeated symbols", () => {
     const set = personalizedStarterPrompts([
       followed(" ", "2026-11-05T10:00:00Z"),

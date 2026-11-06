@@ -7,6 +7,7 @@ import {
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
+import { isRightsIssueSymbol } from "@/lib/market/instrument-kind";
 
 /** Visual family of a starter card; each tone maps to theme-aware design tokens. */
 export type StarterPromptTone = "sales" | "statement";
@@ -108,7 +109,8 @@ export function personalizedStarterPrompts(
   followed: readonly { symbol: string; followedAtUtc?: string }[],
 ): StarterPromptSet {
   const symbols = [...followed]
-    .filter((item) => item.symbol.trim().length > 0)
+    // Rights issues (شگلح) have no statements or monthly sales of their own; prompts about them mislead.
+    .filter((item) => item.symbol.trim().length > 0 && !isRightsIssueSymbol(item.symbol))
     .sort((a, b) => (b.followedAtUtc ?? "").localeCompare(a.followedAtUtc ?? ""))
     .map((item) => item.symbol.trim())
     .filter((symbol, index, all) => all.indexOf(symbol) === index);

@@ -15,5 +15,6 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexRoute() {
-  return <AuthScreen redirect="/chat" />;
+  // The site root is where first-time visitors land, so it introduces the product beside the sign-in form.
+  return <AuthScreen redirect="/chat" withIntro />;
 }

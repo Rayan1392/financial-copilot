@@ -57,11 +57,36 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
 
 /** Card templates for a followed symbol, in the order they are dealt out across the watchlist. */
 const SYMBOL_TEMPLATES: readonly ((symbol: string) => StarterPrompt)[] = [
-  (s) => ({ text: `ترکیب فروش محصولات ${s} را بررسی کن`, icon: PieChart, topic: "ترکیب فروش", tone: "sales" }),
-  (s) => ({ text: `روند فروش ماهانه ${s} را نشان بده`, icon: TrendingUp, topic: "فروش ماهانه", tone: "sales" }),
-  (s) => ({ text: `عملکرد مالی فصلی ${s} را بررسی کن`, icon: FileText, topic: "سود و زیان فصلی", tone: "statement" }),
-  (s) => ({ text: `صورت وضعیت مالی ${s} را بررسی کن`, icon: Scale, topic: "ترازنامه", tone: "statement" }),
-  (s) => ({ text: `روند فروش ماهانه ${s} را نشان بده`, icon: BarChart3, topic: "فروش ماهانه", tone: "sales" }),
+  (s) => ({
+    text: `ترکیب فروش محصولات ${s} را بررسی کن`,
+    icon: PieChart,
+    topic: "ترکیب فروش",
+    tone: "sales",
+  }),
+  (s) => ({
+    text: `روند فروش ماهانه ${s} را نشان بده`,
+    icon: TrendingUp,
+    topic: "فروش ماهانه",
+    tone: "sales",
+  }),
+  (s) => ({
+    text: `عملکرد مالی فصلی ${s} را بررسی کن`,
+    icon: FileText,
+    topic: "سود و زیان فصلی",
+    tone: "statement",
+  }),
+  (s) => ({
+    text: `صورت وضعیت مالی ${s} را بررسی کن`,
+    icon: Scale,
+    topic: "ترازنامه",
+    tone: "statement",
+  }),
+  (s) => ({
+    text: `روند فروش ماهانه ${s} را نشان بده`,
+    icon: BarChart3,
+    topic: "فروش ماهانه",
+    tone: "sales",
+  }),
 ];
 
 /** Market-wide card kept in every personalized set: it does not depend on a symbol. */

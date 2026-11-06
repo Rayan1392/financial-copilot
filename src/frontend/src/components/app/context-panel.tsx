@@ -390,6 +390,11 @@ export function ContextPanel({
             <p className="text-[10px] text-gold mt-2">* داده قدیمی</p>
           )}
         </section>
+        {/* Data-source note, deliberately quiet: it moved out of the header, where it competed with navigation. */}
+        <p className="!mt-4 flex shrink-0 items-center gap-1.5 border-t border-hairline pt-3 text-[10px] text-muted-foreground/80">
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-emerald/60" />
+          منابع داده: متصل به نوآوران‌امین · تحلیل‌اپ
+        </p>
       </div>
     </aside>
   );

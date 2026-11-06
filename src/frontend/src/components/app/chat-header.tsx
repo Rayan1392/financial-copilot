@@ -50,13 +50,6 @@ export function ChatHeader({ historyCollapsed }: { historyCollapsed: boolean }) 
         <span className="hidden min-w-0 truncate text-sm font-medium text-muted-foreground xl:inline">
           تحلیل بازار، ساده‌تر از همیشه
         </span>
-        <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface ring-1 ring-hairline">
-          <div className="size-1.5 rounded-full bg-emerald animate-pulse" />
-          <span className="text-[10px] text-emerald">متصل به نوآوران‌امین</span>
-          <div className="size-1.5 rounded-full bg-emerald animate-pulse" />
-          <span className="text-[10px] text-emerald">متصل به تحلیل‌اپ</span>
-
-        </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {!historyCollapsed && (

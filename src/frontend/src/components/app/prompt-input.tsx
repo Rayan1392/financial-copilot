@@ -45,9 +45,11 @@ export function PromptInput({
             className="w-full bg-transparent border-none resize-none p-4 text-sm focus:outline-none placeholder:text-muted-foreground/60"
           />
           <div className="flex items-center justify-end px-3 pb-3">
-            {showAssistedQuery && (
+            {/* A permanently disabled control invites an action that cannot happen, so the assisted
+                query stays hidden until a caller enables it (assistedQueryDisabled={false}). */}
+            {showAssistedQuery && !assistedQueryDisabled && (
               <div className="ml-auto">
-                <AssistedQueryDialog onCompose={setValue} disabled={assistedQueryDisabled} />
+                <AssistedQueryDialog onCompose={setValue} />
               </div>
             )}
             <button

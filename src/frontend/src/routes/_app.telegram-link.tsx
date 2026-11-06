@@ -62,7 +62,16 @@ function TelegramLinkPage() {
         {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
         {link ? (
           <div className="mt-5 space-y-3">
-            <p className="text-sm">متصل به شناسه ***{String(link.telegramUserId).slice(-4)}{link.username ? ` (@${link.username})` : ""}</p>
+            {/* Handle and masked id are LTR runs isolated with <bdi>, so «@» and «***» stay in place in RTL text. */}
+            <p className="text-sm">
+              متصل به{" "}
+              {link.username ? (
+                <>
+                  حساب <bdi dir="ltr" className="font-medium">@{link.username}</bdi> ·{" "}
+                </>
+              ) : null}
+              شناسه <bdi dir="ltr">***{String(link.telegramUserId).slice(-4)}</bdi>
+            </p>
             <button onClick={unlink} disabled={loading} className="rounded-lg border border-destructive px-4 py-2 text-sm text-destructive disabled:opacity-50">قطع اتصال</button>
           </div>
         ) : challenge ? (

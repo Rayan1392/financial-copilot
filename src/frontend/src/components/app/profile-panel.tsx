@@ -171,11 +171,21 @@ function AccountSummaryCard({ summary }: { summary: AccountSummary }) {
         </div>
         <div className="min-w-0">
           <dt className="text-xs text-muted-foreground">نشانی ایمیل</dt>
-          <dd className="mt-1 break-all" dir="ltr">
-            {summary.email ?? "ثبت نشده"}
+          {/* The address is isolated as LTR inside the RTL row and the status is its own badge, so the
+              bidi algorithm cannot glue the brackets to the address or flip their order. */}
+          <dd className="mt-1 flex flex-wrap items-center gap-2">
+            {summary.email ? (
+              <bdi dir="ltr" className="break-all">
+                {summary.email}
+              </bdi>
+            ) : (
+              "ثبت نشده"
+            )}
             {emailStatus ? (
-              <span className="mr-2 text-xs text-muted-foreground" dir="rtl">
-                ({emailStatus})
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${summary.emailConfirmed ? "bg-emerald-soft/70 text-emerald" : "bg-gold/15 text-gold"}`}
+              >
+                {emailStatus}
               </span>
             ) : null}
           </dd>

@@ -24,8 +24,11 @@ import {
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
 import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
-import { formatNumber } from "@/lib/format/persian";
+import { formatNumber, relativeTime } from "@/lib/format/persian";
 import { computeCreditProgress, creditQuotaLabel, type CreditTone } from "@/lib/credit-progress";
+
+/** Recent conversations shown in the collapsed rail's history card. */
+const RAIL_RECENT_THREADS = 5;
 
 const CREDIT_TONE_CLASS: Record<CreditTone, string> = {
   healthy: "bg-emerald",
@@ -93,6 +96,13 @@ export function ConversationSidebar({
   }
 
   if (collapsed) {
+    const recentThreads = [...threads]
+      .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
+      .slice(0, RAIL_RECENT_THREADS);
+    const todayKey = new Date().toDateString();
+    const todayCount = threads.filter(
+      (thread) => new Date(thread.updated_at).toDateString() === todayKey,
+    ).length;
     return (
       <aside
         className="hidden h-screen w-[4.5rem] shrink-0 flex-col items-center border-l border-hairline bg-surface/70 py-4 md:flex"
@@ -124,15 +134,75 @@ export function ConversationSidebar({
         >
           <Plus className="size-5" />
         </button>
-        <button
-          type="button"
-          onClick={onToggle}
-          className={`mb-2 flex size-11 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 ${activeId ? "bg-emerald-soft/60 text-emerald" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
-          aria-label={`گفتگوهای اخیر، ${threads.length} گفتگو. باز کردن پنل`}
-          title={`گفتگوهای اخیر (${threads.length})`}
+        <RailHoverCard
+          id="compact-history-card"
+          opensTo="left"
+          align="start"
+          interactive
+          size="lg"
+          icon={<MessageSquare className="size-4" />}
+          title="گفتگوهای اخیر"
+          subtitle={
+            threads.length > 0
+              ? `${formatNumber(threads.length)} گفتگو در تاریخچه`
+              : "تاریخچه گفتگوی شما"
+          }
+          badge={
+            todayCount > 0 && (
+              <span className="shrink-0 rounded-full bg-emerald-soft/70 px-2 py-0.5 text-[11px] font-semibold text-emerald">
+                امروز {formatNumber(todayCount)}
+              </span>
+            )
+          }
+          trigger={
+            <button
+              type="button"
+              onClick={onToggle}
+              className={`mb-2 flex size-11 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 ${activeId ? "bg-emerald-soft/60 text-emerald" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+              aria-label={`گفتگوهای اخیر، ${formatNumber(threads.length)} گفتگو. باز کردن پنل`}
+              aria-describedby="compact-history-card"
+            >
+              <MessageSquare className="size-5" />
+            </button>
+          }
+          footer={threads.length > 0 ? "برای دیدن همه گفتگوها روی آیکون کلیک کنید" : undefined}
         >
-          <MessageSquare className="size-5" />
-        </button>
+          {threads.length === 0 ? (
+            <p className="rounded-lg bg-background/70 px-3 py-2.5 text-xs leading-6 text-muted-foreground">
+              هنوز گفتگویی شروع نکرده‌اید. با دکمه + اولین سؤالتان درباره بازار را بپرسید.
+            </p>
+          ) : (
+            <nav aria-label="گفتگوهای اخیر" className="-mx-1 space-y-0.5">
+              {recentThreads.map((thread) => {
+                const isActive = thread.id === activeId;
+                return (
+                  <Link
+                    key={thread.id}
+                    to="/c/$threadId"
+                    params={{ threadId: thread.id }}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`flex items-center gap-2.5 rounded-lg px-2 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 ${isActive ? "bg-emerald-soft/50 text-foreground" : "text-muted-foreground hover:bg-background/80 hover:text-foreground"}`}
+                  >
+                    <span
+                      className={`size-1.5 shrink-0 rounded-full ${isActive ? "bg-emerald" : "bg-muted-foreground/40"}`}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                      {thread.title}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
+                      {relativeTime(thread.updated_at)}
+                    </span>
+                  </Link>
+                );
+              })}
+              {threads.length > recentThreads.length && (
+                <p className="px-2 pt-1 text-[11px] text-muted-foreground">
+                  و {formatNumber(threads.length - recentThreads.length)} گفتگوی دیگر
+                </p>
+              )}
+            </nav>
+          )}
+        </RailHoverCard>
         <div className="my-3 h-px w-8 bg-hairline" />
         <RailHoverCard
           id="compact-credit-tooltip"

@@ -176,7 +176,9 @@ Inside the calculator or a dedicated helper:
 
 ### Growth percentages
 
-- `SalesAmountMomGrowthPercent` compares current month with the immediately previous available month.
+- `SalesAmountMomGrowthPercent` compares current month with the immediately preceding Jalali calendar month; when that
+  month has no snapshot the value is null. Recalculating a month refreshes the stored comparisons of later months
+  (see [bug-001](bug-001-stale-month-over-month-after-neighbor-rebuild.md)).
 - `SalesAmountYoYGrowthPercent` compares current month with same month previous year.
 - If denominator is null or zero, return null and add missing/zero-denominator metadata.
 

@@ -89,6 +89,12 @@ public sealed record MonthlyActivityTrendResponse(
     DateTimeOffset CalculatedAtUtc)
 {
     public decimal? SalesAmountMomGrowthPercent { get; init; }
+
+    /// <summary>
+    /// Sales of the immediately preceding Jalali calendar month, in the same unit as the chart. Null when that month has
+    /// no snapshot, in which case <see cref="SalesAmountMomGrowthPercent"/> is also null.
+    /// </summary>
+    public decimal? PreviousMonthSalesAmount { get; init; }
     public string? RequestedPeriod { get; init; }
     public IReadOnlyCollection<string> RequestedOperations { get; init; } = [];
     public IReadOnlyCollection<string> UnsupportedParts { get; init; } = [];

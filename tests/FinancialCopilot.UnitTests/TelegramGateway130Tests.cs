@@ -376,6 +376,85 @@ public sealed class TelegramGateway130Tests
             CancellationToken.None));
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.OK, "با موفقیت متصل شد")]
+    [InlineData(HttpStatusCode.Conflict, "/unlink")]
+    [InlineData(HttpStatusCode.BadRequest, "پیوند تازه")]
+    [InlineData(HttpStatusCode.InternalServerError, "چند دقیقه دیگر")]
+    public async Task Link_confirmation_tells_the_user_why_it_failed(HttpStatusCode status, string expected)
+    {
+        var sent = new List<string>();
+        var fixture = Fixture(async (name, request) =>
+        {
+            if (name == "TelegramGateway.PrimaryApi")
+            {
+                Assert.Equal("/api/v1/telegram/link/confirm", request.RequestUri!.AbsolutePath);
+                return JsonResponse(status, new { });
+            }
+            if (request.RequestUri!.AbsolutePath.EndsWith("/sendMessage", StringComparison.Ordinal))
+                sent.Add(await ReadTextAsync(request));
+            return TelegramSuccess();
+        });
+
+        var complete = await fixture.Worker.ProcessUpdatesAsync(
+            [MessageUpdate(1330, "/start link_" + new string('a', 48))],
+            CancellationToken.None);
+
+        Assert.True(complete);
+        Assert.Contains(expected, Assert.Single(sent), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/unlink")]
+    [InlineData("/unlink@SapioBot")]
+    public async Task Unlink_command_unlinks_the_sender_through_the_primary_api(string command)
+    {
+        var sent = new List<string>();
+        string? path = null;
+        System.Text.Json.JsonElement body = default;
+        var fixture = Fixture(async (name, request) =>
+        {
+            if (name == "TelegramGateway.PrimaryApi")
+            {
+                path = request.RequestUri!.AbsolutePath;
+                body = await request.Content!.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+            if (request.RequestUri!.AbsolutePath.EndsWith("/sendMessage", StringComparison.Ordinal))
+                sent.Add(await ReadTextAsync(request));
+            return TelegramSuccess();
+        });
+
+        Assert.True(await fixture.Worker.ProcessUpdatesAsync([MessageUpdate(1340, command)], CancellationToken.None));
+
+        Assert.Equal("/api/v1/telegram/link/unlink-from-telegram", path);
+        Assert.Equal(9001, body.GetProperty("telegramUserId").GetInt64());
+        Assert.Equal(1340, body.GetProperty("telegramUpdateId").GetInt64());
+        Assert.Contains("قطع شد", Assert.Single(sent), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Unlink_command_outside_a_private_chat_is_refused_without_calling_the_primary_api()
+    {
+        var sent = new List<string>();
+        var fixture = Fixture(async (name, request) =>
+        {
+            if (name == "TelegramGateway.PrimaryApi") throw new InvalidOperationException("No primary call expected.");
+            if (request.RequestUri!.AbsolutePath.EndsWith("/sendMessage", StringComparison.Ordinal))
+                sent.Add(await ReadTextAsync(request));
+            return TelegramSuccess();
+        });
+        var groupUpdate = new TelegramGatewayUpdate(
+            1341,
+            new TelegramGatewayMessage(
+                41, null, new TelegramGatewayUser(9001, "linked", "fa-IR"),
+                new TelegramGatewayChat(-500, "group"), 1_700_000_000, "/unlink"));
+
+        Assert.True(await fixture.Worker.ProcessUpdatesAsync([groupUpdate], CancellationToken.None));
+
+        Assert.Contains("خصوصی", Assert.Single(sent), StringComparison.Ordinal);
+    }
+
     private static GatewayFixture Fixture(
         Func<string, HttpRequestMessage, Task<HttpResponseMessage>> responder)
     {
@@ -423,7 +502,7 @@ public sealed class TelegramGateway130Tests
             DateTimeOffset.FromUnixTimeSeconds(1_700_000_000),
             $"telegram:{updateId}");
 
-    private static TelegramGatewayUpdate MessageUpdate(long updateId) =>
+    private static TelegramGatewayUpdate MessageUpdate(long updateId, string text = "  پرسش فارسی  ") =>
         new(
             updateId,
             new TelegramGatewayMessage(
@@ -432,7 +511,7 @@ public sealed class TelegramGateway130Tests
                 new TelegramGatewayUser(9001, "linked", "fa-IR"),
                 new TelegramGatewayChat(8001, "private"),
                 1_700_000_000,
-                "  پرسش فارسی  "));
+                text));
 
     private static TelegramAssistantResult AssistantResult(
         TelegramAssistantResultStatus status = TelegramAssistantResultStatus.Accepted,

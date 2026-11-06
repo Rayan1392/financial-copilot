@@ -116,9 +116,9 @@ function IndustryRelativeValuationTable({ rows }: { rows: IndustryRelativeValuat
 function parsePersianPercent(value: string): number | null {
   const normalized = value
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٫٬]/g, ".")
+    .replace(/[٬,]/g, "")
+    .replace(/٫/g, ".")
     .replace(/٪/g, "")
-    .replace(/,/g, "")
     .trim();
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : null;

@@ -39,7 +39,7 @@ describe("web AI disclosure listing", () => {
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByText("فولاد").closest("bdi")).not.toBeNull();
-    fireEvent.click(screen.getAllByRole("button").at(-1)!);
+    fireEvent.click(screen.getByRole("button", { name: /صفحه بعد/ }));
     expect(pageChange).toHaveBeenCalledWith(2, originalQuery);
   });
 

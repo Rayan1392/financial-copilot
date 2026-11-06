@@ -17,8 +17,10 @@ import {
   formatProductTrendNumber,
   formatProductTrendRate,
   formatProductTrendRateLabel,
+  hasProductionData,
   isRateVisible,
   PRODUCT_TREND_PANEL_LABELS,
+  PRODUCTION_UNAVAILABLE_MESSAGE,
   productTrendQuantitySeries,
   productTrendSeries,
   type MonthlyProductTrendChartPoint,
@@ -49,11 +51,14 @@ export function ProductTooltip({
   label,
   payload,
   points,
+  showProduction = true,
 }: {
   active?: boolean;
   label?: string | number;
   payload?: ProductTooltipPayloadEntry[];
   points: MonthlyProductTrendChartPoint[];
+  /** False when the product reports no production, so the tooltip does not show a misleading zero. */
+  showProduction?: boolean;
 }) {
   const point = points.find((item) => item.label === String(label)) ?? payload?.[0]?.payload;
   if (!active || !point) return null;
@@ -64,9 +69,11 @@ export function ProductTooltip({
       dir="rtl"
     >
       <p className="font-medium text-foreground">دوره: {point.label}</p>
-      <p>
-        تولید: {formatProductTrendNumber(point.production)} {point.unit}
-      </p>
+      {showProduction && (
+        <p>
+          تولید: {formatProductTrendNumber(point.production)} {point.unit}
+        </p>
+      )}
       <p>
         مقدار فروش: {formatProductTrendNumber(point.quantity)} {point.unit}
       </p>
@@ -129,6 +136,10 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
   const unit = data.productUnit ?? "واحد محصول";
   const series = productTrendSeries(data.productUnit);
   const quantitySeries = productTrendQuantitySeries();
+  const showProduction = hasProductionData(chartData);
+  const quantityLegend = showProduction
+    ? [quantitySeries.production, quantitySeries.quantity]
+    : [quantitySeries.quantity];
 
   async function downloadImage() {
     setIsDownloading(true);
@@ -185,15 +196,11 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
 
       <div
         data-testid="product-sales-rate-panel"
-        aria-label="Ù…Ø¨Ù„Øº ÙØ±ÙˆØ´ Ùˆ Ù†Ø±Ø® ÙØ±ÙˆØ´"
+        aria-label={PRODUCT_TREND_PANEL_LABELS.main}
         className="space-y-1"
         dir="rtl"
         role="group"
-        {...{ "aria-label": PRODUCT_TREND_PANEL_LABELS.main }}
       >
-        <h4 aria-hidden="true" className="hidden">
-          Ù…Ø¨Ù„Øº ÙØ±ÙˆØ´ Ùˆ Ù†Ø±Ø® ÙØ±ÙˆØ´
-        </h4>
         <h4 className="px-1 text-[11px] font-medium text-muted-foreground">
           {PRODUCT_TREND_PANEL_LABELS.main}
         </h4>
@@ -234,7 +241,7 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
                   fontSize: 10,
                 }}
               />
-              <Tooltip content={<ProductTooltip points={chartData} />} />
+              <Tooltip content={<ProductTooltip points={chartData} showProduction={showProduction} />} />
               <Bar
                 yAxisId="value"
                 dataKey="value"
@@ -273,24 +280,20 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
       </div>
       <div
         data-testid="product-quantity-panel"
-        {...{ "aria-label": PRODUCT_TREND_PANEL_LABELS.quantity }}
-        aria-label="Ù…Ù‚Ø¯Ø§Ø± ØªÙˆÙ„ÛŒØ¯ Ùˆ ÙØ±ÙˆØ´"
+        aria-label={PRODUCT_TREND_PANEL_LABELS.quantity}
         className="space-y-1"
         dir="rtl"
         role="group"
       >
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <h4 aria-hidden="true" className="hidden">
-            Ù…Ù‚Ø¯Ø§Ø± ØªÙˆÙ„ÛŒØ¯ Ùˆ Ù…Ù‚Ø¯Ø§Ø± ÙØ±ÙˆØ´
-          </h4>
           <h4 className="text-[11px] font-medium text-muted-foreground">
             {PRODUCT_TREND_PANEL_LABELS.quantity}
           </h4>
           <ul
-            aria-label="Ù„ÛŒØ³Øª Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ù…Ù‚Ø§Ø¯ÛŒØ±"
+            aria-label="راهنمای مقادیر"
             className="flex flex-wrap items-center gap-x-3 text-[10px] text-muted-foreground"
           >
-            {([quantitySeries.production, quantitySeries.quantity] as const).map((entry) => (
+            {quantityLegend.map((entry) => (
               <li className="inline-flex items-center gap-1" key={entry.label}>
                 <svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">
                   <path d="M0 5H16" stroke={entry.color} strokeWidth="2" />
@@ -301,6 +304,11 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
             ))}
           </ul>
         </div>
+        {!showProduction && (
+          <p data-testid="product-production-unavailable" className="px-1 text-[10px] text-muted-foreground">
+            {PRODUCTION_UNAVAILABLE_MESSAGE}
+          </p>
+        )}
         <div className="h-52 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
@@ -328,16 +336,18 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
                   fontSize: 10,
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="production"
-                name={quantitySeries.production.label}
-                stroke={quantitySeries.production.color}
-                strokeWidth={2}
-                connectNulls={false}
-                dot={{ r: 2 }}
-                isAnimationActive={false}
-              />
+              {showProduction && (
+                <Line
+                  type="monotone"
+                  dataKey="production"
+                  name={quantitySeries.production.label}
+                  stroke={quantitySeries.production.color}
+                  strokeWidth={2}
+                  connectNulls={false}
+                  dot={{ r: 2 }}
+                  isAnimationActive={false}
+                />
+              )}
               <Line
                 type="monotone"
                 dataKey="quantity"

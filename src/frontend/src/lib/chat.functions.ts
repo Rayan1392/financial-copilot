@@ -123,6 +123,9 @@ export interface MonthlyActivityTrendResult {
   salesVsAverage12MonthPercent?: number;
   ytdSalesAmount?: number;
   ytdPreviousMonthSalesAmount?: number;
+  /** Optional: answers stored before these fields existed do not carry them. */
+  previousMonthSalesAmount?: number;
+  salesAmountMomGrowthPercent?: number;
   chartPoints: MonthlyActivityTrendChartPoint[];
   insights: MonthlyActivityTrendInsight[];
   missingDataPoints: MonthlyActivityTrendMissingDataPoint[];

@@ -475,7 +475,10 @@ public sealed record MonthlyActivityTrendChartResponse(
     IReadOnlyList<MonthlyActivityTrendInsightResponse> Insights,
     IReadOnlyList<MonthlyActivityTrendMissingDataPointResponse> MissingDataPoints,
     string SourceProviderName,
-    DateTimeOffset CalculatedAtUtc);
+    DateTimeOffset CalculatedAtUtc,
+    // Added for the answer's summary cards; optional so earlier stored answers still deserialize.
+    decimal? PreviousMonthSalesAmount = null,
+    decimal? SalesAmountMomGrowthPercent = null);
 
 public sealed record MonthlyActivityTrendChartPointResponse(
     int FiscalMonthIndex,

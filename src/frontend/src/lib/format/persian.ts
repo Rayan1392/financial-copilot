@@ -5,6 +5,24 @@ export function toPersianDigits(input: string | number): string {
   return String(input).replace(/[0-9]/g, (d) => PERSIAN_DIGITS[Number(d)]);
 }
 
+/** The product's single number style: Persian digits, «٬» for thousands and «٫» for decimals. */
+export const PERSIAN_THOUSANDS_SEPARATOR = "٬";
+export const PERSIAN_DECIMAL_SEPARATOR = "٫";
+
+const DIGIT = "[0-9۰-۹]";
+const THOUSANDS_BETWEEN_DIGITS = new RegExp(`(?<=${DIGIT}),(?=${DIGIT}{3}(?![0-9۰-۹]))`, "gu");
+const DECIMAL_BETWEEN_DIGITS = new RegExp(`(?<=${DIGIT})\\.(?=${DIGIT})`, "gu");
+
+/**
+ * Converts digits to Persian and the Latin separators between digits to «٬» and «٫», so text from the API and from
+ * en-US formatting reads in one style. Dates written with «/» and text without digits are left alone.
+ */
+export function toPersianNumerals(input: string | number): string {
+  return toPersianDigits(input)
+    .replace(THOUSANDS_BETWEEN_DIGITS, PERSIAN_THOUSANDS_SEPARATOR)
+    .replace(DECIMAL_BETWEEN_DIGITS, PERSIAN_DECIMAL_SEPARATOR);
+}
+
 const SIGNED_NUMBER = /(^|[\s(\[:،؛])([+\-−])([0-9۰-۹][0-9۰-۹,٬]*(?:[.٫][0-9۰-۹]+)?[٪%]?)/gu;
 
 /**
@@ -25,14 +43,14 @@ export function isolateSignedNumbers(text: string): string {
 }
 
 export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string {
-  return toPersianDigits(
+  return toPersianNumerals(
     new Intl.NumberFormat("en-US", opts).format(n),
   );
 }
 
 export function formatPercent(n: number, withSign = true): string {
   const sign = withSign && n > 0 ? "+" : "";
-  return `${sign}${toPersianDigits(n.toFixed(2))}٪`;
+  return `${sign}${toPersianNumerals(n.toFixed(2))}٪`;
 }
 
 export function formatRial(n: number): string {

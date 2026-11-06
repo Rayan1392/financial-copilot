@@ -9,6 +9,7 @@ import {
   createProductTrendQuantityAxis,
   formatProductTrendIntegerNumber,
   PRODUCT_TREND_PANEL_LABELS,
+  hasProductionData,
   productTrendQuantitySeries,
   productTrendSeries,
 } from "@/components/app/monthly-product-trend-chart-model";
@@ -56,6 +57,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   const productUnit = data.productUnit ?? "واحد محصول";
   const series = productTrendSeries(data.productUnit);
   const quantitySeries = productTrendQuantitySeries();
+  const showProduction = hasProductionData(chartData);
   const values = points
     .map((point) => point.salesValueBillionToman)
     .filter((value): value is number => value != null && Number.isFinite(value));
@@ -63,7 +65,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     .map(rateForPoint)
     .filter((value): value is number => value != null && Number.isFinite(value));
   const quantityAxis = createProductTrendQuantityAxis(
-    chartData.flatMap((point) => [point.production, point.quantity]),
+    chartData.flatMap((point) => (showProduction ? [point.production, point.quantity] : [point.quantity])),
   );
   const maxValue = Math.max(...values, 1) * 1.15;
   const maxRate = Math.max(...rates, 1) * 1.15;
@@ -88,11 +90,6 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   );
   context.fillStyle = "#17202a";
   context.font = '700 25px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  drawRtlText(context, "Ù…Ø¨Ù„Øº ÙØ±ÙˆØ´ Ùˆ Ù†Ø±Ø® ÙØ±ÙˆØ´", WIDTH - PADDING, 174);
-
-  context.fillStyle = "#ffffff";
-  context.fillRect(WIDTH - PADDING - 650, 145, 650, 42);
-  context.fillStyle = "#17202a";
   drawRtlText(context, PRODUCT_TREND_PANEL_LABELS.main, WIDTH - PADDING, 174);
 
   context.strokeStyle = "#d7dde3";
@@ -141,16 +138,6 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   });
 
   drawRateLine(context, points, plotLeft, groupWidth, plotBottom, maxRate);
-  context.fillStyle = "#17202a";
-  context.font = '700 25px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  context.textAlign = "right";
-  drawRtlText(
-    context,
-    `Ù…Ù‚Ø¯Ø§Ø± ØªÙˆÙ„ÛŒØ¯ Ùˆ Ù…Ù‚Ø¯Ø§Ø± ÙØ±ÙˆØ´ (${productUnit})`,
-    WIDTH - PADDING,
-    710,
-  );
-
   context.strokeStyle = "#d7dde3";
   context.lineWidth = 2;
   quantityAxis.ticks.forEach((tick, index) => {
@@ -166,8 +153,8 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     drawRtlText(context, formatProductTrendIntegerNumber(tick), plotLeft - 18, y + 6);
   });
 
-  context.fillStyle = "#ffffff";
-  context.fillRect(WIDTH - PADDING - 700, 682, 700, 42);
+  context.font = '700 25px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.textAlign = "right";
   context.fillStyle = "#17202a";
   drawRtlText(
     context,
@@ -177,16 +164,18 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   );
 
   const quantityGroupWidth = (plotRight - plotLeft) / Math.max(points.length, 1);
-  drawQuantityLine(
-    context,
-    chartData,
-    "production",
-    plotLeft,
-    quantityGroupWidth,
-    quantityPlotBottom,
-    maxQuantity,
-    quantitySeries.production.color,
-  );
+  if (showProduction) {
+    drawQuantityLine(
+      context,
+      chartData,
+      "production",
+      plotLeft,
+      quantityGroupWidth,
+      quantityPlotBottom,
+      maxQuantity,
+      quantitySeries.production.color,
+    );
+  }
   drawQuantityLine(
     context,
     chartData,
@@ -219,7 +208,12 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     WIDTH - PADDING,
     plotBottom + 20,
   );
-  drawQuantityLegend(context, quantitySeries, WIDTH - PADDING, 1200);
+  drawQuantityLegend(
+    context,
+    showProduction ? [quantitySeries.production, quantitySeries.quantity] : [quantitySeries.quantity],
+    WIDTH - PADDING,
+    1200,
+  );
   context.textAlign = "left";
   drawRtlText(context, `ساپیو — ${productCompanyLabel(data)}`, PADDING, HEIGHT - 54);
 
@@ -279,7 +273,7 @@ function drawQuantityLine(
 
 function drawQuantityLegend(
   context: CanvasRenderingContext2D,
-  series: ReturnType<typeof productTrendQuantitySeries>,
+  entries: ReadonlyArray<{ label: string; color: string }>,
   right: number,
   y: number,
 ) {
@@ -287,7 +281,7 @@ function drawQuantityLegend(
   context.font = '22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "right";
   let cursor = right;
-  for (const entry of [series.production, series.quantity]) {
+  for (const entry of entries) {
     context.strokeStyle = entry.color;
     context.fillStyle = entry.color;
     context.lineWidth = 4;

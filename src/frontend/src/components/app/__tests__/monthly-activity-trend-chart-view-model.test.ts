@@ -39,8 +39,13 @@ describe("createMonthlyTrendChartCardViewModel", () => {
       calculatedAtUtc: "2026-07-29T00:00:00Z",
     } satisfies MonthlyActivityTrendResult);
 
-    expect(viewModel.previousYearLegend).toBe("۱۴۰۴: ۶,۱۰۲");
-    expect(viewModel.currentYearLegend).toBe("۱۴۰۵: ۱۳,۷۴۷ (۲۲۵.۲۹٪ از ۱۴۰۴)");
+    expect(viewModel.previousYearLegend).toBe("۱۴۰۴: ۶٬۱۰۲");
+    expect(viewModel.currentYearLegend).toBe("۱۴۰۵: ۱۳٬۷۴۷ (۲۲۵٫۳٪ از ۱۴۰۴)");
+    expect(viewModel.legendEntries.map(({ key, label, totalLabel, note }) => ({ key, label, totalLabel, note }))).toEqual([
+      { key: "previousYear", label: "۱۴۰۴", totalLabel: "۶٬۱۰۲", note: null },
+      { key: "currentYear", label: "۱۴۰۵", totalLabel: "۱۳٬۷۴۷", note: "۲۲۵٫۳٪ از ۱۴۰۴" },
+      { key: "average", label: "میانگین ۱۲ ماهه", totalLabel: null, note: null },
+    ]);
     expect(viewModel.averageLegend).toBe("میانگین ۱۲ ماهه");
   });
 

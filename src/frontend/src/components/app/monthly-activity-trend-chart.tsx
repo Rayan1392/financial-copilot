@@ -2,7 +2,6 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
-  Legend,
   LabelList,
   Line,
   ResponsiveContainer,
@@ -12,10 +11,12 @@ import {
 } from "recharts";
 import { useState } from "react";
 import type { MonthlyActivityTrendResult, PsVisualizationResult } from "@/lib/chat.functions";
-import { toPersianDigits } from "@/lib/format/persian";
+import { formatNumber } from "@/lib/format/persian";
 import {
   createMonthlyTrendChartCardViewModel,
   formatMonthlyTrendAmount,
+  formatMonthlyTrendWholeAmount,
+  type MonthlyTrendLegendEntry,
 } from "@/components/app/monthly-activity-trend-chart-view-model";
 import { downloadMonthlyTrendChartImage } from "@/components/app/monthly-activity-trend-chart-image";
 import { PsGauge } from "@/components/app/ps-gauge";
@@ -34,19 +35,46 @@ function formatBarAmount(value: number | string | null | undefined): string {
   const numericValue = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numericValue)) return "";
 
-  return toPersianDigits(
-    Math.round(numericValue).toLocaleString("en-US", {
-      maximumFractionDigits: 0,
-    }),
-  );
+  return formatMonthlyTrendWholeAmount(numericValue);
 }
 
 function formatAxisAmount(value: number): string {
-  return toPersianDigits(
-    value.toLocaleString("en", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 3,
-    }),
+  return formatNumber(value, { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+}
+
+/**
+ * HTML legend instead of Recharts' string legend: the year, its total and the share of the previous year are separate
+ * bidi-isolated runs, so the RTL layout cannot reorder «۱۴۰۴: ۸۲٬۶۴۲» into «۸۲٬۶۴۲ :۱۴۰۴».
+ */
+export function MonthlyTrendLegend({ entries }: { entries: MonthlyTrendLegendEntry[] }) {
+  return (
+    <ul
+      aria-label="راهنمای نمودار"
+      className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] leading-5 text-muted-foreground"
+      dir="rtl"
+    >
+      {entries.map((entry) => (
+        <li key={entry.key} className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className={entry.kind === "bar" ? "size-2.5 shrink-0 rounded-sm" : "h-0.5 w-3.5 shrink-0 rounded-full"}
+            style={{ backgroundColor: entry.color }}
+          />
+          <bdi className="font-medium text-foreground">{entry.label}</bdi>
+          {entry.totalLabel && (
+            <>
+              <span aria-hidden="true">·</span>
+              <bdi className="tabular-nums">{entry.totalLabel}</bdi>
+            </>
+          )}
+          {entry.note && (
+            <span className="text-muted-foreground">
+              (<bdi>{entry.note}</bdi>)
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -103,8 +131,8 @@ function CustomTooltip({
       {payload.map((entry) => (
         // eslint-disable-next-line react/forbid-dom-props
         <p key={entry.name} style={{ color: entry.color }}>
-          {entry.name}:{" "}
-          {entry.value != null ? `${formatMonthlyTrendAmount(entry.value)} ${unit}` : "گزارش نشده"}
+          <bdi>{entry.name}</bdi>:{" "}
+          <bdi>{entry.value != null ? `${formatMonthlyTrendAmount(entry.value)} ${unit}` : "گزارش نشده"}</bdi>
         </p>
       ))}
     </div>
@@ -168,6 +196,8 @@ function MonthlyActivityTrendChartDesktop({ data, psVisualization }: Props) {
         )}
       </div>
 
+      {hasChartData && <MonthlyTrendLegend entries={viewModel.legendEntries} />}
+
       <div className="relative">
         <div className="h-64 min-w-0 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -199,15 +229,9 @@ function MonthlyActivityTrendChartDesktop({ data, psVisualization }: Props) {
                 }}
               />
               <Tooltip content={<CustomTooltip unit={data.unitLabelFa} />} />
-              <Legend
-                wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                formatter={(value: string) => (
-                  <span style={{ color: viewModel.palette.mutedForeground }}>{value}</span>
-                )}
-              />
               <Bar
                 dataKey="previousYear"
-                name={viewModel.previousYearLegend}
+                name={viewModel.legendEntries[0].label}
                 fill={viewModel.palette.previousYear}
                 radius={[3, 3, 0, 0]}
                 maxBarSize={22}
@@ -224,7 +248,7 @@ function MonthlyActivityTrendChartDesktop({ data, psVisualization }: Props) {
               </Bar>
               <Bar
                 dataKey="currentYear"
-                name={viewModel.currentYearLegend}
+                name={viewModel.legendEntries[1].label}
                 fill={viewModel.palette.currentYear}
                 radius={[3, 3, 0, 0]}
                 maxBarSize={22}

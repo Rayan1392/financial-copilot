@@ -1,11 +1,17 @@
-import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
+import { ChevronRight, ChevronLeft, ShieldCheck } from "lucide-react";
 import type {
   AssistantChatBlock,
   ChatMessage,
   DisclosureListingResult,
   ScannerTable,
 } from "@/lib/chat.functions";
-import { formatNumber, formatPercent, isolateSignedNumbers, toPersianDigits } from "@/lib/format/persian";
+import {
+  formatNumber,
+  formatPercent,
+  isolateSignedNumbers,
+  toPersianDigits,
+  toPersianNumerals,
+} from "@/lib/format/persian";
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { QuarterlyFinancialTable, quarterlyFinancialTableModelFromTypedResult } from "@/components/app/quarterly-financial-table";
@@ -15,6 +21,9 @@ import { FinancialStatementAnalysisCard } from "@/components/app/financial-state
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
+import { MonthlyTrendSummaryCards } from "@/components/app/monthly-trend-summary-cards";
+import { AnswerActions } from "@/components/app/answer-actions";
+import { AnalysisProgress, AssistantAvatar } from "@/components/app/analysis-progress";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import { AnswerDensityContext, useAnswerDensity } from "@/components/app/answer-density";
@@ -61,6 +70,10 @@ export function MessageList({
         const originalQuery = [...messages.slice(0, index)]
           .reverse()
           .find((item) => item.role === "user");
+        const originalQuestion =
+          originalQuery && "text" in originalQuery.content ? originalQuery.content.text : undefined;
+        // Only the latest answer can be asked again; older ones would reorder the conversation.
+        const canRegenerate = index === messages.length - 1 && Boolean(originalQuestion?.trim());
         return (
           <div key={message.id} data-message-id={message.id} data-role={message.role} className="animate-fade-up">
             {message.role === "user" ? (
@@ -72,11 +85,8 @@ export function MessageList({
                 actionsDisabled={streaming}
                 onPageChange={onPageChange}
                 onDisclosurePageChange={onDisclosurePageChange}
-                disclosureOriginalQuery={
-                  originalQuery && "text" in originalQuery.content
-                    ? originalQuery.content.text
-                    : undefined
-                }
+                disclosureOriginalQuery={originalQuestion}
+                onRegenerate={canRegenerate ? () => onSuggested(originalQuestion!) : undefined}
                 showDiagnostics={showDiagnostics}
                 followedSymbols={followedSymbols}
               />
@@ -112,6 +122,7 @@ function AssistantBlock({
   onPageChange,
   onDisclosurePageChange,
   disclosureOriginalQuery,
+  onRegenerate,
   showDiagnostics,
   followedSymbols,
 }: {
@@ -121,6 +132,7 @@ function AssistantBlock({
   onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   disclosureOriginalQuery?: string;
+  onRegenerate?: () => void;
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
 }) {
@@ -154,7 +166,7 @@ function AssistantBlock({
   const isRtlMessage =
     block.replyLanguage === "fa" || (!block.replyLanguage && containsPersianText(message));
   const localizedMessage = isRtlMessage
-    ? isolateSignedNumbers(toPersianDigits(
+    ? isolateSignedNumbers(toPersianNumerals(
         renderedMessage.replace(
           /(قیمت(?:\s+نماد\s+\S+)?\s+برابر است با\s*)([\d,]+(?:\.\d+)?)(?:\s*ریال)?/u,
           (_match, label: string, rawPrice: string) => {
@@ -177,15 +189,15 @@ function AssistantBlock({
   return (
     <div className={compact ? "flex" : "flex gap-4"} dir={isRtlMessage ? "rtl" : "ltr"}>
       {/* On phones the avatar column would take 44 px from every chart and table; the bubble layout identifies the speaker. */}
-      {!compact && (
-        <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
-          AI
-        </div>
-      )}
+      {!compact && <AssistantAvatar />}
       <div
         className={`flex-1 space-y-5 min-w-0 ${isRtlMessage ? "text-right" : "text-left"}`}
         dir={isRtlMessage ? "rtl" : "ltr"}
       >
+        {block.monthlyActivityTrendResult && (
+          <MonthlyTrendSummaryCards data={block.monthlyActivityTrendResult} />
+        )}
+
         {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource || financialStatementAnalysis || typedBalanceSheet) && (
           <div className="space-y-1">
             {displayMessage.length > 0 && !typedQuarterlyTable && !typedBalanceSheet && (
@@ -282,6 +294,8 @@ function AssistantBlock({
           )}
           <span>{toPersianDigits(block.creditsUsed)} اعتبار مصرف شد</span>
         </div>
+
+        <AnswerActions text={displayMessage} onRegenerate={onRegenerate} disabled={actionsDisabled} />
 
         {showDiagnostics && block.orchestration && (
           <OrchestrationDiagnosticsPanel orchestration={block.orchestration} />
@@ -636,7 +650,7 @@ function SalesGrowthTableStatus({ table }: { table: ScannerTable }) {
       <div>
         دوره هدف: {formatPeriod(metadata.targetCommonPeriod)} · پوشش:{" "}
         {toPersianDigits(metadata.coverageNumerator)} از{" "}
-        {toPersianDigits(metadata.coverageDenominator)} ({toPersianDigits(metadata.coveragePercent)}
+        {toPersianDigits(metadata.coverageDenominator)} ({toPersianNumerals(metadata.coveragePercent)}
         ٪) · وضعیت: {statusLabel}
       </div>
       {baseline && <div>{baseline}</div>}
@@ -753,12 +767,5 @@ function isRtlFinancialTable(table: ScannerTable) {
 }
 
 function StreamingPlaceholder() {
-  return (
-    <div className="flex gap-4 animate-fade-up">
-      <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center">
-        <Loader2 className="size-3.5 text-emerald animate-spin" />
-      </div>
-      <div className="text-sm text-muted-foreground pt-1">در حال تحلیل...</div>
-    </div>
-  );
+  return <AnalysisProgress className="animate-fade-up gap-4" />;
 }

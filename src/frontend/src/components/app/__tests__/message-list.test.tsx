@@ -122,9 +122,10 @@ describe("MessageList", () => {
       onSuggested={vi.fn()}
     />);
 
-    expect(container.textContent).toContain("\u2066-۴۰.۲٪\u2069");
-    expect(container.textContent).toContain("(\u2066+۲.۶٪\u2069)");
-    expect(container.textContent).toContain("۹,۲۱۶.۶۳۹");
+    expect(container.textContent).toContain("\u2066-۴۰٫۲٪\u2069");
+    expect(container.textContent).toContain("(\u2066+۲٫۶٪\u2069)");
+    // One product-wide number style: «٬» for thousands and «٫» for decimals.
+    expect(container.textContent).toContain("۹٬۲۱۶٫۶۳۹");
   });
 
   it("uses reply language to right-align a Persian assistant answer that starts in English", () => {
@@ -149,7 +150,9 @@ describe("MessageList", () => {
     expect(content).not.toBeNull();
     expect(content?.className).toContain("text-right");
     expect(container.querySelector("[dir='rtl'] .text-right")).not.toBeNull();
-    expect(screen.getByText("AI").parentElement?.getAttribute("dir")).toBe("rtl");
+    // The assistant speaks with the Sapio mark, not a generic «AI» badge.
+    expect(screen.queryByText("AI")).toBeNull();
+    expect(container.querySelector("[dir='rtl'] > span img[src='/sapio-logo.png']")).not.toBeNull();
   });
 
   it("renders persisted suggested actions and submits the visible message once", () => {

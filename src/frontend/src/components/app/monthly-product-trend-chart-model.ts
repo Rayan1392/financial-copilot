@@ -3,14 +3,23 @@ import { toPersianDigits } from "@/lib/format/persian";
 
 const VALID_RATE_STATUSES = new Set(["ValidRate", "ValidZeroRate"]);
 
+/**
+ * Brand palette (emerald and gold). Production is a neutral gray so the sales quantity stays the emerald focus;
+ * the earlier indigo did not belong to the brand.
+ */
+const PRODUCTION_COLOR = "#71717a";
+const SALE_QUANTITY_COLOR = "#0f766e";
+
 export function productTrendSeries(productUnit?: string | null) {
   return {
-    production: { label: "ØªÙˆÙ„ÛŒØ¯", color: "#4f46e5" },
-    quantity: { label: "Ù…Ù‚Ø¯Ø§Ø± ÙØ±ÙˆØ´", color: "#0f766e" },
+    production: { label: "تولید", color: PRODUCTION_COLOR },
+    quantity: { label: "مقدار فروش", color: SALE_QUANTITY_COLOR },
     sales: { label: "مبلغ فروش", color: "#4f9f82" },
     rate: { label: `نرخ فروش (تومان/${productUnit ?? "واحد محصول"})`, color: "#f59e0b" },
   };
 }
+
+export const PRODUCTION_UNAVAILABLE_MESSAGE = "داده تولید برای این محصول موجود نیست.";
 
 export const PRODUCT_TREND_PANEL_LABELS = {
   main: "\u0645\u0628\u0644\u063a \u0641\u0631\u0648\u0634 \u0648 \u0646\u0631\u062e \u0641\u0631\u0648\u0634",
@@ -22,9 +31,17 @@ export const PRODUCT_TREND_PANEL_LABELS = {
 
 export function productTrendQuantitySeries() {
   return {
-    production: { label: PRODUCT_TREND_PANEL_LABELS.production, color: "#4f46e5" },
-    quantity: { label: PRODUCT_TREND_PANEL_LABELS.saleQuantity, color: "#0f766e" },
+    production: { label: PRODUCT_TREND_PANEL_LABELS.production, color: PRODUCTION_COLOR },
+    quantity: { label: PRODUCT_TREND_PANEL_LABELS.saleQuantity, color: SALE_QUANTITY_COLOR },
   };
+}
+
+/**
+ * Whether any month reports production. Providers send 0 for products they do not report production for, and a flat
+ * line on zero reads as "production stopped"; with no positive figure the chart omits the line and says so instead.
+ */
+export function hasProductionData(points: ReadonlyArray<Pick<MonthlyProductTrendChartPoint, "production">>): boolean {
+  return points.some((point) => point.production != null && Number.isFinite(point.production) && point.production !== 0);
 }
 
 export interface MonthlyProductTrendChartPoint {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, RefreshCw, Share2 } from "lucide-react";
-import { answerPlainText } from "@/lib/chat/answer-text";
+import { answerPlainText, answerTextWithSource } from "@/lib/chat/answer-text";
 
 const CONFIRMATION_MS = 2000;
 
@@ -8,7 +8,7 @@ type CopyState = "idle" | "copied" | "failed";
 
 /**
  * Actions under an assistant answer: copy its text, share it through the device share sheet (only where the browser
- * supports one), and ask the same question again. Asking again is a new query and is charged like any other.
+ * supports one), and ask the same question again. Copied and shared text ends with Sapio's name and link. Asking again is a new query and is charged like any other.
  */
 export function AnswerActions({
   text,
@@ -38,7 +38,7 @@ export function AnswerActions({
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(plainText);
+      await navigator.clipboard.writeText(answerTextWithSource(text));
       showCopyState("copied");
     } catch {
       showCopyState("failed");
@@ -47,7 +47,7 @@ export function AnswerActions({
 
   async function share() {
     try {
-      await navigator.share({ title: "پاسخ ساپیو", text: plainText });
+      await navigator.share({ title: "پاسخ ساپیو", text: answerTextWithSource(text) });
     } catch {
       // The person closed the share sheet, or the browser refused; nothing to report.
     }

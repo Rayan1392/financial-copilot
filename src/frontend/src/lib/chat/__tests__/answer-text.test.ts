@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerPlainText } from "@/lib/chat/answer-text";
+import { answerPlainText, answerTextWithSource } from "@/lib/chat/answer-text";
 
 describe("answerPlainText", () => {
   it("drops markdown markers and display-only bidi controls but keeps lines and tables", () => {
@@ -20,5 +20,17 @@ describe("answerPlainText", () => {
 
   it("returns an empty string for an empty answer", () => {
     expect(answerPlainText("  \n ")).toBe("");
+  });
+});
+
+describe("answerTextWithSource", () => {
+  it("ends the answer with Sapio's name and site link", () => {
+    expect(answerTextWithSource("**جمع کل دارایی‌ها:** ۳۸٬۳۴۲٬۶۵۵")).toBe(
+      "جمع کل دارایی‌ها: ۳۸٬۳۴۲٬۶۵۵\n\n—\nساپیو | دستیار هوشمند بازار سرمایه\nhttps://sapioai.ir",
+    );
+  });
+
+  it("returns nothing for an empty answer", () => {
+    expect(answerTextWithSource("  \n ")).toBe("");
   });
 });

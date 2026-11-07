@@ -1,8 +1,17 @@
+# Bounded json-file logs for every service: Docker has no global log rotation on the
+# prod host, so unbounded container logs would eventually fill the disk.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:17-alpine
     pull_policy: never
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-financial_copilot}
       POSTGRES_USER: ${POSTGRES_USER:-financial_copilot}
@@ -21,6 +30,7 @@ services:
     image: redis:7.4-alpine
     pull_policy: never
     restart: unless-stopped
+    logging: *default-logging
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -36,6 +46,7 @@ services:
     image: rabbitmq:4-management-alpine
     pull_policy: never
     restart: unless-stopped
+    logging: *default-logging
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-financial_copilot}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
@@ -54,6 +65,7 @@ services:
     image: ${API_IMAGE:-financial-copilot-api}:${IMAGE_TAG:-latest}
     pull_policy: never
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -538,11 +550,7 @@ services:
     image: ${WORKER_IMAGE:-financial-copilot-worker}:${IMAGE_TAG:-latest}
     pull_policy: never
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -590,6 +598,7 @@ services:
     image: ${TELEGRAM_GATEWAY_IMAGE:-financial-copilot-telegram-gateway}:${IMAGE_TAG:-latest}
     pull_policy: never
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -635,6 +644,7 @@ services:
     image: ${FRONTEND_IMAGE:-financial-copilot-frontend}:${IMAGE_TAG:-latest}
     pull_policy: never
     restart: unless-stopped
+    logging: *default-logging
     environment:
       FINANCIAL_COPILOT_API_BASE_URL: http://api:8080
     depends_on:

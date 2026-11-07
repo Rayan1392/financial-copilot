@@ -4,7 +4,7 @@
  * phrasing of prompts the assistant already answers well.
  */
 export interface SymbolPrompt {
-  id: "monthly-sales" | "quarterly-report" | "technical";
+  id: "monthly-sales" | "quarterly-report" | "balance-sheet";
   text: string;
 }
 
@@ -13,7 +13,8 @@ export function symbolAnalysisPrompts(symbol: string): SymbolPrompt[] {
   return [
     { id: "monthly-sales", text: `روند فروش ماهانه ${ticker} را نشان بده` },
     { id: "quarterly-report", text: `گزارش فصلی ${ticker}` },
-    { id: "technical", text: `تحلیل تکنیکال ${ticker}` },
+    // Technical analysis is not answered yet, so the menu offers the balance sheet (Feature 154) instead.
+    { id: "balance-sheet", text: `ترازنامه ${ticker}` },
   ];
 }
 

@@ -490,6 +490,29 @@ public sealed class ScannerParserTests
         Assert.Single(result.Plan.Conditions);
     }
 
+    [Fact]
+    public async Task Parser_WhenLlmReturnsNullThreshold_DoesNotThrow()
+    {
+        // Prod 2026-11-07: the model emitted "threshold": null and JsonElement.TryGetDecimal
+        // threw InvalidOperationException, failing the whole stock_screening request.
+        // A null threshold is now treated exactly like a missing one.
+        var resolver = BuildAliasResolver();
+        const string json = """
+            {"detectedLanguage":"en","conditions":[{"userTerminology":"P/E","language":"en",
+            "operator":"LessThan","threshold":null,"periodHint":null,"growthComparison":null,
+            "inferredDefault":false,"inferredReason":null}],"requestedColumns":[],
+            "clarificationRequired":false,"clarificationMessage":null}
+            """;
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("symbols with low PE", "en", "corr-null-threshold", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Single(result.Plan.Conditions);
+        Assert.Equal("PE_TTM", result.Plan.Conditions.First().MetricReference.MetricCode.Value);
+    }
+
     // --- helpers ---
 
     private static LlmScannerQueryParser BuildParser(string llmJson, IMetricAliasResolver resolver)

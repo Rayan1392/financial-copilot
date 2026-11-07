@@ -374,7 +374,9 @@ public sealed class LlmScannerQueryParser(
                     var terminology = GetString(cond, "userTerminology") ?? string.Empty;
                     var condLanguage = GetString(cond, "language") ?? language;
                     var operatorStr = GetString(cond, "operator") ?? "LessThan";
+                    // TryGetDecimal throws on non-Number kinds (e.g. the model's null), so check the kind first.
                     var threshold = cond.TryGetProperty("threshold", out var threshProp) &&
+                        threshProp.ValueKind == JsonValueKind.Number &&
                         threshProp.TryGetDecimal(out var threshVal) ? threshVal : 0;
                     var periodHint = GetString(cond, "periodHint");
                     var growthComparison = GetString(cond, "growthComparison");

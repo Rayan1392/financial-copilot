@@ -2484,7 +2484,15 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
 
+                    b.HasIndex("RequestedAt");
+
                     b.HasIndex("LogicalVendor", "PhysicalSource");
+
+                    b.HasIndex("ProviderName", "RequestedAt");
+
+                    b.HasIndex(new[] { "IdempotencyKey" }, "IX_ProviderSyncRuns_IdempotencyKey_Pattern");
+
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex(new[] { "IdempotencyKey" }, "IX_ProviderSyncRuns_IdempotencyKey_Pattern"), new[] { "text_pattern_ops" });
 
                     b.ToTable("ProviderSyncRuns", (string)null);
                 });
@@ -3828,6 +3836,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("numeric");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ReceivedAt");
 
                     b.HasIndex("ProviderName", "ExternalSnapshotId")
                         .IsUnique();

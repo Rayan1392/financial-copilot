@@ -107,7 +107,7 @@ describe("analysis progress", () => {
 });
 
 describe("answer actions", () => {
-  it("copies the answer as plain text and repeats the question only when allowed", async () => {
+  it("copies the answer as plain text with its source and repeats the question only when allowed", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     const onRegenerate = vi.fn();
@@ -116,7 +116,9 @@ describe("answer actions", () => {
     );
 
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "کپی" })));
-    expect(writeText).toHaveBeenCalledWith("فروش: ۱۲٬۰۰۰");
+    expect(writeText).toHaveBeenCalledWith(
+      "فروش: ۱۲٬۰۰۰\n\n—\nساپیو | دستیار هوشمند بازار سرمایه\nhttps://sapioai.ir",
+    );
     expect(screen.getByRole("button", { name: "کپی شد" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "پاسخ دوباره" }));
@@ -126,6 +128,21 @@ describe("answer actions", () => {
     expect(screen.getByRole("button", { name: "پاسخ دوباره" })).toBeDisabled();
     rerender(<AnswerActions text="متن" />);
     expect(screen.queryByRole("button", { name: "پاسخ دوباره" })).not.toBeInTheDocument();
+  });
+
+  it("shares the answer with Sapio's name and link", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    try {
+      render(<AnswerActions text={"**فروش:** ۱۲٬۰۰۰"} />);
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "اشتراک‌گذاری" })));
+      expect(share).toHaveBeenCalledWith({
+        title: "پاسخ ساپیو",
+        text: "فروش: ۱۲٬۰۰۰\n\n—\nساپیو | دستیار هوشمند بازار سرمایه\nhttps://sapioai.ir",
+      });
+    } finally {
+      delete (navigator as { share?: unknown }).share;
+    }
   });
 });
 

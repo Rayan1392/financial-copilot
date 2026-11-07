@@ -332,6 +332,13 @@ public sealed class DataSyncRunRowConfiguration : IEntityTypeConfiguration<DataS
         builder.Property(row => row.SourceDateRangeStartJalali).HasMaxLength(16);
         builder.Property(row => row.SourceDateRangeEndJalali).HasMaxLength(16);
         builder.HasIndex(row => new { row.LogicalVendor, row.PhysicalSource });
+
+        // Read paths that sort or prefix-match runs (recent-runs list, per-source freshness,
+        // monthly backfill key prefix) — without these each call scans the whole table.
+        builder.HasIndex(row => row.RequestedAt);
+        builder.HasIndex(row => new { row.ProviderName, row.RequestedAt });
+        builder.HasIndex(row => row.IdempotencyKey, "IX_ProviderSyncRuns_IdempotencyKey_Pattern")
+            .HasOperators("text_pattern_ops");
     }
 }
 
@@ -492,6 +499,8 @@ public sealed class IntradayTradeSnapshotRowConfiguration : IEntityTypeConfigura
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.ProviderName, row.ExternalSnapshotId }).IsUnique();
         builder.HasIndex(row => new { row.TradingInstrumentId, row.ReceivedAt });
+        // Market-wide "latest snapshots since T" window used by insight detection.
+        builder.HasIndex(row => row.ReceivedAt);
         builder.HasOne<TradingInstrumentRow>()
             .WithMany()
             .HasForeignKey(row => row.TradingInstrumentId)

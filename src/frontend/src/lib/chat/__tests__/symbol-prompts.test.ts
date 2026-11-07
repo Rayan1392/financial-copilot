@@ -6,7 +6,7 @@ describe("symbol prompts (D-Q1: one shared module)", () => {
     expect(symbolAnalysisPrompts(" شپنا ").map((prompt) => prompt.text)).toEqual([
       "روند فروش ماهانه شپنا را نشان بده",
       "گزارش فصلی شپنا",
-      "تحلیل تکنیکال شپنا",
+      "ترازنامه شپنا",
     ]);
   });
 

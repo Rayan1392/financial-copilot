@@ -19,14 +19,14 @@ public sealed class CyclicalWavesV2SyncTests
         var client = new FakeClient { FailScreenerFor = { "بد" } };
         var store = new FakeStore();
         var runs = new FakeRunStore();
-        var coordinator = Create(client, store, new FakeAnalysisStore(), runs);
+        var coordinator = Create(client, store, new FakeAnalysisStore(), runs, new FakeGaugeClient(), new FakeGaugeStore());
 
         var outcome = await coordinator.RunAsync(Request(CyclicalWavesV2SyncScope.Full), "test", CancellationToken.None);
 
         Assert.Equal(CyclicalWavesV2SyncRunStatus.CompletedWithErrors, outcome.Status);
         Assert.Equal(["tickers", "lines", "screener:الف", "statements:الف", "screener:بد", "statements:بد", "screener:ج", "statements:ج", "analysis:1"],
             client.Calls);
-        Assert.Equal(3, outcome.Counts.TotalItems - 1);
+        Assert.Equal(6, outcome.Counts.TotalItems);
         Assert.Equal(1, outcome.Counts.FailedItems);
         Assert.Contains("بد: Screener:ProviderRemoteUnavailable", outcome.ErrorSummary);
         Assert.Contains("Catalog tickers=3", outcome.ErrorSummary);
@@ -221,10 +221,12 @@ public sealed class CyclicalWavesV2SyncTests
         FakeClient client,
         FakeStore store,
         FakeAnalysisStore analyses,
-        FakeRunStore runs) =>
+        FakeRunStore runs,
+        ICyclicalWavesV2GaugeClient? gaugeClient = null,
+        ICyclicalWavesV2GaugeStore? gaugeStore = null) =>
         new(client, store, analyses, runs,
             new CyclicalWavesV2SyncSettings(12, 100, 2, TimeSpan.Zero, TimeSpan.FromMinutes(30), 2),
-            new ManualTimeProvider(Now));
+            new ManualTimeProvider(Now), gaugeClient, gaugeStore);
 
     private static CyclicalWavesV2SyncWorker CreateWorker(FakeRunStore runs, RecordingCoordinator coordinator, bool ingestion, bool daily)
     {
@@ -297,6 +299,30 @@ public sealed class CyclicalWavesV2SyncTests
         {
             if (FailAll is not null) throw FailAll;
         }
+    }
+
+    private sealed class FakeGaugeClient : ICyclicalWavesV2GaugeClient
+    {
+        public Task<IReadOnlyList<CyclicalWavesV2GaugeCatalogItem>> GetGaugeCatalogAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<CyclicalWavesV2GaugeCatalogItem>>([new("فولاد", "IRO1FOLD0001", true, true)]);
+        public Task<CyclicalWavesV2GaugeDetails?> GetGaugeDetailsAsync(string identifier, CancellationToken cancellationToken) => Task.FromResult<CyclicalWavesV2GaugeDetails?>(null);
+        public Task<IReadOnlyList<CyclicalWavesV2EquilibriumCatalogItem>> GetEquilibriumCatalogAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<CyclicalWavesV2EquilibriumCatalogItem>>([new("فولاد", "IRO1FOLD0001")]);
+        public Task<CyclicalWavesV2EquilibriumRange?> GetEquilibriumRangeAsync(string identifier, CancellationToken cancellationToken) => Task.FromResult<CyclicalWavesV2EquilibriumRange?>(null);
+    }
+
+    private sealed class FakeGaugeStore : ICyclicalWavesV2GaugeStore
+    {
+        public Task<CyclicalWavesV2GaugeCatalogApplyResult> ApplyGaugeCatalogAsync(IReadOnlyCollection<CyclicalWavesV2GaugeCatalogItem> items, DateTimeOffset now, CancellationToken cancellationToken) =>
+            Task.FromResult(new CyclicalWavesV2GaugeCatalogApplyResult(1, 0, 1, 0));
+        public Task<CyclicalWavesV2GaugeCatalogApplyResult> ApplyEquilibriumCatalogAsync(IReadOnlyCollection<CyclicalWavesV2EquilibriumCatalogItem> items, DateTimeOffset now, CancellationToken cancellationToken) =>
+            Task.FromResult(new CyclicalWavesV2GaugeCatalogApplyResult(1, 0, 1, 0));
+        public Task<IReadOnlyList<CyclicalWavesV2GaugeTarget>> GetGaugeTargetsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<CyclicalWavesV2GaugeTarget>>([]);
+        public Task<IReadOnlyList<CyclicalWavesV2GaugeTarget>> GetEquilibriumTargetsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<CyclicalWavesV2GaugeTarget>>([]);
+        public Task<CyclicalWavesV2ApplyOutcome> ApplyGaugeDetailsAsync(CyclicalWavesV2GaugeDetails details, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(CyclicalWavesV2ApplyOutcome.Unchanged);
+        public Task<CyclicalWavesV2ApplyOutcome> ApplyEquilibriumRangeAsync(string identifier, CyclicalWavesV2EquilibriumRange range, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(CyclicalWavesV2ApplyOutcome.Unchanged);
+        public Task MarkGaugeUnavailableAsync(string identifier, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task MarkEquilibriumUnavailableAsync(string identifier, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeStore : ICyclicalWavesV2Store

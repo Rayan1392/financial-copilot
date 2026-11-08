@@ -384,6 +384,18 @@ export const queueCyclicalWavesV2FullSync = () =>
     method: "POST",
   });
 
+export const queueCyclicalWavesV2GaugeCatalogSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/gauge-catalog/sync`, { method: "POST" });
+export const queueCyclicalWavesV2GaugeDetailsSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/gauges/sync`, { method: "POST" });
+export const queueCyclicalWavesV2EquilibriumCatalogSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/equilibrium-catalog/sync`, { method: "POST" });
+export const queueCyclicalWavesV2EquilibriumRangesSync = () =>
+  financialCopilotApi<CyclicalWavesV2QueuedRunResponse>(`${CYCLICAL_WAVES_V2_BASE}/equilibrium-ranges/sync`, { method: "POST" });
+export const runCyclicalWavesV2TickerGaugeEquilibriumSync = (ticker: string) =>
+  financialCopilotApi<CyclicalWavesV2InlineRunResponse>(
+    `${CYCLICAL_WAVES_V2_BASE}/tickers/${encodeURIComponent(ticker.trim())}/gauge-equilibrium/sync`, { method: "POST" });
+
 // --------------------------------------------------------------------------
 // Spec 058 — live data sync monitor types
 // --------------------------------------------------------------------------

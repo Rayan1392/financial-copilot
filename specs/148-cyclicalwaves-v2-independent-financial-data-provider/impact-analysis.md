@@ -125,3 +125,100 @@ All endpoints in this section are on `https://back1.cyclicalwaves.com/api/` (con
 
 - **N1.** `ConditionalTrackerEvaluationProcessor.cs:387` reads `DerivedMetrics` without the C1 filter. User alerts on metrics that only legacy CyclicalWaves supplied may evaluate against frozen values. This is outside the C1 authorization ("lookups and scanner queries") and needs a separate Product Owner decision.
 - **N2.** `src/backend/FinancialCopilot.API/appsettings.json` (`NoavaranCurrentApi`, around lines 238–239) contains committed credentials. They should be rotated and moved to secrets in a separate change.
+
+## Post-Closure Scope Extension — Gauge and Equilibrium APIs
+
+**Design status:** `FEATURE_148_GAUGE_EQUILIBRIUM_EXTENSION_DESIGN_APPROVED_FOR_IMPLEMENTATION`.
+This section records a post-closure proposal based on the supplied v2 contract PDF and current
+repository inspection. Original implementation results and Feature 148 closure are unchanged.
+
+### Existing consumers and data paths
+
+The existing Feature 148 client at
+`src/backend/FinancialCopilot.Infrastructure/Financial/Providers/CyclicalWavesV2/CyclicalWavesV2DataClient.cs`
+implements the existing five documented data routes. Its base URL is
+`CyclicalWavesV2:DataBaseAddress`, currently `https://api.tahlilapp.com/api/`. The authentication
+owner at `CyclicalWavesV2TokenService.cs` is registered singleton in
+`CyclicalWavesV2ServiceCollectionExtensions.cs`, and its semaphore serializes refresh-token changes.
+Its auth and resilience handlers already provide bearer attachment, one refresh/replay after 401,
+bounded retries and disabled redirects.
+
+Historical/obsolete gauge paths are separate and dormant/retired:
+
+| Old path or model | Existing consumer/storage | Extension handling |
+|---|---|---|
+| `GET ps/circle-chart-data/{ISIN}`, `ps-data/{ISIN}`, `futureprediction/{symbol}`, `ps/{isin}` | Legacy `CyclicalWavesDataProviderClient` and acquisition client; Feature 114 sync; `CompanyPsGaugeSnapshots` / `CompanyPsHistoryPoints`; old `PsVisualizationExperienceUseCase` and chart | Do not reuse the client methods, payload types, mappings, storage or UI as the v2 contract. Existing calls remain blocked by the Feature 148 legacy guard. |
+| `GET pe/circle-chart-data/{ISIN}`, `pe-data/{ISIN}`, `equilibrium/gauge/{ISIN}` | Legacy acquisition and data-provider clients; Features 126/127 and 125; `CyclicalWavesMetricSnapshots` / `IndustryRelativeValuationSourceFacts` and industry valuation calculations | Do not reuse old close/average, close/balance or identity contracts as the new v2 records. Existing endpoints remain blocked. |
+| `CyclicalWavesPeGaugePayload`, `CyclicalWavesEquilibriumGaugePayload` | `CyclicalWavesRelativeValuationPayloadModels.cs` and legacy provider parsing | Legacy-only models; new v2 DTOs/parser must reflect the supplied nested gauge and min/avg/max response. |
+| `PsGaugeIntentRules`, `PsVisualizationExperienceUseCase`, workflow presentation and old routes | Chat capability `ps_gauge_visualization`, `PsGaugeCalculator`, and chart components | Keep current Feature 148 retired/unavailable behavior. Do not change routing or reactivate chat/chart during this scope extension. |
+| `IndustryRelativeValuationSource*`, `IndustryRelativeValuation*`, Features 125/126/127 | Cohort/peer calculation, ingestion, workers and UI | Keep disabled. The new API offers individual ticker gauges and equilibrium ranges, not industry cohorts, ranking inputs or the former multi-source dataset. |
+
+Legacy source files and historical records are retained. “Obsolete contract” means these models and
+paths are not the implementation contract for this extension; it is not authorization to delete
+historic rows or to bypass the legacy HTTP guard.
+
+### Capability matrix
+
+| Capability | Supported by new API | Proposed behavior |
+|---|---|---|
+| P/E gauge | Yes: latest P/E distribution, close ratio, status and segment counts | Persist in the new `cyclicalwaves` schema. Expose in CyclicalWaves Chat only after explicit approval. |
+| P/S gauge | Yes: latest P/S distribution, close ratio, status and segment counts | Persist independently. Do not restore old gauge-history/chart behavior automatically. |
+| Equilibrium range | Yes: IRR minimum, midpoint and maximum | Persist independently. Expose in CyclicalWaves Chat only after explicit approval. |
+| Industry-relative valuation | No documented cohort/peer dataset | Remain disabled. |
+| Features 114/115/125/126/127 as complete features | Not established by these four routes | Remain disabled unless each gets a separate reviewed scope. |
+| NoavaranAmin reads | No; out of provider boundary | Unchanged. Never read the new tables in NoavaranAmin mode. |
+
+### Proposed repository impact matrix (implementation phase only)
+
+| Component / current file | Proposed post-approval impact |
+|---|---|
+| `docs/providers/cyclicalwaves-v2/README.md` | Add the authoritative PDF entry, source date/hash, and separate Markdown contract link. |
+| `docs/providers/cyclicalwaves-v2/gauge-equilibrium-api-client.pdf` | Store the supplied PDF byte-for-byte; no editing. |
+| `docs/providers/cyclicalwaves-v2/gauge-equilibrium-api-contract.md` | Document the four endpoints, units, nulls, auth, ticker formats and documented errors. |
+| `CyclicalWavesV2Options.cs` | Add non-secret `GaugeBaseUrl` default; preserve `DataBaseAddress` and all credentials. |
+| `CyclicalWavesV2ServiceCollectionExtensions.cs` | Register a separate v2 gauge-data client with existing auth/resilience handlers and the same singleton token owner. |
+| `Financial/Providers/CyclicalWavesV2/*` | Add focused gauge/equilibrium DTOs, parser and client; no legacy payload dependency. |
+| `FinancialCopilot.Domain/Financial/CyclicalWavesV2/*` and `FinancialData/CyclicalWavesV2/*` | Add domain records and Application ports/contracts for the two catalogs, gauge detail, range and sync result. |
+| `CyclicalWavesV2Rows.cs`, `CyclicalWavesV2Configurations.cs`, `FinancialIngestionDbContext.cs`, migration | Add gauge availability, equilibrium availability, latest gauge and latest equilibrium entities and only same-schema FKs to `cyclicalwaves.Tickers`. |
+| `Financial/Ingestion/CyclicalWavesV2/*` | Add idempotent stores; use canonical existing ticker IDs and report unresolved/ambiguous identities. |
+| `CyclicalWavesV2SyncRunContracts.cs`, `CyclicalWavesV2SyncCoordinator.cs`, `CyclicalWavesV2SyncWorker.cs` | Add scopes/phases to the existing queue, global lease, daily run and startup catch-up. No second worker/run table. |
+| `CyclicalWavesV2AdminController.cs`, `CyclicalWavesV2AdminContracts.cs` | Add DataAdmin catalog/full/detail refresh actions and phase-specific run information. |
+| `src/frontend/src/components/admin/cyclicalwaves-v2-page.tsx`, `src/frontend/src/integrations/financial-copilot/data-admin-client.ts` | Add queued admin actions/status display to the existing console page. |
+| `tests/FinancialCopilot.UnitTests/CyclicalWavesV2/*`, integration tests, and Admin UI tests | Add contract fixtures, token-sharing/race, matching, upsert, migration/FK, sync, endpoint and Admin coverage. |
+| `CyclicalWavesDataProviderClient.cs`, `CyclicalWavesRelativeValuationPayloadModels.cs`, Features 114/115/125/126/127, Chat routing | No reuse or reactivation. Their current retired state remains. |
+| NoavaranAmin configuration, schemas, ingestion and consumers | No change. |
+
+The PDF date is 1405 Aban 13 (2026-11-04); its SHA-256 is
+`E0FD0EAC5B1A69B6EC696794061D9E3450497D6FAF6431FC4DEFF84B54B2CDA4`. Repository defaults currently
+use the same data host as this PDF. A separate host option is still proposed because the Product
+Owner requested independent configuration; it is additive and does not overwrite the current host.
+
+### Decisions, gaps and effort
+
+The five Product Owner decisions are finalized in the section below. The remaining technical questions
+are exact base-10 handling through .NET/EF/JSON, observed catalog mismatch and 404 rates, measured full
+run duration under existing pacing, and Feature 115 UI compatibility. The PDF does
+not specify maximum number precision, rounding, catalog pagination, rate quotas, or error shapes beyond
+401 and 404; confirm these with the provider before asserting additional provider guarantees. No live
+request has been made.
+
+### Final Product Owner decisions and legacy UX boundary
+
+The approved extension status is `FEATURE_148_GAUGE_EQUILIBRIUM_EXTENSION_DESIGN_APPROVED_FOR_IMPLEMENTATION`;
+implementation still awaits explicit authorization. Decisions are: unconstrained PostgreSQL `numeric`
+with exact .NET/JSON precision validation; latest state only; separate `GaugeBaseUrl` with the original
+`DataBaseAddress` preserved and shared authentication/token lifecycle; all three capabilities in
+CyclicalWaves-mode Chat only; and review/reactivation limited to directly matching gauge/equilibrium UX.
+
+Only Feature 115's standalone P/S gauge is proposed for scoped restoration, using new gauge rows. Its
+historical chart, monthly-sales inset, LastPS/TTM and Forward P/S remain unsupported. Feature 114's old
+sync/data pipeline is not restored. Features 125, 126 and 127 remain disabled because industry cohorts,
+multi-source snapshots, forward data and calculations are not supplied by these four routes. P/E and
+equilibrium are new Chat capabilities with no old standalone UX. NoavaranAmin is unchanged and never
+reads the new tables.
+
+The final model has exactly three logical latest-state tables: `GaugeAvailability`, `GaugeDetails` and
+`EquilibriumRanges` (`HasRange` records catalog membership while retaining last values). Total effort is
+estimated at 14–20 engineering days across contract/precision, storage, sync/Admin, Chat, scoped UX,
+regression and operational verification. Risks include exact numeric representation, catalog matching
+and 404 behavior, full-run duration under existing pacing, and Feature 115 UI compatibility.

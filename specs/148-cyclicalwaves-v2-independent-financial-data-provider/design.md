@@ -383,3 +383,141 @@ All arithmetic is deterministic C#; the LLM never computes numbers.
 | **C3** | **A**: basic CyclicalWaves scanner, as in §10.5 |
 
 No decisions remain open. Open technical verifications are listed in plan.md (Blockers).
+
+## Post-Closure Scope Extension — Gauge and Equilibrium APIs
+
+**Status:** `FEATURE_148_GAUGE_EQUILIBRIUM_EXTENSION_DESIGN_APPROVED_FOR_IMPLEMENTATION`.
+This design is an additive proposal only. It does not alter the closed Feature 148 implementation or
+authorize production code, migrations, configuration edits, database activity, live imports, Chat
+routing changes, commits, pushes, or deployment.
+
+### Authoritative API contract
+
+The six-page provider PDF is copied unchanged to
+[`docs/providers/cyclicalwaves-v2/gauge-equilibrium-api-client.pdf`](../../../docs/providers/cyclicalwaves-v2/gauge-equilibrium-api-client.pdf).
+The source contract is summarized in
+[`gauge-equilibrium-api-contract.md`](../../../docs/providers/cyclicalwaves-v2/gauge-equilibrium-api-contract.md).
+The PDF identifies four GET routes below `https://api.tahlilapp.com/api/` and uses the current
+`https://auth.cycfx.com/api/` login/refresh service, `x-client-id: default`, and bearer auth for every
+data call. Its access token is valid for 15 minutes. Each refresh rotates `refresh_token`; the prior
+refresh token is only accepted for two additional minutes. The PDF says one read per day is sufficient.
+
+### Client and token lifecycle
+
+Add a focused v2 gauge/equilibrium data client and DTO/parser types; do not route these requests
+through `CyclicalWavesDataProviderClient`, `CyclicalWavesRelativeValuationPayloadModels`, or any old
+response mapper. Keep the current `CyclicalWavesV2Options:DataBaseAddress` unchanged and add the
+non-secret `GaugeBaseUrl` option with the PDF data host as its default. Register a distinct
+named/typed `HttpClient` using that base address and the existing `CyclicalWavesV2AuthHandler` and
+`CyclicalWavesV2ResilienceHandler`.
+
+`CyclicalWavesV2TokenService` is already registered singleton per process and gates both token reads
+and renewals with one `SemaphoreSlim`. Both data clients must use this exact singleton. A simultaneous
+401 with the same rejected access token is serialized: the first caller renews and stores the rotated
+refresh token before returning; later callers compare their rejected access token with the new one and
+reuse it rather than submitting the old refresh token. Proactive renewal uses the JWT expiry with the
+existing 60-second skew, leaving margin before the provider's two-minute old-token window. The handler
+replays each data request at most once. The Worker owns background data calls and the database run
+lease serializes scheduled/admin sync across Worker replicas. Do not create a second token service or
+credentials. Chat reads persisted data and does not call the provider directly.
+
+### Schema and identity
+
+Add three latest-state entities only in `FinancialIngestionDbContext` and schema `cyclicalwaves`:
+
+| Entity | Candidate columns and key | Query/index intent |
+|---|---|---|
+| `GaugeAvailability` | `TickerId` PK/FK, `HasPe`, `HasPs`, `LastFetchedAtUtc` | One row per existing symbol; catalog and Admin status reads. |
+
+| `GaugeDetails` | `TickerId`, `GaugeType` (`PE`/`PS`), `A`–`F` integer counts, nullable `Close`, decimal `Start`, `End`, `Min`, `Avg`, `Max`, nullable `Status`, `FetchedAtUtc`; unique `(TickerId, GaugeType)` | One current gauge per ticker/type; symbol display lookup. |
+| `EquilibriumRanges` | `TickerId` PK/FK, `HasRange`, nullable IRR `Min`, `Avg`, `Max`, `FetchedAtUtc` | One current range per ticker; catalog presence and last-known values share this row. |
+
+All foreign keys reference `cyclicalwaves.Tickers` only. Existing ticker identity is canonical: match a
+nonempty ISIN first using ordinal case-insensitive comparison; if absent, use the existing Persian
+symbol normalizer (including Arabic/Persian Yeh and Kaf folding) and match `NormalizedTicker`. Require
+one match. Do not insert/merge/update the master ticker catalog from these secondary catalogs. Record
+unmatched and ambiguous rows in sanitized phase summaries and skip them. Exact duplicate ISIN or
+normalized names in the current master are a data-quality issue to report, not an excuse to pick one.
+
+Each completed catalog refresh updates availability for the entire matched set. A symbol that
+disappears from a later catalog is marked unavailable while its last detail rows are retained;
+current reads must respect availability and must not present retained values as current. If a stale
+catalog entry returns 404 on its detail call, mark that specific gauge/range unavailable and report
+the catalog/detail mismatch without deleting the last detail values.
+
+For detail requests, prefer the matched row's ISIN, otherwise its stored canonical Persian ticker.
+Pass the raw canonical identifier to the URI builder once and call `Uri.EscapeDataString` exactly
+once. Do not pre-encode in the coordinator or encode an already encoded value.
+
+Store `A`–`F` as integer day counts, never as ratios. Store gauge ratios and IRR amounts as PostgreSQL
+`numeric`, never `real`, `double precision`, or C# `float`/`double`. The contract demonstrates four
+fractional digits for gauges and two for IRR examples, but gives no upper bound or rounding contract;
+choose a precision/scale after Product Owner/provider confirmation, or use unconstrained PostgreSQL
+`numeric` to preserve arbitrary JSON decimal precision. Keep only documented nullable values nullable:
+the `pe`/`ps` detail objects can be null; `close` and `status` can be null. Missing required values
+are invalid provider payloads, not zeros. Do not add a strict midpoint check that could reject
+provider rounding; application validation may flag a range whose `avg` is outside `[min,max]`.
+
+Do not add history or snapshots. Unchanged upserts compare all provider fields and update only fetch
+timestamps according to an explicit freshness policy; avoid rewriting financial values solely because
+a sync ran. Retaining every daily value is a separate decision with storage-growth and time-series
+query costs, and is not part of this proposal.
+
+### Sync and Admin extension
+
+Extend the existing `CyclicalWavesV2SyncScope`, `CyclicalWavesV2SyncCoordinator`, `SyncRuns` table,
+EF sync-run store, and single hosted `CyclicalWavesV2SyncWorker`. Proposed independent scopes are
+`GaugeCatalog`, `Gauge`, `EquilibriumCatalog`, `Equilibrium`, and `TickerGaugeEquilibrium`; extend the
+existing `Full` scope to include both catalogs/details. Preserve the one global lease and existing
+request pacing, bounded retry, heartbeat, startup catch-up and daily schedule. Do not create another
+worker, run table, lock or migration schema.
+
+For each catalog, persist resolved availability after matching. For each flagged gauge, fetch details
+using the resolved identity; persist one row for every non-null nested gauge object. The details
+response's explicit null object is no gauge detail and is not a numeric zero. For equilibrium, fetch
+only catalog members and persist the full three-value response. A per-symbol 404 means “not found/no
+data”: retain the last known row, count a failed/missing item, and report it; never write zeros or
+delete prior data. Authentication/configuration failures fail the run; other item failures continue
+and produce `CompletedWithErrors`. No undocumented request-rate quota is assumed; reuse the current
+300 ms configurable delay and bounded resilience policy unless provider evidence justifies a change.
+
+Extend the existing `/admin/data/cyclicalwaves-v2` UI and DataAdmin controller. Catalog-only actions
+may follow the existing inline catalog convention if measured short; full catalog/detail sync and
+single-ticker refresh should be queued because they fan out across symbols. Status uses existing
+`SyncRuns` counters with phase-specific sanitized details and counts for catalog size, matched,
+unmatched/ambiguous, processed, updated, unchanged, missing/404 and failed. The single-ticker action
+must queue the combined gauge/equilibrium refresh under the same global lease.
+
+### Chat boundary and capability matrix
+
+| Capability | New API support | Approved Chat behavior |
+|---|---|---|
+| P/E gauge | Current gauge distribution, status and historical day counts | Available only in CyclicalWaves mode, reading new tables. |
+| P/S gauge | Same | Available only in CyclicalWaves mode, reading new tables; old chart/history remains unsupported. |
+| Equilibrium range | Current IRR lower bound, midpoint and upper bound | Available only in CyclicalWaves mode, reading new tables. |
+| Industry-relative valuation | No cohort/peer comparisons are documented | Keep retired. |
+| Features 114, 115, 125, 126, 127 beyond those exact data fields | Not established | Keep disabled; assess each feature's remaining inputs and UX separately. |
+
+NoavaranAmin remains unchanged and never reads these tables. There is no provider fallback or merge.
+Chat preserves nulls, distinguishes close/min/avg/max/start/end/status, treats a-f as counts, states
+equilibrium in IRR, and does not imply a guaranteed future price or recommendation. Unsupported data
+returns an explicit unavailable response. Historical charts, industry rankings and predictions remain
+disabled; the only scoped legacy UX approved here is Feature 115 standalone P/S gauge.
+
+### Product Owner decisions (approved; implementation authorization remains separate)
+
+1. Approved this scope and the latest-state tables/migration.
+2. Approved separate `GaugeBaseUrl` configuration even though the current PDF and
+   current v2 default resolve to the same host.
+3. Approved unconstrained PostgreSQL `numeric`; exact .NET/JSON precision remains an implementation spike.
+4. Approved latest-state only with no new snapshots/history.
+5. Approved all three capabilities in CyclicalWaves-mode Chat only.
+6. Approved scoped Feature 115 standalone P/S gauge only. Its history, monthly-sales inset, LastPS/TTM
+   and Forward P/S remain unsupported; Features 114, 125, 126 and 127 remain disabled.
+7. NoavaranAmin remains unchanged; unmatched/ambiguous ticker reporting and
+   last-known-value retention on a 404.
+
+
+### Final Product Owner decisions
+
+The five decisions are approved: unconstrained PostgreSQL numeric with exact base-10 representation verification; latest-state only; separate GaugeBaseUrl with existing auth/token lifecycle; all three Chat capabilities in CyclicalWaves mode only; and scoped Feature 115 standalone P/S gauge restoration. The exact base-10 representation is a technical spike because .NET decimal is bounded and the PDF gives no maximum magnitude or scale. Chat must preserve nulls, distinguish close/min/avg/max/start/end/status, treat a-f as counts, report equilibrium in IRR, and return explicit unavailable answers without fallback. Feature 115 history, monthly-sales inset, LastPS/TTM and Forward P/S remain unsupported; Features 114, 125, 126 and 127 stay disabled. The Product Owner explicitly authorized implementation on 2026-11-08; progress and remaining evidence are in tasks.md and ImplementationReport.md.

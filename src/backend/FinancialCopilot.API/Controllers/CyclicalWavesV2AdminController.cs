@@ -45,6 +45,26 @@ public sealed class CyclicalWavesV2AdminController(
     public Task<ActionResult<CyclicalWavesV2QueuedRunResponse>> QueueIncomeStatements(CancellationToken cancellationToken) =>
         QueueAsync(CyclicalWavesV2SyncScope.IncomeStatements, null, cancellationToken);
 
+    [HttpPost("gauge-catalog/sync")]
+    public Task<ActionResult<CyclicalWavesV2QueuedRunResponse>> QueueGaugeCatalog(CancellationToken cancellationToken) =>
+        QueueAsync(CyclicalWavesV2SyncScope.GaugeCatalog, null, cancellationToken);
+
+    [HttpPost("gauges/sync")]
+    public Task<ActionResult<CyclicalWavesV2QueuedRunResponse>> QueueGaugeDetails(CancellationToken cancellationToken) =>
+        QueueAsync(CyclicalWavesV2SyncScope.GaugeDetails, null, cancellationToken);
+
+    [HttpPost("equilibrium-catalog/sync")]
+    public Task<ActionResult<CyclicalWavesV2QueuedRunResponse>> QueueEquilibriumCatalog(CancellationToken cancellationToken) =>
+        QueueAsync(CyclicalWavesV2SyncScope.EquilibriumCatalog, null, cancellationToken);
+
+    [HttpPost("equilibrium-ranges/sync")]
+    public Task<ActionResult<CyclicalWavesV2QueuedRunResponse>> QueueEquilibriumDetails(CancellationToken cancellationToken) =>
+        QueueAsync(CyclicalWavesV2SyncScope.EquilibriumDetails, null, cancellationToken);
+
+    [HttpPost("tickers/{ticker}/gauge-equilibrium/sync")]
+    public Task<ActionResult<CyclicalWavesV2InlineRunResponse>> SyncTickerGaugeEquilibrium(string ticker, CancellationToken cancellationToken) =>
+        RunInlineAsync(CyclicalWavesV2SyncScope.TickerGaugeEquilibrium, ticker, cancellationToken);
+
     [HttpPost("analysis/sync")]
     public Task<ActionResult<CyclicalWavesV2QueuedRunResponse>> QueueAnalysis(
         [FromQuery] string? mode,

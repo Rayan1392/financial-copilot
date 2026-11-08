@@ -12,6 +12,7 @@ public sealed class CyclicalWavesV2Options
 
     public string AuthBaseAddress { get; set; } = "https://auth.cycfx.com/api/";
     public string DataBaseAddress { get; set; } = "https://api.tahlilapp.com/api/";
+    public string GaugeBaseUrl { get; set; } = "https://api.tahlilapp.com/api/";
     public string ClientId { get; set; } = "default";
     public string Identifier { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
@@ -36,7 +37,7 @@ public sealed class CyclicalWavesV2Options
 
     private string? Validate()
     {
-        if (!IsHttps(AuthBaseAddress) || !IsHttps(DataBaseAddress))
+        if (!IsHttps(AuthBaseAddress) || !IsHttps(DataBaseAddress) || !IsHttps(GaugeBaseUrl))
         {
             return "CyclicalWavesV2 base addresses must be absolute HTTPS URLs.";
         }

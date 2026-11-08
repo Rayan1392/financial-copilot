@@ -118,3 +118,113 @@ The task-level breakdown is in [tasks.md](./tasks.md). Effort is in focused engi
 | Refresh-token reuse invalidates the login | Single-flight token service, with the new refresh token stored immediately. |
 | The large workflow legacy path | Three choke-point guards, plus spy tests. |
 | Docker unavailable locally | Use the disposable PG18 connection string. |
+
+## Post-Closure Scope Extension — Gauge and Equilibrium APIs
+
+**Design status:** `FEATURE_148_GAUGE_EQUILIBRIUM_EXTENSION_DESIGN_APPROVED_FOR_IMPLEMENTATION`.
+This is a new approval-gated plan after the original Feature 148 closure. It does not modify the
+original 18–19 day estimate or original completion status.
+
+### Proposed implementation slices (after approval)
+
+| Slice | Deliverable | Estimate |
+|---|---|---:|
+| G1 | New v2 contracts, DTO/parser fixtures, distinct configurable data client using the existing singleton auth/token pipeline | 1–1.5 d |
+| G2 | Four `cyclicalwaves` latest-state entities/mappings and additive migration; upsert stores and schema/FK verification | 1–1.5 d |
+| G3 | Extend sync scopes/coordinator/full schedule, per-phase counts, unmatched-symbol policy, retry/404 handling | 1–1.5 d |
+| G4 | DataAdmin endpoints/UI actions, status counters, unit/PostgreSQL/Admin/regression coverage | 1–1.5 d |
+| **Total** | **Full approved scope including Chat and scoped Feature 115 UX** | **14–20 d** |
+
+The initial 4–6 day estimate above covered ingestion/storage only and is superseded by the final
+14–20 day estimate below, which includes approved Chat and scoped Feature 115 UX work.
+
+### Expected repository impact
+
+Implementation should reuse rather than duplicate these existing components:
+
+- `FinancialCopilot.Infrastructure/Financial/Providers/CyclicalWavesV2/CyclicalWavesV2TokenService.cs`,
+  `CyclicalWavesV2Handlers.cs`, and `CyclicalWavesV2Options.cs`.
+- `FinancialCopilot.Infrastructure/CyclicalWavesV2ServiceCollectionExtensions.cs` for singleton
+  token ownership and typed-client registration.
+- `FinancialCopilot.Domain/Financial/CyclicalWavesV2/*` and
+  `FinancialCopilot.Infrastructure/Financial/Ingestion/Persistence/CyclicalWavesV2Rows.cs`,
+  `CyclicalWavesV2Configurations.cs`, and `FinancialIngestionDbContext.cs` for same-schema models.
+- `FinancialCopilot.Application/FinancialData/CyclicalWavesV2/CyclicalWavesV2SyncCoordinator.cs`,
+  `CyclicalWavesV2SyncRunContracts.cs`, the EF sync-run store, and
+  `FinancialCopilot.Worker/CyclicalWavesV2SyncWorker.cs` for scheduling/leases.
+- `FinancialCopilot.API/Controllers/CyclicalWavesV2AdminController.cs`, its contracts, and
+  `src/frontend/src/components/admin/cyclicalwaves-v2-page.tsx` plus its data-admin client.
+- Existing tests under `tests/FinancialCopilot.UnitTests/CyclicalWavesV2/`, PostgreSQL/Admin
+  integration tests, and the existing frontend Admin page tests.
+
+Expected new files are a dedicated v2 gauge/equilibrium client and contracts/parser, four latest
+state rows/configurations/stores, an additive migration, admin contract/action additions, and
+fixtures/tests. Exact file splits are for implementation review; no source files are changed in
+this design phase.
+
+### Capacity and operational check
+
+The existing global lease, 30-second queued-run poll, 300 ms configurable provider-call delay,
+30-minute default lease and 30-second per-request timeout are the starting policy. A Full run will
+add two catalogs plus up to one gauge-detail and one equilibrium-detail request per matched symbol.
+At the current 300 ms delay, 1,366 additional detail calls alone add about 6.8 minutes of deliberate
+delay, before provider latency and existing Full work. Measure a complete dry-run-like integration
+against fixtures and the deployed non-production provider before deciding whether lease duration,
+heartbeat frequency or pacing need adjustment. This is a sizing estimate, not a claim about catalog
+size or API rate limits.
+
+### Approval and rollout gates
+
+1. Product Owner approves schema, host option, decimal precision policy and no-history default.
+2. The Product Owner has approved Chat exposure for the three new capabilities in CyclicalWaves mode and a scoped Feature 115 P/S gauge restoration. Implementation remains separately gated.
+3. Only after approval: implement fixture-first, then additive migration, store/coordinator/Admin,
+   automated tests and non-production live verification if authorized credentials are available.
+4. Run migration up/down/up on disposable PostgreSQL; verify no cross-schema FKs and no changes to
+   existing legacy or NoavaranAmin rows.
+5. Run catalog and single-symbol refresh, then full gauge/equilibrium sync in non-production; check
+   counts, unmatched identities, 404s and unchanged-row behavior before enabling daily sync.
+
+## Approved post-closure Gauge and Equilibrium implementation sequence
+
+The Product Owner has approved the five design decisions. This ordered sequence supersedes the earlier
+optional-Chat and no-legacy recommendations above. Product Owner implementation authorization was
+recorded on 2026-11-08 before source changes. Preserve the
+original Feature 148 closure and its known Chat-routing limitations.
+
+1. Record explicit implementation authorization. Define the separate `CyclicalWavesV2:GaugeBaseUrl`
+   default (`https://api.tahlilapp.com/api`); keep existing `DataBaseAddress` unchanged and use the
+   same account/token service.
+2. Add four endpoint DTO/client contracts and fixtures, then verify exact base-10 decimal behavior.
+   The .NET `decimal` range/scale limitation must be resolved before using it for provider values.
+3. Add three latest-state tables (`GaugeAvailability`, `GaugeDetails`, `EquilibriumRanges`), EF mappings
+   and additive migration. Use unconstrained PostgreSQL `numeric`, same-schema ticker FKs, nulls and
+   negative values; no history tables.
+4. Implement catalog resolution and idempotent stores; then gauge and equilibrium catalog/detail
+   coordinator phases. Reuse existing global lease, sync run tracking, one worker, daily schedule and
+   bounded pacing/retry policy.
+5. Add DataAdmin actions/status to the existing API and console; queue long operations.
+6. Add CyclicalWaves-only Chat read services, semantic Persian routing, status/value presentation and
+   isolation tests. NoavaranAmin never reads the new tables and has no fallback.
+7. Restore only Feature 115 standalone P/S gauge from new rows. Do not restore Feature 114 ingestion,
+   Feature 115 history/monthly inset/LastPS/Forward P/S, or Features 125/126/127.
+8. Run API, mapping/migration, sync/Worker, Admin, Chat in both provider modes, legacy UX and full
+   regression suites; then perform authorized non-production operational verification.
+
+### Final extension estimate
+
+| Work slice | Estimate |
+|---|---:|
+| Contract, host/auth and exact numeric spike | 2–3 engineering days |
+| Schema, migration, matching and latest-state stores | 2–3 days |
+| Coordinator, Worker schedule, Admin API/UI | 3–4 days |
+| Chat data access, semantic routing and provider-mode tests | 3–4 days |
+| Scoped Feature 115 P/S gauge restoration and compatibility | 2–3 days |
+| Regression and operational verification | 2–3 days |
+| **Total** | **14–20 engineering days** |
+
+Estimates exclude provider changes or a newly discovered need for additional data. Risks to close during
+implementation: exact numeric representation with .NET/EF/JSON, provider catalog mismatches and 404s,
+full-run duration under current pacing, and UI compatibility of the standalone Feature 115 gauge.
+
+No implementation, live request, migration, or database action was performed while preparing this
+proposal.

@@ -14,7 +14,9 @@ public sealed class CyclicalWavesV2SyncCoordinator(
     ICyclicalWavesV2AnalysisStore analysisStore,
     ICyclicalWavesV2SyncRunStore runStore,
     CyclicalWavesV2SyncSettings settings,
-    TimeProvider timeProvider) : ICyclicalWavesV2SyncCoordinator
+    TimeProvider timeProvider,
+    ICyclicalWavesV2GaugeClient? gaugeClient = null,
+    ICyclicalWavesV2GaugeStore? gaugeStore = null) : ICyclicalWavesV2SyncCoordinator
 {
     public const int MaximumErrorSummaryLength = 4_000;
     private const int MaximumAnalysisPages = 10_000;
@@ -72,10 +74,29 @@ public sealed class CyclicalWavesV2SyncCoordinator(
                 case CyclicalWavesV2SyncScope.Analysis:
                     await SyncAnalysesAsync(run, request.AnalysisMode ?? CyclicalWavesV2AnalysisMode.Incremental, cancellationToken);
                     break;
+                case CyclicalWavesV2SyncScope.GaugeCatalog:
+                    await SyncGaugeCatalogAsync(run, cancellationToken);
+                    break;
+                case CyclicalWavesV2SyncScope.GaugeDetails:
+                    await SyncGaugeDetailsAsync(run, cancellationToken);
+                    break;
+                case CyclicalWavesV2SyncScope.EquilibriumCatalog:
+                    await SyncEquilibriumCatalogAsync(run, cancellationToken);
+                    break;
+                case CyclicalWavesV2SyncScope.EquilibriumDetails:
+                    await SyncEquilibriumDetailsAsync(run, cancellationToken);
+                    break;
+                case CyclicalWavesV2SyncScope.TickerGaugeEquilibrium:
+                    await SyncSingleGaugeTickerAsync(run, request.Ticker, cancellationToken);
+                    break;
                 case CyclicalWavesV2SyncScope.Full:
                     await SyncCatalogAsync(run, countItems: false, cancellationToken);
                     await SyncLineDefinitionsAsync(run, cancellationToken);
                     await SyncTickersAsync(run, includeScreener: true, includeStatements: true, cancellationToken);
+                    await SyncGaugeCatalogAsync(run, cancellationToken);
+                    await SyncGaugeDetailsAsync(run, cancellationToken);
+                    await SyncEquilibriumCatalogAsync(run, cancellationToken);
+                    await SyncEquilibriumDetailsAsync(run, cancellationToken);
                     await SyncAnalysesAsync(run, CyclicalWavesV2AnalysisMode.Incremental, cancellationToken);
                     break;
                 default:
@@ -98,6 +119,99 @@ public sealed class CyclicalWavesV2SyncCoordinator(
         }
 
         return await CompleteAsync(run, runFailure, cancellationToken);
+    }
+
+    private async Task SyncGaugeCatalogAsync(RunContext run, CancellationToken cancellationToken)
+    {
+        var client = gaugeClient ?? throw new InvalidOperationException("Gauge client is not registered.");
+        var store = gaugeStore ?? throw new InvalidOperationException("Gauge store is not registered.");
+        await PaceAsync(run, cancellationToken);
+        var items = await client.GetGaugeCatalogAsync(cancellationToken);
+        if (items.Count == 0) throw new RunFailedException("GaugeCatalogEmpty");
+        var result = await store.ApplyGaugeCatalogAsync(items, timeProvider.GetUtcNow(), cancellationToken);
+        run.Total += items.Count; run.Processed += items.Count; run.Updated += result.Updated; run.Unchanged += result.Unchanged; run.Failed += result.Unmatched;
+        if (result.Unmatched > 0) run.AddError("gauge-catalog", "UnmatchedOrAmbiguous:" + result.Unmatched);
+        run.AddPhase("GaugeCatalog", $"listed={items.Count} matched={result.Matched} unmatched={result.Unmatched} updated={result.Updated} unchanged={result.Unchanged}");
+    }
+
+    private async Task SyncEquilibriumCatalogAsync(RunContext run, CancellationToken cancellationToken)
+    {
+        var client = gaugeClient ?? throw new InvalidOperationException("Gauge client is not registered.");
+        var store = gaugeStore ?? throw new InvalidOperationException("Gauge store is not registered.");
+        await PaceAsync(run, cancellationToken);
+        var items = await client.GetEquilibriumCatalogAsync(cancellationToken);
+        if (items.Count == 0) throw new RunFailedException("EquilibriumCatalogEmpty");
+        var result = await store.ApplyEquilibriumCatalogAsync(items, timeProvider.GetUtcNow(), cancellationToken);
+        run.Total += items.Count; run.Processed += items.Count; run.Updated += result.Updated; run.Unchanged += result.Unchanged; run.Failed += result.Unmatched;
+        if (result.Unmatched > 0) run.AddError("equilibrium-catalog", "UnmatchedOrAmbiguous:" + result.Unmatched);
+        run.AddPhase("EquilibriumCatalog", $"listed={items.Count} matched={result.Matched} unmatched={result.Unmatched} updated={result.Updated} unchanged={result.Unchanged}");
+    }
+
+    private async Task SyncGaugeDetailsAsync(RunContext run, CancellationToken cancellationToken)
+    {
+        var client = gaugeClient ?? throw new InvalidOperationException("Gauge client is not registered.");
+        var store = gaugeStore ?? throw new InvalidOperationException("Gauge store is not registered.");
+        var targets = await store.GetGaugeTargetsAsync(cancellationToken); run.Total += targets.Count;
+        var updatedBefore = run.Updated; var unchangedBefore = run.Unchanged; var failedBefore = run.Failed;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await PaceAsync(run, cancellationToken);
+                var details = await client.GetGaugeDetailsAsync(target.Enticker ?? target.Ticker, cancellationToken);
+                if (details is null) { await store.MarkGaugeUnavailableAsync(target.Enticker ?? target.Ticker, timeProvider.GetUtcNow(), cancellationToken); run.Failed++; run.AddError(target.Ticker, "GaugeNotFound"); }
+                else if (await store.ApplyGaugeDetailsAsync(details, timeProvider.GetUtcNow(), cancellationToken) == CyclicalWavesV2ApplyOutcome.Updated) run.Updated++;
+                else run.Unchanged++;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            { ThrowIfRunFatal(exception); run.Failed++; run.AddError(target.Ticker, "Gauge:" + Categorize(exception)); }
+            run.Processed++; await HeartbeatIfDueAsync(run, cancellationToken);
+        }
+        run.AddPhase("GaugeDetails", $"targets={targets.Count} processed={targets.Count} updated={run.Updated - updatedBefore} unchanged={run.Unchanged - unchangedBefore} failed={run.Failed - failedBefore}");
+    }
+
+    private async Task SyncEquilibriumDetailsAsync(RunContext run, CancellationToken cancellationToken)
+    {
+        var client = gaugeClient ?? throw new InvalidOperationException("Gauge client is not registered.");
+        var store = gaugeStore ?? throw new InvalidOperationException("Gauge store is not registered.");
+        var targets = await store.GetEquilibriumTargetsAsync(cancellationToken); run.Total += targets.Count;
+        var updatedBefore = run.Updated; var unchangedBefore = run.Unchanged; var failedBefore = run.Failed;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await PaceAsync(run, cancellationToken);
+                var identifier = target.Enticker ?? target.Ticker;
+                var range = await client.GetEquilibriumRangeAsync(identifier, cancellationToken);
+                if (range is null) { await store.MarkEquilibriumUnavailableAsync(identifier, timeProvider.GetUtcNow(), cancellationToken); run.Failed++; run.AddError(target.Ticker, "EquilibriumNotFound"); }
+                else if (await store.ApplyEquilibriumRangeAsync(identifier, range, timeProvider.GetUtcNow(), cancellationToken) == CyclicalWavesV2ApplyOutcome.Updated) run.Updated++;
+                else run.Unchanged++;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            { ThrowIfRunFatal(exception); run.Failed++; run.AddError(target.Ticker, "Equilibrium:" + Categorize(exception)); }
+            run.Processed++; await HeartbeatIfDueAsync(run, cancellationToken);
+        }
+        run.AddPhase("EquilibriumDetails", $"targets={targets.Count} processed={targets.Count} updated={run.Updated - updatedBefore} unchanged={run.Unchanged - unchangedBefore} failed={run.Failed - failedBefore}");
+    }
+
+    private async Task SyncSingleGaugeTickerAsync(RunContext run, string? ticker, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ticker) || await store.FindCatalogTickerAsync(ticker, cancellationToken) is not { } canonical)
+            throw new RunFailedException("TickerNotInCatalog");
+        var client = gaugeClient ?? throw new InvalidOperationException("Gauge client is not registered.");
+        var gaugeDataStore = gaugeStore ?? throw new InvalidOperationException("Gauge store is not registered.");
+        run.Total = 2;
+        await PaceAsync(run, cancellationToken);
+        var details = await client.GetGaugeDetailsAsync(canonical, cancellationToken);
+        if (details is null) { await gaugeDataStore.MarkGaugeUnavailableAsync(canonical, timeProvider.GetUtcNow(), cancellationToken); run.Failed++; run.AddError(canonical, "GaugeNotFound"); }
+        else if (await gaugeDataStore.ApplyGaugeDetailsAsync(details, timeProvider.GetUtcNow(), cancellationToken) == CyclicalWavesV2ApplyOutcome.Updated) run.Updated++;
+        else run.Unchanged++;
+        await PaceAsync(run, cancellationToken);
+        var range = await client.GetEquilibriumRangeAsync(canonical, cancellationToken);
+        if (range is null) { await gaugeDataStore.MarkEquilibriumUnavailableAsync(canonical, timeProvider.GetUtcNow(), cancellationToken); run.Failed++; run.AddError(canonical, "EquilibriumNotFound"); }
+        else if (await gaugeDataStore.ApplyEquilibriumRangeAsync(canonical, range, timeProvider.GetUtcNow(), cancellationToken) == CyclicalWavesV2ApplyOutcome.Updated) run.Updated++;
+        else run.Unchanged++;
+        run.Processed = 2;
     }
 
     private async Task<CyclicalWavesV2SyncOutcome> CompleteAsync(

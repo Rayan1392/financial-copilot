@@ -677,3 +677,106 @@ Rules for every task:
 ---
 
 **Task count:** 50 = 46 original + 3 N1 + T148-06.10 C1-M (00: 3 · 01: 6 · 02: 4 · 03: 4 · 04: 4 · 05: 6 · 06: 10 · 07: 4 · 08: 9). The earlier summary reported 41 and the per-group figures 42; the file actually contained 46 tasks before N1. Result: 49 done, 1 partial (T148-08.4), 0 blocked.
+
+## Post-Closure Scope Extension — Gauge and Equilibrium APIs
+
+**Extension status:** `FEATURE_148_GAUGE_EQUILIBRIUM_PARTIALLY_VERIFIED`.
+**Original Feature 148 status:** unchanged; implemented and closed with known Chat-routing limitations.
+PostgreSQL migration and exact-numeric checks, live API contracts, and two live Full syncs were run against disposable PostgreSQL 18 and authorized development provider credentials. The remaining acceptance limitation is real-model execution: the approved gauge queries are returned by a narrow deterministic CyclicalWaves route before the model client is resolved.
+
+- [x] **T148-GE-00 — Explicit implementation authorization gate** — **DONE (2026-11-08)**
+  - **Objective:** Record the Product Owner's separate authorization to begin implementation; the design decisions themselves are already approved.
+  - **Components:** Feature 148 scope-extension approval record.
+  - **Dependencies:** None.
+  - **Verification:** User explicitly requested implementation on 2026-11-08; authorization recorded here before source changes.
+
+- [x] **T148-GE-01 — Contract fixtures and v2 client** — **DONE; fixtures, live contracts, 404 handling and shared auth behavior verified**
+  - Add fixtures from the authoritative six-page PDF for both catalogs and both detail endpoints,
+    including null P/E/P/S objects, nullable close/status, all six day counts, negative equilibrium
+    values, 401 and 404.
+  - Add dedicated CyclicalWaves v2 DTOs/parser/client for the four documented routes. Do not reuse
+    legacy clients, payloads, endpoints, or response mappings.
+  - Add `GaugeBaseUrl` as an independent non-secret option; preserve existing `DataBaseAddress`.
+  - Register a separate data HttpClient using the existing singleton token service and auth/resilience
+    handlers. Prove concurrent 401s do not race refresh rotation and each request is replayed at most once.
+  - Verify ticker path escaping exactly once for Persian symbols and direct ISIN path values.
+
+- [x] **T148-GE-02 — Latest-state schema and migration** — **DONE; isolated PostgreSQL Apply/Rollback/Re-apply passed**
+  - **Evidence:** Disposable PostgreSQL 18 verified 14 tables total (11 original plus 3 extension tables), 29 original metric definitions, 27 unconstrained `numeric` value chunks, three primary/unique logical keys, three same-schema ticker FKs, and no cross-schema FK. The seeded original ticker and financial-value rows survived rollback/re-apply.
+  - Add exactly `GaugeAvailability`, `GaugeDetails`, and `EquilibriumRanges` under `cyclicalwaves`.
+  - Reference existing `cyclicalwaves.Tickers`; no new symbol catalog and no FK outside the schema.
+  - Use unconstrained PostgreSQL `numeric`, integer `A`–`F` counts, null-preserving columns and unique logical keys. Verify exact .NET/JSON precision in a spike because `decimal` is bounded and the PDF sets no range/scale maximum.
+  - Add no historical snapshots. Verify migration up/down/up and query `information_schema` for FK isolation.
+
+- [x] **T148-GE-03 — Ticker identity matching and upsert stores** — **DONE; PostgreSQL persistence, exact values, 404/unmatched behavior and repeated-run row stability verified**
+  - **Evidence:** Full provider sync persisted 684 tickers, 684 availability rows, 1,276 gauge-detail rows, 684 equilibrium rows, and 17,293 analyses. The second Full pass preserved the same row counts. The first run had zero gauge/equilibrium detail-fetch failures; unmatched catalog identities were reported explicitly.
+  - Match case-insensitive trimmed ISIN first, then Feature 148 normalized Persian/Arabic ticker.
+  - Require one canonical ticker row. Do not insert unknown tickers or select an arbitrary duplicate.
+  - Report unmatched/ambiguous catalog entries; preserve last-known values on per-symbol 404.
+  - Prove nulls and negative values persist, repeated values do not rewrite metric columns, and no duplicate rows appear.
+  - A completed catalog refresh updates availability for the complete matched set; catalog absence or
+    detail 404 marks availability false but retains the last detail row and reports it.
+
+- [x] **T148-GE-04 — Coordinator, lease and daily schedule** — **DONE; unit coverage and two live Full runs passed on the disposable development database**
+  - Extend existing sync scopes, coordinator and `SyncRuns`; do not create another lock, run table or worker.
+  - Add gauge catalog/details and equilibrium catalog/details phases to Full and the existing daily schedule.
+  - Add single-ticker refresh; preserve global non-overlap, heartbeat, pacing and bounded retries.
+  - Verify phase counts distinguish catalog size, matched, unmatched/ambiguous, processed, updated,
+    unchanged, missing/404 and failed. Item failures continue; authentication failures fail the run.
+
+- [x] **T148-GE-05 — DataAdmin API and console** — **DONE for implementation and endpoint tests (18/18)**
+  - Add DataAdmin-protected catalog and full sync actions for gauge and equilibrium, plus queued
+    single-ticker refresh. Keep long fan-out operations on the existing Worker queue.
+  - Extend `/admin/data/cyclicalwaves-v2` with progress, status and phase counters/errors.
+  - Verify authorization, inline/queued status contracts, `202`/`409` behavior, and accurate status.
+
+- [x] **T148-GE-06 — CyclicalWaves-only Chat exposure** — **DONE for the Chat API route, scripted acceptance and provider-isolation checks; the narrow route intentionally bypasses the LLM**
+  - Implement the approved P/E gauge, P/S gauge, and equilibrium range capabilities in Chat when `FinancialData:ChatProvider=CyclicalWaves`.
+  - Register only in CyclicalWaves mode; NoavaranAmin never reads these tables. No fallback.
+  - Keep Features 114, 125, 126 and 127 disabled. Restore Feature 115 only through the scoped standalone P/S gauge task; keep its historical/chart/industry behavior disabled.
+  - Cover source labels, status/null interpretation, IRR presentation, no-data messages and provider isolation.
+
+- [~] **T148-GE-07 — Verification and non-production rollout evidence** — **PARTIAL; database, live-provider, Admin, Chat and regression evidence complete; real-model execution not established**
+  - **Evidence:** PostgreSQL, live endpoints, two Full syncs, unit, DataAdmin, Chat/provider-isolation and frontend checks ran. The real model configuration is present, but the gauge/equilibrium route returns deterministically before resolving the model client. No out-of-scope routing change was made to force an LLM call.
+  - Run the contract, unit, PostgreSQL, Admin, Chat and regression suites after implementation.
+  - Verify migration up/down/up, same-schema FKs, idempotency, unchanged writes, lease exclusion and
+    exact provider/Chat source isolation.
+  - Only with authorized credentials, run read-only contract checks and non-production Admin/full sync;
+    report request, counts and spot-check evidence. Never claim a live run without evidence.
+
+- [x] **T148-GE-08 — Exact numeric representation spike** — **DONE; JSON → DTO → Npgsql/PostgreSQL → retrieval → Chat text serialization passed exactly**
+  - **Evidence:** PostgreSQL integration test round-tripped the maximum supported PostgreSQL numeric integer/scale range, values beyond `System.Decimal` precision, large fractions, negative values, very small values, and null close/status. The test also verified unchanged upserts do not add rows or rewrite equal details. No binary floating-point conversion is used.
+  - **Objective:** Prove provider decimal precision survives DTO parsing, EF/Npgsql persistence, and API/Chat serialization without binary floating point.
+  - **Components:** Gauge/equilibrium DTO parsing, domain value representation, EF numeric mapping, JSON converter, unit and PostgreSQL tests.
+  - **Dependencies:** T148-GE-00 and T148-GE-01.
+  - **Verification:** PostgreSQL integration tests proved exact large-magnitude and high-scale DTO-to-Npgsql-to-retrieval round trips, Chat answer serialization, null and negative preservation, and exact unchanged upserts. The implementation uses three base-10 `numeric` chunks plus sign and scale because PostgreSQL limits integer digits per numeric value.
+
+- [x] **T148-GE-09 — Approved Chat semantics and provider isolation** — **DONE for scripted V2 semantics and NoavaranAmin table-read isolation**
+  - **Objective:** Validate semantic routing and faithful presentation for all three approved Chat capabilities.
+  - **Components:** V2 capability routing, Chat read services/presentation, integration tests for CyclicalWaves and NoavaranAmin modes.
+  - **Dependencies:** T148-GE-03 and T148-GE-06.
+  - **Verification:** Cover eight Persian acceptance examples and equivalent wording; status 1–4/null, boundary and null handling, below-average comparison excludes nulls, IRR units, explicit unavailable output, and zero table reads in NoavaranAmin mode. Do not repair pre-existing general Chat-routing limitations under this extension.
+
+- [x] **T148-GE-10 — Scoped Feature 115 P/S gauge UX compatibility** — **DONE for the latest-state scripted regression; no history/TTM/Forward data returned**
+  - **Objective:** Restore only the standalone P/S gauge display backed by the new latest-state rows.
+  - **Components:** Existing Feature 115 gauge read/presentation and frontend compatibility tests.
+  - **Dependencies:** T148-GE-03 and T148-GE-06.
+  - **Verification:** New gauge close/status/bounds are displayed accurately; history, monthly-sales inset, LastPS/TTM and Forward P/S are absent. Features 114, 125, 126 and 127 remain disabled; no legacy API path is called.
+
+**Extension task count:** 11 tasks (T148-GE-00 through T148-GE-10). T148-GE-00 is an authorization gate, not a design-decision gate. Contract/precision precedes storage; storage precedes sync, Admin and Chat; compatibility/regression precedes operational verification. Original Feature 148 task completion history remains unchanged.
+
+### Extension verification record (2026-11-08)
+
+- Unit selection `CyclicalWavesV2|ExactDecimalTests|Feature148`: **210 passed, 0 failed, 0 skipped**.
+- CyclicalWaves and NoavaranAmin Chat/provider-isolation selection: **24 passed, 3 failed**. All gauge, Feature 115 and provider-isolation cases in this selection passed; the three failures are the established Q02/Q05/Q06 shared-routing cases.
+- CyclicalWaves v2 DataAdmin endpoint checks: **18 passed**.
+- PostgreSQL migration, schema, store, exact-numeric and coordinator integration checks: **6 passed, 0 failed, 0 skipped**.
+- Live four-endpoint gauge/equilibrium contract and 404 check: **1 passed** (read-only GETs).
+- Live Full sync and repeat: **1 passed**. First run reported 20,498 processed, 233 failed as catalog mismatches only (220 gauge, 13 equilibrium), 644 matched gauge details and 500 matched equilibrium details. Both Full runs left the same counts: 684 tickers, 684 availability rows, 1,276 gauge detail rows, 684 equilibrium rows and 17,293 analysis rows. Detail fetches had zero failures. Unmatched catalog entries appeared in `SyncRuns.ErrorSummary`.
+- Gauge client fixture checks: **9 passed**; exact-decimal checks: **7 passed** (included in the unit total above).
+- Frontend production build: **passed**; existing route-file warning and chunk-size warning were emitted.
+- Architecture suite: **14 passed, 1 failed**. The failure is the existing `MigratedSemanticExecutors_DoNotReintroduceLegacySymbolExtraction` assertion on `FinancialStatementTableIntentRules`, already documented against the baseline and unrelated to the extension.
+- Chat selection: **24 passed, 3 failed**. Q02 net-profit entity resolution and Q05/Q06 scanner routing match the documented pre-existing shared Chat-routing limitations under T148-08.4. They do not enter the new gauge route and were not changed.
+- Real-model check: **not executed**. OpenAI configuration is available, but the approved explicit gauge/equilibrium requests are answered by the deterministic CyclicalWaves route before `ResolveModelClient`; the API E2E tests therefore verify the actual Chat route without invoking a live LLM. Do not treat model interpretation as proven.
+- The PostgreSQL test server was isolated on port 55441, its per-test databases were dropped, and the server was stopped. The shared listener on port 5432 and production databases were untouched.
+- `git diff --check` found no whitespace errors (Git reported an existing LF/CRLF normalization warning for `design.md`). No files were staged, committed, pushed or deployed. Feature 150 and NoavaranAmin integration files were not changed.

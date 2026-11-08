@@ -7,6 +7,11 @@ public enum CyclicalWavesV2SyncScope
     Screener,
     IncomeStatements,
     Analysis,
+    GaugeCatalog,
+    GaugeDetails,
+    EquilibriumCatalog,
+    EquilibriumDetails,
+    TickerGaugeEquilibrium,
     Full
 }
 

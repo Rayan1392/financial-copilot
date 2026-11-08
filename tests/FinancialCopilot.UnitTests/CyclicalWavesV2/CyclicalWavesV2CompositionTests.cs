@@ -76,6 +76,7 @@ public sealed class CyclicalWavesV2CompositionTests
         Assert.Equal(typeof(EfCoreScannerExecutionService), Last<IScannerExecutionService>(services).ImplementationType);
         Assert.Equal(typeof(UnavailableComprehensiveAnalysisQueryUseCase), Last<IComprehensiveAnalysisQueryUseCase>(services).ImplementationType);
         Assert.NotEqual(typeof(CyclicalWavesV2QuarterlyIncomeStatementUseCase), Last<IQuarterlyFinancialReportsQueryUseCase>(services).ImplementationType);
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(CyclicalWavesV2GaugeQueryService));
         Assert.Equal(typeof(FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters.CanonicalQueryEntityResolver), Last<ICanonicalQueryEntityResolver>(services).ImplementationType);
     }
 
@@ -89,6 +90,8 @@ public sealed class CyclicalWavesV2CompositionTests
         Assert.Equal(typeof(CyclicalWavesV2ComprehensiveAnalysisQuery), Last<IComprehensiveAnalysisQueryUseCase>(services).ImplementationType);
         Assert.Equal(typeof(CyclicalWavesV2QuarterlyIncomeStatementUseCase), Last<IQuarterlyFinancialReportsQueryUseCase>(services).ImplementationType);
         Assert.Equal(typeof(CyclicalWavesV2FinancialStatementTableQueryUseCase), Last<IFinancialStatementTableQueryUseCase>(services).ImplementationType);
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(CyclicalWavesV2GaugeQueryService));
+        Assert.Equal(typeof(CyclicalWavesV2PsGaugeVisualizationUseCase), Last<IPsVisualizationExperienceUseCase>(services).ImplementationType);
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(CyclicalWavesV2CanonicalEntityResolver));
         // The company resolver used by ingestion is never swapped.
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ICompanyResolverService) &&

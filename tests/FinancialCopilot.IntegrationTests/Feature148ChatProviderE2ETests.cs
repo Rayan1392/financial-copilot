@@ -5,8 +5,10 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Telegram;
+using FinancialCopilot.Domain.Financial.CyclicalWavesV2;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWavesV2;
@@ -295,6 +297,86 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
         Assert.Equal("291.56%", Feature148Chat.ScannerCell(root, "فولاد", "NET_PROFIT_GROWTH_QOQ"));
         Feature148Chat.NoOutboundCalls(_factory.Http);
     }
+
+    [Fact]
+    public async Task GaugeTool_AnswersPESemanticVariantsFromV2Rows()
+    {
+        foreach (var question in new[]
+        {
+            "وضعیت گیج P/E فولاد چگونه است؟",
+            "P/E فولاد نسبت به میانگین تاریخی خودش در چه وضعیتی قرار دارد؟"
+        })
+        {
+            _factory.ResetRecorders();
+            var root = await Feature148Chat.AskAsync(_factory, question);
+            Assert.Contains("مقدار فعلی 5.9751", Feature148Chat.Text(root), StringComparison.Ordinal);
+            Assert.Contains("میانگین 5.8271", Feature148Chat.Text(root), StringComparison.Ordinal);
+            Assert.Contains("CyclicalWaves v2", Feature148Chat.Text(root), StringComparison.Ordinal);
+            Feature148Chat.ReadOnlyCyclicalWavesV2(_factory.Reads);
+            Assert.True(_factory.Reads.Read<CyclicalWavesV2GaugeDetailRow>());
+            Feature148Chat.NoOutboundCalls(_factory.Http);
+        }
+    }
+
+    [Fact]
+    public async Task Feature115StandalonePSGauge_UsesLatestV2CloseAndOmitsUnsupportedComponents()
+    {
+        var root = await Feature148Chat.AskAsync(_factory, "وضعیت گیج P/S کگل چیست؟");
+
+        var gauge = root.GetProperty("psVisualizationResult");
+        Assert.Equal("CyclicalWaves v2", gauge.GetProperty("providerName").GetString());
+        Assert.Equal(0.8m, gauge.GetProperty("gaugeClose").GetProperty("value").GetDecimal());
+        Assert.Equal(1.7614m, gauge.GetProperty("providerAverage").GetDecimal());
+        Assert.Equal(0.5432m, gauge.GetProperty("providerBoundaryStart").GetDecimal());
+        Assert.Equal(12.2804m, gauge.GetProperty("providerBoundaryEnd").GetDecimal());
+        Assert.Equal((int)PsValueState.Missing, gauge.GetProperty("ttmPs").GetProperty("state").GetInt32());
+        Assert.Equal((int)PsValueState.Missing, gauge.GetProperty("forwardPs").GetProperty("state").GetInt32());
+        Assert.False(gauge.GetProperty("historyIncluded").GetBoolean());
+        Assert.Equal((int)PsVisualizationStatus.NotRequested, gauge.GetProperty("historyStatus").GetInt32());
+        Assert.Empty(gauge.GetProperty("historyPoints").EnumerateArray());
+        Assert.True(_factory.Reads.Read<CyclicalWavesV2GaugeDetailRow>());
+        Assert.DoesNotContain(_factory.Reads.EntityTypes, type => type is "CompanyPsHistoryPointRow" or "CompanyPsGaugeSnapshotRow");
+        Feature148Chat.NoOutboundCalls(_factory.Http);
+    }
+
+    [Fact]
+    public async Task GaugeTool_AnswersPSBoundaryAndEquilibriumQueriesExactly()
+    {
+        foreach (var (question, expected) in new[]
+        {
+            ("مقدار فعلی P/S فولاد نسبت به محدوده تاریخی آن کجاست؟", "مقدار فعلی 1.7531"),
+            ("حداقل، میانگین و حداکثر قیمت تعادلی کچاد چقدر است؟", "-7232.1700000000000000002"),
+            ("قیمت تعادلی فولاد چقدر است؟", "7232.1700000000000000002")
+        })
+        {
+            _factory.ResetRecorders();
+            var root = await Feature148Chat.AskAsync(_factory, question);
+            Assert.Contains(expected, Feature148Chat.Text(root), StringComparison.Ordinal);
+            if (question.Contains("تعادلی", StringComparison.Ordinal))
+                Assert.Contains("ریال", Feature148Chat.Text(root), StringComparison.Ordinal);
+            Feature148Chat.ReadOnlyCyclicalWavesV2(_factory.Reads);
+            Feature148Chat.NoOutboundCalls(_factory.Http);
+        }
+    }
+
+    [Fact]
+    public async Task GaugeTool_ScreeningUsesOnlyApprovedPEAndPSConditions()
+    {
+        foreach (var (question, symbols) in new[]
+        {
+            ("کدام نمادها در وضعیت P/E زیر حداقل تاریخی قرار دارند؟", new[] { "کگل" }),
+            ("کدام نمادها در وضعیت P/S زیر میانگین تاریخی قرار دارند؟", new[] { "فولاد", "کگل", "وبملت" })
+        })
+        {
+            _factory.ResetRecorders();
+            var root = await Feature148Chat.AskAsync(_factory, question);
+            var answer = Feature148Chat.Text(root);
+            foreach (var symbol in symbols) Assert.Contains(symbol, answer, StringComparison.Ordinal);
+            Assert.DoesNotContain("فملی", answer, StringComparison.Ordinal); // null P/S close is excluded
+            Feature148Chat.ReadOnlyCyclicalWavesV2(_factory.Reads);
+            Feature148Chat.NoOutboundCalls(_factory.Http);
+        }
+    }
 }
 
 /// <summary>T148-08.4, NoavaranAmin mode: C1/C1-M exclusion, C2, no v2 reads, persistence.</summary>
@@ -335,6 +417,17 @@ public sealed class Feature148NoavaranAminChatE2ETests : IClassFixture<Feature14
 
         Assert.Equal(Feature148ChatFixtures.NoavaranPe, Feature148Chat.LookupCell(root, Feature148ChatFixtures.Folad, "PE_TTM").GetProperty("value").GetDecimal());
         Feature148Chat.ReadNoCyclicalWavesV2(_factory.Reads);
+    }
+
+    [Fact]
+    public async Task GaugeRequestInNoavaranMode_DoesNotReadCyclicalWavesTablesOrCallProvider()
+    {
+        var root = await Feature148Chat.AskAsync(_factory, "قیمت تعادلی فولاد چقدر است؟");
+
+        Feature148Chat.ReadNoCyclicalWavesV2(_factory.Reads);
+        Assert.DoesNotContain("query_cyclicalwaves_gauges", _factory.Fake.ToolCalls);
+        Feature148Chat.NoOutboundCalls(_factory.Http);
+        Assert.DoesNotContain("7232.1700000000000000002", Feature148Chat.Text(root), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -766,7 +859,21 @@ public sealed class Feature148ScriptedAiModelClient : IAiModelClient
         ["سهام با NET_PROFIT_GROWTH_QOQ بالای ۵۰"] = new(Proposal("stock_screening", metrics: ["NET_PROFIT_GROWTH_QOQ"]),
             ScannerParse: ScannerParse("NET_PROFIT_GROWTH_QOQ", "GreaterThan", 50m, "QuarterOverQuarter", "Quarterly")),
         ["سهام با رشد فروش ماهانه بالای ۵۰ درصد"] = new(Proposal("stock_screening", metrics: ["MONTHLY_SALES_GROWTH_MOM"]),
-            ScannerParse: ScannerParse("رشد فروش ماهانه", "GreaterThan", 50m, "MonthOverMonth", "Monthly"))
+            ScannerParse: ScannerParse("رشد فروش ماهانه", "GreaterThan", 50m, "MonthOverMonth", "Monthly")),
+        ["وضعیت گیج P/E فولاد چگونه است؟"] = new(Proposal("comprehensive_analysis", "فولاد"),
+            ToolCall: Tool("query_cyclicalwaves_gauges", "وضعیت گیج P/E فولاد چگونه است؟")),
+        ["P/E فولاد نسبت به میانگین تاریخی خودش در چه وضعیتی قرار دارد؟"] = new(Proposal("comprehensive_analysis", "فولاد"),
+            ToolCall: Tool("query_cyclicalwaves_gauges", "P/E فولاد نسبت به میانگین تاریخی خودش در چه وضعیتی قرار دارد؟")),
+        ["مقدار فعلی P/S فولاد نسبت به محدوده تاریخی آن کجاست؟"] = new(Proposal("comprehensive_analysis", "فولاد"),
+            ToolCall: Tool("query_cyclicalwaves_gauges", "مقدار فعلی P/S فولاد نسبت به محدوده تاریخی آن کجاست؟")),
+        ["حداقل، میانگین و حداکثر قیمت تعادلی کچاد چقدر است؟"] = new(Proposal("comprehensive_analysis", "کچاد"),
+            ToolCall: Tool("query_cyclicalwaves_gauges", "حداقل، میانگین و حداکثر قیمت تعادلی کچاد چقدر است؟")),
+        ["قیمت تعادلی فولاد چقدر است؟"] = new(Proposal("comprehensive_analysis", "فولاد"),
+            ToolCall: Tool("query_cyclicalwaves_gauges", "قیمت تعادلی فولاد چقدر است؟")),
+        ["کدام نمادها در وضعیت P/E زیر حداقل تاریخی قرار دارند؟"] = new(Proposal("comprehensive_analysis"),
+            ToolCall: Tool("query_cyclicalwaves_gauges", "کدام نمادها در وضعیت P/E زیر حداقل تاریخی قرار دارند؟")),
+        ["کدام نمادها در وضعیت P/S زیر میانگین تاریخی قرار دارند؟"] = new(Proposal("comprehensive_analysis"),
+            ToolCall: Tool("query_cyclicalwaves_gauges", "کدام نمادها در وضعیت P/S زیر میانگین تاریخی قرار دارند؟"))
     };
 
 
@@ -956,7 +1063,11 @@ public static class Feature148ChatHost
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
-            ["SemanticRouting:DefaultMode"] = semanticDefaultMode
+            ["SemanticRouting:DefaultMode"] = semanticDefaultMode,
+            ["CyclicalWavesPsVisualization:Enabled"] = "true",
+            ["CyclicalWavesPsVisualization:EnableStandaloneGauge"] = "true",
+            ["CyclicalWavesPsVisualization:IncludeHistoryInStandaloneGauge"] = "false",
+            ["CyclicalWavesPsVisualization:IncludeGaugeInMonthlySalesTrendChart"] = "false"
         }));
         // Read while services are composed, so it must be a host setting.
         builder.UseSetting("FinancialData:ChatProvider", chatProvider);
@@ -990,7 +1101,7 @@ public static class Feature148ChatHost
     {
         var now = DateTimeOffset.UtcNow;
         var store = new EfCoreCyclicalWavesV2Store(db, NullLogger<EfCoreCyclicalWavesV2Store>.Instance);
-        await store.UpsertCatalogAsync(["فولاد", "فملی", "شستا", "کگل", "وبملت"], now, CancellationToken.None);
+        await store.UpsertCatalogAsync(["فولاد", "فملی", "شستا", "کگل", "وبملت", "کچاد"], now, CancellationToken.None);
 
         using (var lines = Feature148ChatFixtures.Fixture("lines.json"))
             await store.UpsertLineDefinitionsAsync(CyclicalWavesV2PayloadParser.ParseLineDefinitions(lines.RootElement), now, CancellationToken.None);
@@ -1004,6 +1115,35 @@ public static class Feature148ChatHost
         await store.ApplyScreenerAsync(Screener("شستا", pe: 3.1m, ps: 2.5m, lastMonthSale: 110_000_000_000_000m, penultimateMonthSale: 100_000_000_000_000m), now, CancellationToken.None);
         await store.ApplyScreenerAsync(Screener("کگل", pe: 7.5m, ps: 0.7m, lastMonthSale: 250_000_000_000_000m, penultimateMonthSale: 200_000_000_000_000m), now, CancellationToken.None);
         await store.ApplyScreenerAsync(Screener("وبملت", pe: 0m, ps: 0.4m, lastMonthSale: null, penultimateMonthSale: null), now, CancellationToken.None);
+
+        var tickerIds = await db.CyclicalWavesV2Tickers.ToDictionaryAsync(row => row.Ticker, row => row.Id);
+        db.CyclicalWavesV2GaugeAvailability.AddRange(tickerIds.Select(entry => new CyclicalWavesV2GaugeAvailabilityRow
+        {
+            TickerId = entry.Value,
+            HasPe = entry.Key is "فولاد" or "فملی" or "کگل",
+            HasPs = entry.Key is "فولاد" or "فملی" or "شستا" or "کگل" or "وبملت",
+            LastFetchedAtUtc = now
+        }));
+        db.CyclicalWavesV2GaugeDetails.AddRange(
+            Gauge(tickerIds["فولاد"], "PE", "5.9751", "2.2886", "38.8073", "3.4315", "5.8271", "9.4010", 3, now),
+            Gauge(tickerIds["فولاد"], "PS", "1.7531", "0.5432", "12.2804", "0.9774", "1.7614", "2.7264", 2, now),
+            Gauge(tickerIds["فملی"], "PE", null, "1", "10", "2", "4", "8", null, now),
+            Gauge(tickerIds["فملی"], "PS", null, "1", "10", "2", "4", "8", null, now),
+            Gauge(tickerIds["شستا"], "PS", "5", "0.5432", "12.2804", "0.9774", "1.7614", "2.7264", 4, now),
+            Gauge(tickerIds["کگل"], "PE", "0.5", "1", "10", "2", "4", "8", 1, now),
+            Gauge(tickerIds["کگل"], "PS", "0.8", "0.5432", "12.2804", "0.9774", "1.7614", "2.7264", 1, now),
+            Gauge(tickerIds["وبملت"], "PS", "0.4", "0.5432", "12.2804", "0.9774", "1.7614", "2.7264", 1, now));
+        db.CyclicalWavesV2EquilibriumRanges.AddRange(
+            new CyclicalWavesV2EquilibriumRangeRow
+            {
+                TickerId = tickerIds["فولاد"], HasRange = true, Min = ExactDecimal.Parse("3236.7000000000000000001"),
+                Avg = ExactDecimal.Parse("7232.1700000000000000002"), Max = ExactDecimal.Parse("11227.6500000000000000003"), FetchedAtUtc = now
+            },
+            new CyclicalWavesV2EquilibriumRangeRow
+            {
+                TickerId = tickerIds["کچاد"], HasRange = true, Min = ExactDecimal.Parse("-3236.7000000000000000001"),
+                Avg = ExactDecimal.Parse("-7232.1700000000000000002"), Max = ExactDecimal.Parse("-11227.6500000000000000003"), FetchedAtUtc = now
+            });
 
         db.CyclicalWavesV2Analyses.Add(new CyclicalWavesV2AnalysisRow
         {
@@ -1023,6 +1163,14 @@ public static class Feature148ChatHost
         });
         await db.SaveChangesAsync();
     }
+
+    private static CyclicalWavesV2GaugeDetailRow Gauge(Guid tickerId, string type, string? close, string start, string end,
+        string min, string avg, string max, int? status, DateTimeOffset now) => new()
+    {
+        TickerId = tickerId, GaugeType = type, A = 414, B = 848, C = 1490, D = 851, E = 534, F = 506,
+        Close = close is null ? null : ExactDecimal.Parse(close), Start = ExactDecimal.Parse(start), End = ExactDecimal.Parse(end),
+        Min = ExactDecimal.Parse(min), Avg = ExactDecimal.Parse(avg), Max = ExactDecimal.Parse(max), Status = status, FetchedAtUtc = now
+    };
 
     private static CyclicalWavesV2ScreenerSnapshot Screener(string ticker, decimal pe, decimal ps, decimal? lastMonthSale, decimal? penultimateMonthSale) =>
         new(ticker, null, new Dictionary<string, decimal?>

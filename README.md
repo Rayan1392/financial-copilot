@@ -244,11 +244,13 @@ required only while ingestion is enabled and come from secrets or environment va
 ```powershell
 $env:CyclicalWavesV2__Identifier = "<account-identifier>"
 $env:CyclicalWavesV2__Password = "<account-password>"
+$env:CyclicalWavesV2__GaugeBaseUrl = "https://api.tahlilapp.com/api/" # optional independent gauge/equilibrium host
 $env:CyclicalWavesV2__IngestionEnabled = "true"      # Worker and Admin sync
 $env:CyclicalWavesV2__DailySyncEnabled = "true"      # daily Full run, cron CyclicalWavesV2__DailySyncCronUtc (default 30 23 * * *)
 ```
 
-Data lands in schema `cyclicalwaves` only. DataAdmin operators use `/admin/data/cyclicalwaves-v2`
+Data lands in schema `cyclicalwaves` only. Gauge/equilibrium reads use the separately configurable
+`GaugeBaseUrl` host while sharing Feature 148 credentials and token refresh. DataAdmin operators use `/admin/data/cyclicalwaves-v2`
 (API `api/v1/admin/cyclicalwaves-v2/*`): catalog and single-ticker syncs run inline; screener, income
 statements, analysis and Full runs are queued for the Worker.
 

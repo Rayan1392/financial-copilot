@@ -39,6 +39,7 @@ export interface AssistantChatBlock {
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   monthlyProductComparisonResult?: MonthlyProductComparisonResult;
   monthlyProductTrendResult?: MonthlyProductTrendResult;
+  symbolSnapshotResult?: SymbolSnapshotResult | null;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
@@ -152,6 +153,48 @@ export interface MonthlyActivityTrendResult {
   missingDataPoints: MonthlyActivityTrendMissingDataPoint[];
   sourceProviderName: string;
   calculatedAtUtc: string;
+}
+
+export type SymbolSnapshotSectionStatus =
+  | "Available"
+  | "NoData"
+  | "Unavailable"
+  | "UnavailableForProvider";
+
+export interface SymbolSnapshotResult {
+  symbol: string;
+  companyName: string;
+  marketName?: string | null;
+  groupName?: string | null;
+  introFa: string;
+  price: {
+    status: SymbolSnapshotSectionStatus;
+    noticeFa?: string | null;
+    latestPrice?: number | null;
+    dailyChangePercent?: number | null;
+    tradingDateJalali?: string | null;
+  };
+  monthlySales: {
+    status: SymbolSnapshotSectionStatus;
+    noticeFa?: string | null;
+    periodLabelFa?: string | null;
+    unitLabelFa?: string | null;
+    salesAmount?: number | null;
+    monthOverMonthPercent?: number | null;
+    yearOverYearPercent?: number | null;
+  };
+  quarterlyReport: {
+    status: SymbolSnapshotSectionStatus;
+    noticeFa?: string | null;
+    periodLabelFa?: string | null;
+    isAudited?: boolean | null;
+    rows?: Array<{
+      labelFa: string;
+      unitLabelFa: string;
+      value?: number | null;
+      yearOverYearPercent?: number | null;
+    }> | null;
+  };
 }
 
 export interface MonthlyProductComparisonResult {
@@ -364,6 +407,7 @@ interface AssistantContentResponse {
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   monthlyProductComparisonResult?: MonthlyProductComparisonResult;
   monthlyProductTrendResult?: MonthlyProductTrendResult;
+  symbolSnapshotResult?: SymbolSnapshotResult | null;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
@@ -686,6 +730,7 @@ function mapAssistantBlock(
     monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
     monthlyProductComparisonResult: content?.monthlyProductComparisonResult,
     monthlyProductTrendResult: content?.monthlyProductTrendResult,
+    symbolSnapshotResult: content?.symbolSnapshotResult,
     disclosureListingResult: content?.disclosureListingResult,
     psVisualizationResult: content?.psVisualizationResult,
     financialStatementAnalysisResult,

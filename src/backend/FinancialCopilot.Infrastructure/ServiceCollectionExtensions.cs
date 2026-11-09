@@ -744,6 +744,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISemanticDialogueOutcomeTelemetry, SemanticDialogueOutcomeTelemetry>();
         services.AddScoped<ISemanticOfflineRegressionRunner, SemanticOfflineRegressionRunner>();
         services.AddSingleton<ISemanticPhraseCandidatePolicy, SemanticPhraseCandidatePolicy>();
+        services.Configure<SymbolSnapshotOptions>(configuration.GetSection(SymbolSnapshotOptions.SectionName));
+        services.AddSingleton<SymbolSnapshotOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SymbolSnapshotOptions>>().Value);
+        services.AddSingleton<ISymbolSnapshotSectionObserver, FinancialCopilot.Infrastructure.AI.OrchestrationV2.LoggingSymbolSnapshotSectionObserver>();
+        services.AddSingleton<ISymbolSnapshotFollowUpSuggestionService, SymbolSnapshotFollowUpSuggestionService>();
+        services.AddScoped<IEligibleSymbolResolver, FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters.NoavaranEligibleSymbolResolver>();
+        services.AddScoped<ISymbolSnapshotUseCase, SymbolSnapshotUseCase>();
+        services.AddScoped<IConversationalCapabilityExecutor, SymbolSnapshotCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyProductComparisonCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();

@@ -114,7 +114,10 @@ public sealed class ConversationDialogueGate(
     ICanonicalQueryProductResolver? productResolver = null,
     ISemanticRoutingLatencySink? latencySink = null,
     ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null,
-    Feature154RoutingScope? feature154 = null) : IConversationDialogueGate
+    Feature154RoutingScope? feature154 = null,
+    IEligibleSymbolResolver? eligibleSymbolResolver = null,
+    SymbolSnapshotOptions? symbolSnapshotOptions = null,
+    IConversationalCapabilityRegistry? capabilityRegistry = null) : IConversationDialogueGate
 {
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
@@ -122,10 +125,11 @@ public sealed class ConversationDialogueGate(
     public async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken)
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
-        var hybridResult = hybridInterpreter is null
+        var symbolSnapshotInterpretation = await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken);
+        var hybridResult = hybridInterpreter is null || symbolSnapshotInterpretation is not null
             ? null
             : await hybridInterpreter.InterpretAsync(request.Message, request.TenantId, request.CorrelationId, cancellationToken);
-        var interpretation = hybridResult?.Interpretation ?? interpreter.Interpret(request.Message);
+        var interpretation = symbolSnapshotInterpretation ?? hybridResult?.Interpretation ?? interpreter.Interpret(request.Message);
         var active = await stateService.GetActiveAsync(scope, cancellationToken);
         var detectedCapability = request.Context?.InsightEventId is not null
             ? "personalized_insight_explanation"
@@ -560,6 +564,30 @@ public sealed class ConversationDialogueGate(
             routedRequest,
             transition,
             effectiveSlots);
+    }
+
+    /// <summary>Feature 156: a message that is only an eligible ticker, unless it answers a pending question.</summary>
+    private async Task<QueryInterpretation?> TryInterpretSymbolSnapshotAsync(
+        AiQueryRequest request,
+        ConversationTaskStateScope scope,
+        CancellationToken cancellationToken)
+    {
+        if (symbolSnapshotOptions?.Enabled != true || eligibleSymbolResolver is null || capabilityRegistry is null ||
+            request.Context?.InsightEventId is not null)
+            return null;
+
+        var key = SymbolSnapshotIntentRules.ExtractCompactKey(request.Message);
+        if (key is null)
+            return null;
+
+        var eligible = await eligibleSymbolResolver.ResolveAsync(key, cancellationToken);
+        if (eligible is null)
+            return null;
+
+        var active = await stateService.GetActiveAsync(scope, cancellationToken);
+        return active?.PendingAction is not null
+            ? null
+            : SymbolSnapshotIntentRules.BuildInterpretation(request.Message, eligible.Symbol, capabilityRegistry.Version);
     }
 
     private async Task<(SuggestedAction Action, DateTimeOffset CreatedAt)?> FindSelectedActionAsync(

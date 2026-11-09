@@ -756,7 +756,7 @@ public static class QuarterlyFinancialReportsNormalizer
             reportIds, lineIds, policy, operandValues, "IRR", 6);
     }
 
-    private static QuarterlyQoQComparison Compare(string rowId, QuarterlyFiscalPeriod currentPeriod,
+    internal static QuarterlyQoQComparison Compare(string rowId, QuarterlyFiscalPeriod currentPeriod,
         QuarterlyFiscalPeriod previousPeriod, QuarterlyFinancialCell current, QuarterlyFinancialCell previous,
         bool isBanking = false)
     {

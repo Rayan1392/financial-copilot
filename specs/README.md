@@ -4,6 +4,8 @@ Each subfolder contains one user story and its implementation tasks. The numbere
 
 ## Implementation Control File
 
+> **Superseded (2026-11-09):** work selection and approval follow [FEATURE_DEVELOPMENT_WORKFLOW.md](./FEATURE_DEVELOPMENT_WORKFLOW.md). The owner decides which feature is worked on; agents do not select checklist items, and implementation needs explicit Gate A and Gate B approval. [implementation-checklist.md](./implementation-checklist.md) remains a historical completion ledger. New specs start from [`_template/`](./_template/); owner decisions go to [open-questions.md](./open-questions.md), defects to [bugs.md](./bugs.md), deferred ideas to [backlog.md](./backlog.md). The original instruction below is kept for history.
+
 Implementation agents must use [implementation-checklist.md](./implementation-checklist.md) as the ordered execution and completion ledger. Read the selected story and task file from this index, but mark work in the checklist only after its completion gate and verification evidence are satisfied.
 
 ---
@@ -26,6 +28,14 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `144-quarterly-financial-reports-table` — proposed, read-only quarterly income-statement comparison table over persisted statement observations, with standalone-quarter normalization, typed comparisons, and traceable source/calculation evidence.
 - `154-ai-balance-sheet-report` — implemented locally (uncommitted), release gates open: V2-only read-only balance-sheet (ترازنامه / صورت وضعیت مالی) report over persisted Noavaran standalone statements. Banking and General templates are selected by `QuarterlyFinancialReports:BankingIndustryGroupId`. It adds a two-date comparison with five typed baselines, a funding-structure chart, and PNG and text renderings. It reuses Feature 144's fiscal-calendar policy and coexists with Feature 083's full statement table. Open gates: E-5 in each non-Development environment, E-1/E-2/E-8 evidence, and E-7 visual sign-off (see `154-ai-balance-sheet-report/ImplementationReport.md`).
+
+## Admin Analytics
+
+- `155-admin-unanswered-question-demand-report`: proposed, read-only admin report of customer questions the assistant does not answer. It separates customer, internal, and automation channels, assigns each turn a coverage bucket (including soft non-answers and misroutes), groups gaps into roadmap themes ranked by distinct users, and shows example questions (audited) and the weekly trend. Reference SQL (classifier v1) is in `queries.sql`; it was validated against a production snapshot on 2026-11-09.
+
+## Chat Experience
+
+- `156-symbol-snapshot-default-card`: Gate B approved 2026-11-09; implemented locally (uncommitted), flag off, live Development check open. A message that is only an eligible ticker gets one card (latest price, monthly sales, quarterly report) and next-step buttons instead of a refusal, on the V2 path behind `SymbolSnapshot:Enabled`.
 
 ## Mobile Experience
 

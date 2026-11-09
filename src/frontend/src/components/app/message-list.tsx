@@ -29,6 +29,7 @@ import { AnswerActions } from "@/components/app/answer-actions";
 import { AnalysisProgress, AssistantAvatar } from "@/components/app/analysis-progress";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
+import { SymbolSnapshotCard } from "@/components/app/symbol-snapshot-card";
 import { AnswerDensityContext, useAnswerDensity } from "@/components/app/answer-density";
 import {
   consolidationLabel,
@@ -176,6 +177,8 @@ function AssistantBlock({
   )
     ? block.financialStatementTableResult!.balanceSheetReport!
     : null;
+  // Feature 156: the card replaces its text rendering on screen (the text stays for Telegram and history).
+  const symbolSnapshot = block.symbolSnapshotResult ?? null;
   const financialStatementAnalysis = block.financialStatementAnalysisResult;
   const dailyTradesSource = "منبع: آمار معاملات روزانه";
   const sourceMatch = message.match(/\s*(منبع: آمار معاملات روزانه)[.。]?\s*$/u);
@@ -224,13 +227,26 @@ function AssistantBlock({
           tradingDate ||
           hasDailyTradesSource ||
           financialStatementAnalysis ||
-          typedBalanceSheet) && (
+          typedBalanceSheet ||
+          symbolSnapshot) && (
           <div className="space-y-1">
-            {displayMessage.length > 0 && !typedQuarterlyTable && !typedBalanceSheet && (
-              <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
-            )}
+            {displayMessage.length > 0 &&
+              !typedQuarterlyTable &&
+              !typedBalanceSheet &&
+              !symbolSnapshot && (
+                <MarkdownMessage
+                  content={displayMessage}
+                  direction={isRtlMessage ? "rtl" : "ltr"}
+                />
+              )}
             {typedQuarterlyTable && <QuarterlyFinancialTable model={typedQuarterlyTable} />}
             {typedBalanceSheet && <BalanceSheetReport result={typedBalanceSheet} />}
+            {symbolSnapshot && (
+              <SymbolSnapshotCard
+                data={symbolSnapshot}
+                followed={followedSymbols?.has(symbolSnapshot.symbol) ?? false}
+              />
+            )}
             {financialStatementAnalysis && (
               <FinancialStatementAnalysisCard data={financialStatementAnalysis} />
             )}

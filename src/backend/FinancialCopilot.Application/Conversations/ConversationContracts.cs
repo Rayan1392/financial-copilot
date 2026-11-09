@@ -64,7 +64,8 @@ public sealed record AssistantMessagePayload(
     int? SemanticRegistryVersion = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
-    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+    SymbolSnapshotResult? SymbolSnapshotResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

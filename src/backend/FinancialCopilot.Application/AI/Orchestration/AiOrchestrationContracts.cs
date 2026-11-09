@@ -25,7 +25,9 @@ public enum DetectedIntent
     PersonalizedInsightExplanation,
     FinancialStatementValueSearch,
     Clarification,
-    Unknown
+    Unknown,
+    // Persisted as an integer: new members go last.
+    SymbolSnapshot
 }
 
 public sealed record IntentDetectionInput(
@@ -150,7 +152,8 @@ public sealed record AiQueryResponse(
     int? SemanticRegistryVersion = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
-    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+    SymbolSnapshotResult? SymbolSnapshotResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

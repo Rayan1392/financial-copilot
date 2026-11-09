@@ -65,7 +65,8 @@ internal sealed record AgentExecutedMessage(
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
      MonthlyProductTrendResult? MonthlyProductTrendResult = null,
-     ValidatedQueryFrame? ExecutedFrame = null);
+     ValidatedQueryFrame? ExecutedFrame = null,
+     SymbolSnapshotResult? SymbolSnapshotResult = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -103,7 +104,8 @@ internal sealed record ResultsComputedMessage(
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
-    bool DeterministicSuggestionsApplied = false);
+    bool DeterministicSuggestionsApplied = false,
+    SymbolSnapshotResult? SymbolSnapshotResult = null);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -138,4 +140,5 @@ internal sealed record PersistenceCompletedMessage(
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
-    bool DeterministicSuggestionsApplied = false);
+    bool DeterministicSuggestionsApplied = false,
+    SymbolSnapshotResult? SymbolSnapshotResult = null);

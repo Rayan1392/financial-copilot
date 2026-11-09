@@ -52,7 +52,8 @@ public sealed record CapabilityDefinition(
     string? EntityScope = null,
     string? ExecutionTarget = null,
     string? PolicyCode = null,
-    string? RolloutKey = null);
+    string? RolloutKey = null,
+    bool GateRoutedOnly = false);
 
 public static class CapabilityExecutionRoutes
 {
@@ -73,6 +74,7 @@ public static class CapabilityExecutionRoutes
     public const string FinancialStatementValueSearch = "financial_statement_value_search";
     public const string RegisteredFinancialSource = "registered_financial_source";
     public const string MonthlyProductComparison = "monthly_product_comparison";
+    public const string SymbolSnapshot = "symbol_snapshot";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -80,7 +82,7 @@ public static class CapabilityExecutionRoutes
         ProductSalesValue, ProductSalesTrend,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
         MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch,
-        RegisteredFinancialSource, MonthlyProductComparison
+        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot
     };
 }
 
@@ -115,8 +117,9 @@ public sealed class ConversationalCapabilityRegistry : IConversationalCapability
 
     public IReadOnlyCollection<CapabilityDefinition> GetAll() => definitions.Values.ToArray();
 
+    // A gate-routed capability is never offered to interpreters or guidance; only its gate can select it.
     public IReadOnlyCollection<CapabilityDefinition> GetEnabled() =>
-        definitions.Values.Where(item => item.Enabled).ToArray();
+        definitions.Values.Where(item => item.Enabled && !item.GateRoutedOnly).ToArray();
 
     public CapabilityDefinition? Find(string code) =>
         definitions.TryGetValue(code, out var definition) ? definition : null;
@@ -279,7 +282,11 @@ public static class InitialConversationalCapabilityCatalog
         Definition("symbol_pair_within_industry", CapabilityExecutionRoutes.IndustryRelativeValuation, "comparison", "relative-valuation",
             [Alias("en", "compare two symbols within their industry"), Alias("fa", "مقایسه دو نماد در یک صنعت")],
             [Example("en", "compare فولاد and فملی within their industry"), Example("fa", "شگل و شوینده را مقایسه کن")],
-            [Slot("symbols", "symbol-list", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)], false)
+            [Slot("symbols", "symbol-list", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)], false),
+        Definition(SymbolSnapshotCapability.Code, CapabilityExecutionRoutes.SymbolSnapshot, "summary", "symbol-snapshot",
+            [Alias("en", "symbol snapshot"), Alias("fa", "خلاصه نماد")],
+            [Example("en", "فولاد"), Example("fa", "فولاد")],
+            [Slot("symbol", "symbol", true)], [], false) with { GateRoutedOnly = true }
     ];
 
     private static CapabilityDefinition Definition(
@@ -313,6 +320,7 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.MonthlySalesQualityRanking => ["monthly_activity_reports", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.PsGaugeVisualization => ["canonical_company_identity", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.PersonalizedInsightExplanation => ["personalized_market_insights"],
+        CapabilityExecutionRoutes.SymbolSnapshot => ["canonical_company_identity", "monthly_activity_reports", "financial_statements"],
         CapabilityExecutionRoutes.IndustryRelativeValuation => ["published_industry_relative_valuation_snapshot"],
         _ => throw new InvalidOperationException($"No governed data requirements exist for route '{route}'.")
     };

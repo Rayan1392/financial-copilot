@@ -2,6 +2,8 @@
 
 ## Purpose
 
+> **Superseded (2026-11-09):** this file is now a historical completion ledger only. Work selection and approval follow `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`: the owner decides which feature is worked on, agents do not select the next unchecked item, and a ticked row is not evidence of Gate A or Gate B approval. The instructions below are kept for history.
+
 This file is the implementation control checklist for FinancialCopilot. An implementation agent must read this file before starting backend work, select the first eligible unchecked item, implement the corresponding `user-story.md` and `tasks.md`, verify it, and update the checkbox and evidence in this file.
 
 The checklist orders delivery by dependency and product priority rather than folder number. It preserves:

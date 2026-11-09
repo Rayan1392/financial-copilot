@@ -224,115 +224,82 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         return new AdminUserDirectoryPage(items, nextCursor, hasMore, asOfUtc);
     }
 
-    public async Task<AdminUserAnalyticsSnapshot> GetAnalyticsAsync(
+    public async Task<AdminUserAnalyticsCube> GetAnalyticsAsync(
         Guid tenantId,
         bool canReadSubscription,
         CancellationToken cancellationToken)
     {
         var asOfUtc = timeProvider.GetUtcNow().ToUniversalTime();
-        var monthStart = new DateTimeOffset(
-            new DateTime(asOfUtc.Year, asOfUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc)).AddMonths(-11);
-        var users = from membership in auth.UserTenants.AsNoTracking()
-                    join user in auth.Users.AsNoTracking() on membership.UserId equals user.Id
-                    join metadataRow in auth.UserOperationalMetadata.AsNoTracking() on user.Id equals metadataRow.UserId into metadataRows
-                    from metadata in metadataRows.DefaultIfEmpty()
-                    where membership.TenantId == tenantId
-                    select new
-                    {
-                        user.Id,
-                        user.IsEnabled,
-                        user.LockoutEnd,
-                        RegisteredAtUtc = metadata == null ? null : metadata.RegisteredAtUtc,
-                        AcquisitionSourceCode = metadata == null
-                            ? UserOperationalMetadataCodes.Unknown
-                            : metadata.AcquisitionSourceCode
-                    };
 
-        var totalUsers = await users.CountAsync(cancellationToken);
-        var enabledUsers = await users.CountAsync(row => row.IsEnabled, cancellationToken);
-        var lockedUsers = await users.CountAsync(
-            row => row.IsEnabled && row.LockoutEnd > asOfUtc,
-            cancellationToken);
-        var sourceGroups = await users
-            .GroupBy(row => row.AcquisitionSourceCode)
-            .Select(group => new { Code = group.Key, UserCount = group.Count() })
-            .ToArrayAsync(cancellationToken);
-        var acquisitionSources = new[]
-            {
-                UserOperationalMetadataCodes.Native,
-                UserOperationalMetadataCodes.TahlilApp,
-                UserOperationalMetadataCodes.Unknown
-            }
-            .Select(code => new AdminUserAnalyticsBreakdown(
-                code,
-                sourceGroups.FirstOrDefault(group => group.Code == code)?.UserCount ?? 0))
-            .ToArray();
-
-        var monthlyGroups = await users
-            .Where(row => row.RegisteredAtUtc.HasValue && row.RegisteredAtUtc >= monthStart)
-            .GroupBy(row => new
-            {
-                Year = row.RegisteredAtUtc!.Value.Year,
-                Month = row.RegisteredAtUtc.Value.Month,
-                row.AcquisitionSourceCode
-            })
-            .Select(group => new
-            {
-                group.Key.Year,
-                group.Key.Month,
-                group.Key.AcquisitionSourceCode,
-                UserCount = group.Count()
-            })
-            .ToArrayAsync(cancellationToken);
-
-        var registrationsByMonth = Enumerable.Range(0, 12)
-            .Select(offset => monthStart.AddMonths(offset))
-            .Select(month =>
-            {
-                var counts = monthlyGroups.Where(group => group.Year == month.Year && group.Month == month.Month);
-                return new AdminUserRegistrationMonth(
-                    $"{month.Year:D4}-{month.Month:D2}",
-                    counts.Where(group => group.AcquisitionSourceCode == UserOperationalMetadataCodes.Native).Sum(group => group.UserCount),
-                    counts.Where(group => group.AcquisitionSourceCode == UserOperationalMetadataCodes.TahlilApp).Sum(group => group.UserCount),
-                    counts.Where(group => group.AcquisitionSourceCode == UserOperationalMetadataCodes.Unknown).Sum(group => group.UserCount));
-            })
-            .ToArray();
-
-        IReadOnlyCollection<AdminUserAnalyticsBreakdown> subscriptionPlans = [];
+        // Billing and auth are separate contexts, so each user's plan is joined in memory. Both
+        // projections are a few narrow columns per tenant member and run under a statement timeout.
+        var planByUser = new Dictionary<Guid, string>();
+        IReadOnlyCollection<AdminUserAnalyticsPlan> planCatalog = [];
         if (canReadSubscription)
         {
-            var planGroups = await billing.CustomerAccounts.AsNoTracking()
+            var activePlans = await WithStatementTimeoutAsync(billing, () => billing.CustomerAccounts.AsNoTracking()
                 .Where(account => account.TenantId == tenantId &&
                                   account.UserId != null &&
                                   account.SubscriptionPlanCode != null &&
                                   (account.SubscriptionEffectiveFrom == null || account.SubscriptionEffectiveFrom <= asOfUtc) &&
                                   (account.SubscriptionEffectiveTo == null || account.SubscriptionEffectiveTo > asOfUtc))
-                .GroupBy(account => account.SubscriptionPlanCode!)
-                .Select(group => new
-                {
-                    Code = group.Key,
-                    UserCount = group.Select(account => account.UserId).Distinct().Count()
-                })
-                .OrderBy(group => group.Code)
+                .Select(account => new { UserId = account.UserId!.Value, PlanCode = account.SubscriptionPlanCode })
+                .ToArrayAsync(cancellationToken), cancellationToken);
+            planByUser = activePlans
+                .GroupBy(row => row.UserId)
+                .ToDictionary(group => group.Key, group => AdminUserAnalytics.ResolvePlan(group.Select(row => row.PlanCode)));
+            planCatalog = await billing.SubscriptionPlans.AsNoTracking()
+                .OrderBy(plan => plan.Code)
+                .Select(plan => new AdminUserAnalyticsPlan(plan.Code, plan.Name))
                 .ToArrayAsync(cancellationToken);
-            var activePlanUsers = planGroups.Sum(group => group.UserCount);
-            subscriptionPlans = planGroups
-                .Select(group => new AdminUserAnalyticsBreakdown(group.Code, group.UserCount))
-                .Append(new AdminUserAnalyticsBreakdown(
-                    "none",
-                    Math.Max(0, totalUsers - activePlanUsers)))
-                .ToArray();
         }
 
-        return new AdminUserAnalyticsSnapshot(
-            totalUsers,
-            enabledUsers,
-            lockedUsers,
-            acquisitionSources,
-            subscriptionPlans,
-            registrationsByMonth,
-            canReadSubscription,
-            asOfUtc);
+        var members = await WithStatementTimeoutAsync(auth, () => (
+                from membership in auth.UserTenants.AsNoTracking()
+                join user in auth.Users.AsNoTracking() on membership.UserId equals user.Id
+                join metadataRow in auth.UserOperationalMetadata.AsNoTracking() on user.Id equals metadataRow.UserId into metadataRows
+                from metadata in metadataRows.DefaultIfEmpty()
+                where membership.TenantId == tenantId
+                select new
+                {
+                    user.Id,
+                    user.IsEnabled,
+                    user.LockoutEnd,
+                    RegisteredAtUtc = metadata == null ? null : metadata.RegisteredAtUtc,
+                    LastSuccessfulLoginAtUtc = metadata == null ? null : metadata.LastSuccessfulLoginAtUtc,
+                    AcquisitionSourceCode = metadata == null
+                        ? UserOperationalMetadataCodes.Unknown
+                        : metadata.AcquisitionSourceCode
+                })
+            .ToArrayAsync(cancellationToken), cancellationToken);
+
+        var facts = members.Select(member => new AdminUserAnalyticsFact(
+            member.AcquisitionSourceCode,
+            member.IsEnabled,
+            member.LockoutEnd,
+            member.RegisteredAtUtc,
+            member.LastSuccessfulLoginAtUtc,
+            planByUser.TryGetValue(member.Id, out var planCode) ? planCode : null));
+
+        return AdminUserAnalytics.Build(facts, planCatalog, canReadSubscription, asOfUtc);
+    }
+
+    /// <summary>Runs one read under a 5s PostgreSQL statement timeout so an analytics scan cannot pin a connection.</summary>
+    private static async Task<T> WithStatementTimeoutAsync<T>(
+        DbContext context,
+        Func<Task<T>> query,
+        CancellationToken cancellationToken)
+    {
+        if (!IsPostgres(context))
+        {
+            return await query();
+        }
+
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await context.Database.ExecuteSqlRawAsync("SET LOCAL statement_timeout = '5s'", cancellationToken);
+        var result = await query();
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
 
     public async Task<AdminCustomer360View> GetCustomer360Async(
@@ -1148,7 +1115,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             asOfUtc);
 
     private static string GetStatus(bool isEnabled, DateTimeOffset? lockoutEnd, DateTimeOffset asOfUtc) =>
-        !isEnabled ? "disabled" : IsLocked(lockoutEnd, asOfUtc) ? "locked" : "enabled";
+        AdminUserAnalytics.ResolveStatus(isEnabled, lockoutEnd, asOfUtc);
 
     /// <summary>The official TahlilApp name wins; older records fall back to first + last name.</summary>
     internal static string? ResolveDisplayName(string? displayName, string? firstName, string? lastName)

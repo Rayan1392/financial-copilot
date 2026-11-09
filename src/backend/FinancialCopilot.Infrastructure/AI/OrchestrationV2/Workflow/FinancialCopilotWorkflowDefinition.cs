@@ -65,6 +65,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IMonthlySalesQualityRankingFollowUpSuggestionService monthlySalesQualityRankingFollowUpSuggestionService,
     IQuarterlyFinancialReportFollowUpSuggestionService quarterlyFinancialReportFollowUpSuggestionService,
     IFinancialStatementAnalysisFollowUpSuggestionService financialStatementAnalysisFollowUpSuggestionService,
+    ISymbolSnapshotFollowUpSuggestionService symbolSnapshotFollowUpSuggestionService,
     IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IMonthlyProductTrendQueryUseCase monthlyProductTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
@@ -456,7 +457,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             // The registered financial source capability is Feature 141 itself: its result is settled here and never re-run.
             var directFeature141 = semantic.Execution.Payload as Feature141ChatAnswer;
             var policyBlocked = ChatCapabilityAvailability.MessageForReasonCode(semantic.Execution.ReasonCode, persian: true) is not null;
+            if (semantic.Execution.Payload is SymbolSnapshotResult)
+                stepActivity?.SetTag("workflow.intent", "SymbolSnapshot");
+            // A snapshot with no data is a complete answer, so the registered financial source never replaces it.
             var canUseFeature141 = directFeature141 is null && !policyBlocked && !IsCyclicalWavesMode
+                && semanticFrame.CapabilityCode != SymbolSnapshotCapability.Code
                 && semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired
                 or CapabilityExecutionStatus.DisambiguationRequired
                 or CapabilityExecutionStatus.Unsupported
@@ -531,6 +536,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 DisclosureListingResult disclosures => BuildDisclosureListingContent(disclosures),
                 PsVisualizationResult gauge => BuildPsGaugeContent(gauge.CompanySymbol, gauge),
                 IndustryRelativeValuationPayload relative => relative.PresentationText,
+                SymbolSnapshotResult snapshot => SymbolSnapshotTextComposer.Compose(snapshot),
                 string explanation => explanation,
                 _ => AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
                     clarification ? DialogueOutcome.ClarificationNeeded : semantic.Execution.Status == CapabilityExecutionStatus.NoData ? DialogueOutcome.NoData : DialogueOutcome.Unsupported,
@@ -557,7 +563,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticReplyLanguage: semanticFrame.Interpretation.ReplyLanguage,
                 MonthlyProductComparisonResult: monthlyProductComparisonResult,
                 MonthlyProductTrendResult: monthlyProductTrendResult,
-                FinancialStatementValueSearchResult: financialStatementValueSearchResult);
+                FinancialStatementValueSearchResult: financialStatementValueSearchResult,
+                SymbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult);
         }
 
         if (request.SemanticFrame is null && request.SemanticRoutingDisposition is "Unsupported" or "Clarification")
@@ -1403,8 +1410,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var financialStatementAnalysisFollowUpsApplied = msg.FinancialStatementAnalysisResult is
                 { SourceReferences.Count: > 0 } &&
             outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
+        var symbolSnapshotFollowUpsApplied = msg.SymbolSnapshotResult is not null;
         IReadOnlyCollection<SuggestedAction>? deterministicActions = null;
-        if (feature075Applied)
+        if (symbolSnapshotFollowUpsApplied)
+            deterministicActions = symbolSnapshotFollowUpSuggestionService.Build(msg.SymbolSnapshotResult!);
+        else if (feature075Applied)
             deterministicActions = productRevenueMixFollowUpSuggestionService.Build(msg.ProductRevenueMixResult!);
         else if (feature137Applied)
             deterministicActions = await monthlySalesProductFollowUpSuggestionService.BuildAsync(
@@ -1421,7 +1431,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 msg.FinancialStatementAnalysisResult!);
         var deterministicApplied = feature075Applied || feature137Applied || feature138Applied ||
             monthlyRankingFollowUpsApplied || quarterlyReportFollowUpsApplied ||
-            financialStatementAnalysisFollowUpsApplied;
+            financialStatementAnalysisFollowUpsApplied || symbolSnapshotFollowUpsApplied;
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);
@@ -1448,7 +1458,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
             MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
             SuggestedActions: deterministicActions,
-            DeterministicSuggestionsApplied: deterministicApplied);
+            DeterministicSuggestionsApplied: deterministicApplied,
+            SymbolSnapshotResult: msg.SymbolSnapshotResult);
     }
 
     private void RecordRoutingDiagnostic(
@@ -1733,6 +1744,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             monthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
             financialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
             monthlyProductTrendResult: msg.MonthlyProductTrendResult,
+             symbolSnapshotResult: msg.SymbolSnapshotResult,
              disclosureListingResult: msg.DisclosureListingResult,
              psVisualizationResult: msg.PsVisualizationResult,
              deterministicSuggestedActions: msg.SuggestedActions,
@@ -1756,7 +1768,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
              MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
              SuggestedActions: persistedExchange.SuggestedActions,
-             DeterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied);
+             DeterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied,
+             SymbolSnapshotResult: msg.SymbolSnapshotResult);
     }
 
     private static AiQueryResponse BuildFinalResponse(PersistenceCompletedMessage msg)
@@ -1793,6 +1806,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
             MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
+            SymbolSnapshotResult: msg.SymbolSnapshotResult,
             DisclosureListingResult: msg.DisclosureListingResult,
             PsVisualizationResult: msg.PsVisualizationResult,
             Outcome: msg.Outcome,
@@ -2035,6 +2049,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
         "financial_statement_value_search" => DetectedIntent.FinancialStatementValueSearch,
+        SymbolSnapshotCapability.Code => DetectedIntent.SymbolSnapshot,
         "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or
             "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown

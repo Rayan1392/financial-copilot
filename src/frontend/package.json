@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test:api-url": "node --experimental-strip-types scripts/test-api-url.ts",
     "test:admin-permissions": "node --experimental-strip-types scripts/test-admin-permissions.ts",
     "test": "vitest run",
@@ -17,6 +18,7 @@
     "test:quarterly-general-chart": "node scripts/quarterly-financial-general-chart.browser.test.mjs",
     "test:mobile-browser": "node scripts/mobile-workspace.browser.mjs",
     "test:balance-sheet-browser": "node scripts/balance-sheet-report.browser.mjs",
+    "test:symbol-snapshot-browser": "node scripts/symbol-snapshot-card.browser.mjs",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "test:watch": "vitest",
     "format": "prettier --write ."

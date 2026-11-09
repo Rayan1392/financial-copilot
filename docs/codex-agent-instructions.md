@@ -69,6 +69,8 @@ AI/Scanner -> Billing persistence implementations
 
 ## Implementation Order
 
+> **Superseded (2026-11-09):** work selection and approval now follow `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`. The owner decides which feature is worked on; agents do not pick the next checklist item, and implementation needs explicit Gate A and Gate B approval. `specs/implementation-checklist.md` remains a historical completion ledger. The paragraphs below are kept for history.
+
 Use `specs/implementation-checklist.md` as the authoritative implementation order and progress ledger. Before starting a story, read its `user-story.md` and `tasks.md`, review current implementation state, and update the checklist item only according to its completion gate.
 
 The checklist intentionally places Billing foundations and the Financial Semantic Layer before the workflows that depend on their contracts. It also distinguishes the Scanner MVP delivery from future platform evolution features.

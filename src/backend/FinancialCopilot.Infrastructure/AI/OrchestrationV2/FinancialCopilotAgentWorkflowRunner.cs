@@ -120,6 +120,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                     $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary}",
                 SemanticComprehensiveAnalysisPayload combined => ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary,
                 IndustryRelativeValuationPayload relative => relative.PresentationText,
+                SymbolSnapshotResult snapshot => SymbolSnapshotTextComposer.Compose(snapshot),
                 _ => null
             };
             state.ScannerResult = scannerPayload is null ? null : ScannerToolResult.Success(scannerPayload.Plan, scannerPayload.Table, scannerPayload.Table.ExecutionFacts.FromCache);
@@ -160,7 +161,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 monthlyActivityTrendResult: semantic.Execution.Payload as MonthlyActivityTrendResponse,
                 monthlySalesQualityRankingResult: semantic.Execution.Payload as MonthlySalesQualityRankingResponse,
                 disclosureListingResult: semantic.Execution.Payload as DisclosureListingResult,
-                psVisualizationResult: semantic.Execution.Payload as PsVisualizationResult);
+                psVisualizationResult: semantic.Execution.Payload as PsVisualizationResult,
+                symbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult);
             await dialogueGate.RecordOutcomeAsync(request, conversationId, clarification, semantic.Execution.ReasonCode, cancellationToken);
             return new AiQueryResponse(
                 conversationId, persisted.UserMessageId, persisted.AssistantMessageId,
@@ -180,6 +182,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 ReplyLanguage: semanticFrame.Interpretation.ReplyLanguage,
                 LanguageGuardApplied: semanticDialogueOutcome.LanguageGuardApplied,
                 SuggestedActions: persisted.SuggestedActions,
+                SymbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult,
                 SemanticCapabilityCode: semanticFrame.CapabilityCode,
                 SemanticRegistryVersion: semanticFrame.RegistryVersion);
         }
@@ -508,6 +511,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
         "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
         "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
+        SymbolSnapshotCapability.Code => DetectedIntent.SymbolSnapshot,
         "product_sales_value" => DetectedIntent.MonthlyProductTrend,
         "product_sales_trend" => DetectedIntent.MonthlyProductTrend,
         "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,

@@ -1,0 +1,63 @@
+Pager usage is off.
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+     current_user      
+-----------------------
+ feature141_app_reader
+(1 row)
+
+== column coverage
+ total | ticker | tse | company_symbol | tse_differs 
+-------+--------+-----+----------------+-------------
+   877 |      0 | 877 |            877 |           0
+(1 row)
+
+== sample of tickers
+ ExternalCompanyId |          Name          | Ticker | TseSymbol | CompanySymbol 
+-------------------+------------------------+--------+-----------+---------------
+ 464               | مخابرات ایران          |        | اخابر     | اخابر
+ 581               | بانک دی                |        | دی        | دی
+ 436               | فولاد مبارکه اصفهان    |        | فولاد     | فولاد
+ 4                 | معدنی و صنعتی گل گهر   |        | کگل       | کگل
+ 12795             | معدنی و صنعتی گهر زمین |        | کگهر      | کگهر
+ 452               | بانک ملت               |        | وبملت     | وبملت
+(6 rows)
+
+== rows where the two symbol columns differ (first 20)
+ ExternalCompanyId | TseSymbol | CompanySymbol 
+-------------------+-----------+---------------
+(0 rows)
+
+== compact keys shared by more than one company
+ k | companies | string_agg 
+---+-----------+------------
+(0 rows)
+
+== eligible keys equal to common words
+  k   |       string_agg        
+------+-------------------------
+ بورس | بورس اوراق بهادار تهران
+ دی   | بانک دی
+ مهر  | سرمایه گذاری مهر
+ نماد | گروه مالی نماد غدیر
+(4 rows)
+
+== longest key length
+ max 
+-----
+  11
+(1 row)
+
+== keys of 2 characters or fewer
+ k  | v  
+----+----
+ آپ | آپ
+ جم | جم
+ دی | دی
+ سپ | سپ
+ ما | ما
+(5 rows)
+

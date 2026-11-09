@@ -47,6 +47,7 @@ internal sealed class MessagePersistenceFunction(
         MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
         FinancialStatementValueSearchResult? financialStatementValueSearchResult = null,
         MonthlyProductTrendResult? monthlyProductTrendResult = null,
+        SymbolSnapshotResult? symbolSnapshotResult = null,
         IReadOnlyCollection<SuggestedAction>? deterministicSuggestedActions = null,
         bool deterministicSuggestionsApplied = false)
     {
@@ -114,6 +115,7 @@ internal sealed class MessagePersistenceFunction(
                     MonthlyProductComparisonResult: monthlyProductComparisonResult,
                     FinancialStatementValueSearchResult: financialStatementValueSearchResult,
                     MonthlyProductTrendResult: monthlyProductTrendResult,
+                    SymbolSnapshotResult: symbolSnapshotResult,
                     Outcome: outcome,
                     OutcomeReasonCode: outcomeReasonCode,
                     ReplyLanguage: replyLanguage,

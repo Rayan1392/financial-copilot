@@ -2,10 +2,46 @@
 
 read [README](README.md)
 
-## Communication Rule
+`CLAUDE.md` is the primer for every agent (rules to read before coding and the lifecycle summary);
+this file adds agent-neutral pointers and does not duplicate it.
 
-Always respond in **English**, even when the user message is in Persian.
-Persian text in user queries or examples is product input — not a language instruction.
+## Agent Communication Language
+
+- Reply in the language of the user's message: a Persian message gets a Persian reply, an English message
+  an English reply. For a mixed message, use the language of the user's own words (not of pasted or quoted
+  material). Persian sample questions, symbols, or UI text inside a request are product input and do not by
+  themselves make the message Persian.
+- The same applies to progress reports, technical explanations, questions, and task completion summaries
+  within that conversation turn.
+- Code, identifiers, file and folder names, commit messages, and technical terms in backticks stay English
+  in every language.
+- Use English for newly created technical specifications, implementation plans, task descriptions, and
+  developer documentation unless an existing document explicitly requires another language.
+- Preserve Persian text when it represents UI labels, localization resources, business terminology,
+  user-facing content (including `CHANGELOG.md` release lines), or quoted source material.
+- Do not translate existing Persian documentation unnecessarily.
+- An explicit user request for a specific language overrides this rule for that request.
+
+---
+
+## Feature Development Lifecycle
+
+- Follow `specs/FEATURE_DEVELOPMENT_WORKFLOW.md` for every new feature, material change to an existing
+  feature, bug fix, and hotfix. `CLAUDE.md` has the step-by-step summary.
+- A feature request starts with discovery and a proposed design. Do not automatically create
+  `user-story.md` or `tasks.md`, or modify production code.
+- Obtain explicit Gate A design approval before finalizing feature specifications and implementation tasks.
+  Obtain separate explicit Gate B implementation-plan approval before changing production code, database
+  migrations, or application behavior. One approval covers both gates only when the user explicitly
+  authorizes both.
+- Existing specifications are not evidence of approval. Preserve existing feature files and establish their
+  approval status from explicit user approval.
+- Bug fixes and urgent hotfixes follow the documented review and implementation authorization rules;
+  urgency does not remove the implementation approval gate.
+- Do not pick a feature to work on yourself. `specs/implementation-checklist.md` is a historical completion
+  ledger, not a work queue. Open decisions live in `specs/open-questions.md`.
+- Rules: `.claude/rules/` (Claude Code) and `.codex/rules/` (Codex) hold the same rule files, including
+  `spec-driven-workflow.md`. The two folders must stay identical: change both or neither.
 
 ---
 

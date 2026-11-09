@@ -424,6 +424,7 @@ public static class SemanticRouteMapping
         DetectedIntent.PersonalizedInsightExplanation => "personalized_insight_explanation",
         DetectedIntent.FinancialStatementValueSearch => "financial_statement_value_search",
         DetectedIntent.Clarification => "clarification",
+        DetectedIntent.SymbolSnapshot => SymbolSnapshotCapability.Code,
         _ => "unknown"
     };
 }

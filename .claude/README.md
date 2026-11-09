@@ -11,7 +11,7 @@ The existing React + TypeScript frontend prototype built with Lovable should be 
 
 ## Communication Rule
 
-All agents (Codex, Claude, or any other AI assistant) must always respond in English, even when the user writes in Persian. Persian end-user prompts or localized UI examples may be retained where they are part of product requirements.
+All agents (Codex, Claude, or any other AI assistant) reply in the language of the user's message (Persian → Persian, English → English). Code, identifiers, commit messages, and new technical specifications and docs stay in English; Persian UI text, business terms, and existing Persian documentation are preserved. Full rule: "Agent Communication Language" in `AGENTS.md`. Feature work follows `specs/FEATURE_DEVELOPMENT_WORKFLOW.md` (Gate A design approval, then Gate B implementation-plan approval).
 
 ## Phase 1 Scope — Scanner MVP
 

@@ -530,6 +530,8 @@ services:
       ConnectionStrings__Feature141ReadOnly: ${FEATURE141_READONLY_CONNECTION_STRING:?Feature 141 read-only connection is required}
       # Feature 141 chat route: off unless a pilot environment sets FEATURE141_ENABLED=true; set false to roll back.
       Feature141__Enabled: ${FEATURE141_ENABLED:-false}
+      # Feature 156 bare-ticker card: off unless an environment sets SYMBOL_SNAPSHOT_ENABLED=true; set false to roll back.
+      SymbolSnapshot__Enabled: ${SYMBOL_SNAPSHOT_ENABLED:-false}
       # Feature 141 shared public company scope: one tenant-level scope over every eligible listed company, active only
       # with the owner's approval reference. tools/SemanticCatalog/sql/feature141-public-company-scope-env.sql generates
       # these variables and the per-company Feature141__QueryExecution__* lines into .env (they reach the container

@@ -61,7 +61,8 @@ public sealed record AiQueryHttpResponse(
     int? SemanticRegistryVersion = null,
     MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
-    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null);
+    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null,
+    SymbolSnapshotResult? SymbolSnapshotResult = null);
 
 public sealed record MonthlyProductTrendHttpResponse(
     string ResultDiscriminator,
@@ -345,7 +346,8 @@ public sealed record AssistantMessageContentResponse(
     int? SemanticRegistryVersion = null,
     MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
-    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null);
+    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null,
+    SymbolSnapshotResult? SymbolSnapshotResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

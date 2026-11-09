@@ -186,7 +186,7 @@ export function AdminPage({ user }: { user: AuthUser }) {
   const activeItem = navigation.find((item) => item.value === tab) ?? navigation[0];
 
   return (
-    <div dir="rtl" className="scheme-light min-h-screen bg-slate-50 text-slate-900">
+    <div dir="rtl" className="light scheme-light min-h-screen bg-slate-50 text-slate-900">
       <div className="min-h-screen lg:grid lg:grid-cols-[264px_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col bg-[#111c2f] px-4 py-4 text-white lg:sticky lg:top-0 lg:h-screen lg:px-5 lg:py-6">
           <div className="flex items-center gap-3 px-2 pb-5 lg:pb-9">
@@ -413,7 +413,7 @@ function useAdminDialog() {
     <Dialog open={Boolean(request)} onOpenChange={(open) => !open && finish(null)}>
       <DialogContent
         dir="rtl"
-        className="scheme-light max-h-[90vh] overflow-y-auto rounded-2xl border-slate-200 p-0 text-right shadow-2xl sm:max-w-xl"
+        className="light scheme-light max-h-[90vh] overflow-y-auto rounded-2xl border-slate-200 p-0 text-right shadow-2xl sm:max-w-xl"
       >
         {request && (
           <form onSubmit={submit}>
@@ -1171,7 +1171,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
         >
           <DialogContent
             dir="rtl"
-            className="scheme-light max-h-[92vh] w-[calc(100vw-2rem)] overflow-y-auto bg-white p-4 sm:max-w-[min(96vw,1100px)] sm:p-6"
+            className="light scheme-light max-h-[92vh] w-[calc(100vw-2rem)] overflow-y-auto bg-white p-4 sm:max-w-[min(96vw,1100px)] sm:p-6"
           >
             <DialogHeader className="text-right">
               <DialogTitle>
@@ -2720,7 +2720,7 @@ function BillingPanel({ user }: { user: AuthUser }) {
       >
         <DialogContent
           dir="rtl"
-          className="scheme-light max-h-[92vh] overflow-y-auto rounded-2xl border-slate-200 p-0 text-right shadow-2xl sm:max-w-3xl"
+          className="light scheme-light max-h-[92vh] overflow-y-auto rounded-2xl border-slate-200 p-0 text-right shadow-2xl sm:max-w-3xl"
         >
           <DialogHeader className="border-b border-slate-100 px-6 py-5 text-right">
             <DialogTitle className="text-base font-bold text-slate-900">

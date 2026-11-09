@@ -26,7 +26,7 @@ public sealed class AdminManagementController(
 
     [HttpGet("users/analytics")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
-    public async Task<AdminUserAnalyticsSnapshot> GetUserAnalytics(CancellationToken cancellationToken)
+    public async Task<AdminUserAnalyticsCube> GetUserAnalytics(CancellationToken cancellationToken)
     {
         var canReadSubscription = (await authorizationService
             .AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded;

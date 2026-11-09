@@ -169,13 +169,24 @@ services:
         # Feature 148: Chat provider selection (legacy CyclicalWaves-derived metrics are always excluded).
         FinancialData__ChatProvider: ${FINANCIAL_DATA_CHAT_PROVIDER:-NoavaranAmin}
         # Feature 148: CyclicalWaves v2 provider. Credentials only in the ignored .env file.
+        CyclicalWavesV2__AuthBaseAddress: ${CYCLICALWAVES_V2_AUTH_BASE_ADDRESS:-https://auth.cycfx.com/api/}
+        CyclicalWavesV2__DataBaseAddress: ${CYCLICALWAVES_V2_DATA_BASE_ADDRESS:-https://api.tahlilapp.com/api/}
+        CyclicalWavesV2__ClientId: ${CYCLICALWAVES_V2_CLIENT_ID:-default}
         CyclicalWavesV2__Identifier: ${CYCLICALWAVES_V2_IDENTIFIER:-}
         CyclicalWavesV2__Password: ${CYCLICALWAVES_V2_PASSWORD:-}
         CyclicalWavesV2__GaugeBaseUrl: ${CYCLICALWAVES_V2_GAUGE_BASE_URL:-https://api.tahlilapp.com/api/}
         CyclicalWavesV2__IngestionEnabled: ${CYCLICALWAVES_V2_INGESTION_ENABLED:-false}
         CyclicalWavesV2__DailySyncEnabled: ${CYCLICALWAVES_V2_DAILY_SYNC_ENABLED:-false}
         CyclicalWavesV2__DailySyncCronUtc: ${CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC:-30 23 * * *}
+        CyclicalWavesV2__IncomeStatementLimit: ${CYCLICALWAVES_V2_INCOME_STATEMENT_LIMIT:-12}
+        CyclicalWavesV2__AnalysisPageSize: ${CYCLICALWAVES_V2_ANALYSIS_PAGE_SIZE:-100}
+        CyclicalWavesV2__AnalysisIncrementalOverlapDays: ${CYCLICALWAVES_V2_ANALYSIS_INCREMENTAL_OVERLAP_DAYS:-2}
         CyclicalWavesV2__RequestDelayMilliseconds: ${CYCLICALWAVES_V2_REQUEST_DELAY_MILLISECONDS:-300}
+        CyclicalWavesV2__TimeoutSeconds: ${CYCLICALWAVES_V2_TIMEOUT_SECONDS:-30}
+        CyclicalWavesV2__RetryCount: ${CYCLICALWAVES_V2_RETRY_COUNT:-2}
+        CyclicalWavesV2__RefreshSkewSeconds: ${CYCLICALWAVES_V2_REFRESH_SKEW_SECONDS:-60}
+        CyclicalWavesV2__RequestedRunPollSeconds: ${CYCLICALWAVES_V2_REQUESTED_RUN_POLL_SECONDS:-30}
+        CyclicalWavesV2__LeaseMinutes: ${CYCLICALWAVES_V2_LEASE_MINUTES:-30}
         CyclicalWavesPsVisualization__Enabled: "false"
         CyclicalWavesPsVisualization__EnableStandaloneGauge: ${CYCLICAL_WAVES_STANDALONE_GAUGE:-true}
         CyclicalWavesPsVisualization__IncludeGaugeInMonthlySalesTrendChart: ${CYCLICAL_WAVES_INCLUDE_GAUGE_IN_MONTHLY_TREND:-false}

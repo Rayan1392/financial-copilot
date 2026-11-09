@@ -21,6 +21,24 @@ public sealed record AdminUserDirectoryPage(
     bool HasMore,
     DateTimeOffset AsOfUtc);
 
+public sealed record AdminUserAnalyticsSnapshot(
+    int TotalUsers,
+    int EnabledUsers,
+    int LockedUsers,
+    IReadOnlyCollection<AdminUserAnalyticsBreakdown> AcquisitionSources,
+    IReadOnlyCollection<AdminUserAnalyticsBreakdown> SubscriptionPlans,
+    IReadOnlyCollection<AdminUserRegistrationMonth> RegistrationsByMonth,
+    bool SubscriptionBreakdownAvailable,
+    DateTimeOffset AsOfUtc);
+
+public sealed record AdminUserAnalyticsBreakdown(string Code, int UserCount);
+
+public sealed record AdminUserRegistrationMonth(
+    string Period,
+    int NativeUsers,
+    int TahlilAppUsers,
+    int UnknownSourceUsers);
+
 public sealed record AdminUserDirectoryItem(
     Guid UserId,
     string? Email,
@@ -189,6 +207,11 @@ public sealed record AdminPurchaseHistoryItem(
 
 public interface IAdminUserQueries
 {
+    Task<AdminUserAnalyticsSnapshot> GetAnalyticsAsync(
+        Guid tenantId,
+        bool canReadSubscription,
+        CancellationToken cancellationToken);
+
     Task<AdminUserDirectoryPage> GetDirectoryAsync(
         Guid tenantId,
         AdminUserDirectoryQuery query,

@@ -1,3 +1,5 @@
+using FinancialCopilot.Domain.Financial.CyclicalWavesV2;
+
 namespace FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
 
 // Provider-neutral records for the CyclicalWaves v2 bounded context. Infrastructure maps the
@@ -75,6 +77,25 @@ public interface ICyclicalWavesV2Client
         int pageSize,
         DateOnly? fromDate,
         CancellationToken cancellationToken);
+}
+
+public sealed record CyclicalWavesV2GaugeCatalogItem(string Ticker, string? Enticker, bool HasPe, bool HasPs);
+public sealed record CyclicalWavesV2EquilibriumCatalogItem(string Ticker, string? Enticker);
+public sealed record CyclicalWavesV2Gauge(
+    int A, int B, int C, int D, int E, int F,
+    ExactDecimal? Close, ExactDecimal Start, ExactDecimal End,
+    ExactDecimal Min, ExactDecimal Avg, ExactDecimal Max, int? Status);
+public sealed record CyclicalWavesV2GaugeDetails(
+    string Ticker, string? Enticker, CyclicalWavesV2Gauge? Pe, CyclicalWavesV2Gauge? Ps);
+public sealed record CyclicalWavesV2EquilibriumRange(ExactDecimal Min, ExactDecimal Avg, ExactDecimal Max);
+
+/// <summary>Read-only gauge/equilibrium API contract, isolated from the original v2 DTO surface.</summary>
+public interface ICyclicalWavesV2GaugeClient
+{
+    Task<IReadOnlyList<CyclicalWavesV2GaugeCatalogItem>> GetGaugeCatalogAsync(CancellationToken cancellationToken);
+    Task<CyclicalWavesV2GaugeDetails?> GetGaugeDetailsAsync(string identifier, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CyclicalWavesV2EquilibriumCatalogItem>> GetEquilibriumCatalogAsync(CancellationToken cancellationToken);
+    Task<CyclicalWavesV2EquilibriumRange?> GetEquilibriumRangeAsync(string identifier, CancellationToken cancellationToken);
 }
 
 public sealed record CyclicalWavesV2CatalogResult(int Added, int Deactivated, int Reactivated, int Unchanged);

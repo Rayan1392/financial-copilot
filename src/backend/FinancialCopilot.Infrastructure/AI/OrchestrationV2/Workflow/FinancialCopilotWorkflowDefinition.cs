@@ -25,6 +25,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 
@@ -78,7 +79,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null,
     ISemanticRoutingDiagnosticSink? routingDiagnosticSink = null,
     Feature141ChatQueryService? feature141ChatQueryService = null,
-    IChatCapabilityAvailability? capabilityAvailability = null)
+    IChatCapabilityAvailability? capabilityAvailability = null,
+    CyclicalWavesV2GaugeQueryService? cyclicalWavesGaugeQueryService = null)
 {
     // Feature 148: which provider answers Chat. The registered financial source (Feature 141) reads
     // NoavaranAmin data, so it never answers in CyclicalWaves mode.
@@ -341,6 +343,45 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
         PsVisualizationResult? semanticPsVisualizationResult = null;
         FinancialStatementValueSearchResult? financialStatementValueSearchResult = null;
+
+        // Gauge requests have a narrow, provider-specific data source. Resolve them before the
+        // general semantic dispatcher so P/E/P/S gauge questions cannot be reinterpreted as a
+        // normalized metric lookup. The explicit P/S gauge request keeps Feature 115's standalone UX.
+        if (IsCyclicalWavesMode)
+        {
+            var standalonePsSymbol = PsGaugeIntentRules.ExtractCompanySymbol(request.Message);
+            if (standalonePsSymbol is not null)
+            {
+                var psGaugeResult = await psVisualizationExperienceUseCase.ExecuteAsync(
+                    new PsVisualizationQuery(standalonePsSymbol, IncludeHistory: true), ct);
+                UsageAccountingResult? gaugeUsage = null;
+                if (msg.Reservation is not null)
+                    gaugeUsage = await billingFunctions.FinalizeAsync(msg.Reservation, "Completed", false, CancellationToken.None);
+                stepActivity?.SetTag("workflow.intent", "PsGaugeVisualization");
+                return new AgentExecutedMessage(
+                    request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                    msg.MemoryContext, msg.Reservation, BuildPsGaugeContent(standalonePsSymbol, psGaugeResult),
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult,
+                    financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    monthlySalesQualityRankingResult, "Completed", false, null, gaugeUsage,
+                    PsVisualizationResult: psGaugeResult);
+            }
+
+            if (cyclicalWavesGaugeQueryService is not null && CyclicalWavesV2GaugeIntentRules.LooksLikeQuery(request.Message))
+            {
+                var gaugeAnswer = await cyclicalWavesGaugeQueryService.AnswerAsync(request.Message, ct);
+                UsageAccountingResult? gaugeUsage = null;
+                if (msg.Reservation is not null)
+                    gaugeUsage = await billingFunctions.FinalizeAsync(msg.Reservation, "Completed", false, CancellationToken.None);
+                stepActivity?.SetTag("workflow.intent", "CyclicalWavesGaugeQuery");
+                return new AgentExecutedMessage(
+                    request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                    msg.MemoryContext, msg.Reservation, gaugeAnswer,
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult,
+                    financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    monthlySalesQualityRankingResult, "Completed", false, null, gaugeUsage);
+            }
+        }
 
         var isMonthlyProductComparison = request.SemanticFrame is null &&
             MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message);
@@ -672,6 +713,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "topic_tags: optional categories: تحلیل_تکنیکال, قیمت_تعادلی, رصد_معاملات_عمده, گزارش_فصلی, گزارش_ماهانه, P-S, P-E. " +
                          "from_date_iso: ISO 8601 date to keep posts published on or after it (optional). " +
                          "limit: max results 1-10 (default 5).");
+
+        AIFunction? cyclicalWavesGaugeTool = null;
+        if (IsCyclicalWavesMode && cyclicalWavesGaugeQueryService is not null)
+        {
+            cyclicalWavesGaugeTool = AIFunctionFactory.Create(
+                async (string query) => await cyclicalWavesGaugeQueryService.AnswerAsync(request.Message, ct),
+                name: "query_cyclicalwaves_gauges",
+                description: "Read P/E and P/S historical gauge details or equilibrium ranges from CyclicalWaves v2 only. Use for gauge status, current ratio versus historical min/average/max, equilibrium min/average/max, and below-min/below-average gauge screening. Persian aliases include گیج P/E, گیج P/S, نسبت قیمت به سود, نسبت قیمت به فروش, and قیمت تعادلی. The tool preserves unavailable values and reports equilibrium in IRR; it does not provide a forecast or recommendation.");
+        }
 
         string? feature141Answer = null;
         string? feature141CompletionStatus = null;
@@ -1044,6 +1094,24 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 PsVisualizationResult: psGaugeResult);
         }
 
+        if (IsCyclicalWavesMode && cyclicalWavesGaugeQueryService is not null &&
+            CyclicalWavesV2GaugeIntentRules.LooksLikeQuery(request.Message))
+        {
+            var gaugeAnswer = await cyclicalWavesGaugeQueryService.AnswerAsync(request.Message, ct);
+            UsageAccountingResult? gaugeUsage = null;
+            if (msg.Reservation is not null)
+                gaugeUsage = await billingFunctions.FinalizeAsync(msg.Reservation, "Completed", false, CancellationToken.None);
+
+            stepActivity?.SetTag("workflow.intent", "CyclicalWavesGaugeQuery");
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                gaugeAnswer, scannerResult, lookupResult, comprehensiveAnalysisResult,
+                financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult,
+                monthlyActivityTrendResult, monthlySalesQualityRankingResult,
+                "Completed", false, modelClient, gaugeUsage);
+        }
+
         var isDirectMetricFollowup = !isDirectMetricLookup &&
             IsDirectMetricLookupFollowup(request.Message, msg.EnrichedMessage);
         if (isDirectMetricLookup || isDirectMetricFollowup)
@@ -1098,10 +1166,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (Availability(CapabilityExecutionRoutes.ComprehensiveAnalysis).IsAvailable)
             agentTools.Add(IsCyclicalWavesMode ? cyclicalWavesAnalysisTool : comprehensiveAnalysisTool);
         if (feature141Tool is not null) agentTools.Add(feature141Tool);
+        if (cyclicalWavesGaugeTool is not null) agentTools.Add(cyclicalWavesGaugeTool);
         var systemInstructions = BuildSystemInstructions();
         if (feature141Tool is not null)
         {
             systemInstructions += "\n\nFor a generic registered financial-statement item request not covered by screen_stocks, lookup_symbol_metrics, query_comprehensive_analysis, or an earlier deterministic capability, call query_registered_financial_source. Preserve every measure, unit, company, statement, consolidation, operation, comparison, and period detail. Never invent a value or infer financial-concept equivalence. Present the tool's Persian answer or clarification faithfully. Existing specialized capabilities always take priority.";
+        }
+        if (cyclicalWavesGaugeTool is not null)
+        {
+            systemInstructions += "\n\nFor P/E or P/S historical gauge status, current ratio versus its historical range, equilibrium price ranges, or screening by a gauge boundary, call query_cyclicalwaves_gauges. These values come only from CyclicalWaves v2; preserve null/unavailable results. Do not substitute live price, normalized P/E or P/S, forecasts, or another provider. Describe equilibrium values in IRR and do not present them as guaranteed future prices or recommendations.";
         }
         var agent = agentFactory.Create(chatClientAdapter, systemInstructions, agentTools);
 

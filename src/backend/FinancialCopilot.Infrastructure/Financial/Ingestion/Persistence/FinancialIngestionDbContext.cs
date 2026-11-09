@@ -1,4 +1,7 @@
+using System.Globalization;
+using System.Numerics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 
@@ -215,12 +218,45 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<CyclicalWavesV2AnalysisTagRow> CyclicalWavesV2AnalysisTags => Set<CyclicalWavesV2AnalysisTagRow>();
 
     public DbSet<CyclicalWavesV2SyncRunRow> CyclicalWavesV2SyncRuns => Set<CyclicalWavesV2SyncRunRow>();
+    public DbSet<CyclicalWavesV2GaugeAvailabilityRow> CyclicalWavesV2GaugeAvailability => Set<CyclicalWavesV2GaugeAvailabilityRow>();
+    public DbSet<CyclicalWavesV2GaugeDetailRow> CyclicalWavesV2GaugeDetails => Set<CyclicalWavesV2GaugeDetailRow>();
+    public DbSet<CyclicalWavesV2EquilibriumRangeRow> CyclicalWavesV2EquilibriumRanges => Set<CyclicalWavesV2EquilibriumRangeRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(FinancialIngestionDbContext).Assembly,
             type => type.Namespace == typeof(FinancialIngestionDbContext).Namespace);
+
+        // SQLite is used by unit tests for query behavior; it has no native BigInteger/numeric
+        // mapping. Keep the PostgreSQL production mapping native and store exact coefficient chunks
+        // as invariant text only in the SQLite test model.
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            var integerConverter = new ValueConverter<BigInteger, string>(
+                value => value.ToString(CultureInfo.InvariantCulture),
+                value => BigInteger.Parse(value, CultureInfo.InvariantCulture));
+            var nullableIntegerConverter = new ValueConverter<BigInteger?, string?>(
+                value => value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : null,
+                value => value == null ? null : BigInteger.Parse(value, CultureInfo.InvariantCulture));
+
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entity.GetProperties())
+                {
+                    if (property.ClrType == typeof(BigInteger))
+                    {
+                        property.SetValueConverter(integerConverter);
+                        property.SetColumnType("TEXT");
+                    }
+                    else if (property.ClrType == typeof(BigInteger?))
+                    {
+                        property.SetValueConverter(nullableIntegerConverter);
+                        property.SetColumnType("TEXT");
+                    }
+                }
+            }
+        }
 
         if (Database.IsNpgsql())
         {

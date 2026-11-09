@@ -224,6 +224,117 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         return new AdminUserDirectoryPage(items, nextCursor, hasMore, asOfUtc);
     }
 
+    public async Task<AdminUserAnalyticsSnapshot> GetAnalyticsAsync(
+        Guid tenantId,
+        bool canReadSubscription,
+        CancellationToken cancellationToken)
+    {
+        var asOfUtc = timeProvider.GetUtcNow().ToUniversalTime();
+        var monthStart = new DateTimeOffset(
+            new DateTime(asOfUtc.Year, asOfUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc)).AddMonths(-11);
+        var users = from membership in auth.UserTenants.AsNoTracking()
+                    join user in auth.Users.AsNoTracking() on membership.UserId equals user.Id
+                    join metadataRow in auth.UserOperationalMetadata.AsNoTracking() on user.Id equals metadataRow.UserId into metadataRows
+                    from metadata in metadataRows.DefaultIfEmpty()
+                    where membership.TenantId == tenantId
+                    select new
+                    {
+                        user.Id,
+                        user.IsEnabled,
+                        user.LockoutEnd,
+                        RegisteredAtUtc = metadata == null ? null : metadata.RegisteredAtUtc,
+                        AcquisitionSourceCode = metadata == null
+                            ? UserOperationalMetadataCodes.Unknown
+                            : metadata.AcquisitionSourceCode
+                    };
+
+        var totalUsers = await users.CountAsync(cancellationToken);
+        var enabledUsers = await users.CountAsync(row => row.IsEnabled, cancellationToken);
+        var lockedUsers = await users.CountAsync(
+            row => row.IsEnabled && row.LockoutEnd > asOfUtc,
+            cancellationToken);
+        var sourceGroups = await users
+            .GroupBy(row => row.AcquisitionSourceCode)
+            .Select(group => new { Code = group.Key, UserCount = group.Count() })
+            .ToArrayAsync(cancellationToken);
+        var acquisitionSources = new[]
+            {
+                UserOperationalMetadataCodes.Native,
+                UserOperationalMetadataCodes.TahlilApp,
+                UserOperationalMetadataCodes.Unknown
+            }
+            .Select(code => new AdminUserAnalyticsBreakdown(
+                code,
+                sourceGroups.FirstOrDefault(group => group.Code == code)?.UserCount ?? 0))
+            .ToArray();
+
+        var monthlyGroups = await users
+            .Where(row => row.RegisteredAtUtc.HasValue && row.RegisteredAtUtc >= monthStart)
+            .GroupBy(row => new
+            {
+                Year = row.RegisteredAtUtc!.Value.Year,
+                Month = row.RegisteredAtUtc.Value.Month,
+                row.AcquisitionSourceCode
+            })
+            .Select(group => new
+            {
+                group.Key.Year,
+                group.Key.Month,
+                group.Key.AcquisitionSourceCode,
+                UserCount = group.Count()
+            })
+            .ToArrayAsync(cancellationToken);
+
+        var registrationsByMonth = Enumerable.Range(0, 12)
+            .Select(offset => monthStart.AddMonths(offset))
+            .Select(month =>
+            {
+                var counts = monthlyGroups.Where(group => group.Year == month.Year && group.Month == month.Month);
+                return new AdminUserRegistrationMonth(
+                    $"{month.Year:D4}-{month.Month:D2}",
+                    counts.Where(group => group.AcquisitionSourceCode == UserOperationalMetadataCodes.Native).Sum(group => group.UserCount),
+                    counts.Where(group => group.AcquisitionSourceCode == UserOperationalMetadataCodes.TahlilApp).Sum(group => group.UserCount),
+                    counts.Where(group => group.AcquisitionSourceCode == UserOperationalMetadataCodes.Unknown).Sum(group => group.UserCount));
+            })
+            .ToArray();
+
+        IReadOnlyCollection<AdminUserAnalyticsBreakdown> subscriptionPlans = [];
+        if (canReadSubscription)
+        {
+            var planGroups = await billing.CustomerAccounts.AsNoTracking()
+                .Where(account => account.TenantId == tenantId &&
+                                  account.UserId != null &&
+                                  account.SubscriptionPlanCode != null &&
+                                  (account.SubscriptionEffectiveFrom == null || account.SubscriptionEffectiveFrom <= asOfUtc) &&
+                                  (account.SubscriptionEffectiveTo == null || account.SubscriptionEffectiveTo > asOfUtc))
+                .GroupBy(account => account.SubscriptionPlanCode!)
+                .Select(group => new
+                {
+                    Code = group.Key,
+                    UserCount = group.Select(account => account.UserId).Distinct().Count()
+                })
+                .OrderBy(group => group.Code)
+                .ToArrayAsync(cancellationToken);
+            var activePlanUsers = planGroups.Sum(group => group.UserCount);
+            subscriptionPlans = planGroups
+                .Select(group => new AdminUserAnalyticsBreakdown(group.Code, group.UserCount))
+                .Append(new AdminUserAnalyticsBreakdown(
+                    "none",
+                    Math.Max(0, totalUsers - activePlanUsers)))
+                .ToArray();
+        }
+
+        return new AdminUserAnalyticsSnapshot(
+            totalUsers,
+            enabledUsers,
+            lockedUsers,
+            acquisitionSources,
+            subscriptionPlans,
+            registrationsByMonth,
+            canReadSubscription,
+            asOfUtc);
+    }
+
     public async Task<AdminCustomer360View> GetCustomer360Async(
         Guid tenantId,
         Guid userId,

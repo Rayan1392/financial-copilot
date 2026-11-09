@@ -10,7 +10,9 @@ public static class PsGaugeIntentRules
     private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "گیج", "گيج", "gauge", "عقربه", "p", "s", "ps", "نسبت", "فروش", "به", "قیمت",
-        "را", "رو", "برای", "نماد", "سهم", "شرکت", "آخرین", "نمایش", "نشان", "بده", "بدهید"
+        "را", "رو", "برای", "نماد", "سهم", "شرکت", "آخرین", "نمایش", "نشان", "بده", "بدهید",
+        "وضعیت", "چگونه", "چیست", "است", "مقدار", "فعلی", "نسبت", "به", "محدوده", "تاریخی", "آن", "خودش", "کجاست", "کجا", "قرار", "دارد",
+        "what", "where", "current", "historical", "versus", "vs", "relative", "its", "is", "the", "of"
     };
 
     public static bool LooksLikeQuery(string? query)

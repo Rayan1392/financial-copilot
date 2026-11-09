@@ -1,6 +1,6 @@
 # Feature 148 — CyclicalWaves v2 Independent Financial Data Provider
 
-Status: **Design final (rev 3, 2026-10-31). `tasks.md` ready for implementation approval.** Production code is not yet authorized.
+Status: **Original Feature 148 implemented and closed as `IMPLEMENTED_WITH_KNOWN_CHAT_ROUTING_LIMITATIONS` (2026-10-31). Gauge and Equilibrium extension implementation was authorized by the Product Owner on 2026-11-08 and is in progress.**
 
 Product Owner decisions are final:
 
@@ -177,3 +177,134 @@ Ingestion is independent of `ChatProvider`.
 - The C1 census result is recorded.
 - Docs and spec headers are updated, and no secrets are committed.
 - `ImplementationReport.md` states whether live provider verification was executed (with evidence) or not executed.
+
+## Post-Closure Scope Extension — Gauge and Equilibrium APIs
+
+**Extension status:** `FEATURE_148_GAUGE_EQUILIBRIUM_PARTIALLY_VERIFIED` (2026-11-08). Implementation and scripted unit/API/Chat checks are in place; PostgreSQL migration/round-trip, live-provider and external-model verification remain pending.
+The Product Owner authorized implementation on 2026-11-08 by requesting that the remaining Feature 148 items be implemented. The original Feature 148 closure status, known Chat-routing limitations, test evidence and partial T148-08.4 remain unchanged.
+
+### Objective and provider contract
+
+Extend the existing Feature 148 provider with four read-only data endpoints from the authoritative
+[`gauge-equilibrium-api-client.pdf`](../../../docs/providers/cyclicalwaves-v2/gauge-equilibrium-api-client.pdf):
+
+| Endpoint | Purpose | Contract summary |
+|---|---|---|
+| `GET /pe-ps-gauges/tickers` | Gauge catalog | Alphabetical ticker/ISIN entries with independent `pe` and `ps` availability flags. |
+| `GET /pe-ps-gauges/ticker/{ticker}` | Gauge details | Nested nullable P/E and P/S gauge records; `a`–`f` are historical day counts, ratio fields are decimals, and `status` is nullable. |
+| `GET /equilibrium-ranges/tickers` | Equilibrium catalog | Alphabetical ticker/ISIN entries. |
+| `GET /equilibrium-ranges/ticker/{ticker}` | Equilibrium details | IRR `min`, `avg`, `max`; negative values are valid and `avg` is the midpoint. |
+
+Use the existing auth server and credentials. The API host is independently configurable as
+`CyclicalWavesV2:GaugeBaseUrl`, defaulting to `https://api.tahlilapp.com/api`; retain
+`CyclicalWavesV2:DataBaseAddress` unchanged. Both hosts use the same authorized account, singleton
+token service and refresh-token rotation lifecycle; add no credentials or login flow.
+
+### Storage proposal
+
+Use only schema `cyclicalwaves` and the existing `cyclicalwaves.Tickers` rows. Do not add another
+symbol master or any cross-schema foreign key. Add latest-state tables:
+
+- `GaugeAvailability`, one row per `TickerId`, storing catalog `HasPe`, `HasPs`, and `LastFetchedAtUtc`.
+- `GaugeDetails`, one row per `(TickerId, GaugeType)` where type is `PE` or `PS`; store `A`–`F` as
+  integer day counts, `Close` as nullable exact decimal, required ratio-axis/summary values `Start`,
+  `End`, `Min`, `Avg`, `Max` as exact decimals, nullable status, and fetch time.
+- `EquilibriumRanges`, one row per `TickerId`, with `HasRange`, nullable IRR `Min`, `Avg`, `Max`, and
+  fetch time. `HasRange=false` records catalog absence while retaining last-known values; null bounds
+  are allowed only before any successful range fetch.
+
+Use unconstrained PostgreSQL `numeric` columns (no float/double or arbitrary precision/scale limit).
+EF Core/Npgsql mappings must explicitly use PostgreSQL `numeric`, without routing provider values
+through binary floating point. The implementation represents each logical decimal as three base-10
+`numeric` coefficient chunks plus sign and scale, then reconstructs the exact value for JSON and Chat.
+Chunking keeps each stored integer within PostgreSQL's per-value numeric digit limit. .NET `decimal`
+is bounded, while the PDF sets no maximum magnitude or scale, so an implementation spike must verify
+exact base-10 parsing, storage and serialization. Unique
+constraints enforce `(TickerId, GaugeType)` and `TickerId`; indexes support type/status and availability
+queries. FKs point only to `cyclicalwaves.Tickers`. Retain latest state only; preserve original Feature
+148 history and `SyncRuns`, and add no gauge history/time-series tables.
+Catalog absence marks availability false but retains the last detail values; consumers must honor
+availability and not display retained values as current. A detail 404 against a listed item marks
+that item unavailable and is reported without writing zero or deleting the last detail row.
+
+Keep documented nulls as SQL `NULL`; never substitute zero. A missing `pe`/`ps` nested object means no
+detail row for that gauge type. A present gauge can have `Close = NULL` and `Status = NULL`. A detail
+404 is a no-data/error outcome, never a zero-valued success. Negative equilibrium values are valid.
+Do not enforce an exact midpoint database check until provider rounding precision is documented.
+
+### Ticker resolution and synchronization
+
+For catalog records, resolve against the existing catalog by case-insensitive trimmed ISIN first;
+otherwise normalize Arabic/Persian Yeh and Kaf and match the normalized ticker using the existing
+Feature 148 normalizer. Require exactly one matching `Tickers` row. Do not insert a ticker from these
+catalogs. Unmatched or ambiguous entries are skipped and counted with a sanitized warning; they do
+not silently create duplicates. For detail requests use the matched row's ISIN when present, otherwise
+its canonical Persian ticker, and apply URL encoding exactly once.
+
+Extend the existing sync scope enum, coordinator, `SyncRuns` lease and `CyclicalWavesV2SyncWorker`.
+The proposed full order is: main ticker catalog; statement line definitions; existing screener and
+statement sync; gauge catalog and eligible gauge details; equilibrium catalog and eligible range
+details; analysis sync. Daily execution remains once per existing UTC schedule. Admin gets queued
+gauge-catalog, full-gauge, equilibrium-catalog, full-equilibrium and optional single-ticker scopes.
+Use the same global lease, request pacing, bounded transient retries, status counts and capped error
+summary. Report each phase separately, including matched, unmatched, updated, unchanged, missing and
+failed counts. Catalog failure is fatal for that phase; per-symbol detail failures continue and are
+reported. No undocumented rate limit is assumed.
+
+### Approved capability disposition
+
+P/E Gauge, P/S Gauge, and Equilibrium Price Range are available in Chat only when
+`FinancialData:ChatProvider=CyclicalWaves`, reading only new CyclicalWaves tables. There is no
+NoavaranAmin fallback. In NoavaranAmin mode, these tables are never read and existing behavior stays
+unchanged.
+
+Chat distinguishes current gauge close, historical min/avg/max, axis start/end, and status; preserves
+nulls; treats a-f as day counts; and states equilibrium values in IRR. Status 1 is below min, 2 between
+min and avg, 3 between avg and max, 4 above max, and null means close is unavailable or on a boundary.
+Below-min screening may use status 1; below-average screening compares non-null close < avg and
+excludes nulls. Unsupported or missing data returns an explicit unavailable answer. Equilibrium ranges
+are neither guaranteed future prices nor investment recommendations.
+
+Restore only Feature 115's standalone P/S gauge display after adapting it to the latest-state contract.
+Do not restore its historical P/S chart, monthly-sales inset, LastPS/TTM, Forward P/S, or other old
+overlays. P/E and equilibrium have no corresponding old standalone UX. Features 114, 125, 126, and 127
+remain disabled; no industry comparison, forward prediction, legacy sync pipeline, or old payload is
+restored.
+
+### Acceptance criteria for the extension
+
+- Four documented GET routes use their exact path, bearer auth, separate gauge-data base address,
+  shared auth credentials and shared token-refresh owner.
+- A concurrent 401 across both hosts cannot race refresh-token rotation; only one renewal occurs for
+  the rejected access token, followed by at most one replay per request.
+- Fixtures cover catalog/detail payloads, nullable gauge objects, nullable close/status, six integer
+  day counts, negative equilibrium values, 401 and 404.
+- Persian ticker names are encoded once; ISIN matching is case-insensitive; Arabic/Persian spelling
+  variants resolve to one canonical Feature 148 ticker or are reported as ambiguous.
+- All tables and FKs remain in `cyclicalwaves`; each new row references the existing ticker identity;
+  no historical legacy row or NoavaranAmin table is changed.
+- Decimal values preserve JSON decimal precision; nulls remain null; negative equilibrium bounds are
+  accepted; invalid or incomplete required fields are reported without fabricating values.
+- Repeat syncs create no duplicate rows and do not rewrite unchanged values. Missing catalog matches,
+  provider 404s and partial failures are visible in run counts and bounded errors.
+- Daily and manual sync share the existing worker, sync-run table and global lease; no overlapping
+  run or second daily worker is introduced.
+- Admin actions remain DataAdmin-protected; long-running actions are queued and status counters are
+  accurate. Single-ticker actions resolve against the canonical ticker catalog.
+- Chat tests prove all three capabilities work only in CyclicalWaves mode, NoavaranAmin reads none of
+  the new tables, Persian semantic variants route correctly, and unavailable responses do not fallback.
+- Compatibility tests cover scoped Feature 115 standalone P/S gauge and reject unsupported
+  historical/forward/monthly components. Features 114, 125, 126, and 127 stay disabled.
+- The migration is additive and down/up verified on disposable PostgreSQL; no live provider
+  verification is claimed unless actually executed and evidenced.
+
+Approved Chat semantic acceptance examples (examples, not literal routing rules):
+
+- وضعیت گیج P/E فولاد چگونه است؟
+- وضعیت گیج P/S کگل چیست؟
+- P/E فولاد نسبت به میانگین تاریخی خودش در چه وضعیتی قرار دارد؟
+- مقدار فعلی P/S فولاد نسبت به محدوده تاریخی آن کجاست؟
+- حداقل، میانگین و حداکثر قیمت تعادلی کچاد چقدر است؟
+- قیمت تعادلی فولاد چقدر است؟
+- کدام نمادها در وضعیت P/E زیر حداقل تاریخی قرار دارند؟
+- کدام نمادها در وضعیت P/S زیر میانگین تاریخی قرار دارند؟

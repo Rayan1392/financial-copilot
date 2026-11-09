@@ -140,12 +140,31 @@ public sealed class CompanyScopedProductResolver(
         if (exactTitleMatches.Length > 0)
             return exactTitleMatches;
 
+        // The monthly trend parser removes Persian connector words while extracting
+        // a product slot. Match the same phrase form back to product titles so
+        // suggestions for titles such as «شکر تولیدی از چغندر» remain resolvable.
+        var normalizedPhraseMatches = candidates
+            .Where(product => string.Equals(
+                NormalizeProductPhrase(product.DisplayTitle),
+                NormalizeProductPhrase(requested),
+                StringComparison.OrdinalIgnoreCase))
+            .Select(product => new MatchedProduct(product, "normalized_phrase", 0.96m))
+            .ToArray();
+        if (normalizedPhraseMatches.Length > 0)
+            return normalizedPhraseMatches;
+
         return candidates
             .Where(product => MonthlyProductTrendCalculator.NormalizeProductText(product.DisplayTitle)
                 .Contains(requested, StringComparison.OrdinalIgnoreCase))
             .Select(product => new MatchedProduct(product, "partial_title", 0.90m))
             .ToArray();
     }
+
+    private static string NormalizeProductPhrase(string? value) =>
+        string.Join(' ', MonthlyProductTrendCalculator.NormalizeProductText(value ?? string.Empty)
+            .ToLowerInvariant()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(token => token is not "از" and not "به" and not "و"));
 
     private sealed record MatchedProduct(CanonicalQueryProduct Product, string MatchKind, decimal Confidence);
 }

@@ -1,6 +1,7 @@
 using FinancialCopilot.Infrastructure;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Authentication;
+using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Worker;
@@ -10,7 +11,15 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddSerilog((_, lc) => lc.ReadFrom.Configuration(builder.Configuration));
 
+var bankingIndustryGroupId = builder.Configuration.GetValue<Guid>(BankingFinancialReportsConfiguration.ConfigurationKey);
+if (bankingIndustryGroupId == Guid.Empty)
+{
+    throw new InvalidOperationException($"{BankingFinancialReportsConfiguration.ConfigurationKey} must be configured with a non-empty GUID.");
+}
+
+builder.Services.AddSingleton(new BankingFinancialReportsConfiguration(bankingIndustryGroupId));
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
+builder.Services.AddTahlilAppIdentity(builder.Configuration);
 builder.Services
     .AddOptions<BillingMaintenanceOptions>()
     .BindConfiguration(BillingMaintenanceOptions.SectionName)

@@ -25,6 +25,7 @@ public sealed class CyclicalWavesV2AdminEndpointTests : IClassFixture<CyclicalWa
     [Theory]
     [InlineData("POST", "/api/v1/admin/cyclicalwaves-v2/catalog/sync")]
     [InlineData("POST", "/api/v1/admin/cyclicalwaves-v2/sync")]
+    [InlineData("POST", "/api/v1/admin/cyclicalwaves-v2/gauge-catalog/sync")]
     [InlineData("GET", "/api/v1/admin/cyclicalwaves-v2/status")]
     public async Task NonDataAdminIsForbidden(string method, string path)
     {
@@ -59,10 +60,25 @@ public sealed class CyclicalWavesV2AdminEndpointTests : IClassFixture<CyclicalWa
         Assert.Equal("فولاد", Assert.Single(_factory.Coordinator.Requests).Ticker);
     }
 
+    [Fact]
+    public async Task TickerGaugeAndEquilibriumSyncRunsInlineWithCanonicalTicker()
+    {
+        using var response = await Client().PostAsync("/api/v1/admin/cyclicalwaves-v2/tickers/" + Uri.EscapeDataString("فولاد") + "/gauge-equilibrium/sync", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var request = Assert.Single(_factory.Coordinator.Requests);
+        Assert.Equal(CyclicalWavesV2SyncScope.TickerGaugeEquilibrium, request.Scope);
+        Assert.Equal("فولاد", request.Ticker);
+    }
+
     [Theory]
     [InlineData("/api/v1/admin/cyclicalwaves-v2/screener/sync", CyclicalWavesV2SyncScope.Screener, null)]
     [InlineData("/api/v1/admin/cyclicalwaves-v2/income-statements/sync", CyclicalWavesV2SyncScope.IncomeStatements, null)]
     [InlineData("/api/v1/admin/cyclicalwaves-v2/analysis/sync?mode=full", CyclicalWavesV2SyncScope.Analysis, CyclicalWavesV2AnalysisMode.Full)]
+    [InlineData("/api/v1/admin/cyclicalwaves-v2/gauge-catalog/sync", CyclicalWavesV2SyncScope.GaugeCatalog, null)]
+    [InlineData("/api/v1/admin/cyclicalwaves-v2/gauges/sync", CyclicalWavesV2SyncScope.GaugeDetails, null)]
+    [InlineData("/api/v1/admin/cyclicalwaves-v2/equilibrium-catalog/sync", CyclicalWavesV2SyncScope.EquilibriumCatalog, null)]
+    [InlineData("/api/v1/admin/cyclicalwaves-v2/equilibrium-ranges/sync", CyclicalWavesV2SyncScope.EquilibriumDetails, null)]
     [InlineData("/api/v1/admin/cyclicalwaves-v2/sync", CyclicalWavesV2SyncScope.Full, null)]
     public async Task LongOperationsAreQueuedWith202(string path, CyclicalWavesV2SyncScope scope, CyclicalWavesV2AnalysisMode? mode)
     {

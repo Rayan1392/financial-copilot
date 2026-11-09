@@ -19,16 +19,21 @@ import {
   getCyclicalWavesV2Status,
   queueCyclicalWavesV2AnalysisSync,
   queueCyclicalWavesV2FullSync,
+  queueCyclicalWavesV2GaugeCatalogSync,
+  queueCyclicalWavesV2GaugeDetailsSync,
   queueCyclicalWavesV2IncomeStatementsSync,
+  queueCyclicalWavesV2EquilibriumCatalogSync,
+  queueCyclicalWavesV2EquilibriumRangesSync,
   queueCyclicalWavesV2ScreenerSync,
   runCyclicalWavesV2CatalogSync,
   runCyclicalWavesV2TickerSync,
+  runCyclicalWavesV2TickerGaugeEquilibriumSync,
 } from "@/integrations/financial-copilot/data-admin-client";
 
 const POLL_INTERVAL_MS = 5_000;
 const RECENT_RUN_LIMIT = 10;
 
-type ActionKey = "catalog" | "ticker" | "screener" | "income-statements" | "analysis" | "full";
+type ActionKey = "catalog" | "ticker" | "screener" | "income-statements" | "analysis" | "full" | "gauge-catalog" | "gauges" | "equilibrium-catalog" | "equilibrium-ranges" | "ticker-gauge";
 
 function formatDt(iso: string | null) {
   if (!iso) return "—";
@@ -305,6 +310,21 @@ export function CyclicalWavesV2Page() {
           >
             {busy === "ticker" && <RefreshCw className="size-3 animate-spin" />}
             همگام‌سازی یک نماد
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" disabled={actionsDisabled} onClick={() => void runAction("gauge-catalog", "کاتالوگ گیج‌ها", queueCyclicalWavesV2GaugeCatalogSync)}>کاتالوگ گیج‌ها</Button>
+          <Button size="sm" variant="outline" disabled={actionsDisabled} onClick={() => void runAction("gauges", "جزئیات گیج‌ها", queueCyclicalWavesV2GaugeDetailsSync)}>جزئیات گیج‌ها</Button>
+          <Button size="sm" variant="outline" disabled={actionsDisabled} onClick={() => void runAction("equilibrium-catalog", "کاتالوگ قیمت تعادلی", queueCyclicalWavesV2EquilibriumCatalogSync)}>کاتالوگ قیمت تعادلی</Button>
+          <Button size="sm" variant="outline" disabled={actionsDisabled} onClick={() => void runAction("equilibrium-ranges", "بازه‌های قیمت تعادلی", queueCyclicalWavesV2EquilibriumRangesSync)}>بازه‌های قیمت تعادلی</Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" disabled={actionsDisabled || trimmedTicker === ""}
+            onClick={() => void runAction("ticker-gauge", `گیج و قیمت تعادلی ${trimmedTicker}`, () => runCyclicalWavesV2TickerGaugeEquilibriumSync(trimmedTicker))}>
+            {busy === "ticker-gauge" && <RefreshCw className="size-3 animate-spin" />}
+            گیج و قیمت تعادلی یک نماد
           </Button>
         </div>
 

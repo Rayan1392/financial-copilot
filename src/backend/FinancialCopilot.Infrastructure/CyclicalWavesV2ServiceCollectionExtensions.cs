@@ -51,6 +51,7 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
         // Chat provider selection: NoavaranAmin registrations stay untouched except C2.
         if (financialData.ChatProvider == FinancialDataChatProvider.CyclicalWaves)
         {
+            services.AddScoped<CyclicalWavesV2GaugeQueryService>();
             services.AddScoped<CyclicalWavesV2CanonicalEntityResolver>();
             services.Replace(ServiceDescriptor.Scoped<ICanonicalQueryEntityResolver>(provider =>
                 provider.GetRequiredService<CyclicalWavesV2CanonicalEntityResolver>()));
@@ -59,6 +60,7 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
             services.Replace(ServiceDescriptor.Scoped<IFinancialStatementTableQueryUseCase, CyclicalWavesV2FinancialStatementTableQueryUseCase>());
             services.Replace(ServiceDescriptor.Scoped<IComprehensiveAnalysisQueryUseCase, CyclicalWavesV2ComprehensiveAnalysisQuery>());
             services.Replace(ServiceDescriptor.Scoped<IScannerExecutionService, CyclicalWavesV2ScannerExecutionService>());
+            services.Replace(ServiceDescriptor.Scoped<IPsVisualizationExperienceUseCase, CyclicalWavesV2PsGaugeVisualizationUseCase>());
         }
         else
         {
@@ -114,12 +116,23 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
             .AddHttpMessageHandler<CyclicalWavesV2AuthHandler>()
             .AddHttpMessageHandler<CyclicalWavesV2ResilienceHandler>();
+
+        services.AddHttpClient<ICyclicalWavesV2GaugeClient, CyclicalWavesV2GaugeDataClient>((provider, client) =>
+            {
+                client.BaseAddress = new Uri(provider.GetRequiredService<IOptions<CyclicalWavesV2Options>>().Value.GaugeBaseUrl);
+                client.Timeout = Timeout.InfiniteTimeSpan;
+                client.MaxResponseContentBufferSize = 4 * 1024 * 1024;
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .AddHttpMessageHandler<CyclicalWavesV2AuthHandler>()
+            .AddHttpMessageHandler<CyclicalWavesV2ResilienceHandler>();
     }
 
     private static void AddIngestion(IServiceCollection services)
     {
         services.AddScoped<ICyclicalWavesV2Store, EfCoreCyclicalWavesV2Store>();
         services.AddScoped<ICyclicalWavesV2AnalysisStore, EfCoreCyclicalWavesV2AnalysisStore>();
+        services.AddScoped<ICyclicalWavesV2GaugeStore, EfCoreCyclicalWavesV2GaugeStore>();
         services.AddScoped<ICyclicalWavesV2SyncRunStore, EfCoreCyclicalWavesV2SyncRunStore>();
         services.AddScoped(provider =>
         {

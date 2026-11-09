@@ -50,6 +50,21 @@ export type AdminUserDirectoryPage = {
   hasMore: boolean;
   asOfUtc: string;
 };
+export type AdminUserAnalyticsSnapshot = {
+  totalUsers: number;
+  enabledUsers: number;
+  lockedUsers: number;
+  acquisitionSources: { code: string; userCount: number }[];
+  subscriptionPlans: { code: string; userCount: number }[];
+  registrationsByMonth: {
+    period: string;
+    nativeUsers: number;
+    tahlilAppUsers: number;
+    unknownSourceUsers: number;
+  }[];
+  subscriptionBreakdownAvailable: boolean;
+  asOfUtc: string;
+};
 export type AdminUserSubscriptionSummary = {
   customerAccountId: string;
   accountType: string;
@@ -363,6 +378,8 @@ const json = (method: string, body?: unknown): RequestInit => ({
 });
 
 export const adminApi = {
+  userAnalytics: () =>
+    financialCopilotApi<AdminUserAnalyticsSnapshot>("/api/v1/admin/users/analytics"),
   users: (search = "") =>
     financialCopilotApi<AdminUser[]>(
       `/api/v1/admin/users?search=${encodeURIComponent(search)}&limit=50`,

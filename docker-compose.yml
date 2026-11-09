@@ -171,6 +171,7 @@ services:
         # Feature 148: CyclicalWaves v2 provider. Credentials only in the ignored .env file.
         CyclicalWavesV2__Identifier: ${CYCLICALWAVES_V2_IDENTIFIER:-}
         CyclicalWavesV2__Password: ${CYCLICALWAVES_V2_PASSWORD:-}
+        CyclicalWavesV2__GaugeBaseUrl: ${CYCLICALWAVES_V2_GAUGE_BASE_URL:-https://api.tahlilapp.com/api/}
         CyclicalWavesV2__IngestionEnabled: ${CYCLICALWAVES_V2_INGESTION_ENABLED:-false}
         CyclicalWavesV2__DailySyncEnabled: ${CYCLICALWAVES_V2_DAILY_SYNC_ENABLED:-false}
         CyclicalWavesV2__DailySyncCronUtc: ${CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC:-30 23 * * *}

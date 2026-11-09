@@ -24,6 +24,15 @@ public sealed class AdminManagementController(
     public Task<IReadOnlyCollection<AdminUserView>> GetUsers([FromQuery] string? search, [FromQuery] int limit = 50, CancellationToken cancellationToken = default) =>
         administration.SearchUsersAsync(Actor.TenantId, search, limit, cancellationToken);
 
+    [HttpGet("users/analytics")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<AdminUserAnalyticsSnapshot> GetUserAnalytics(CancellationToken cancellationToken)
+    {
+        var canReadSubscription = (await authorizationService
+            .AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded;
+        return await userQueries.GetAnalyticsAsync(Actor.TenantId, canReadSubscription, cancellationToken);
+    }
+
     [HttpGet("users/{userId:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
     public Task<AdminUserView> GetUser(Guid userId, CancellationToken cancellationToken) =>

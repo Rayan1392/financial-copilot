@@ -222,7 +222,7 @@ public sealed class CyclicalWavesV2SyncRunRowConfiguration : IEntityTypeConfigur
                     "\"Status\" IN ('Requested', 'Running', 'Succeeded', 'CompletedWithErrors', 'Failed', 'SkippedAlreadyRunning')");
                 table.HasCheckConstraint(
                     "CK_CyclicalWavesV2SyncRuns_Scope",
-                    "\"Scope\" IN ('Catalog', 'Ticker', 'Screener', 'IncomeStatements', 'Analysis', 'Full')");
+                    "\"Scope\" IN ('Catalog', 'Ticker', 'Screener', 'IncomeStatements', 'Analysis', 'GaugeCatalog', 'GaugeDetails', 'EquilibriumCatalog', 'EquilibriumDetails', 'TickerGaugeEquilibrium', 'Full')");
             });
         builder.HasKey(row => row.Id);
         builder.Property(row => row.Scope).HasMaxLength(32).IsRequired();
@@ -240,5 +240,70 @@ public sealed class CyclicalWavesV2SyncRunRowConfiguration : IEntityTypeConfigur
         builder.HasIndex(row => row.RequestedAt)
             .IsDescending()
             .HasDatabaseName("IX_CyclicalWavesV2SyncRuns_RequestedAt");
+    }
+}
+
+public sealed class CyclicalWavesV2GaugeAvailabilityRowConfiguration : IEntityTypeConfiguration<CyclicalWavesV2GaugeAvailabilityRow>
+{
+    public void Configure(EntityTypeBuilder<CyclicalWavesV2GaugeAvailabilityRow> builder)
+    {
+        builder.ToTable("GaugeAvailability", CyclicalWavesV2Schema.Name);
+        builder.HasKey(x => x.TickerId);
+        builder.HasOne<CyclicalWavesV2TickerRow>().WithOne().HasForeignKey<CyclicalWavesV2GaugeAvailabilityRow>(x => x.TickerId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(x => x.HasPe).HasDatabaseName("IX_CyclicalWavesV2GaugeAvailability_HasPe");
+        builder.HasIndex(x => x.HasPs).HasDatabaseName("IX_CyclicalWavesV2GaugeAvailability_HasPs");
+    }
+}
+
+public sealed class CyclicalWavesV2GaugeDetailRowConfiguration : IEntityTypeConfiguration<CyclicalWavesV2GaugeDetailRow>
+{
+    public void Configure(EntityTypeBuilder<CyclicalWavesV2GaugeDetailRow> builder)
+    {
+        builder.ToTable("GaugeDetails", CyclicalWavesV2Schema.Name, table =>
+        {
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_Type", "\"GaugeType\" IN ('PE', 'PS')");
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_Status", "\"Status\" IS NULL OR \"Status\" BETWEEN 1 AND 4");
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_DayCounts", "\"A\" >= 0 AND \"B\" >= 0 AND \"C\" >= 0 AND \"D\" >= 0 AND \"E\" >= 0 AND \"F\" >= 0");
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_Scales", "(\"CloseScale\" IS NULL OR \"CloseScale\" BETWEEN 0 AND 16383) AND \"StartScale\" BETWEEN 0 AND 16383 AND \"EndScale\" BETWEEN 0 AND 16383 AND \"MinScale\" BETWEEN 0 AND 16383 AND \"AvgScale\" BETWEEN 0 AND 16383 AND \"MaxScale\" BETWEEN 0 AND 16383");
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_Signs", "(\"CloseSign\" IS NULL OR \"CloseSign\" BETWEEN -1 AND 1) AND \"StartSign\" BETWEEN -1 AND 1 AND \"EndSign\" BETWEEN -1 AND 1 AND \"MinSign\" BETWEEN -1 AND 1 AND \"AvgSign\" BETWEEN -1 AND 1 AND \"MaxSign\" BETWEEN -1 AND 1");
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_CloseParts", "(\"CloseHigh\" IS NULL) = (\"CloseMiddle\" IS NULL) AND (\"CloseHigh\" IS NULL) = (\"CloseLow\" IS NULL) AND (\"CloseHigh\" IS NULL) = (\"CloseSign\" IS NULL) AND (\"CloseHigh\" IS NULL) = (\"CloseScale\" IS NULL)");
+        });
+        builder.HasKey(x => new { x.TickerId, x.GaugeType });
+        builder.Property(x => x.GaugeType).HasMaxLength(2).IsRequired();
+        foreach (var propertyName in new[]
+        {
+            nameof(CyclicalWavesV2GaugeDetailRow.CloseHigh), nameof(CyclicalWavesV2GaugeDetailRow.CloseMiddle), nameof(CyclicalWavesV2GaugeDetailRow.CloseLow),
+            nameof(CyclicalWavesV2GaugeDetailRow.StartHigh), nameof(CyclicalWavesV2GaugeDetailRow.StartMiddle), nameof(CyclicalWavesV2GaugeDetailRow.StartLow),
+            nameof(CyclicalWavesV2GaugeDetailRow.EndHigh), nameof(CyclicalWavesV2GaugeDetailRow.EndMiddle), nameof(CyclicalWavesV2GaugeDetailRow.EndLow),
+            nameof(CyclicalWavesV2GaugeDetailRow.MinHigh), nameof(CyclicalWavesV2GaugeDetailRow.MinMiddle), nameof(CyclicalWavesV2GaugeDetailRow.MinLow),
+            nameof(CyclicalWavesV2GaugeDetailRow.AvgHigh), nameof(CyclicalWavesV2GaugeDetailRow.AvgMiddle), nameof(CyclicalWavesV2GaugeDetailRow.AvgLow),
+            nameof(CyclicalWavesV2GaugeDetailRow.MaxHigh), nameof(CyclicalWavesV2GaugeDetailRow.MaxMiddle), nameof(CyclicalWavesV2GaugeDetailRow.MaxLow),
+        })
+        {
+            builder.Property(propertyName).HasColumnType("numeric");
+        }
+        builder.HasOne<CyclicalWavesV2TickerRow>().WithMany().HasForeignKey(x => x.TickerId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(x => new { x.GaugeType, x.Status }).HasDatabaseName("IX_CyclicalWavesV2GaugeDetails_TypeStatus");
+    }
+
+}
+
+public sealed class CyclicalWavesV2EquilibriumRangeRowConfiguration : IEntityTypeConfiguration<CyclicalWavesV2EquilibriumRangeRow>
+{
+    public void Configure(EntityTypeBuilder<CyclicalWavesV2EquilibriumRangeRow> builder)
+    {
+        builder.ToTable("EquilibriumRanges", CyclicalWavesV2Schema.Name);
+        builder.HasKey(x => x.TickerId);
+        foreach (var propertyName in new[]
+        {
+            nameof(CyclicalWavesV2EquilibriumRangeRow.MinHigh), nameof(CyclicalWavesV2EquilibriumRangeRow.MinMiddle), nameof(CyclicalWavesV2EquilibriumRangeRow.MinLow),
+            nameof(CyclicalWavesV2EquilibriumRangeRow.AvgHigh), nameof(CyclicalWavesV2EquilibriumRangeRow.AvgMiddle), nameof(CyclicalWavesV2EquilibriumRangeRow.AvgLow),
+            nameof(CyclicalWavesV2EquilibriumRangeRow.MaxHigh), nameof(CyclicalWavesV2EquilibriumRangeRow.MaxMiddle), nameof(CyclicalWavesV2EquilibriumRangeRow.MaxLow),
+        })
+        {
+            builder.Property(propertyName).HasColumnType("numeric");
+        }
+        builder.HasOne<CyclicalWavesV2TickerRow>().WithOne().HasForeignKey<CyclicalWavesV2EquilibriumRangeRow>(x => x.TickerId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(x => x.HasRange).HasDatabaseName("IX_CyclicalWavesV2EquilibriumRanges_HasRange");
     }
 }

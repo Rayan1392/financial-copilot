@@ -58,7 +58,7 @@ public sealed class ProductRevenueMixFollowUpSuggestionService(
                     continue;
 
                 var title = row.Item.ProductName.Trim();
-                var message = $"روند فروش {title} {symbol}";
+                var message = $"روند نرخ فروش {title} {symbol}";
                 if (!ProductRoundTrips(message, title, symbol))
                     continue;
 
@@ -95,7 +95,7 @@ public sealed class ProductRevenueMixFollowUpSuggestionService(
         var parsed = MonthlyProductTrendIntentRules.BuildQuery(message);
         if (parsed.UnsupportedTimeWindow ||
             Normalize(parsed.CompanyText) != Normalize(symbol) ||
-            Normalize(parsed.ProductText) != Normalize(title))
+            NormalizeForProductMatch(parsed.ProductText) != NormalizeForProductMatch(title))
             return false;
 
         try
@@ -104,7 +104,7 @@ public sealed class ProductRevenueMixFollowUpSuggestionService(
             return interpretation.CapabilityCandidates.FirstOrDefault()?.CapabilityCode == GovernedProductTrendCapability &&
                    interpretation.MissingSlots.Count == 0 &&
                    interpretation.EntityMentions.Any(entity =>
-                       entity.EntityType == "product" && Normalize(entity.Text) == Normalize(title)) &&
+                       entity.EntityType == "product" && NormalizeForProductMatch(entity.Text) == NormalizeForProductMatch(title)) &&
                    interpretation.EntityMentions.Any(entity =>
                        entity.EntityType != "product" && Normalize(entity.Text) == Normalize(symbol));
         }
@@ -182,6 +182,11 @@ public sealed class ProductRevenueMixFollowUpSuggestionService(
             : MonthlyProductTrendCalculator.NormalizeProductText(value)
                 .Trim(' ', ',', '،', ';', '؛', ':')
                 .ToLowerInvariant();
+
+    private static string NormalizeForProductMatch(string? value) =>
+        string.Join(' ', Normalize(value)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(token => token is not "از" and not "به" and not "و"));
 
     private sealed record ProductRow(ProductRevenueMixProductItem Item, string NormalizedTitle);
 }

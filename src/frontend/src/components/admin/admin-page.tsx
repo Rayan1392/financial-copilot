@@ -13,6 +13,7 @@ import {
   Search,
   Shield,
   ShieldCheck,
+  TrendingUp,
   Users,
   X,
 } from "lucide-react";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { AdminCustomerChatHistory } from "@/components/admin/admin-customer-chat-history";
+import { UserAnalyticsPanel } from "@/components/admin/user-analytics-panel";
 import { TahlilAppTopUpReconciliationPanel } from "@/components/admin/tahlilapp-top-up-reconciliation-panel";
 import {
   Table,
@@ -62,7 +64,7 @@ import {
 } from "@/integrations/financial-copilot/admin-permissions";
 import type { AuthUser } from "@/integrations/financial-copilot/auth";
 
-type AdminTab = "users" | "roles" | "tenants" | "billing" | "audits";
+type AdminTab = "users" | "user-analytics" | "roles" | "tenants" | "billing" | "audits";
 const splitCsv = (value: string) =>
   value
     .split(",")
@@ -140,6 +142,12 @@ export function AdminPage({ user }: { user: AuthUser }) {
       label: "کاربران",
       description: "جست‌وجو و مدیریت حساب‌ها",
       icon: Users,
+    },
+    hasPermission(user, adminPermissions.usersRead) && {
+      value: "user-analytics" as const,
+      label: "آمار کاربران",
+      description: "منابع جذب و اشتراک‌ها",
+      icon: TrendingUp,
     },
     hasPermission(user, adminPermissions.rolesRead) && {
       value: "roles" as const,
@@ -278,6 +286,7 @@ export function AdminPage({ user }: { user: AuthUser }) {
             </div>
 
             {tab === "users" && <UsersPanel user={user} />}
+            {tab === "user-analytics" && <UserAnalyticsPanel />}
             {tab === "roles" && <RolesPanel user={user} />}
             {tab === "tenants" && <TenantsPanel user={user} />}
             {tab === "billing" && <BillingPanel user={user} />}

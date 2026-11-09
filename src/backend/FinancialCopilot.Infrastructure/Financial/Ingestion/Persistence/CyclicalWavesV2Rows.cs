@@ -1,3 +1,7 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Numerics;
+using FinancialCopilot.Domain.Financial.CyclicalWavesV2;
+
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 
 // Feature 148: independent CyclicalWaves v2 persistence in schema "cyclicalwaves".
@@ -124,4 +128,101 @@ public sealed class CyclicalWavesV2SyncRunRow
     public string? LockOwner { get; set; }
     public DateTimeOffset? LockLeaseExpiresAt { get; set; }
     public string? RequestedBy { get; set; }
+}
+
+public sealed class CyclicalWavesV2GaugeAvailabilityRow
+{
+    public Guid TickerId { get; set; }
+    public bool HasPe { get; set; }
+    public bool HasPs { get; set; }
+    public DateTimeOffset LastFetchedAtUtc { get; set; }
+}
+
+public sealed class CyclicalWavesV2GaugeDetailRow
+{
+    public Guid TickerId { get; set; }
+    public string GaugeType { get; set; } = string.Empty;
+    public int A { get; set; }
+    public int B { get; set; }
+    public int C { get; set; }
+    public int D { get; set; }
+    public int E { get; set; }
+    public int F { get; set; }
+    public BigInteger? CloseHigh { get; set; }
+    public BigInteger? CloseMiddle { get; set; }
+    public BigInteger? CloseLow { get; set; }
+    public short? CloseSign { get; set; }
+    public short? CloseScale { get; set; }
+    public BigInteger StartHigh { get; set; }
+    public BigInteger StartMiddle { get; set; }
+    public BigInteger StartLow { get; set; }
+    public short StartSign { get; set; }
+    public short StartScale { get; set; }
+    public BigInteger EndHigh { get; set; }
+    public BigInteger EndMiddle { get; set; }
+    public BigInteger EndLow { get; set; }
+    public short EndSign { get; set; }
+    public short EndScale { get; set; }
+    public BigInteger MinHigh { get; set; }
+    public BigInteger MinMiddle { get; set; }
+    public BigInteger MinLow { get; set; }
+    public short MinSign { get; set; }
+    public short MinScale { get; set; }
+    public BigInteger AvgHigh { get; set; }
+    public BigInteger AvgMiddle { get; set; }
+    public BigInteger AvgLow { get; set; }
+    public short AvgSign { get; set; }
+    public short AvgScale { get; set; }
+    public BigInteger MaxHigh { get; set; }
+    public BigInteger MaxMiddle { get; set; }
+    public BigInteger MaxLow { get; set; }
+    public short MaxSign { get; set; }
+    public short MaxScale { get; set; }
+    [NotMapped] public ExactDecimal? Close { get => ExactDecimalValueConverter.Restore(CloseHigh, CloseMiddle, CloseLow, CloseSign, CloseScale); set => Set(value, (h, m, l, s, sc) => (CloseHigh, CloseMiddle, CloseLow, CloseSign, CloseScale) = (h, m, l, s, sc)); }
+    [NotMapped] public ExactDecimal Start { get => ExactDecimalValueConverter.Restore(StartHigh, StartMiddle, StartLow, StartSign, StartScale)!.Value; set => Set(value, (h, m, l, s, sc) => (StartHigh, StartMiddle, StartLow, StartSign, StartScale) = (h!.Value, m!.Value, l!.Value, s!.Value, sc!.Value)); }
+    [NotMapped] public ExactDecimal End { get => ExactDecimalValueConverter.Restore(EndHigh, EndMiddle, EndLow, EndSign, EndScale)!.Value; set => Set(value, (h, m, l, s, sc) => (EndHigh, EndMiddle, EndLow, EndSign, EndScale) = (h!.Value, m!.Value, l!.Value, s!.Value, sc!.Value)); }
+    [NotMapped] public ExactDecimal Min { get => ExactDecimalValueConverter.Restore(MinHigh, MinMiddle, MinLow, MinSign, MinScale)!.Value; set => Set(value, (h, m, l, s, sc) => (MinHigh, MinMiddle, MinLow, MinSign, MinScale) = (h!.Value, m!.Value, l!.Value, s!.Value, sc!.Value)); }
+    [NotMapped] public ExactDecimal Avg { get => ExactDecimalValueConverter.Restore(AvgHigh, AvgMiddle, AvgLow, AvgSign, AvgScale)!.Value; set => Set(value, (h, m, l, s, sc) => (AvgHigh, AvgMiddle, AvgLow, AvgSign, AvgScale) = (h!.Value, m!.Value, l!.Value, s!.Value, sc!.Value)); }
+    [NotMapped] public ExactDecimal Max { get => ExactDecimalValueConverter.Restore(MaxHigh, MaxMiddle, MaxLow, MaxSign, MaxScale)!.Value; set => Set(value, (h, m, l, s, sc) => (MaxHigh, MaxMiddle, MaxLow, MaxSign, MaxScale) = (h!.Value, m!.Value, l!.Value, s!.Value, sc!.Value)); }
+    public int? Status { get; set; }
+    public DateTimeOffset FetchedAtUtc { get; set; }
+
+    private static void Set(ExactDecimal? value, Action<BigInteger?, BigInteger?, BigInteger?, short?, short?> assign)
+    {
+        if (value is null) { assign(null, null, null, null, null); return; }
+        var parts = ExactDecimalValueConverter.Split(value.Value);
+        assign(parts.High, parts.Middle, parts.Low, parts.Sign, parts.Scale);
+    }
+}
+
+public sealed class CyclicalWavesV2EquilibriumRangeRow
+{
+    public Guid TickerId { get; set; }
+    public bool HasRange { get; set; }
+    public BigInteger? MinHigh { get; set; }
+    public BigInteger? MinMiddle { get; set; }
+    public BigInteger? MinLow { get; set; }
+    public short? MinSign { get; set; }
+    public short? MinScale { get; set; }
+    public BigInteger? AvgHigh { get; set; }
+    public BigInteger? AvgMiddle { get; set; }
+    public BigInteger? AvgLow { get; set; }
+    public short? AvgSign { get; set; }
+    public short? AvgScale { get; set; }
+    public BigInteger? MaxHigh { get; set; }
+    public BigInteger? MaxMiddle { get; set; }
+    public BigInteger? MaxLow { get; set; }
+    public short? MaxSign { get; set; }
+    public short? MaxScale { get; set; }
+    [NotMapped] public ExactDecimal? Min { get => ExactDecimalValueConverter.Restore(MinHigh, MinMiddle, MinLow, MinSign, MinScale); set => Set(value, (h, m, l, s, sc) => (MinHigh, MinMiddle, MinLow, MinSign, MinScale) = (h, m, l, s, sc)); }
+    [NotMapped] public ExactDecimal? Avg { get => ExactDecimalValueConverter.Restore(AvgHigh, AvgMiddle, AvgLow, AvgSign, AvgScale); set => Set(value, (h, m, l, s, sc) => (AvgHigh, AvgMiddle, AvgLow, AvgSign, AvgScale) = (h, m, l, s, sc)); }
+    [NotMapped] public ExactDecimal? Max { get => ExactDecimalValueConverter.Restore(MaxHigh, MaxMiddle, MaxLow, MaxSign, MaxScale); set => Set(value, (h, m, l, s, sc) => (MaxHigh, MaxMiddle, MaxLow, MaxSign, MaxScale) = (h, m, l, s, sc)); }
+    public DateTimeOffset FetchedAtUtc { get; set; }
+
+    private static void Set(ExactDecimal? value, Action<BigInteger?, BigInteger?, BigInteger?, short?, short?> assign)
+    {
+        if (value is null) { assign(null, null, null, null, null); return; }
+        var parts = ExactDecimalValueConverter.Split(value.Value);
+        assign(parts.High, parts.Middle, parts.Low, parts.Sign, parts.Scale);
+    }
 }

@@ -5,10 +5,6 @@
       {
         "Path": "FinancialCopilot.API\\FinancialCopilot.API.csproj",
         "Action": "Start"
-      },
-      {
-        "Path": "FinancialCopilot.TelegramGateway\\FinancialCopilot.TelegramGateway.csproj",
-        "Action": "Start"
       }
     ]
   }

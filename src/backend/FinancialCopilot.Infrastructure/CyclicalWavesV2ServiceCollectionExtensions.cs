@@ -47,7 +47,7 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
         services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(financialData.ChatProvider, capabilitySources));
         services.AddOptions<ComprehensiveAnalysisPresentationOptions>()
             .BindConfiguration(ComprehensiveAnalysisPresentationOptions.SectionName)
-            .Validate(options => options.IsValid(out _), "ComprehensiveAnalysis:TahlilAppAnalysesUrl must be an absolute https URL.")
+            .Validate(options => options.IsValid(out _), "ComprehensiveAnalysis settings are invalid: TahlilAppAnalysesUrl must be absolute https, TeaserPercent 1-50, TeaserMaxCharacters 20-1000, TeaserMinimumSourceCharacters 0-2000.")
             .ValidateOnStart();
 
         AddLegacyRetirement(services);

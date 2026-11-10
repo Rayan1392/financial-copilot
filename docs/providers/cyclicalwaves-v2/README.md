@@ -40,8 +40,10 @@ No code calls those endpoints any more.
 `FinancialData:CapabilitySources:comprehensive_analysis=CyclicalWaves` lets Chat answer comprehensive analysis from
 `cyclicalwaves."Analyses"` while `FinancialData:ChatProvider` stays `NoavaranAmin` (ADR
 [0001](../../adr/0001-per-capability-chat-data-source.md)). Nothing else reads the v2 schema in that mode. The answer
-lists up to three newest analyses whose title contains the asked ticker as a whole word, each with its title and whole
-published summary, and ends with the fixed link `ComprehensiveAnalysis:TahlilAppAnalysesUrl`
+shows the latest analysis whose title contains the asked ticker as a whole word: title, publish date, a partial preview
+and the fixed link `ComprehensiveAnalysis:TahlilAppAnalysesUrl`. **The provider field `summary` is the whole paid
+analysis text, not a summary** (owner, 2026-11-10); only the preview (at most `TeaserPercent`=30% and
+`TeaserMaxCharacters`=300, none under `TeaserMinimumSourceCharacters`=150) leaves the query
 (default `https://tahlilapp.com/app/analysis`). It needs the `Analysis` sync to run (`CyclicalWavesV2:IngestionEnabled`
 on the Worker).
 

@@ -10,7 +10,8 @@ namespace FinancialCopilot.IntegrationTests;
 /// </summary>
 public sealed class Feature162ComprehensiveAnalysisSourceMapTests : IClassFixture<Feature162MappedNoavaranAminChatApiFactory>
 {
-    private const string Link = "[ادامهٔ تحلیل‌ها در تحلیل‌اپ](https://tahlilapp.com/app/analysis)";
+    private const string Link = "[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)";
+    private const string AllAnalysesLink = "[تحلیل‌های جامع تحلیل‌اپ](https://tahlilapp.com/app/analysis)";
 
     private static readonly string[] AnalysisTables =
     [
@@ -36,7 +37,10 @@ public sealed class Feature162ComprehensiveAnalysisSourceMapTests : IClassFixtur
         Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
         var text = Feature148Chat.Text(root);
         Assert.Contains("### فولاد- گزارش عملکرد شهریور ۱۴۰۵", text);
-        Assert.Contains("فروش شهریور فولاد ۱۷ درصد رشد کرد", text);
+        Assert.Contains("تاریخ انتشار:", text);
+        Assert.Contains("متن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید", text);
+        // The seeded text is shorter than the preview minimum: the paid text appears nowhere in the response.
+        Assert.DoesNotContain("فروش شهریور فولاد ۱۷ درصد رشد کرد", root.GetRawText());
         Assert.EndsWith(Link, text.TrimEnd());
         Assert.Equal(1m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
         Assert.True(_factory.Reads.Read<CyclicalWavesV2AnalysisRow>());
@@ -53,7 +57,7 @@ public sealed class Feature162ComprehensiveAnalysisSourceMapTests : IClassFixtur
         Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
         var text = Feature148Chat.Text(root);
         Assert.Contains("برای نماد فملی تحلیلی در تحلیل‌اپ پیدا نشد.", text);
-        Assert.EndsWith(Link, text.TrimEnd());
+        Assert.EndsWith(AllAnalysesLink, text.TrimEnd());
         Assert.Equal(0m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
         AssertOnlyAnalysisTablesFromV2();
     }

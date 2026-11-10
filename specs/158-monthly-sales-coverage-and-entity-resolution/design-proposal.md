@@ -1,6 +1,6 @@
 # Feature 158 — Monthly Sales Coverage and Entity Resolution
 
-Status: Proposed — not approved
+Status: Gate A: Approved by the owner on 2026-11-10 for D3 (canonical priority only), D4 and D5. D1, D2, the two-company part of D3, and D6 stay Proposed — not approved.
 
 | Field | Value |
 |---|---|

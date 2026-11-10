@@ -2,7 +2,7 @@
 
 Status: Gate B: Approved by the owner on 2026-11-10
 
-Gate A covers D3 (canonical priority only), D4 and D5. Line references are at `5dfc496`, unless stated.
+Gate A covers D3 (canonical priority and, by the owner's decision OQ-061 option (b), the two-company clarification), D4 and D5. OQ-062 option (b) gives `OutsideScope` its own sentence. Line references are at `5dfc496`, unless stated.
 
 ## Feature Folder
 
@@ -26,6 +26,7 @@ Code reading refined the approved design. None changes the approved goals. Each 
 | D4 text placement | Track A | Per the lead, placed here. One new static method in `AiDialogueOutcomePolicy`. The text travels as the executor's `Payload`, handled by the existing `string explanation => explanation` arm (`FinancialCopilotWorkflowDefinition.cs:541`), and reaches the reply through `ComposeSystemMessage` (`:1385-1387`). |
 | D4 English | Not stated | The English sentence omits the symbol, because the language guard rejects Persian script in an English detail. |
 | Budget (load once per turn) | Listed in D3 | **Not needed.** Tiers partition the rows already loaded at `CanonicalQueryEntityResolver.cs:60`. Out of scope. |
+| Two-company clarification (OQ-061) | §5 D3 | Added after Gate B by the owner's decision. Reads only model-proposed company mentions, requires exact-kind resolution, and ignores month-name mentions, so an ordinary question such as `فروش دی ماه فولاد` does not trigger it. The separator fallback path is not needed for this and stays out of scope. |
 | V1 | Behind the V2 scope | Resolver, use case and executor consult `Feature154RoutingScope.IsActive`. V1 sets it false for its whole flow (`AiQueryOrchestrationService.cs:57`). No new configuration key. |
 
 ## Who changes behaviour
@@ -57,7 +58,7 @@ Questions that change, for any of those capabilities. Examples are invented.
 | Two eligible rows with one symbol (T1.1 found none) | | `entity_ambiguous` | Unchanged |
 | No Noavaran row | | Today's result | Unchanged |
 | No exact hit | | Substring or fuzzy | Unchanged |
-| Two tickers in one monthly request where duplicates caused `entity_ambiguous` | `روند فروش ماهانه کگل/شپنا` | `entity_ambiguous` | **One ticker answered, the other dropped**, like unique rows today. See Risks. |
+| Two exact tickers in one request, on a capability with no `symbols` slot, proposed by the model | `روند فروش ماهانه کگل/شپنا` | One ticker answered, the other dropped; or `entity_ambiguous` with duplicates | `ClarificationNeeded`, reason `multiple_companies_not_supported`, pending disambiguation with both companies |
 
 V1: under `EnterFrozenV1`, `IsActive` is false and the existing algorithm runs.
 
@@ -98,7 +99,7 @@ What the customer sees from the V2 executor when resolution does not give a comp
 |---|---|---|
 | `Ambiguous` | `CompanyAmbiguous` | `نام نماد یا شرکت به‌طور قطعی مشخص نشد. لطفاً نام نماد دقیق را وارد کنید.` |
 | `NotFound`, `InvalidIdentifier` | `Unknown` | Default no-data sentence |
-| `UnsupportedProviderCompany` | `OutsideScope` | Default no-data sentence, reason `data_stale_or_ineligible` |
+| `UnsupportedProviderCompany` | `OutsideScope` | `این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست.`, reason `data_stale_or_ineligible` |
 
 ## Port contract (D4)
 
@@ -117,7 +118,7 @@ public interface IMonthlyReportCoverageReader
 - Mapping: non-eligible row → `OutsideScope`. Route `Unsupported` → `NoRoute` with labels. Route `ProductSales` or `ServiceSales` → `HasRoute`. `Missing`, `Unknown`, `Malformed` → `Unknown`.
 - Failure: the adapter links the caller's token with a 2,000 ms timeout. `catch (Exception) when (!cancellationToken.IsCancellationRequested)` logs Warning and returns `Unknown`. Log fields: `Route=monthly_activity_trend`, `CompanySymbol`, `Outcome=coverage_read_failed`, plus the exception. Same pattern as `NoavaranEligibleSymbolResolver.cs:29-33`. No retry.
 - Success: Information log with `Route`, `CompanySymbol`, `Coverage`.
-- `OutsideScope` shows the default no-data sentence with reason `data_stale_or_ineligible`. `Unknown` shows the default no-data sentence with reason `supported_but_no_rows`.
+- `OutsideScope` shows `این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست.` with reason `data_stale_or_ineligible` (OQ-062). `Unknown` shows the default no-data sentence with reason `supported_but_no_rows`.
 
 ## Implementation Tasks
 
@@ -125,6 +126,7 @@ public interface IMonthlyReportCoverageReader
 
 - [ ] 1.1 Add `DialogueOutcomeReasonCodes.MonthlyReportNotCovered`, value `monthly_report_not_covered`. Add `MonthlyReportCoverage` and `IMonthlyReportCoverageReader`.
 - [ ] 1.2 Add `NoavaranCompanyScope.IsEligible(NormalizedCompanyRow)`, using the same constants as the query filter.
+- [ ] 1.3 Add `DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported`, value `multiple_companies_not_supported`.
 
 ### 2. Regression tests first
 
@@ -149,27 +151,37 @@ New file `tests/FinancialCopilot.UnitTests/Feature158MonthlyCoverageReplyTests.c
 
 - [ ] 2.10 `NoRouteCode_ReturnsNotCoveredReasonAndExactReply` (theory, seven codes, exact Persian text). Fails today: the executor does not use the port and returns `supported_but_no_rows`.
 - [ ] 2.11 `EnglishReply_UsesCategoryEnAndOmitsSymbol`. Same reason.
-- [ ] 2.12 `OutsideScope_ReturnsIneligibleReasonAndDefaultText`. Same reason.
+- [ ] 2.12 `OutsideScope_ReturnsIneligibleReasonAndOwnSentence` (`fa` and `en`, exact text). Same reason.
 - [ ] 2.13 `CompanyAmbiguous_ReturnsDisambiguation`. Same reason.
 - [ ] 2.14 Guards: `SupportedRouteAndUnknown_KeepTodaysReason`, `ResultPresent_DoesNotCallPort`, `FrozenV1_DoesNotCallPort`.
 
 Adapter tests, in the same file, added with the adapter in 4.2 because the type does not exist before it:
 
-- [ ] 2.15 `Adapter_MapsSevenCodesToCategories`, `Adapter_MapsSupportedMissingUnknownAndNotEligible`.
+- [ ] 2.15 `Adapter_MapsSevenCodesToCategories`, `Adapter_MapsSupportedMissingUnknownAndNotEligible`, including a company found only with another provider → `OutsideScope`.
 - [ ] 2.16 `Adapter_ReadFailure_LogsWarningAndReturnsUnknown`, using a disposed context and a recording logger. Asserts one Warning with `coverage_read_failed`.
 - [ ] 2.17 `Reply_RendersThroughOutcomePolicy`: `ComposeSystemMessage` with the text as detail returns it for `fa` and `en`.
 
-### 3. Canonical priority (D3)
+New file `tests/FinancialCopilot.UnitTests/Feature158MultipleCompanyClarificationTests.cs`, using the real gate, resolver and dispatcher validation with a model-proposal stub:
+
+- [ ] 2.18 `TwoExactCompanies_OnOneCompanyCapability_AskForOneCompany`. Fails today: the frame carries one company, the other is dropped.
+- [ ] 2.19 `TwoExactCompanies_WithLegacyDuplicates_AskForOneCompany`. Fails today: slot state `Ambiguous`.
+- [ ] 2.20 `Dispatcher_ReturnsClarificationWithNewReason`. Fails today: an `Invalid` slot maps to `entity_not_found`.
+- [ ] 2.21 `ClarificationReply_UsesProposedText` (`fa` and `en`). Fails today: the default clarification sentence.
+- [ ] 2.22 `PendingClarification_AnsweredWithOneTicker_RunsCapabilityForIt`. Fails today: no pending action exists, so the follow-up uses the earlier company.
+- [ ] 2.23 Guards that pass today and must keep passing: `SymbolMetricLookup_KeepsSeveralCompanies`, `OneExactCompany_DoesNotClarify`, `VariantMention_DoesNotClarify`, `DeterministicPath_DoesNotClarify`, `MonthNameMention_DoesNotClarify`, `FrozenV1_DoesNotClarify`.
+
+### 3. Canonical priority and two-company clarification (D3)
 
 - [ ] 3.1 In `CanonicalQueryEntityResolver.ResolveMentionAsync`, on `IsActive` run the exact steps per tier T1, T2, T3. Inject `Feature154RoutingScope?` like the other shared components. Keep today's code path for the inactive scope.
 - [ ] 3.2 Tests 2.1 to 2.5 pass. Review the existing tests one by one, as listed above.
+- [ ] 3.3 In `ConversationDialogueGate.PrepareAsync`, on `IsActive`, add the two-company check and pending disambiguation. In `SemanticCapabilityDispatcher.Validate`, return `ClarificationRequired` with the new reason. Add the Persian and English arms in `AiDialogueOutcomePolicy`. Tests 2.18 to 2.23 pass.
 
 ### 4. Monthly resolution and coverage (D5, D4)
 
 - [ ] 4.1 Add the Infrastructure canonical monthly company resolver: eligible exact match, then `ResolveAsync`. Register it. `MonthlyActivityTrendQueryUseCase` takes it as a required dependency and `Feature154RoutingScope?` as an optional one. Update the `CreateUseCase` helper in `MonthlyActivityTrendStaleComparisonBug076Tests.cs` to pass it (constructor only; assertions unchanged). Tests 2.6 to 2.9 pass.
 - [ ] 4.2 Add `NoavaranReportingTypeCategories` beside `NoavaranMonthlyReportTypeResolver`, and `NoavaranMonthlyReportCoverageReader`. Register the reader for all chat modes. Tests 2.15 and 2.16 pass.
 - [ ] 4.3 In `MonthlyActivityTrendCapabilityExecutor`, take `IMonthlyReportCoverageReader` as a required dependency and `Feature154RoutingScope?` as optional. Map coverage as in `user-story.md`. Update the two constructor sites in `SemanticRouteExecutorTests.cs` (constructor only; assertions unchanged).
-- [ ] 4.4 Add `AiDialogueOutcomePolicy.ComposeMonthlyReportNotCovered(language, categoryFa, categoryEn, symbol)`. Tests 2.10 to 2.14 and 2.17 pass.
+- [ ] 4.4 Add `AiDialogueOutcomePolicy.ComposeMonthlyReportNotCovered(language, categoryFa, categoryEn, symbol)` and `ComposeMonthlyReportOutsideScope(language)`. Tests 2.10 to 2.14 and 2.17 pass.
 
 ### 5. Read-only verification (no connection in this step)
 
@@ -184,7 +196,7 @@ No DSN exists. No connection is attempted from this plan. Per-symbol causes stay
 | C2 label | Plain reason for the owner's list | Reply after this feature | Follow-up |
 |---|---|---|---|
 | `A_no_noavaran_row` | Company is not in the Noavaran catalog | Default no-data sentence, or `entity_not_found` | Catalog review |
-| `B_outside_scope` | Rights, or outside the three markets | Default sentence, `data_stale_or_ineligible` | None |
+| `B_outside_scope` | Rights, or outside the three markets | Owner's outside-scope sentence, `data_stale_or_ineligible` | None |
 | `C_no_monthly_route` | Company type has no monthly route in the data source | **Owner's reply** | Vendor question (OQ-026) |
 | `D_type_missing`, `E_type_unknown` | Company's reporting type is missing or new | Default sentence | Catalog refresh or review |
 | `F_resolver_wrong_row` | Data exists; the symbol reached another provider's row | **Monthly data shown** after D5 | None |
@@ -212,7 +224,8 @@ No DSN exists. No connection is attempted from this plan. Per-symbol causes stay
 
 ## Risks
 
-- **Two-ticker requests.** Where duplicate rows caused `entity_ambiguous`, D3 turns that reply into one answered ticker with the other dropped. This is today's behaviour for unique rows. The approved scope does not change it; the unapproved two-company clarification would. Decision needed from the owner (proposed new question).
+- **Two-ticker requests.** The clarification depends on the model proposing separate spans. When the model proposal is unavailable or returns one combined span, today's behaviour stays. The separator fallback path is out of scope.
+- **Clarification reach.** Any capability with a `symbol` and no `symbols` slot is covered, not only monthly sales, per the owner's wording.
 - **Row identity.** Questions in the "exactly 1 other-provider row" shape move from that provider's row to the eligible row. `CanonicalId` differs; slot text is normally the same. Executors reading `CanonicalCompany` (`SemanticCapabilityExecutors.cs:316`, `:368`) get the eligible row.
 - **Unverified fixture parity.** Integration tests that need PostgreSQL may not run here.
 - **`ReportingType` freshness.** The reply depends on the catalog value. Null or new codes keep the default sentence.

@@ -57,12 +57,13 @@ Web chat and Telegram use the same reply text.
 - **D3, canonical priority only.** On the V2 path, the exact-match steps of `CanonicalQueryEntityResolver` prefer the eligible Noavaran row, then another Noavaran row, then another provider's row. A hit in a lower tier no longer outranks or blocks a higher tier.
 - **D4.** A monthly-sales turn with no data and a known no-route company type gets the owner's explanatory reply. The Outcome stays `NoData`; the reason becomes `monthly_report_not_covered`.
 - **D5.** On the V2 path, `MonthlyActivityTrendQueryUseCase` reads the Noavaran row for the symbol, not another provider's row with the same symbol.
+- **Two-company clarification (OQ-061, option (b)).** On V2, when a capability has no multi-company slot and two distinct companies resolve exactly, the turn returns `ClarificationNeeded` with a new reason code and a pending disambiguation holding both companies. It produces no single-company frame and no `entity_ambiguous`.
 - **A read-only verification task** that produces the owner's per-symbol list and reason once a read-only connection exists.
 
 ## Out Of Scope
 
 - D1 (BUG-008), D2 (BUG-009), D6 (BUG-012). Not approved.
-- The two-company clarification and the separator fallback-path parts of D3. Not approved. A two-ticker request keeps single-company handling; see Assumptions and the risk in `tasks.md`.
+- The separator fallback-path part of D3. Not approved. It is not needed for the clarification, because the clarification reads model-proposed entity spans; see Assumptions.
 - The `entity_source` tag.
 - Loading `Companies` once per turn. Canonical priority partitions rows the resolver already loads, so it does not need this.
 - New ingestion, new vendor endpoints, schema changes, migrations.
@@ -96,6 +97,12 @@ Web chat and Telegram use the same reply text.
 13. On V1, the use case calls `ResolveBySymbolAsync` as today.
 14. `Ambiguous`, `NotFound`, `InvalidIdentifier` and `UnsupportedProviderCompany` make the use case return null, as for any company it cannot read.
 
+### Two-company clarification (OQ-061)
+
+15. On V2, when the capability has a `symbol` slot and no `symbols` slot, and at least two distinct companies resolve by an exact kind (`exact_ticker`, `exact_company_name`, `approved_alias`) from **model-proposed** company mentions, the gate replaces the company slot with an `Invalid` slot whose detail is `multiple_companies_not_supported`, and records a pending `Disambiguation` holding those companies as candidates.
+16. The dispatcher returns `ClarificationRequired` with reason `multiple_companies_not_supported`. The turn produces no frame execution for a single company and no `entity_ambiguous`.
+17. A Persian month name proposed as a mention does not count as one of the companies. Deterministic mentions are not counted. Capabilities with a `symbols` slot (for example `symbol_metric_lookup`) are unchanged.
+
 ## Data / Schema
 
 No schema change and no migration. Reads `Companies.ReportingType`, `PrecedencyRight`, `MarketId`, `ProviderName`, symbol columns; and `CompanyMonthlyActivityTrendSnapshots` as today.
@@ -113,7 +120,7 @@ When the use case returns null:
 | Coverage | Status | Reason code | Customer sees |
 |---|---|---|---|
 | `NoRoute` | `NoData` | `monthly_report_not_covered` (new) | The owner's reply below |
-| `OutsideScope` | `NoData` | `data_stale_or_ineligible` | Default no-data sentence, unchanged |
+| `OutsideScope` | `NoData` | `data_stale_or_ineligible` | The owner's outside-scope sentence below (OQ-062) |
 | `HasRoute` | `NoData` | `supported_but_no_rows` | Default no-data sentence, unchanged |
 | `Unknown` (including port failure) | `NoData` | `supported_but_no_rows` | Default no-data sentence, unchanged |
 | `CompanyAmbiguous` | `DisambiguationRequired` | `entity_ambiguous` | Existing sentence `نام نماد یا شرکت به‌طور قطعی مشخص نشد. لطفاً نام نماد دقیق را وارد کنید.` |
@@ -148,6 +155,32 @@ Monthly sales report coverage for {categoryEn} companies is not available from t
 
 `categoryEn`: construction, investment, banking, leasing, insurance, maritime transportation, investment banking.
 
+### Reply text for `OutsideScope` (OQ-062)
+
+Persian, the owner's exact sentence:
+
+```text
+این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست.
+```
+
+English, proposed, contains no Persian script:
+
+```text
+This symbol is not on the list of companies covered by monthly reports.
+```
+
+### Two-company clarification text (OQ-061)
+
+Proposed; the owner has not seen it. The reason is `multiple_companies_not_supported`, outcome `ClarificationNeeded`. The text names no ticker, because the clarification path carries no detail.
+
+```text
+این پرسش فقط برای یک نماد قابل پاسخ است. لطفاً نماد موردنظرتان را بنویسید.
+```
+
+```text
+This question can be answered for one symbol only. Please send the symbol you want.
+```
+
 ## UI (if any)
 
 No screen change. Web chat and Telegram render the assistant text as today.
@@ -176,7 +209,7 @@ Monthly coverage reply
 - [ ] AC-9: With reply language `en`, the reply is the English sentence with the matching `categoryEn`.
 - [ ] AC-10: `1000000`, `1000005` and `1000008` give `supported_but_no_rows` and the default sentence.
 - [ ] AC-11: Null `ReportingType`, an unknown code, and a symbol not in the catalog give `supported_but_no_rows` and the default sentence.
-- [ ] AC-12: A non-eligible Noavaran row, and a company found only with another provider, give `data_stale_or_ineligible` with the default sentence, whatever the `ReportingType`.
+- [ ] AC-12: A non-eligible Noavaran row, and a company found only with another provider, give `data_stale_or_ineligible` with exactly `این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست.` (or the English sentence when the reply language is `en`), whatever the `ReportingType`.
 - [ ] AC-13: A port failure or timeout leaves the turn `NoData` with `supported_but_no_rows`, and writes one Warning log with the outcome `coverage_read_failed`.
 - [ ] AC-14: When the trend result is not null, the port is not called. Under frozen V1, the port is not called.
 - [ ] AC-15: Reply text and category labels have one owner each; no `ReportingType` number exists in Application.
@@ -189,6 +222,13 @@ Monthly company resolution
 - [ ] AC-19: Under frozen V1, the same rows behave exactly as today.
 - [ ] AC-20: The V2 executor, the snapshot card, and the V2 workflow's legacy route all read through the new resolution. V1's route does not. The snapshot card's text for a missing month is unchanged.
 
+Two-company clarification
+
+- [ ] AC-23: A model proposal of `monthly_activity_trend` with two exact tickers (`روند فروش ماهانه کگل/شپنا`, invented) produces no single-company slot, no `entity_ambiguous`, and a pending `Disambiguation` holding both companies.
+- [ ] AC-24: The dispatcher returns `ClarificationRequired` with reason `multiple_companies_not_supported`; the reply is the proposed text for `fa` and `en`.
+- [ ] AC-25: Replying with one of the tickers runs the capability for that ticker.
+- [ ] AC-26: `symbol_metric_lookup` keeps multi-company handling. A single exact company, a variant match, a month-name mention, and the deterministic path never produce the clarification. Frozen V1 is unchanged.
+
 Verification
 
 - [ ] AC-21: Green means no new failure against `specs/test-baseline.md`. Every test in `tasks.md` §Regression tests failed before its fix, for the stated reason.
@@ -199,4 +239,4 @@ Verification
 - The Persian `categoryFa` labels are the owner-supplied labels in the Feature 141 review. The owner has seen the template, not each rendered line.
 - A company with a no-route code may still publish monthly reports elsewhere. The reply says the source does not cover it, not that no report exists.
 - Per-symbol causes are Unverified until the read-only check runs.
-- After D3, a two-ticker request that used to be reported ambiguous because of duplicate catalog rows answers for one ticker, like two tickers with unique rows do today. The two-company clarification that would change this is not approved. Recorded for the owner in `tasks.md`.
+- The clarification reads model-proposed spans. On the deterministic fallback path, used only when the model proposal is unavailable, two tickers joined by a separator keep today's behaviour. The separator fallback-path part of D3 is out of scope.

@@ -72,6 +72,8 @@ public sealed class DeterministicCapabilityInterpreter(
             , "\u062e\u0648\u062f", "\u062f\u0631", "\u0628\u0627"
         ]);
         NonEntityWords.UnionWith(["ارزنده", "undervalued", "overvalued"]);
+        // Feature 162: «تحلیل جامع فولاد» names one entity, فولاد; «جامع» only qualifies the analysis.
+        NonEntityWords.UnionWith(["جامع"]);
         NonEntityWords.UnionWith(["گزارش", "گزارشات", "گزارشهای", "گزارش‌های", "های", "ها", "فصلی"]);
         NonEntityWords.UnionWith(["industry", "group", "صنعت", "گروه", "با", "در", "داخل", "compare", "rank", "ranking", "pair", "دو", "نمادها", "symbol", "symbols", "its", "relative", "valuation"]);
     }

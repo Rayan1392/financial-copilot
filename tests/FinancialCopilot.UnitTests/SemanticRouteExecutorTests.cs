@@ -167,6 +167,21 @@ public sealed class SemanticRouteExecutorTests
     }
 
     [Fact]
+    public async Task ComprehensiveAnalysisExecutor_NoAnalysisIsFreeNoDataAndKeepsTheMetrics()
+    {
+        // Feature 162 (FR7): "no analysis found" is not billed, even when the context metrics exist.
+        var executor = new ComprehensiveAnalysisCapabilityExecutor(
+            new AnalysisUseCase(hasRows: false), new RecordingLookupService(rows: true), TimeProvider.System);
+
+        var result = await executor.ExecuteAsync(Frame("comprehensive_analysis", Symbol("فولاد")), Context(), default);
+
+        var payload = Assert.IsType<SemanticComprehensiveAnalysisPayload>(result.Payload);
+        Assert.Equal(CapabilityExecutionStatus.NoData, result.Status);
+        Assert.False(payload.Analysis.HasResults);
+        Assert.NotEmpty(payload.Lookup.Rows);
+    }
+
+    [Fact]
     public async Task ComprehensiveAnalysisExecutor_PreservesDatabaseReportsWhenLiveMetricsFail()
     {
         var analysis = new AnalysisUseCase(hasRows: true);

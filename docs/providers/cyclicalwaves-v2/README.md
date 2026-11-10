@@ -34,3 +34,26 @@ remain disabled. NoavaranAmin never reads these tables and remains unchanged.
 **Legacy (retired by Feature 148, kept for history only):** `docs/cw_api.txt` and
 `docs/Cyclical Waves_api_document_2026_05_26.pdf` describe the retired `back1.cyclicalwaves.com` integration.
 No code calls those endpoints any more.
+
+## Comprehensive analysis in NoavaranAmin mode (Feature 162)
+
+`FinancialData:CapabilitySources:comprehensive_analysis=CyclicalWaves` lets Chat answer comprehensive analysis from
+`cyclicalwaves."Analyses"` while `FinancialData:ChatProvider` stays `NoavaranAmin` (ADR
+[0001](../../adr/0001-per-capability-chat-data-source.md)). Nothing else reads the v2 schema in that mode. The answer
+lists up to three newest analyses whose title contains the asked ticker as a whole word, each with its title and whole
+published summary, and ends with the fixed link `ComprehensiveAnalysis:TahlilAppAnalysesUrl`
+(default `https://tahlilapp.com/app/analysis`). It needs the `Analysis` sync to run (`CyclicalWavesV2:IngestionEnabled`
+on the Worker).
+
+Read-only production check before setting the map (run by the owner; no credentials in this file):
+
+```sql
+SELECT count(*) AS analyses, max("PublishedAt") AS newest_published, max("LastSyncedAt") AS last_synced
+FROM cyclicalwaves."Analyses";
+
+SELECT "Scope", "AnalysisMode", "Status", "StartedAt", "CompletedAt", "UpdatedItems", "FailedItems", "ErrorSummary"
+FROM cyclicalwaves."SyncRuns"
+WHERE "Scope" IN ('Analysis', 'Full')
+ORDER BY "RequestedAt" DESC
+LIMIT 5;
+```

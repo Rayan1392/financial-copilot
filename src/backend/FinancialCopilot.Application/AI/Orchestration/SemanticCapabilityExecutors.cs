@@ -657,7 +657,9 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         if ((analysisAttempt.Failed && !hasMetrics) || (lookupAttempt.Failed && !hasAnalysis))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
                 DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
-        if (!hasAnalysis && !hasMetrics) return NoData(frame, payload);
+        // Feature 162 (FR7): no analysis for the symbol is a no-data answer, free, even when context metrics exist;
+        // the payload still carries the metrics and the "no analysis found" card.
+        if (!hasAnalysis && !analysisAttempt.Failed) return NoData(frame, payload);
         return hasAnalysis && hasMetrics
             ? Success(frame, payload)
             : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Partial,

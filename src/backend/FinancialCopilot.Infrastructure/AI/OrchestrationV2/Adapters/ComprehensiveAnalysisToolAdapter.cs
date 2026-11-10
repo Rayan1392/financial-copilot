@@ -1,10 +1,18 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 
 internal sealed class ComprehensiveAnalysisToolAdapter(
-    IComprehensiveAnalysisQueryUseCase useCase)
+    IComprehensiveAnalysisQueryUseCase useCase,
+    IOptions<ComprehensiveAnalysisPresentationOptions> presentation)
 {
+    /// <summary>The configured fixed TahlilApp analyses link (Feature 162).</summary>
+    internal string AnalysesUrl => presentation.Value.TahlilAppAnalysesUrl;
+
+    internal ComprehensiveAnalysisToolResult ToResult(ComprehensiveAnalysisQueryResponse response) =>
+        ComprehensiveAnalysisToolResult.Success(response, AnalysesUrl);
+
     private static readonly IReadOnlyList<string> AllowedTopicSlugs = [
         "تحلیل_تکنیکال",
         "قیمت_تعادلی",
@@ -44,8 +52,8 @@ internal sealed class ComprehensiveAnalysisToolAdapter(
         var result = await useCase.ExecuteAsync(request, cancellationToken);
 
         return result.Items.Count == 0
-            ? ComprehensiveAnalysisToolResult.NotFound(result.UnresolvedSymbols)
-            : ComprehensiveAnalysisToolResult.Success(result);
+            ? ComprehensiveAnalysisToolResult.NotFound(result.UnresolvedSymbols, AnalysesUrl)
+            : ComprehensiveAnalysisToolResult.Success(result, AnalysesUrl);
     }
 }
 
@@ -55,29 +63,17 @@ internal sealed record ComprehensiveAnalysisToolResult
     public ComprehensiveAnalysisQueryResponse? QueryResponse { get; init; }
     public IReadOnlyList<string> UnresolvedSymbols { get; init; } = [];
     public string CompletionStatus { get; init; } = "Completed";
+    public string AnalysesUrl { get; init; } = ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;
 
-    public string AgentSummary
-    {
-        get
-        {
-            if (!Succeeded)
-                return "هیچ تحلیلی برای معیارهای درخواست‌شده یافت نشد.";
+    /// <summary>The Feature 162 card: titles and whole summaries, then the fixed TahlilApp link.</summary>
+    public string AgentSummary => ComprehensiveAnalysisCardComposer.ComposeMarkdown(
+        QueryResponse?.Items ?? [],
+        UnresolvedSymbols,
+        AnalysesUrl);
 
-            var sb = new System.Text.StringBuilder();
-            foreach (var item in QueryResponse!.Items)
-            {
-                sb.AppendLine($"### {item.Title}");
-                sb.AppendLine($"تاریخ: {item.PersianCreatedAt} | نویسنده: {item.AuthorName}");
-                sb.AppendLine(item.PlainTextSummary);
-                sb.AppendLine();
-            }
-            return sb.ToString();
-        }
-    }
+    public static ComprehensiveAnalysisToolResult Success(ComprehensiveAnalysisQueryResponse response, string analysesUrl) =>
+        new() { Succeeded = true, QueryResponse = response, UnresolvedSymbols = response.UnresolvedSymbols, AnalysesUrl = analysesUrl };
 
-    public static ComprehensiveAnalysisToolResult Success(ComprehensiveAnalysisQueryResponse response) =>
-        new() { Succeeded = true, QueryResponse = response, UnresolvedSymbols = response.UnresolvedSymbols };
-
-    public static ComprehensiveAnalysisToolResult NotFound(IReadOnlyList<string> unresolvedSymbols) =>
-        new() { Succeeded = false, UnresolvedSymbols = unresolvedSymbols };
+    public static ComprehensiveAnalysisToolResult NotFound(IReadOnlyList<string> unresolvedSymbols, string analysesUrl) =>
+        new() { Succeeded = false, UnresolvedSymbols = unresolvedSymbols, AnalysesUrl = analysesUrl };
 }

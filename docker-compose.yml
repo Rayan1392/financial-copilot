@@ -168,6 +168,9 @@ services:
         CyclicalWavesLegacy__AllowCalls: "false"
         # Feature 148: Chat provider selection (legacy CyclicalWaves-derived metrics are always excluded).
         FinancialData__ChatProvider: ${FINANCIAL_DATA_CHAT_PROVIDER:-NoavaranAmin}
+        # Feature 162: per-capability source (empty = the ChatProvider above). Only comprehensive_analysis may be set.
+        FinancialData__CapabilitySources__comprehensive_analysis: ${FINANCIAL_DATA_SOURCE_COMPREHENSIVE_ANALYSIS:-}
+        ComprehensiveAnalysis__TahlilAppAnalysesUrl: ${COMPREHENSIVE_ANALYSIS_TAHLILAPP_URL:-https://tahlilapp.com/app/analysis}
         # Feature 148: CyclicalWaves v2 provider. Credentials only in the ignored .env file.
         CyclicalWavesV2__AuthBaseAddress: ${CYCLICALWAVES_V2_AUTH_BASE_ADDRESS:-https://auth.cycfx.com/api/}
         CyclicalWavesV2__DataBaseAddress: ${CYCLICALWAVES_V2_DATA_BASE_ADDRESS:-https://api.tahlilapp.com/api/}

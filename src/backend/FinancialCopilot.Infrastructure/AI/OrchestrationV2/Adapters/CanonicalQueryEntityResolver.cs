@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -7,8 +8,12 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 
 public sealed class CanonicalQueryEntityResolver(
     FinancialIngestionDbContext dbContext,
-    IOptions<CanonicalEntityResolutionOptions> options) : ICanonicalQueryEntityResolver, ICanonicalQueryIndustryResolver
+    IOptions<CanonicalEntityResolutionOptions> options,
+    Feature154RoutingScope? routingScope = null) : ICanonicalQueryEntityResolver, ICanonicalQueryIndustryResolver
 {
+    private const string CanonicalProvider = "NoavaranCurrentApi";
+    private readonly Feature154RoutingScope _scope = routingScope ?? Feature154RoutingScope.V2;
+
     public async Task<IndustryResolutionResult> ResolveIndustryMentionAsync(string? mention, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeIdentity(mention);
@@ -58,22 +63,10 @@ public sealed class CanonicalQueryEntityResolver(
             return new EntityResolutionResult.Missing("CompanyOrSymbol");
 
         var companies = await dbContext.Companies.AsNoTracking().ToArrayAsync(cancellationToken);
-        var exactTicker = PreferCanonical(Match(companies, normalized, row => row.Ticker, "exact_ticker"));
-        var exactCompanyName = exactTicker.Length == 0
-            ? PreferCanonical(Match(companies, normalized, row => row.Name, "exact_company_name"))
-            : [];
-        var approvedAlias = exactTicker.Length == 0 && exactCompanyName.Length == 0
-            ? PreferCanonical(Match(companies, normalized, row => row.TseSymbol, "approved_alias")
-                    .Concat(Match(companies, normalized, row => row.CompanySymbol, "approved_alias"))
-                    .Concat(Match(companies, normalized, row => row.EnTicker, "approved_alias"))
-                    .Concat(Match(companies, normalized, row => row.CompanySymbolEnglish, "approved_alias"))
-                    .Concat(Match(companies, normalized, row => row.CompanySymbolPinglish, "approved_alias"))
-                    .GroupBy(item => item.Row.Id)
-                    .Select(group => group.First()))
-            : [];
-        var exact = exactTicker.Length > 0 ? exactTicker
-            : exactCompanyName.Length > 0 ? exactCompanyName
-            : approvedAlias;
+        // Feature 158 (V2): the first provider tier with an exact hit decides. V1 keeps the single pass.
+        var exact = _scope.IsActive
+            ? ExactMatchByProviderTier(companies, normalized)
+            : ExactMatch(companies, normalized);
 
         if (exact.Length == 1)
             return ToResolved(exact[0]);
@@ -209,6 +202,44 @@ public sealed class CanonicalQueryEntityResolver(
             .ToArray();
     }
 
+    private static MatchResult[] ExactMatchByProviderTier(IReadOnlyCollection<NormalizedCompanyRow> companies, string normalized)
+    {
+        var tiers = companies.ToLookup(ProviderTier);
+        foreach (var tier in tiers.OrderBy(group => group.Key))
+        {
+            var matches = ExactMatch(tier, normalized);
+            if (matches.Length > 0)
+                return matches;
+        }
+
+        return [];
+    }
+
+    private static int ProviderTier(NormalizedCompanyRow row) =>
+        NoavaranCompanyScope.IsEligible(row, CanonicalProvider) ? 0
+        : row.ProviderName == CanonicalProvider ? 1
+        : 2;
+
+    private static MatchResult[] ExactMatch(IEnumerable<NormalizedCompanyRow> rows, string normalized)
+    {
+        var companies = rows as IReadOnlyCollection<NormalizedCompanyRow> ?? rows.ToArray();
+        var exactTicker = PreferCanonical(Match(companies, normalized, row => row.Ticker, EntityResolutionMatchKinds.ExactTicker));
+        if (exactTicker.Length > 0)
+            return exactTicker;
+
+        var exactCompanyName = PreferCanonical(Match(companies, normalized, row => row.Name, EntityResolutionMatchKinds.ExactCompanyName));
+        if (exactCompanyName.Length > 0)
+            return exactCompanyName;
+
+        return PreferCanonical(Match(companies, normalized, row => row.TseSymbol, EntityResolutionMatchKinds.ApprovedAlias)
+            .Concat(Match(companies, normalized, row => row.CompanySymbol, EntityResolutionMatchKinds.ApprovedAlias))
+            .Concat(Match(companies, normalized, row => row.EnTicker, EntityResolutionMatchKinds.ApprovedAlias))
+            .Concat(Match(companies, normalized, row => row.CompanySymbolEnglish, EntityResolutionMatchKinds.ApprovedAlias))
+            .Concat(Match(companies, normalized, row => row.CompanySymbolPinglish, EntityResolutionMatchKinds.ApprovedAlias))
+            .GroupBy(item => item.Row.Id)
+            .Select(group => group.First()));
+    }
+
     private static IEnumerable<string> ContiguousPhrases(IReadOnlyList<EntityMention> mentions)
     {
         for (var length = Math.Min(4, mentions.Count); length >= 2; length--)
@@ -236,7 +267,7 @@ public sealed class CanonicalQueryEntityResolver(
     {
         var materialized = matches.ToArray();
         var canonical = materialized
-            .Where(item => item.Row.ProviderName == "NoavaranCurrentApi")
+            .Where(item => item.Row.ProviderName == CanonicalProvider)
             .ToArray();
         return canonical.Length > 0 ? canonical : materialized;
     }

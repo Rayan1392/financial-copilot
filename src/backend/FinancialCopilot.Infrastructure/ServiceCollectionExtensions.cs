@@ -1418,6 +1418,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotRepository, EfCoreCompanyMonthlyActivityTrendSnapshotRepository>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
+        services.AddScoped<ICanonicalMonthlyCompanyResolver, CanonicalMonthlyCompanyResolver>();
+        services.AddScoped<IMonthlyReportCoverageReader, NoavaranMonthlyReportCoverageReader>();
         services.AddScoped<IMonthlyActivityTrendQueryUseCase, MonthlyActivityTrendQueryUseCase>();
         services.AddScoped<IMonthlyProductComparisonReadRepository, EfCoreMonthlyProductComparisonRepository>();
         services.AddScoped<IMonthlyProductCatalogReadRepository>(sp =>

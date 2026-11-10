@@ -37,6 +37,13 @@ public static class NoavaranCompanyScope
                 row.MarketId != null &&
                 EligibleMarketIds.Contains(row.MarketId.Value));
 
+    /// <summary>In-memory form of the <see cref="EligibleCompanies"/> filter, for rows already loaded.</summary>
+    public static bool IsEligible(NormalizedCompanyRow row, string providerName) =>
+        row.ProviderName == providerName &&
+        row.PrecedencyRight == 0 &&
+        row.MarketId != null &&
+        EligibleMarketIds.Contains(row.MarketId.Value);
+
     /// <summary>Distinct numeric vendor company ids (coID) of the eligible companies, ascending.</summary>
     public static async Task<IReadOnlyList<int>> EligibleCompanyIdsAsync(
         FinancialIngestionDbContext dbContext,

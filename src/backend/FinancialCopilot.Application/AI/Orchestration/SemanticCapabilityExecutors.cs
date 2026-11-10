@@ -128,8 +128,13 @@ public sealed class StockScreeningCapabilityExecutor(
 }
 
 public sealed class MonthlyActivityTrendCapabilityExecutor(
-    IMonthlyActivityTrendQueryUseCase useCase) : IConversationalCapabilityExecutor
+    IMonthlyActivityTrendQueryUseCase useCase,
+    IMonthlyReportCoverageReader coverageReader,
+    Feature154RoutingScope? routingScope = null) : IConversationalCapabilityExecutor
 {
+    private readonly IMonthlyReportCoverageReader _coverageReader = coverageReader;
+    private readonly Feature154RoutingScope _scope = routingScope ?? Feature154RoutingScope.V2;
+
     public string CapabilityCode => "monthly_activity_trend";
 
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
@@ -166,9 +171,26 @@ public sealed class MonthlyActivityTrendCapabilityExecutor(
             LastAvailableMonths: lastAvailableMonths,
             RequestedOperations: operations,
             UnsupportedParts: unsupported.Distinct(StringComparer.OrdinalIgnoreCase).ToArray()), cancellationToken);
-        return result is null
-            ? NoData(frame)
-            : Success(frame, result);
+        if (result is not null)
+            return Success(frame, result);
+        if (!_scope.IsActive)
+            return NoData(frame);
+
+        // Feature 158: tell the customer why no monthly data can exist, when that is known.
+        var coverage = await _coverageReader.ReadAsync(symbol, cancellationToken);
+        var language = frame.Interpretation.ReplyLanguage;
+        return coverage.Kind switch
+        {
+            MonthlyReportCoverageKind.NoRoute => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
+                DialogueOutcomeReasonCodes.MonthlyReportNotCovered,
+                AiDialogueOutcomePolicy.ComposeMonthlyReportNotCovered(language, coverage.CategoryFa!, coverage.CategoryEn!, symbol)),
+            MonthlyReportCoverageKind.OutsideScope => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
+                DialogueOutcomeReasonCodes.DataStaleOrIneligible,
+                AiDialogueOutcomePolicy.ComposeMonthlyReportOutsideScope(language)),
+            MonthlyReportCoverageKind.CompanyAmbiguous => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired,
+                DialogueOutcomeReasonCodes.EntityAmbiguous),
+            _ => NoData(frame)
+        };
     }
 }
 

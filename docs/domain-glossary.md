@@ -202,6 +202,13 @@ Optional context that may be supplied to future orchestration beyond persisted c
 
 This list is illustrative only. EPS, P/E, margins, growth measures, and cash-flow measures are examples, not the full financial domain. The platform's semantic metric catalog is extensible and versioned; it must not be treated as a closed hardcoded list. Scanner parsing resolves supported Persian/English terminology through metric aliases into canonical metric codes, and derived calculations/explanations retain the selected definition and calculation-policy version.
 
+## Company Resolution and Monthly Coverage
+
+- **Canonical company row:** the `NoavaranCurrentApi` row for a ticker, preferring one inside the eligible universe.
+- **Eligible universe:** companies selected by `NoavaranCompanyScope` (no rights rows, three primary markets).
+- **Monthly route:** the endpoint assigned to a company's `ReportingType`.
+- **Monthly coverage:** whether a company can have persisted monthly data: has route, no route, outside scope, or unknown.
+
 ## Ambiguity Rules
 
 When the user does not specify comparison type:

@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using Microsoft.Extensions.Logging;
 
@@ -5,10 +6,14 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 internal sealed class MonthlyActivityTrendQueryUseCase(
     ICompanyResolverService companyResolver,
+    ICanonicalMonthlyCompanyResolver canonicalCompanyResolver,
     ICompanyMonthlyActivityTrendSnapshotRepository repository,
-    ILogger<MonthlyActivityTrendQueryUseCase> logger)
+    ILogger<MonthlyActivityTrendQueryUseCase> logger,
+    Feature154RoutingScope? routingScope = null)
     : IMonthlyActivityTrendQueryUseCase
 {
+    private readonly Feature154RoutingScope _scope = routingScope ?? Feature154RoutingScope.V2;
+
     private const decimal MillionRialToBillionTooman = 0.0001m;
 
     private static readonly string[] PersianFiscalMonthNames =
@@ -32,7 +37,7 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             return null;
         }
 
-        var company = await companyResolver.ResolveBySymbolAsync(symbol, ct);
+        var company = await ResolveCompanyAsync(symbol, ct);
         if (company is null)
         {
             logger.LogInformation(
@@ -142,6 +147,15 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             RequestedOperations = query.RequestedOperations?.ToArray() ?? [],
             UnsupportedParts = query.UnsupportedParts?.ToArray() ?? []
         };
+    }
+
+    private async Task<ResolvedCompany?> ResolveCompanyAsync(string symbol, CancellationToken ct)
+    {
+        if (!_scope.IsActive)
+            return await companyResolver.ResolveBySymbolAsync(symbol, ct);
+
+        var resolution = await canonicalCompanyResolver.ResolveAsync(symbol, ct);
+        return resolution.Status == CompanyResolutionStatus.Resolved ? resolution.Company : null;
     }
 
     private static IReadOnlyList<MonthlyActivityTrendChartPoint> BuildLatestAvailableChartPoints(

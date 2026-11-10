@@ -123,6 +123,7 @@ public sealed class MonthlyActivityTrendStaleComparisonBug076Tests
 
     private static MonthlyActivityTrendQueryUseCase CreateUseCase(FinancialIngestionDbContext db) =>
         new(new KgoharResolver(),
+            new ResolverBackedCanonicalCompanies(),
             new EfCoreCompanyMonthlyActivityTrendSnapshotRepository(db),
             NullLogger<MonthlyActivityTrendQueryUseCase>.Instance);
 
@@ -194,6 +195,12 @@ public sealed class MonthlyActivityTrendStaleComparisonBug076Tests
             Unit = "تن",
             SalesAmount = salesAmount
         });
+    }
+
+    private sealed class ResolverBackedCanonicalCompanies : ICanonicalMonthlyCompanyResolver
+    {
+        public async Task<CompanyResolutionOutcome> ResolveAsync(string symbol, CancellationToken cancellationToken) =>
+            new(CompanyResolutionStatus.Resolved, await new KgoharResolver().ResolveBySymbolAsync(symbol, cancellationToken));
     }
 
     private sealed class KgoharResolver : ICompanyResolverService

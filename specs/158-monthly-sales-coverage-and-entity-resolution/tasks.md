@@ -1,6 +1,6 @@
 # Tasks: Monthly Sales Coverage and Canonical Company Resolution
 
-Status: Gate A: Approved by the owner on 2026-11-10 — plan proposed, Gate B not approved
+Status: Gate B: Approved by the owner on 2026-11-10
 
 Gate A covers D3 (canonical priority only), D4 and D5. Line references are at `5dfc496`, unless stated.
 

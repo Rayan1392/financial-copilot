@@ -347,19 +347,6 @@ public sealed class CyclicalWavesV2ChatReadTests : IDisposable
         // Owner rule (Feature 162): an article is found by the ticker in its title; «رصد معاملات عمده» reports tag many tickers.
         Assert.False(CyclicalWavesV2ComprehensiveAnalysisQuery.MatchesTicker("رصد معاملات عمده‌ها یکشنبه ۱۲ مهر ۱۴۰۵", "فولاد"));
 
-    [Fact]
-    public void Analysis_SummaryIsWholeUpToTheSafetyBound()
-    {
-        var whole = string.Join(' ', Enumerable.Repeat("متن", 1_000));
-        Assert.Equal(whole, CyclicalWavesV2ComprehensiveAnalysisQuery.BoundSummary(whole));
-
-        var tooLong = string.Join(' ', Enumerable.Repeat("کلمه", 2_000));
-        var bounded = CyclicalWavesV2ComprehensiveAnalysisQuery.BoundSummary(tooLong);
-        Assert.EndsWith(" …", bounded);
-        Assert.True(bounded.Length <= CyclicalWavesV2ComprehensiveAnalysisQuery.SummaryCapChars + 2);
-        Assert.EndsWith("کلمه …", bounded);
-    }
-
     [Theory]
     [InlineData("نمودار_P_S", "PS")]
     [InlineData("P-E", "PE")]

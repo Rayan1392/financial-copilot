@@ -95,27 +95,26 @@ public sealed class Feature162CapabilitySourceMapTests
         Assert.Same(ChatCapabilitySourceMap.Empty, map);
     }
 
-    // --- Card ---
+    // --- Card (change «latest-analysis-teaser») ---
 
     [Fact]
-    public void MarkdownCardShowsTitleAndWholeSummaryThenOneLink()
+    public void CardShowsOnlyTheLatestAnalysisWithDatePreviewReadMoreAndLink()
     {
         var card = ComprehensiveAnalysisCardComposer.ComposeMarkdown(
-            [Item(1, "شگل، بخش دوم- تعادلی", "خلاصهٔ اول.\nخط دوم."), Item(2, "شگل", "خلاصهٔ دوم")],
+            [Item(2, "شگل، بخش سوم - نسبت P/s", "پیش‌نمایش …"), Item(1, "شگل، بخش دوم- تعادلی", "قدیمی‌تر")],
             [],
             Url);
 
         Assert.Equal(
-            "### شگل، بخش دوم- تعادلی\nخلاصهٔ اول.\nخط دوم.\n\n### شگل\nخلاصهٔ دوم\n\n[ادامهٔ تحلیل‌ها در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
+            "### شگل، بخش سوم - نسبت P/s\nتاریخ انتشار: 1405/08/18\nپیش‌نمایش …\n\nمتن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید\n[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
             card);
-        Assert.DoesNotContain("تحلیلگر", card);
-        Assert.DoesNotContain("تاریخ", card);
+        Assert.DoesNotContain("قدیمی‌تر", card);
     }
 
     [Fact]
-    public void CardWithEmptySummaryShowsTheTitleOnly() =>
+    public void CardWithoutPreviewShowsTitleDateAndLink() =>
         Assert.Equal(
-            "### خزامیا\n\n[ادامهٔ تحلیل‌ها در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
+            "### خزامیا\nتاریخ انتشار: 1405/08/18\n\nمتن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید\n[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
             ComprehensiveAnalysisCardComposer.ComposeMarkdown([Item(1, "خزامیا", "  ")], [], Url));
 
     [Theory]
@@ -124,14 +123,73 @@ public sealed class Feature162CapabilitySourceMapTests
     [InlineData(new string[0], "تحلیلی در تحلیل‌اپ پیدا نشد.")]
     public void NoAnalysisSaysSoAndStillLinks(string[] symbols, string sentence) =>
         Assert.Equal(
-            $"{sentence}\n\n[ادامهٔ تحلیل‌ها در تحلیل‌اپ]({Url})",
+            $"{sentence}\n\n[تحلیل‌های جامع تحلیل‌اپ]({Url})",
             ComprehensiveAnalysisCardComposer.ComposeMarkdown([], symbols, Url));
 
     [Fact]
     public void PlainCardUsesTheBareUrl() =>
         Assert.Equal(
-            $"شگل\nخلاصه\n\nادامهٔ تحلیل‌ها در تحلیل‌اپ: {Url}",
-            ComprehensiveAnalysisCardComposer.ComposePlainText([Item(1, "شگل", "خلاصه")], [], Url));
+            $"شگل\nتاریخ انتشار: 1405/08/18\nپیش‌نمایش …\n\nمتن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید\nادامهٔ این تحلیل در تحلیل‌اپ: {Url}",
+            ComprehensiveAnalysisCardComposer.ComposePlainText([Item(1, "شگل", "پیش‌نمایش …")], [], Url));
+
+    // --- Preview policy ---
+
+    private static readonly ComprehensiveAnalysisPresentationOptions Defaults = new();
+
+    [Fact]
+    public void Teaser_RealShgolAnalysis_IsThirtyPercentAndNeverCutsInsideANumber()
+    {
+        const string title = "شگل، بخش سوم - نسبت P/s";
+        var text = title + "\n\n" + string.Concat(Enumerable.Repeat(
+            "همانطور که در تصویر مشخص است عقربه کمی از میانگین بلند مدتی پایین تر است و عدد فعلی 0.88 واحد است. ", 4));
+
+        var teaser = ComprehensiveAnalysisTeaserPolicy.Teaser(title, text, Defaults);
+
+        Assert.StartsWith("همانطور که", teaser);
+        Assert.DoesNotContain(title, teaser);
+        Assert.EndsWith(" …", teaser);
+        Assert.DoesNotMatch(@"\d\. …$|\d …$", teaser);
+        Assert.True(teaser.Length - 2 <= text.Length * 30 / 100, teaser);
+    }
+
+    [Fact]
+    public void Teaser_PrefersTheLastSentenceEnd()
+    {
+        // The second sentence ends after 40% of the cut, so it wins over a word boundary.
+        var text = "جملهٔ اول کوتاه است. " + new string('ب', 100) +" جملهٔ دوم هم تمام می‌شود! " + string.Join(' ', Enumerable.Repeat("ادامه", 120));
+
+        var teaser = ComprehensiveAnalysisTeaserPolicy.Teaser("عنوان", text, Defaults);
+
+        Assert.EndsWith("تمام می‌شود! …", teaser);
+    }
+
+    [Fact]
+    public void Teaser_FallsBackToAWordBoundaryAndRespectsTheCap()
+    {
+        var text = string.Join(' ', Enumerable.Repeat("کلمه", 800));
+
+        var teaser = ComprehensiveAnalysisTeaserPolicy.Teaser("عنوان", text, Defaults);
+
+        Assert.True(teaser.Length <= 300 + 2, teaser.Length.ToString());
+        Assert.EndsWith("کلمه …", teaser);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("فروش شهریور فولاد ۱۷ درصد رشد کرد")]
+    public void Teaser_ShortTextHasNoPreview(string text) =>
+        Assert.Equal(string.Empty, ComprehensiveAnalysisTeaserPolicy.Teaser("فولاد", text, Defaults));
+
+    [Theory]
+    [InlineData(0, 300, 150)]
+    [InlineData(51, 300, 150)]
+    [InlineData(30, 10, 150)]
+    [InlineData(30, 300, -1)]
+    public void InvalidTeaserSettingsAreRejected(int percent, int max, int minimum) =>
+        Assert.False(new ComprehensiveAnalysisPresentationOptions
+        {
+            TeaserPercent = percent, TeaserMaxCharacters = max, TeaserMinimumSourceCharacters = minimum
+        }.IsValid(out _));
 
     [Theory]
     [InlineData("https://tahlilapp.com/app/analysis", true)]
@@ -153,7 +211,7 @@ public sealed class Feature162CapabilitySourceMapTests
 
         Assert.Equal(1, Count(text, "فولاد- تکنیکال"));
         Assert.Equal(1, Count(text, "روند صعودی است"));
-        Assert.Contains($"ادامهٔ تحلیل‌ها در تحلیل‌اپ: {Url}", text);
+        Assert.Contains($"ادامهٔ این تحلیل در تحلیل‌اپ: {Url}", text);
         Assert.DoesNotContain("ignored markdown card", text);
     }
 

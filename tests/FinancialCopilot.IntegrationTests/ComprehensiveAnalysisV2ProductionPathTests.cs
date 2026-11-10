@@ -60,8 +60,11 @@ public sealed class V2ComprehensiveAnalysisProductionPathTests : IClassFixture<V
         Assert.All(_factory.Lookup.Requests.SelectMany(request => request.Pairs), pair => Assert.Equal("فولاد", pair.SymbolName));
         var analysis = Assert.Single(root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray());
         Assert.Equal("تحلیل بنیادی فولاد مبارکه", analysis.GetProperty("title").GetString());
-        Assert.Equal("ارزش ذاتی فولاد بالاتر از قیمت بازار است", analysis.GetProperty("plainTextSummary").GetString());
-        Assert.Contains("ارزش ذاتی فولاد بالاتر از قیمت بازار است", root.GetProperty("textAnswer").GetString());
+        // Feature 162 change: the provider summary is the whole paid text and only a preview leaves the query;
+        // this seeded text is shorter than the preview minimum, so the answer shows the title without any text.
+        Assert.Equal(string.Empty, analysis.GetProperty("plainTextSummary").GetString());
+        Assert.Contains("تحلیل بنیادی فولاد مبارکه", root.GetProperty("textAnswer").GetString());
+        Assert.DoesNotContain("ارزش ذاتی فولاد بالاتر از قیمت بازار است", root.GetRawText());
     }
 
     [Theory]

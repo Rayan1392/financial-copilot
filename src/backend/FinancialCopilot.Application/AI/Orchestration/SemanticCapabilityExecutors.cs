@@ -620,7 +620,8 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         if (symbols.Length == 0) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
         var topics = SplitValues(frame.Value(QuerySlotType.AnalysisTopic));
         var fromDate = ParseDateTimeOffset(frame.Value(QuerySlotType.Period));
-        var limit = Math.Clamp(ParseInt(frame.Value(QuerySlotType.ResultLimit)) ?? 3, 1, 5);
+        // Feature 162 change «latest-analysis-teaser»: the answer shows the latest analysis only.
+        const int limit = 1;
 
         var analysisTask = TryExecuteAsync(
             () => useCase.ExecuteAsync(

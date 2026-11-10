@@ -3,6 +3,7 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 
@@ -14,13 +15,17 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 /// Feature 162 (owner, 2026-11-10): an analysis belongs to a ticker when the ticker is a whole word of its title, at
 /// any position («حق تقدم شگل», «شگل، بخش سوم - نسبت P/s»); tags no longer select analyses for a ticker, because
 /// daily reports such as «رصد معاملات عمده» tag many tickers. Topic tags still filter when asked.
+/// The provider `summary` is the whole paid analysis text (owner, 2026-11-10), so only its partial preview leaves this
+/// query (<see cref="ComprehensiveAnalysisTeaserPolicy"/>); the whole text never reaches an answer, the API or a prompt.
 /// </summary>
-public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestionDbContext db) : IComprehensiveAnalysisQueryUseCase
+public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
+    FinancialIngestionDbContext db,
+    IOptions<ComprehensiveAnalysisPresentationOptions>? presentation = null) : IComprehensiveAnalysisQueryUseCase
 {
+    private readonly ComprehensiveAnalysisPresentationOptions _presentation = presentation?.Value ?? new();
+
     public const int DefaultLimit = 5;
     public const int MaximumLimit = 10;
-    /// <summary>Safety bound only: the owner asked for the whole summary (largest live summary seen: 3,829 characters).</summary>
-    internal const int SummaryCapChars = 6_000;
     private const int CandidateWindow = 400;
     private const int MaximumSymbolWords = 3;
     private static readonly TimeSpan TehranOffset = TimeSpan.FromHours(3.5);
@@ -167,17 +172,6 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestion
         }
     }
 
-    /// <summary>The whole summary up to the safety bound; a cut ends at a word boundary with «…».</summary>
-    internal static string BoundSummary(string summary)
-    {
-        if (summary.Length <= SummaryCapChars)
-        {
-            return summary;
-        }
-
-        var cut = summary.LastIndexOf(' ', SummaryCapChars - 1);
-        return summary[..(cut > SummaryCapChars / 2 ? cut : SummaryCapChars)].TrimEnd() + " …";
-    }
 
     /// <summary>Topic slugs («نمودار_P_S», «تحلیل تکنیکال») map to stored tag names («P-S», «تحلیل_تکنیکال») by normalized form.</summary>
     internal static string NormalizeTopic(string topic)
@@ -187,18 +181,17 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestion
         return normalized.StartsWith(chartPrefix, StringComparison.Ordinal) ? normalized[chartPrefix.Length..] : normalized;
     }
 
-    private static ComprehensiveAnalysisSummaryItem ToItem(
+    private ComprehensiveAnalysisSummaryItem ToItem(
         CyclicalWavesV2AnalysisRow row,
         IEnumerable<CyclicalWavesV2AnalysisTagRow> tags,
         IEnumerable<CyclicalWavesV2AnalysisCategoryRow> categories)
     {
-        var summary = row.PlainTextSummary ?? string.Empty;
         return new ComprehensiveAnalysisSummaryItem(
             row.Id,
             row.Title,
             PersianDate(row.PublishedAt),
             string.Join("، ", categories.Select(category => category.Title)),
-            BoundSummary(summary),
+            ComprehensiveAnalysisTeaserPolicy.Teaser(row.Title, row.PlainTextSummary, _presentation),
             tags.Select(tag => tag.Name).ToList(),
             row.LastSyncedAt);
     }

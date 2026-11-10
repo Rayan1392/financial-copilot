@@ -49,7 +49,13 @@ public sealed class Feature162LiveAnalysisPostgreSqlTests(PostgreSqlIntegrationF
         Assert.Equal(expected, response.Items.Select(item => item.AnalysisId));
         var card = ComprehensiveAnalysisCardComposer.ComposeMarkdown(response.Items, response.UnresolvedSymbols, Url);
         Assert.EndsWith($"[{ComprehensiveAnalysisCardComposer.LinkTextFa}]({Url})", card);
-        Assert.All(response.Items, item => Assert.Contains($"### {item.Title.Trim()}", card));
+        Assert.StartsWith($"### {response.Items[0].Title.Trim()}", card);
+        // Only a preview leaves the query: at most 30% of the stored text and 300 characters.
+        var stored = await db.CyclicalWavesV2Analyses.FindAsync(response.Items[0].AnalysisId);
+        var whole = stored!.PlainTextSummary ?? string.Empty;
+        var preview = response.Items[0].PlainTextSummary;
+        Assert.True(preview.Length <= 302 && preview.Length <= whole.Length * 30 / 100 + 2, $"{preview.Length} of {whole.Length}");
+        if (whole.Length >= 150) Assert.DoesNotContain(whole, card);
         await File.WriteAllTextAsync(Path.Combine(Path.GetDirectoryName(capture!)!, $"card-{ticker}.md"), card);
     }
 }

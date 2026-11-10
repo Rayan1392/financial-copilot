@@ -162,7 +162,8 @@ public sealed class SemanticRouteExecutorTests
         Assert.True(payload.Analysis.HasResults);
         Assert.NotEmpty(payload.Lookup.Rows);
         Assert.Equal(["تحلیل_تکنیکال"], analysis.Request!.TopicTags);
-        Assert.Equal(2, analysis.Request.Limit);
+        // Feature 162 change: the latest analysis only, whatever limit the frame carries.
+        Assert.Equal(1, analysis.Request.Limit);
         Assert.All(lookup.Request!.Pairs, pair => Assert.Equal("FOLD", pair.SymbolName));
     }
 

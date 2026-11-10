@@ -32,6 +32,9 @@ public static class PersianReportingPeriodNormalizer
         ["farvardin"] = 1, ["ordibehesht"] = 2, ["khordad"] = 3, ["tir"] = 4, ["mordad"] = 5, ["shahrivar"] = 6,
         ["mehr"] = 7, ["aban"] = 8, ["azar"] = 9, ["dey"] = 10, ["bahman"] = 11, ["esfand"] = 12
     };
+    /// <summary>Whether the text is exactly a Jalali month name.</summary>
+    public static bool IsMonthName(string? text) => text is not null && MonthNames.ContainsKey(text.Trim());
+
     private static readonly Regex NumericMonth = new(@"^(?<year>\d{4})[-/.](?<month>\d{1,2})$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     /// <summary>Normalizes an explicit-month intent; other period kinds are NotApplicable.</summary>

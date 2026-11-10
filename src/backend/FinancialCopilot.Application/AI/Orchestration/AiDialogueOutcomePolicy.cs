@@ -32,6 +32,8 @@ public static class DialogueOutcomeReasonCodes
     public const string InvalidIndustryMembership = "invalid_industry_membership";
     public const string ResultLimitExceeded = "result_limit_exceeded";
     public const string AssistantHelp = "assistant_help";
+    public const string MonthlyReportNotCovered = "monthly_report_not_covered";
+    public const string MultipleCompaniesNotSupported = "multiple_companies_not_supported";
 }
 
 public static class AiDialogueOutcomePolicy

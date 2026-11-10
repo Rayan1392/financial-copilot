@@ -70,7 +70,7 @@ public sealed class SemanticRouteExecutorTests
     public async Task MonthlyTrendExecutor_UsesCanonicalFrameSymbolInsteadOfRawTextExtraction()
     {
         var useCase = new RecordingTrendUseCase();
-        var executor = new MonthlyActivityTrendCapabilityExecutor(useCase);
+        var executor = new MonthlyActivityTrendCapabilityExecutor(useCase, new UnknownCoverageReader());
 
         var result = await executor.ExecuteAsync(Frame("monthly_activity_trend", Symbol("فولاد")), Context(), default);
 
@@ -87,7 +87,7 @@ public sealed class SemanticRouteExecutorTests
         string operationsText)
     {
         var useCase = new RecordingTrendUseCase();
-        var executor = new MonthlyActivityTrendCapabilityExecutor(useCase);
+        var executor = new MonthlyActivityTrendCapabilityExecutor(useCase, new UnknownCoverageReader());
         var operations = operationsText.Split(',');
         var interpretation = new QueryInterpretation(
             "monthly sales request", "monthly sales request", "en", [], [], [],
@@ -226,6 +226,12 @@ public sealed class SemanticRouteExecutorTests
     {
         public MonthlyActivityTrendQuery? Query { get; private set; }
         public Task<MonthlyActivityTrendResponse?> ExecuteAsync(MonthlyActivityTrendQuery query, CancellationToken ct = default) { Query = query; return Task.FromResult<MonthlyActivityTrendResponse?>(null); }
+    }
+
+    private sealed class UnknownCoverageReader : IMonthlyReportCoverageReader
+    {
+        public Task<MonthlyReportCoverage> ReadAsync(string symbol, CancellationToken cancellationToken) =>
+            Task.FromResult(new MonthlyReportCoverage(MonthlyReportCoverageKind.Unknown));
     }
 
     private sealed class RecordingLookupService(bool rows = false) : ISymbolMetricLookupService

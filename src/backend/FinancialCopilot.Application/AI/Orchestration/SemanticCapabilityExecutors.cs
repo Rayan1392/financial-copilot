@@ -128,8 +128,13 @@ public sealed class StockScreeningCapabilityExecutor(
 }
 
 public sealed class MonthlyActivityTrendCapabilityExecutor(
-    IMonthlyActivityTrendQueryUseCase useCase) : IConversationalCapabilityExecutor
+    IMonthlyActivityTrendQueryUseCase useCase,
+    IMonthlyReportCoverageReader coverageReader,
+    Feature154RoutingScope? routingScope = null) : IConversationalCapabilityExecutor
 {
+    private readonly IMonthlyReportCoverageReader _coverageReader = coverageReader;
+    private readonly Feature154RoutingScope _scope = routingScope ?? Feature154RoutingScope.V2;
+
     public string CapabilityCode => "monthly_activity_trend";
 
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)

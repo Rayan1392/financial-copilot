@@ -124,9 +124,9 @@ public interface IMonthlyReportCoverageReader
 
 ### 1. Scaffolding, no behaviour change
 
-- [ ] 1.1 Add `DialogueOutcomeReasonCodes.MonthlyReportNotCovered`, value `monthly_report_not_covered`. Add `MonthlyReportCoverage` and `IMonthlyReportCoverageReader`.
-- [ ] 1.2 Add `NoavaranCompanyScope.IsEligible(NormalizedCompanyRow)`, using the same constants as the query filter.
-- [ ] 1.3 Add `DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported`, value `multiple_companies_not_supported`.
+- [x] 1.1 Add `DialogueOutcomeReasonCodes.MonthlyReportNotCovered`, value `monthly_report_not_covered`. Add `MonthlyReportCoverage` and `IMonthlyReportCoverageReader`.
+- [x] 1.2 Add `NoavaranCompanyScope.IsEligible(NormalizedCompanyRow)`, using the same constants as the query filter.
+- [x] 1.3 Add `DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported`, value `multiple_companies_not_supported`.
 
 ### 2. Regression tests first
 
@@ -134,41 +134,41 @@ Each test below is added and run before its fix, and must fail for the stated re
 
 New file `tests/FinancialCopilot.UnitTests/Feature158CanonicalPriorityTests.cs`:
 
-- [ ] 2.1 `LegacyTickerRows_DoNotMakeEligibleSymbolAmbiguous`. Fails today: exact ticker on non-Noavaran rows returns `Ambiguous` and the alias step never runs (harness scenario S2).
-- [ ] 2.2 `NonEligibleNoavaranDuplicate_DoesNotMakeEligibleSymbolAmbiguous`. Fails today: two Noavaran alias rows are `Ambiguous` (S3).
-- [ ] 2.3 `OneLegacyTickerRow_DoesNotOutrankEligibleRow`. Fails today: `CanonicalId` is the other-provider row (S4).
-- [ ] 2.4 `MonthlyTrendTurn_WithLegacyDuplicates_ProducesEligibleCompanyFrame`, gate level. Fails today: slot state `Ambiguous`.
-- [ ] 2.5 Guards that pass today and must keep passing: `TwoEligibleRows_StayAmbiguous`, `FrozenV1_KeepsTodaysAmbiguousResult` (uses `EnterFrozenV1`).
+- [x] 2.1 `LegacyTickerRows_DoNotMakeEligibleSymbolAmbiguous`. Fails today: exact ticker on non-Noavaran rows returns `Ambiguous` and the alias step never runs (harness scenario S2).
+- [x] 2.2 `NonEligibleNoavaranDuplicate_DoesNotMakeEligibleSymbolAmbiguous`. Fails today: two Noavaran alias rows are `Ambiguous` (S3).
+- [x] 2.3 `OneLegacyTickerRow_DoesNotOutrankEligibleRow`. Fails today: `CanonicalId` is the other-provider row (S4).
+- [x] 2.4 `MonthlyTrendTurn_WithLegacyDuplicates_ProducesEligibleCompanyFrame`, gate level. Fails today: slot state `Ambiguous`.
+- [x] 2.5 Guards that pass today and must keep passing: `TwoEligibleRows_StayAmbiguous`, `TwoOtherProviderRows_WithNoNoavaranRow_StayAmbiguous`, `FrozenV1_KeepsTodaysAmbiguousResult` (uses `EnterFrozenV1`), `EligibilityPredicate_AgreesWithTheQueryFilter`.
 
 New file `tests/FinancialCopilot.UnitTests/Feature158MonthlyCompanyResolutionTests.cs`, using real `CompanyResolverService` and `EfCoreCompanyMonthlyActivityTrendSnapshotRepository` over the in-memory provider:
 
-- [ ] 2.6 `NoavaranRowWithOtherProviderTicker_ReadsNoavaranSnapshot`. Fails today: step 1 of `ResolveBySymbolAsync` returns the other row's `ExternalCompanyId` and the snapshot lookup finds nothing.
-- [ ] 2.7 `NoavaranRowWithOtherProviderTseSymbol_ReadsNoavaranSnapshot`. Fails today: table-order `FirstOrDefault` returns the other row. The test saves that row first, in its own `SaveChangesAsync` (harness confirmed).
-- [ ] 2.8 `EligibleAndNonEligibleNoavaranRows_ReadEligibleSnapshot`. Fails today: `FirstOrDefault` returns the non-eligible row, which the test saves first (harness confirmed).
-- [ ] 2.9 Guard that passes today and must keep passing: `FrozenV1_KeepsResolveBySymbolBehaviour`.
+- [x] 2.6 `NoavaranRowWithOtherProviderTicker_ReadsNoavaranSnapshot`. Fails today: step 1 of `ResolveBySymbolAsync` returns the other row's `ExternalCompanyId` and the snapshot lookup finds nothing.
+- [x] 2.7 `NoavaranRowWithOtherProviderTseSymbol_ReadsNoavaranSnapshot`. Fails today: table-order `FirstOrDefault` returns the other row. The test saves that row first, in its own `SaveChangesAsync` (harness confirmed).
+- [x] 2.8 `EligibleAndNonEligibleNoavaranRows_ReadEligibleSnapshot`. Fails today: `FirstOrDefault` returns the non-eligible row, which the test saves first (harness confirmed).
+- [x] 2.9 Guard that passes today and must keep passing: `FrozenV1_KeepsResolveBySymbolBehaviour`. Added with this group: `TwoEligibleRowsWithOneSymbol_ReturnNull` (fails today: `FirstOrDefault` returns the first row's snapshot).
 
 New file `tests/FinancialCopilot.UnitTests/Feature158MonthlyCoverageReplyTests.cs`:
 
-- [ ] 2.10 `NoRouteCode_ReturnsNotCoveredReasonAndExactReply` (theory, seven codes, exact Persian text). Fails today: the executor does not use the port and returns `supported_but_no_rows`.
-- [ ] 2.11 `EnglishReply_UsesCategoryEnAndOmitsSymbol`. Same reason.
-- [ ] 2.12 `OutsideScope_ReturnsIneligibleReasonAndOwnSentence` (`fa` and `en`, exact text). Same reason.
-- [ ] 2.13 `CompanyAmbiguous_ReturnsDisambiguation`. Same reason.
-- [ ] 2.14 Guards: `SupportedRouteAndUnknown_KeepTodaysReason`, `ResultPresent_DoesNotCallPort`, `FrozenV1_DoesNotCallPort`.
+- [x] 2.10 `NoRouteCode_ReturnsNotCoveredReasonAndExactReply` (theory, seven codes, exact Persian text). Fails today: the executor does not use the port and returns `supported_but_no_rows`.
+- [x] 2.11 `EnglishReply_UsesCategoryEnAndOmitsSymbol`. Same reason.
+- [x] 2.12 `OutsideScope_ReturnsIneligibleReasonAndOwnSentence` (`fa` and `en`, exact text). Same reason.
+- [x] 2.13 `CompanyAmbiguous_ReturnsDisambiguation`. Same reason.
+- [x] 2.14 Guards: `SupportedRouteAndUnknown_KeepTodaysReason`, `ResultPresent_DoesNotCallPort`, `FrozenV1_DoesNotCallPort`.
 
 Adapter tests, in the same file, added with the adapter in 4.2 because the type does not exist before it:
 
 - [ ] 2.15 `Adapter_MapsSevenCodesToCategories`, `Adapter_MapsSupportedMissingUnknownAndNotEligible`, including a company found only with another provider → `OutsideScope`.
 - [ ] 2.16 `Adapter_ReadFailure_LogsWarningAndReturnsUnknown`, using a disposed context and a recording logger. Asserts one Warning with `coverage_read_failed`.
-- [ ] 2.17 `Reply_RendersThroughOutcomePolicy`: `ComposeSystemMessage` with the text as detail returns it for `fa` and `en`.
+- [x] 2.17 `Reply_RendersThroughOutcomePolicy`: `ComposeSystemMessage` with the text as detail returns it for `fa` and `en`.
 
 New file `tests/FinancialCopilot.UnitTests/Feature158MultipleCompanyClarificationTests.cs`, using the real gate, resolver and dispatcher validation with a model-proposal stub:
 
-- [ ] 2.18 `TwoExactCompanies_OnOneCompanyCapability_AskForOneCompany`. Fails today: the frame carries one company, the other is dropped.
-- [ ] 2.19 `TwoExactCompanies_WithLegacyDuplicates_AskForOneCompany`. Fails today: slot state `Ambiguous`.
-- [ ] 2.20 `Dispatcher_ReturnsClarificationWithNewReason`. Fails today: an `Invalid` slot maps to `entity_not_found`.
-- [ ] 2.21 `ClarificationReply_UsesProposedText` (`fa` and `en`). Fails today: the default clarification sentence.
-- [ ] 2.22 `PendingClarification_AnsweredWithOneTicker_RunsCapabilityForIt`. Fails today: no pending action exists, so the follow-up uses the earlier company.
-- [ ] 2.23 Guards that pass today and must keep passing: `SymbolMetricLookup_KeepsSeveralCompanies`, `OneExactCompany_DoesNotClarify`, `VariantMention_DoesNotClarify`, `DeterministicPath_DoesNotClarify`, `MonthNameMention_DoesNotClarify`, `FrozenV1_DoesNotClarify`.
+- [x] 2.18 `TwoExactCompanies_OnOneCompanyCapability_AskForOneCompany`. Fails today: the frame carries one company, the other is dropped.
+- [x] 2.19 `TwoExactCompanies_WithLegacyDuplicates_AskForOneCompany`. Fails today: slot state `Ambiguous`.
+- [x] 2.20 `Dispatcher_ReturnsClarificationWithNewReason`. Fails today: an `Invalid` slot maps to `entity_not_found`.
+- [x] 2.21 `ClarificationReply_UsesProposedText` (`fa` and `en`). Fails today: the default clarification sentence.
+- [x] 2.22 `PendingClarification_AnsweredWithOneTicker_RunsCapabilityForIt`. Fails today: no pending action exists, so the follow-up continues the earlier task (observed: capability `product_sales_trend`, because `RecordOutcomeAsync` stores the deterministic reading of the first ticker as a product).
+- [x] 2.23 Guards that pass today and must keep passing: `SymbolMetricLookup_KeepsSeveralCompanies`, `OneExactCompany_DoesNotClarify`, `VariantMention_DoesNotClarify`, `DeterministicPath_DoesNotClarify`, `MonthNameMention_DoesNotClarify`, `FrozenV1_DoesNotClarify`.
 
 ### 3. Canonical priority and two-company clarification (D3)
 

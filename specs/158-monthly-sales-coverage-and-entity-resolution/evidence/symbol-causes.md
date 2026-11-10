@@ -30,6 +30,6 @@ Source: `read-only-checks.sql`, run by the owner on production on 2026-11-10 in 
 Aggregated counts from `Messages` for questions naming a symbol with the word for sales, excluding the automation actor. Run by the owner on 2026-11-10. No question text.
 
 - `entity_ambiguous` appears on 4 turns only: `فملی` 2 and `فولاد` 2. All four are on product capabilities (`product_sales_trend` 3, `product_revenue_mix` 1). None has a separator or names both symbols.
-- `monthly_activity_trend` for `فملی` is always answered (outcome 0). For `فولاد` it is answered on 17 turns and `supported_but_no_rows` on 2. It is never `entity_ambiguous`.
+- `monthly_activity_trend` for `فملی` is always answered (outcome 0). For `فولاد` it is answered on 16 turns and `supported_but_no_rows` on 2. It is never `entity_ambiguous`.
 - So the recorded ambiguity is not a monthly-sales defect and is not caused by duplicate company rows. Its cause was not reproduced; question text was not read.
 - `فسبزوار`: answered in August; `supported_but_no_rows` on all 6 turns in November (3 on `monthly_activity_trend`, 3 on `product_sales_trend`), although snapshots exist as of 2026-11-10. Not explained: the data may have arrived after those turns.

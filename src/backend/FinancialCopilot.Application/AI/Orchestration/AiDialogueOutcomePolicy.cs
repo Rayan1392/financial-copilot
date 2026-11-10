@@ -31,6 +31,7 @@ public static class DialogueOutcomeReasonCodes
     public const string DifferentIndustries = "different_industries";
     public const string InvalidIndustryMembership = "invalid_industry_membership";
     public const string ResultLimitExceeded = "result_limit_exceeded";
+    public const string AssistantHelp = "assistant_help";
 }
 
 public static class AiDialogueOutcomePolicy

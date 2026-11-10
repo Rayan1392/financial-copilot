@@ -126,6 +126,9 @@ public sealed class ConversationDialogueGate(
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
         var symbolSnapshotInterpretation = await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken);
+        if (symbolSnapshotInterpretation is null &&
+            await TryPrepareAssistantHelpAsync(request, scope, cancellationToken) is { } assistantHelp)
+            return assistantHelp;
         var hybridResult = hybridInterpreter is null || symbolSnapshotInterpretation is not null
             ? null
             : await hybridInterpreter.InterpretAsync(request.Message, request.TenantId, request.CorrelationId, cancellationToken);
@@ -590,6 +593,54 @@ public sealed class ConversationDialogueGate(
             : SymbolSnapshotIntentRules.BuildInterpretation(request.Message, eligible.Symbol, capabilityRegistry.Version);
     }
 
+    /// <summary>
+    /// Feature 121 change (V2 only): a whole-message greeting or help question. It never answers a pending question
+    /// and never writes conversation task state, so the next turn can still use the earlier company and metric.
+    /// </summary>
+    private async Task<ConversationDialogueGateResult?> TryPrepareAssistantHelpAsync(
+        AiQueryRequest request,
+        ConversationTaskStateScope scope,
+        CancellationToken cancellationToken)
+    {
+        if (!_scope.IsActive || capabilityRegistry is null || request.Context?.InsightEventId is not null ||
+            !AssistantHelpIntentRules.IsMatch(request.Message))
+            return null;
+
+        if (!rolloutCoordinator.Decide(AssistantHelpCapability.Code, request.ActorId.ToString("N")).ExecuteSemanticRoute)
+            return null;
+
+        var active = await stateService.GetActiveAsync(scope, cancellationToken);
+        if (active?.PendingAction is not null)
+            return null;
+
+        var interpretation = AssistantHelpIntentRules.BuildInterpretation(request.Message, capabilityRegistry.Version);
+        eventSink?.Record(new SemanticDialogueEvent(
+            SemanticEventName.InterpretationCompleted,
+            request.CorrelationId,
+            AssistantHelpCapability.Code,
+            interpretation.RegistryVersion,
+            DialogueOutcomeReasonCodes.None,
+            request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+            timeProvider.GetUtcNow()));
+        var frame = new ValidatedQueryFrame(
+            AssistantHelpCapability.Code,
+            interpretation.RegistryVersion,
+            [],
+            interpretation,
+            AssistantHelpCapability.Code,
+            interpretation.Confidence);
+        return new ConversationDialogueGateResult(
+            request with
+            {
+                OriginalUserMessage = request.OriginalUserMessage ?? request.Message,
+                SemanticFrame = frame,
+                SemanticShadowFrame = null,
+                SemanticRoutingDisposition = "SemanticPrimary"
+            },
+            null,
+            []);
+    }
+
     private async Task<(SuggestedAction Action, DateTimeOffset CreatedAt)?> FindSelectedActionAsync(
         Guid conversationId,
         string actionId,
@@ -613,6 +664,10 @@ public sealed class ConversationDialogueGate(
 
     public async Task RecordOutcomeAsync(AiQueryRequest request, Guid conversationId, bool clarificationRequired, string? clarificationReason, CancellationToken cancellationToken)
     {
+        // The help reply is not a task, so it leaves the conversation state as it found it.
+        if (request.SemanticFrame?.CapabilityCode == AssistantHelpCapability.Code)
+            return;
+
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
         var interpretation = interpreter.Interpret(request.OriginalUserMessage ?? request.Message);
         var capability = interpretation.CapabilityCandidates.FirstOrDefault()?.CapabilityCode;

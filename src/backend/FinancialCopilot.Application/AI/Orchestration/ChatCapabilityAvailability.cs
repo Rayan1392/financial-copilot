@@ -74,7 +74,8 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
         CapabilityExecutionRoutes.FinancialStatementTable,
         CapabilityExecutionRoutes.ComprehensiveAnalysis,
         CapabilityExecutionRoutes.Scanner,
-        CapabilityExecutionRoutes.SymbolSnapshot
+        CapabilityExecutionRoutes.SymbolSnapshot,
+        CapabilityExecutionRoutes.AssistantHelp
     };
 
     private static readonly ChatCapabilityAvailabilityOutcome Retired = new(

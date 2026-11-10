@@ -75,6 +75,7 @@ public static class CapabilityExecutionRoutes
     public const string RegisteredFinancialSource = "registered_financial_source";
     public const string MonthlyProductComparison = "monthly_product_comparison";
     public const string SymbolSnapshot = "symbol_snapshot";
+    public const string AssistantHelp = "assistant_help";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -82,7 +83,7 @@ public static class CapabilityExecutionRoutes
         ProductSalesValue, ProductSalesTrend,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
         MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch,
-        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot
+        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot, AssistantHelp
     };
 }
 
@@ -286,7 +287,11 @@ public static class InitialConversationalCapabilityCatalog
         Definition(SymbolSnapshotCapability.Code, CapabilityExecutionRoutes.SymbolSnapshot, "summary", "symbol-snapshot",
             [Alias("en", "symbol snapshot"), Alias("fa", "خلاصه نماد")],
             [Example("en", "فولاد"), Example("fa", "فولاد")],
-            [Slot("symbol", "symbol", true)], [], false) with { GateRoutedOnly = true }
+            [Slot("symbol", "symbol", true)], [], false) with { GateRoutedOnly = true },
+        Definition(AssistantHelpCapability.Code, CapabilityExecutionRoutes.AssistantHelp, "summary", "assistant-help",
+            [Alias("en", "assistant help"), Alias("fa", "راهنمای دستیار")],
+            [Example("en", "hello"), Example("fa", "سلام")],
+            [], [], false) with { GateRoutedOnly = true }
     ];
 
     private static CapabilityDefinition Definition(
@@ -322,6 +327,7 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.PersonalizedInsightExplanation => ["personalized_market_insights"],
         CapabilityExecutionRoutes.SymbolSnapshot => ["canonical_company_identity", "monthly_activity_reports", "financial_statements"],
         CapabilityExecutionRoutes.IndustryRelativeValuation => ["published_industry_relative_valuation_snapshot"],
+        CapabilityExecutionRoutes.AssistantHelp => ["assistant_help_copy"],
         _ => throw new InvalidOperationException($"No governed data requirements exist for route '{route}'.")
     };
 

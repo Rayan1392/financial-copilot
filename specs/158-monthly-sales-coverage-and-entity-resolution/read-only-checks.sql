@@ -9,6 +9,13 @@
 --   D catalog refresh; E review the new report type; F resolver picks the wrong row (BUG-011);
 --   G data present, investigate the turn; H snapshot backfill; I/J ingestion gap;
 --   K vendor returned nothing, retries continue.
+-- C2 also returns:
+--   category_fa: the reply category for label C (Feature 158 D4).
+--   resolver_today: approximate result of CanonicalQueryEntityResolver's exact steps before Feature 158.
+--     It ignores the exact company-name step and fuzzy matching. ambiguous_* values show why a symbol
+--     is reported ambiguous today.
+--   other_symbol_rows and noavaran_rows: why label F or ambiguity applies. Label F means another provider's
+--     row carries the symbol, so ResolveBySymbolAsync can pick it (Ticker first; otherwise table order).
 
 -- C1: every catalog row per ticker (duplicates for BUG-008 and BUG-010)
 WITH t(s) AS (VALUES ('فسبزوار'),('دسبحا'),('تابان'),('سابیک'),('غشکو'),('ثجنوب'),('والبر'),('ولساپا'),('ومعادن'),('ثهام'),('فملی'),('فولاد'),('آینده'),('فسوژ'),('دسبحان')),
@@ -43,9 +50,27 @@ pick AS (
   WHERE c."ProviderName"='NoavaranCurrentApi'
   ORDER BY t.s, c.elig DESC, c."ExternalCompanyId"),
 oth AS (
-  SELECT t.s, count(c."Id") FILTER (WHERE c."ProviderName"<>'NoavaranCurrentApi') other_ticker_rows
-  FROM t LEFT JOIN c ON t.s=c.kt GROUP BY t.s)
-SELECT o.s, p."ExternalCompanyId", p."ReportingType", p.elig, o.other_ticker_rows,
+  SELECT t.s,
+         count(c."Id") FILTER (WHERE c."ProviderName"='NoavaranCurrentApi' AND t.s IN (c.ks,c.kc)) noavaran_rows,
+         count(c."Id") FILTER (WHERE c.elig AND t.s IN (c.ks,c.kc)) eligible_rows,
+         count(c."Id") FILTER (WHERE c."ProviderName"='NoavaranCurrentApi' AND t.s=c.kt) noavaran_ticker_rows,
+         count(c."Id") FILTER (WHERE c."ProviderName"<>'NoavaranCurrentApi' AND t.s=c.kt) other_ticker_rows,
+         count(c."Id") FILTER (WHERE c."ProviderName"<>'NoavaranCurrentApi') other_symbol_rows
+  FROM t LEFT JOIN c ON t.s IN (c.kt,c.ks,c.kc) GROUP BY t.s)
+SELECT o.s, p."ExternalCompanyId", p."ReportingType", p.elig,
+       o.noavaran_rows, o.eligible_rows, o.other_ticker_rows, o.other_symbol_rows,
+       CASE p."ReportingType" WHEN 1000001 THEN 'ساختمانی' WHEN 1000002 THEN 'سرمایه‌گذاری' WHEN 1000003 THEN 'بانکی'
+            WHEN 1000004 THEN 'لیزینگی' WHEN 1000006 THEN 'بیمه‌ای' WHEN 1000007 THEN 'حمل و نقل دریایی'
+            WHEN 1000009 THEN 'تأمین سرمایه' END category_fa,
+       CASE WHEN o.noavaran_ticker_rows>1 THEN 'ambiguous_ticker'
+            WHEN o.noavaran_ticker_rows=1 THEN 'resolved_ticker'
+            WHEN o.other_ticker_rows>1 THEN 'ambiguous_ticker'
+            WHEN o.other_ticker_rows=1 THEN 'resolved_other_provider'
+            WHEN o.noavaran_rows>1 THEN 'ambiguous_alias'
+            WHEN o.noavaran_rows=1 THEN 'resolved_alias'
+            WHEN o.other_symbol_rows>1 THEN 'ambiguous_other_providers'
+            WHEN o.other_symbol_rows=1 THEN 'resolved_other_provider'
+            ELSE 'no_exact_match' END resolver_today,
        sn.n snapshots, sn.latest, r.n accepted_reports, r.latest_period,
        u.runs, u.failed, u.completed_zero, u.last_error,
        CASE WHEN p."Id" IS NULL THEN 'A_no_noavaran_row'
@@ -53,7 +78,7 @@ SELECT o.s, p."ExternalCompanyId", p."ReportingType", p.elig, o.other_ticker_row
             WHEN p."ReportingType" IN (1000001,1000002,1000003,1000004,1000006,1000007,1000009) THEN 'C_no_monthly_route'
             WHEN p."ReportingType" IS NULL THEN 'D_type_missing'
             WHEN p."ReportingType" NOT IN (1000000,1000005,1000008) THEN 'E_type_unknown'
-            WHEN sn.n>0 AND o.other_ticker_rows>0 THEN 'F_resolver_wrong_row'
+            WHEN sn.n>0 AND o.other_symbol_rows>0 THEN 'F_resolver_wrong_row'
             WHEN sn.n>0 THEN 'G_data_present_recheck_routing'
             WHEN r.n>0 THEN 'H_reports_without_snapshot'
             WHEN u.runs=0 THEN 'I_never_attempted'

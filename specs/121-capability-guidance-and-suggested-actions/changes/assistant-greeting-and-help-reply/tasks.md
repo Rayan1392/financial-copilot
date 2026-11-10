@@ -84,43 +84,43 @@ Guard tests, which pass today and must keep passing:
 
 ### 2. Capability and reply
 
-- [ ] 2.1 Add `AssistantHelpCapability`, the reason code, the route, and the catalog entry. Update the catalog count test.
-- [ ] 2.2 Add `AssistantHelpIntentRules` with the phrase lists from `user-story.md`.
-- [ ] 2.3 Add `AssistantHelpReplyComposer` with the exact text, samples, and availability filter. Tests: exact text both languages, action order, `CyclicalWaves` filter, sample round-trip through `DeterministicCapabilityInterpreter` (these need the new type, so they are written with it).
-- [ ] 2.4 Add `AssistantHelpCapabilityExecutor`. Add the route to `CyclicalWavesSupportedRoutes`.
+- [x] 2.1 Add `AssistantHelpCapability`, the reason code, the route, and the catalog entry. Update the catalog count test.
+- [x] 2.2 Add `AssistantHelpIntentRules` with the phrase lists from `user-story.md`.
+- [x] 2.3 Add `AssistantHelpReplyComposer` with the exact text, samples, and availability filter. Tests: exact text both languages, action order, `CyclicalWaves` filter, sample round-trip through `DeterministicCapabilityInterpreter` (these need the new type, so they are written with it).
+- [x] 2.4 Add `AssistantHelpCapabilityExecutor`. Add the route to `CyclicalWavesSupportedRoutes`.
 
 ### 3. Gate
 
-- [ ] 3.1 Add the rule after the Symbol Snapshot check, with the three conditions above and the pending-action skip.
-- [ ] 3.2 On a match, return early with a frame that has no slots, without calling the hybrid interpreter, entity resolution, or `ResolveFollowUpAsync`. Record the interpretation event.
-- [ ] 3.3 Skip `RecordOutcomeAsync` for an `assistant_help` frame, so the task state stays unchanged.
+- [x] 3.1 Add the rule after the Symbol Snapshot check, with the three conditions above and the pending-action skip.
+- [x] 3.2 On a match, return early with a frame that has no slots, without calling the hybrid interpreter, entity resolution, or `ResolveFollowUpAsync`. Record the interpretation event.
+- [x] 3.3 Skip `RecordOutcomeAsync` for an `assistant_help` frame, so the task state stays unchanged.
 
 ### 4. Billing
 
-- [ ] 4.1 Add `InformationalReply`, `For(CapabilityExecutionResult)`, and use it in the coordinator.
-- [ ] 4.2 Add the status to `DefaultPricingPolicy.ZeroChargeStatuses`.
+- [x] 4.1 Add `InformationalReply`, `For(CapabilityExecutionResult)`, and use it in the coordinator.
+- [x] 4.2 Add the status to `DefaultPricingPolicy.ZeroChargeStatuses`.
 
 ### 5. Workflow and wiring
 
-- [ ] 5.1 In step 3, apply the composer's actions as deterministic suggestions when the frame is `assistant_help` and the outcome is Answered.
-- [ ] 5.2 Register the executor and composer.
+- [x] 5.1 In step 3, apply the composer's actions as deterministic suggestions when the frame is `assistant_help` and the outcome is Answered.
+- [x] 5.2 Register the executor and composer.
 
 ### 6. Verification
 
-- [ ] 6.1 Confirm the four samples return data for `کگل` on Development, sent through the running application or a read-only check of the tables involved. No production database. If a sample cannot be confirmed, stop and report it for the owner; do not swap the symbol silently. The read-only role used by Feature 156 could not read the monthly tables, so this may need another way to run the check.
-- [ ] 6.2 Run the web browser check and one Telegram render check with an invented greeting.
+- [~] 6.1 Confirm the four samples return data for `کگل` on Development, sent through the running application or a read-only check of the tables involved. No production database. If a sample cannot be confirmed, stop and report it for the owner; do not swap the symbol silently. The read-only role used by Feature 156 could not read the monthly tables, so this may need another way to run the check.
+- [~] 6.2 Run the web browser check and one Telegram render check with an invented greeting.
 
 ## Tests
 
-- [ ] Unit / integration / architecture tests for the above (`tests/FinancialCopilot.UnitTests`, `tests/FinancialCopilot.IntegrationTests`, `tests/FinancialCopilot.ArchitectureTests`). Named in task group 1 and task 2.3.
-- [ ] Frontend tests for UI work: not applicable, no frontend change.
+- [~] Unit / integration / architecture tests for the above (`tests/FinancialCopilot.UnitTests`, `tests/FinancialCopilot.IntegrationTests`, `tests/FinancialCopilot.ArchitectureTests`). Named in task group 1 and task 2.3. Unit, architecture and the new in-memory endpoint class were run; the wider integration suite was not.
+- [x] Frontend tests for UI work: not applicable, no frontend change.
 
 ## Definition Of Done
 
-- [ ] `dotnet test src/backend/FinancialCopilot.sln --configuration Release` green (builds the solution and runs unit, integration and architecture tests): no failure outside `specs/test-baseline.md`.
-- [ ] For database work: not applicable, no migration.
-- [ ] For frontend work: not applicable.
+- [~] `dotnet test src/backend/FinancialCopilot.sln --configuration Release` green (builds the solution and runs unit, integration and architecture tests): no failure outside `specs/test-baseline.md`. Build, unit and architecture tests meet this; the wider integration suite needs PostgreSQL and was not run.
+- [x] For database work: not applicable, no migration.
+- [x] For frontend work: not applicable.
 - [ ] Acceptance criteria in `user-story.md` all checked.
-- [ ] Reference docs updated: `specs/README.md` index entry (lead-owned; proposed text handed over), affected `docs/*.md` and `README.md` sections.
-- [ ] User-visible change: a Persian, user-facing line under `## [Unreleased]` in `CHANGELOG.md` (lead-owned; proposed text handed over; see `AGENTS.md`, "Versions and Releases").
-- [ ] New questions → `specs/open-questions.md`; deferred work → `specs/backlog.md`; defects found → `specs/bugs.md` (all lead-owned; proposed text handed over).
+- [~] Reference docs updated: `specs/README.md` index entry (lead-owned; proposed text handed over), affected `docs/*.md` and `README.md` sections.
+- [~] User-visible change: a Persian, user-facing line under `## [Unreleased]` in `CHANGELOG.md` (lead-owned; proposed text handed over; see `AGENTS.md`, "Versions and Releases").
+- [~] New questions → `specs/open-questions.md`; deferred work → `specs/backlog.md`; defects found → `specs/bugs.md` (all lead-owned; proposed text handed over).

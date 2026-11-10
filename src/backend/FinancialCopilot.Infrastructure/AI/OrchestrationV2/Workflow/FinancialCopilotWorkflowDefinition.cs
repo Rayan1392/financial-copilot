@@ -66,6 +66,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IQuarterlyFinancialReportFollowUpSuggestionService quarterlyFinancialReportFollowUpSuggestionService,
     IFinancialStatementAnalysisFollowUpSuggestionService financialStatementAnalysisFollowUpSuggestionService,
     ISymbolSnapshotFollowUpSuggestionService symbolSnapshotFollowUpSuggestionService,
+    IAssistantHelpReplyComposer assistantHelpReplyComposer,
     IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IMonthlyProductTrendQueryUseCase monthlyProductTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
@@ -1411,9 +1412,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 { SourceReferences.Count: > 0 } &&
             outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
         var symbolSnapshotFollowUpsApplied = msg.SymbolSnapshotResult is not null;
+        var assistantHelpActionsApplied = msg.Request.SemanticFrame?.CapabilityCode == AssistantHelpCapability.Code &&
+            outcome.Outcome == DialogueOutcome.Answered;
         IReadOnlyCollection<SuggestedAction>? deterministicActions = null;
         if (symbolSnapshotFollowUpsApplied)
             deterministicActions = symbolSnapshotFollowUpSuggestionService.Build(msg.SymbolSnapshotResult!);
+        else if (assistantHelpActionsApplied)
+            deterministicActions = assistantHelpReplyComposer.Compose(outcome.ReplyLanguage).Actions;
         else if (feature075Applied)
             deterministicActions = productRevenueMixFollowUpSuggestionService.Build(msg.ProductRevenueMixResult!);
         else if (feature137Applied)
@@ -1431,7 +1436,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 msg.FinancialStatementAnalysisResult!);
         var deterministicApplied = feature075Applied || feature137Applied || feature138Applied ||
             monthlyRankingFollowUpsApplied || quarterlyReportFollowUpsApplied ||
-            financialStatementAnalysisFollowUpsApplied || symbolSnapshotFollowUpsApplied;
+            financialStatementAnalysisFollowUpsApplied || symbolSnapshotFollowUpsApplied || assistantHelpActionsApplied;
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);

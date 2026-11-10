@@ -243,6 +243,107 @@ public sealed class AssistantHelpReply121Tests
         Assert.Contains("گزارش فصلی", rendered);
     }
 
+    // ---- 2.3 and 2.4: reply text, actions, availability, routing of the samples ----
+
+    private const string PersianReply =
+        "سلام! من ساپیو، دستیار هوشمند بازار هستم و می‌توانم فروش ماهانه، گزارش فصلی، ترازنامه و ترکیب فروش شرکت‌های بورسی را نشان بدهم. برای نمونه بپرسید:\n" +
+        "• روند فروش ماهانه کگل را نشان بده\n" +
+        "• گزارش فصلی کگل را نشان بده\n" +
+        "• ترازنامه کگل را نشان بده\n" +
+        "• ترکیب فروش محصولات کگل";
+
+    private const string EnglishReply =
+        "Hello! I am Sapio, your market assistant. I can show monthly sales, quarterly reports, balance sheets and product sales mix for listed companies. For example, ask:\n" +
+        "• monthly sales trend for کگل\n" +
+        "• show کگل quarterly income statement\n" +
+        "• show کگل balance sheet\n" +
+        "• product revenue mix for کگل";
+
+    private static AssistantHelpReplyComposer Composer(FinancialDataChatProvider provider = FinancialDataChatProvider.NoavaranAmin) =>
+        new(Registry, new ChatCapabilityAvailability(provider));
+
+    [Fact]
+    public void Composer_ReturnsTheExactTextInBothLanguages()
+    {
+        Assert.Equal(PersianReply, Composer().Compose("fa").Text);
+        Assert.Equal(EnglishReply, Composer().Compose("en").Text);
+    }
+
+    [Fact]
+    public void Composer_ReturnsTheFourActionsInOrder()
+    {
+        var actions = Composer().Compose("fa").Actions.ToArray();
+
+        Assert.Equal(
+            ["assistant_help:monthly_sales", "assistant_help:quarterly_report", "assistant_help:balance_sheet", "assistant_help:product_mix"],
+            actions.Select(action => action.Id));
+        Assert.Equal(["روند فروش ماهانه", "گزارش فصلی", "ترازنامه", "ترکیب فروش محصولات"], actions.Select(action => action.LocalizedLabel));
+        Assert.Equal(
+            ["monthly_activity_trend", "financial_statement_table", "financial_statement_table", "product_revenue_mix"],
+            actions.Select(action => action.CapabilityCode));
+        Assert.Equal(
+            ["روند فروش ماهانه کگل را نشان بده", "گزارش فصلی کگل را نشان بده", "ترازنامه کگل را نشان بده", "ترکیب فروش محصولات کگل"],
+            actions.Select(action => action.Message));
+        Assert.All(actions, action =>
+        {
+            Assert.Equal(SuggestedActionKind.ShowCapabilityHelp, action.Kind);
+            Assert.Empty(action.PresetSlots);
+            Assert.Equal(HelpCode, action.RelevanceReason);
+            Assert.Equal(Registry.Version, action.RegistryVersion);
+        });
+        Assert.Equal(
+            ["Monthly sales trend", "Quarterly report", "Balance sheet", "Product sales mix"],
+            Composer().Compose("en").Actions.Select(action => action.LocalizedLabel));
+    }
+
+    [Fact]
+    public void Composer_InCyclicalWavesMode_KeepsOnlyAvailableSamples()
+    {
+        var reply = Composer(FinancialDataChatProvider.CyclicalWaves).Compose("fa");
+
+        Assert.Equal(["assistant_help:quarterly_report", "assistant_help:balance_sheet"], reply.Actions.Select(action => action.Id));
+        Assert.Contains("• گزارش فصلی کگل را نشان بده", reply.Text);
+        Assert.DoesNotContain("روند فروش ماهانه کگل", reply.Text);
+        Assert.DoesNotContain("ترکیب فروش محصولات کگل", reply.Text);
+    }
+
+    [Theory]
+    [InlineData("fa")]
+    [InlineData("en")]
+    public void Samples_RouteToTheirCapabilityThroughTheInterpreter(string language)
+    {
+        var interpreter = new DeterministicCapabilityInterpreter(Registry);
+
+        Assert.All(Composer().Compose(language).Actions, action =>
+        {
+            var interpretation = interpreter.Interpret(action.Message);
+            Assert.Equal(action.CapabilityCode, interpretation.CapabilityCandidates.FirstOrDefault()?.CapabilityCode);
+            Assert.Empty(interpretation.MissingSlots);
+            Assert.Equal([Symbol], interpretation.EntityMentions.Where(entity => entity.EntityType != "product").Select(entity => entity.Text));
+        });
+    }
+
+    [Theory]
+    [InlineData("fa", PersianReply)]
+    [InlineData("en", EnglishReply)]
+    public async Task Executor_AnswersWithTheReasonCodeAndText(string language, string expected)
+    {
+        var frame = new ValidatedQueryFrame(HelpCode, Registry.Version, [], AssistantHelpIntentRules.BuildInterpretation("سلام", Registry.Version));
+
+        var result = await new AssistantHelpCapabilityExecutor(Composer()).ExecuteAsync(
+            frame, new QueryExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "test", language), CancellationToken.None);
+
+        Assert.Equal(CapabilityExecutionStatus.Executed, result.Status);
+        Assert.Equal(DialogueOutcomeReasonCodes.AssistantHelp, result.ReasonCode);
+        Assert.Equal(expected, result.Payload);
+    }
+
+    [Theory]
+    [InlineData("سلام", "fa")]
+    [InlineData("hello", "en")]
+    public void BuildInterpretation_DetectsTheReplyLanguage(string message, string language) =>
+        Assert.Equal(language, AssistantHelpIntentRules.BuildInterpretation(message, Registry.Version).ReplyLanguage);
+
     // ---- Harness ----
 
     private static void AssertTodayRoute(GateRun run)

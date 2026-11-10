@@ -34,6 +34,8 @@ internal static class DefaultPricingPolicy
             "ValidationFailed",
             "ClarificationRequired",
             SemanticBillingCompletionStatus.NoData,
+            // An answered turn, free by owner decision OQ-017: the fixed greeting and help reply.
+            SemanticBillingCompletionStatus.InformationalReply,
             "ProviderFailed",
             "CancelledBeforeExecution",
             "TimedOutBeforeExecution"

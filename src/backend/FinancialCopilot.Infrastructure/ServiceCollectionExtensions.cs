@@ -751,6 +751,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEligibleSymbolResolver, FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters.NoavaranEligibleSymbolResolver>();
         services.AddScoped<ISymbolSnapshotUseCase, SymbolSnapshotUseCase>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolSnapshotCapabilityExecutor>();
+        services.AddSingleton<IAssistantHelpReplyComposer, AssistantHelpReplyComposer>();
+        services.AddScoped<IConversationalCapabilityExecutor, AssistantHelpCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyProductComparisonCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();

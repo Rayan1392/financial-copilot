@@ -1,6 +1,6 @@
 # Assistant greeting and "what can I ask?" reply
 
-Status: Proposed — not approved
+Status: Gate A: Approved by the owner on 2026-11-10
 
 | Field | Value |
 |---|---|
@@ -25,6 +25,8 @@ Questions below are invented examples. Confirmed by reading the code and by a sc
 ## 2. Scope
 
 **In scope:** a message that is *only* a greeting or *only* a help question gets a short introduction and a few sample questions, on web and Telegram.
+
+**Added at Gate A (owner, 2026-11-10):** the whole-message phrase sets must cover three patterns, shown here with invented examples: a greeting (`سلام`), a request to introduce the assistant and say what it does (`خودت را معرفی کن و بگو چه کارهایی بلدی؟`), and a follow-up asking what can be asked (`خب چی می‌تونم بپرسم؟`). Customer wording stays out of the repository, so the phrase list and tests use same-pattern text.
 
 **Out of scope:** greetings combined with a question (`سلام فولاد چطوره` keeps today's route), small talk in general, LLM-written replies, changes to `/start`, any flag.
 

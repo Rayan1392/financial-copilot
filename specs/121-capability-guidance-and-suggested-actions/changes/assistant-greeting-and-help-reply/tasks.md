@@ -8,10 +8,10 @@ Status: Gate B: Approved by the owner on 2026-11-10
 
 ## Before Starting
 
-- [ ] This file's `Status:` line records Gate B approval by the owner (see `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`, "Recording Approval").
-- [ ] The features in `Depends On` are done (their `tasks.md` definition of done is ticked). Feature 121's `tasks.md` has no checkboxes; its user story records it as implemented.
-- [ ] Read `user-story.md`, the references it lists, and the relevant `docs/` files.
-- [ ] No open question in `specs/open-questions.md` blocks this spec. OQ-030 and OQ-011 do not block. OQ-PROPOSED-A10, if added, changes task 3.3 only.
+- [x] This file's `Status:` line records Gate B approval by the owner (see `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`, "Recording Approval").
+- [x] The features in `Depends On` are done (their `tasks.md` definition of done is ticked). Feature 121's `tasks.md` has no checkboxes; its user story records it as implemented.
+- [x] Read `user-story.md`, the references it lists, and the relevant `docs/` files.
+- [x] No open question in `specs/open-questions.md` blocks this spec. OQ-030 and OQ-011 do not block. OQ-PROPOSED-A10, if added, changes task 3.3 only.
 
 ## Plan Summary
 
@@ -65,22 +65,22 @@ Questions are invented. Tests use literal strings where possible so they compile
 
 | Task | Test | File | Fails today because |
 |---|---|---|---|
-| - [ ] 1.1 | `Gate_WholeMessageHelpPhrase_RoutesToAssistantHelpWithoutCallingTheModel` (theory, all 84 phrases) | new `tests/FinancialCopilot.UnitTests/AssistantHelpReply121Tests.cs` | The stub proposal provider is called and the frame is not `assistant_help`. |
-| - [ ] 1.2 | `Gate_HelpPhraseVariants_Match` (theory: punctuation, ZWNJ, Arabic letters, `ؤ`, leading words, and pattern 2 with `کامل`, for example `خودت را کامل معرفی کن و بگو چه کارهایی بلدی؟`) | same | Same. |
-| - [ ] 1.3 | `Gate_FollowUpAfterGenericRefusal_RoutesToAssistantHelp` | same | Same; the state has no pending action, but no rule exists. |
-| - [ ] 1.4 | `Gate_FollowUpAfterNormalAnswer_RoutesToAssistantHelpAndLeavesTaskStateUnchanged` | same | Frame differs, and the state version changes. |
-| - [ ] 1.5 | `Catalog_AssistantHelp_IsGateRoutedOnlyWithNoSlots` | same | `registry.Find("assistant_help")` is null. |
-| - [ ] 1.6 | `Availability_AssistantHelpRoute_IsAvailableInCyclicalWavesMode` | same | The unknown route gets `UnavailableForCyclicalWaves`. |
-| - [ ] 1.7 | `RegisteredPricingPolicy_InformationalReply_IsFree` | `tests/FinancialCopilot.UnitTests/BillingDomainTests.cs` | The status is not zero-charge, so 1 credit is charged. |
-| - [ ] 1.8 | `SemanticCoordinator_AssistantHelpResult_SettlesAsInformationalReply` | `tests/FinancialCopilot.UnitTests/SemanticCapabilityDispatcherTests.cs` | The capability is unknown, so the frame settles as `ValidationFailed`. |
-| - [ ] 1.9 | `AiQuery_Greeting_ReturnsIntroductionAnsweredFreeWithFourSamples` (V2 path, stub provider returns no capability) | new `tests/FinancialCopilot.IntegrationTests/AssistantHelpReply121EndpointTests.cs` | The response is `Unsupported` with the generic refusal. |
+| - [x] 1.1 | `Gate_WholeMessageHelpPhrase_RoutesToAssistantHelpWithoutCallingTheModel` (theory, all 84 phrases) | new `tests/FinancialCopilot.UnitTests/AssistantHelpReply121Tests.cs` | The stub proposal provider is called and the frame is not `assistant_help`. |
+| - [x] 1.2 | `Gate_HelpPhraseVariants_Match` (theory: punctuation, ZWNJ, Arabic letters, `ؤ`, leading words, and pattern 2 with `کامل`, for example `خودت را کامل معرفی کن و بگو چه کارهایی بلدی؟`) | same | Same. |
+| - [x] 1.3 | `Gate_FollowUpAfterGenericRefusal_RoutesToAssistantHelp` | same | Same; the state has no pending action, but no rule exists. |
+| - [x] 1.4 | `Gate_FollowUpAfterNormalAnswer_RoutesToAssistantHelpAndLeavesTaskStateUnchanged` | same | Frame differs, and the state version changes. |
+| - [x] 1.5 | `Catalog_AssistantHelp_IsGateRoutedOnlyWithNoSlots` | same | `registry.Find("assistant_help")` is null. |
+| - [x] 1.6 | `Availability_AssistantHelpRoute_IsAvailableInCyclicalWavesMode` | same | The unknown route gets `UnavailableForCyclicalWaves`. |
+| - [x] 1.7 | `RegisteredPricingPolicy_InformationalReply_IsFree` | `tests/FinancialCopilot.UnitTests/BillingDomainTests.cs` | The status is not zero-charge, so 1 credit is charged. |
+| - [x] 1.8 | `SemanticCoordinator_AssistantHelpResult_SettlesAsInformationalReply` | `tests/FinancialCopilot.UnitTests/SemanticCapabilityDispatcherTests.cs` | The capability is unknown, so the frame settles as `ValidationFailed`. |
+| - [x] 1.9 | `AiQuery_Greeting_ReturnsIntroductionAnsweredFreeWithFourSamples` (V2 path, stub provider returns no capability) | new `tests/FinancialCopilot.IntegrationTests/AssistantHelpReply121EndpointTests.cs` | The response is `Unsupported` with the generic refusal. |
 
 Guard tests, which pass today and must keep passing:
 
-- [ ] 1.10 `Gate_GreetingWithQuestion_KeepsCurrentRoute`, `Gate_ShortRealQuestion_KeepsCurrentRoute`, and `Gate_AdverbWithoutListedPhrase_KeepsCurrentRoute` (theory: `کامل`, `گزارش کامل کگل`)
-- [ ] 1.11 `Gate_HelpPhraseDuringPendingClarification_KeepsExistingFlow`
-- [ ] 1.12 `Gate_HelpPhraseUnderFrozenV1_KeepsCurrentRoute` and `Gate_HelpPhraseInRollbackMode_KeepsCurrentRoute`
-- [ ] 1.13 `Gate_EligibleTickerEqualToListedPhrase_SnapshotWins` (AC-16), `Catalog_AssistantHelp_IsNotOfferedToTheModelOrStarterPrompts` (AC-17), `TelegramRenderer_AssistantHelpResponse_ShowsTextAndSuggestions` (AC-18)
+- [x] 1.10 `Gate_GreetingWithQuestion_KeepsCurrentRoute`, `Gate_ShortRealQuestion_KeepsCurrentRoute`, and `Gate_AdverbWithoutListedPhrase_KeepsCurrentRoute` (theory: `کامل`, `گزارش کامل کگل`)
+- [x] 1.11 `Gate_HelpPhraseDuringPendingClarification_KeepsExistingFlow`
+- [x] 1.12 `Gate_HelpPhraseUnderFrozenV1_KeepsCurrentRoute` and `Gate_HelpPhraseInRollbackMode_KeepsCurrentRoute`
+- [x] 1.13 `Gate_EligibleTickerEqualToListedPhrase_SnapshotWins` (AC-16), `Catalog_AssistantHelp_IsNotOfferedToTheModelOrStarterPrompts` (AC-17), `TelegramRenderer_AssistantHelpResponse_ShowsTextAndSuggestions` (AC-18)
 
 ### 2. Capability and reply
 

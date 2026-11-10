@@ -492,7 +492,7 @@ public static class SemanticRoutingTelemetryFactory
         string.Equals(mention.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(mention.Scope, "product", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsCompanyMention(EntityMention mention) => !IsProductMention(mention) &&
+    internal static bool IsCompanyMention(EntityMention mention) => !IsProductMention(mention) &&
         (string.IsNullOrWhiteSpace(mention.EntityType) ||
          string.Equals(mention.EntityType, "company", StringComparison.OrdinalIgnoreCase) ||
          string.Equals(mention.EntityType, "symbol", StringComparison.OrdinalIgnoreCase));

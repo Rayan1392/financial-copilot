@@ -116,6 +116,8 @@ public sealed class SemanticCapabilityDispatcher(
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "different_industries");
         if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "invalid_industry_membership"))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "invalid_industry_membership");
+        if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported);
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == DialogueOutcomeReasonCodes.EntityNotFound))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.EntityNotFound);
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "product_not_found"))
@@ -231,7 +233,7 @@ public sealed class SemanticExecutionCoordinator(
             if (reservation is null) return new(result, null);
             if (deferSettlementForFallback && CanFallback(result.Status))
                 return new(result, null, reservation);
-            var completion = SemanticBillingCompletionStatus.For(result.Status);
+            var completion = SemanticBillingCompletionStatus.For(result);
             var cached = result.Payload is SemanticScannerPayload scanner && scanner.Table.ExecutionFacts.FromCache;
             var usage = await billingHook.FinalizeAsync(reservation,
                 new BillingFinalizationRequest(completion, cached, ExecutionRoute: $"semantic:{frame.CapabilityCode}"),
@@ -280,6 +282,12 @@ public static class SemanticBillingCompletionStatus
     /// status is zero-charge, like a Feature 141 definitive non-answer.
     /// </summary>
     public const string NoData = "NoData";
+
+    /// <summary>A fixed informational reply (greeting or help). It is answered, but zero-charge by owner decision OQ-017.</summary>
+    public const string InformationalReply = "InformationalReply";
+
+    public static string For(CapabilityExecutionResult result) =>
+        result.ReasonCode == DialogueOutcomeReasonCodes.AssistantHelp ? InformationalReply : For(result.Status);
 
     public static string For(CapabilityExecutionStatus status) => status switch
     {

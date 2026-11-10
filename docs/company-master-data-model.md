@@ -78,6 +78,17 @@ CodalDB's `InstrumentRef` is a single constant GUID shared by every row (verifie
 `InstrumentRefPlaceholder` for provenance only — it is never indexed and never used as a join or
 resolution key. Use `InstrumentCode`, the ISINs, or `TseSymbol` instead.
 
+### Canonical row and monthly coverage (Feature 158)
+
+On the V2 path a ticker resolves by provider tier: a row in the eligible universe (`NoavaranCompanyScope`), then
+any other `NoavaranCurrentApi` row, then rows of other providers. The first tier with an exact hit decides.
+Monthly trend reads that canonical row, so another provider's row with the same symbol cannot shadow it.
+
+*Monthly coverage* says whether a company can have persisted monthly data at all. It comes from `ReportingType`
+through `NoavaranMonthlyReportTypeResolver`: a route, no route (construction, investment, banking, leasing,
+insurance, maritime transportation, investment banking), outside the eligible universe, or unknown. "No route"
+means this codebase has no verified endpoint; it does not mean the company publishes no monthly report.
+
 ## Pipeline & ownership
 
 - Provider-specific mapping is confined to the provider/normalization layers:

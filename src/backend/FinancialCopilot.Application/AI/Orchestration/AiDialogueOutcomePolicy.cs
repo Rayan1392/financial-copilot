@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
@@ -31,6 +32,9 @@ public static class DialogueOutcomeReasonCodes
     public const string DifferentIndustries = "different_industries";
     public const string InvalidIndustryMembership = "invalid_industry_membership";
     public const string ResultLimitExceeded = "result_limit_exceeded";
+    public const string AssistantHelp = "assistant_help";
+    public const string MonthlyReportNotCovered = "monthly_report_not_covered";
+    public const string MultipleCompaniesNotSupported = "multiple_companies_not_supported";
 }
 
 public static class AiDialogueOutcomePolicy
@@ -131,6 +135,36 @@ public static class AiDialogueOutcomePolicy
             false);
     }
 
+    /// <summary>The company's report type has no verified monthly route. English omits the symbol: it is usually Persian script.</summary>
+    public static string ComposeMonthlyReportNotCovered(string language, string categoryFa, string categoryEn, string symbol) =>
+        language == "fa"
+            ? $"پوشش گزارش ماهانهٔ فروش برای شرکت‌های {categoryFa} در منبع دادهٔ فعلی فراهم نیست، بنابراین برای «{symbol}» نمودار فروش ماهانه نداریم."
+            : $"Monthly sales report coverage for {categoryEn} companies is not available from the current data source, so there is no monthly sales chart for this symbol.";
+
+    public static string ComposeMonthlyReportOutsideScope(string language) =>
+        language == "fa"
+            ? "این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست."
+            : "This symbol is not on the list of companies covered by monthly reports.";
+
+    /// <summary>The one mapping from a company's monthly coverage to the reply for a monthly question with no data.</summary>
+    public static MonthlyReportNoDataReply ComposeMonthlyReportNoData(MonthlyReportCoverage coverage, string language, string symbol) =>
+        coverage.Kind switch
+        {
+            MonthlyReportCoverageKind.NoRoute => new(
+                CapabilityExecutionStatus.NoData,
+                DialogueOutcomeReasonCodes.MonthlyReportNotCovered,
+                ComposeMonthlyReportNotCovered(language, coverage.CategoryFa!, coverage.CategoryEn!, symbol)),
+            MonthlyReportCoverageKind.OutsideScope => new(
+                CapabilityExecutionStatus.NoData,
+                DialogueOutcomeReasonCodes.DataStaleOrIneligible,
+                ComposeMonthlyReportOutsideScope(language)),
+            MonthlyReportCoverageKind.CompanyAmbiguous => new(
+                CapabilityExecutionStatus.DisambiguationRequired,
+                DialogueOutcomeReasonCodes.EntityAmbiguous,
+                null),
+            _ => new(CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, null)
+        };
+
     public static DialogueOutcomeResult FromException(string message, Exception exception)
     {
         var language = DetectReplyLanguage(message);
@@ -186,6 +220,7 @@ public static class AiDialogueOutcomePolicy
     private static string ComposePersian(DialogueOutcomeResult outcome, string? detail) =>
         outcome.Outcome switch
         {
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported => "این پرسش فقط برای یک نماد قابل پاسخ است. لطفاً نماد موردنظرتان را بنویسید.",
             DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.DifferentIndustries => "این دو نماد متعلق به صنایع مختلف هستند. کدام را نسبت به صنعت خودش بررسی کنم؟",
             DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.InvalidIndustryMembership => "این نماد عضو صنعت انتخاب‌شده نیست. لطفاً نماد یا صنعت درست را مشخص کنید.",
             DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.EntityNotFound => "نماد یا شرکت درخواست‌شده در فهرست شرکت‌های معتبر پیدا نشد.",
@@ -212,6 +247,7 @@ public static class AiDialogueOutcomePolicy
     private static string ComposeEnglish(DialogueOutcomeResult outcome, string? detail) =>
         outcome.Outcome switch
         {
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported => "This question can be answered for one symbol only. Please send the symbol you want.",
             DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.EntityNotFound => "The requested symbol or company was not found in the authoritative company catalog.",
             DialogueOutcome.ClarificationNeeded => detail
                 ?? "Please provide more information about the symbol, metric, or period you want.",
@@ -244,6 +280,9 @@ public static class AiDialogueOutcomePolicy
             : outcome;
     }
 }
+
+/// <summary>Text is null when the caller keeps its own default sentence.</summary>
+public sealed record MonthlyReportNoDataReply(CapabilityExecutionStatus Status, string ReasonCode, string? Text);
 
 public sealed record DialogueOutcomeResult(
     DialogueOutcome Outcome,

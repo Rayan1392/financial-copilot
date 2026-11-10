@@ -751,6 +751,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEligibleSymbolResolver, FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters.NoavaranEligibleSymbolResolver>();
         services.AddScoped<ISymbolSnapshotUseCase, SymbolSnapshotUseCase>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolSnapshotCapabilityExecutor>();
+        services.AddSingleton<IAssistantHelpReplyComposer, AssistantHelpReplyComposer>();
+        services.AddScoped<IConversationalCapabilityExecutor, AssistantHelpCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyProductComparisonCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();
@@ -1416,6 +1418,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotRepository, EfCoreCompanyMonthlyActivityTrendSnapshotRepository>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
+        services.AddScoped<ICanonicalMonthlyCompanyResolver, CanonicalMonthlyCompanyResolver>();
+        services.AddScoped<IMonthlyReportCoverageReader, NoavaranMonthlyReportCoverageReader>();
         services.AddScoped<IMonthlyActivityTrendQueryUseCase, MonthlyActivityTrendQueryUseCase>();
         services.AddScoped<IMonthlyProductComparisonReadRepository, EfCoreMonthlyProductComparisonRepository>();
         services.AddScoped<IMonthlyProductCatalogReadRepository>(sp =>

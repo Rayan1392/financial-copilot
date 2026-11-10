@@ -183,6 +183,31 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
+    public async Task SemanticCoordinator_AssistantHelpResult_SettlesAsInformationalReply()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var billing = new RecordingBilling();
+        var coordinator = new SemanticExecutionCoordinator(
+            new SemanticCapabilityDispatcher(registry, [new AssistantHelpStubExecutor()]),
+            billing, new RecordingFeedback(), new RecordingEventSink());
+
+        var operation = await coordinator.ExecuteAsync(
+            Frame("assistant_help") with { Slots = [] }, Context(),
+            new AiQueryRequest("سلام", Guid.NewGuid(), Guid.NewGuid(), "assistant-help-free"), default);
+
+        Assert.Equal(CapabilityExecutionStatus.Executed, operation.Execution.Status);
+        Assert.Equal("InformationalReply", billing.LastCompletionStatus);
+        Assert.Equal(1, billing.Finalizations);
+    }
+
+    private sealed class AssistantHelpStubExecutor : IConversationalCapabilityExecutor
+    {
+        public string CapabilityCode => "assistant_help";
+        public Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken) =>
+            Task.FromResult(new CapabilityExecutionResult("assistant_help", 1, CapabilityExecutionStatus.Executed, "assistant_help", "متن"));
+    }
+
+    [Fact]
     public async Task InvalidFrame_DoesNotTouchBillingOrExecutor()
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());

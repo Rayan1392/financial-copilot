@@ -1,6 +1,6 @@
 # Tasks: Assistant greeting and "what can I ask?" reply
 
-Status: Gate A: Approved by the owner on 2026-11-10 — plan proposed, Gate B not approved
+Status: Gate B: Approved by the owner on 2026-11-10
 
 ## Feature Folder
 

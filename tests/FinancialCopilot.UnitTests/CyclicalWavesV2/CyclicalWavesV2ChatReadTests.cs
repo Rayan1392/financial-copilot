@@ -314,7 +314,8 @@ public sealed class CyclicalWavesV2ChatReadTests : IDisposable
         var options = new FinancialDataOptions();
         configuration.GetSection(FinancialDataOptions.SectionName).Bind(options);
 
-        Assert.Equal(["ChatProvider"], typeof(FinancialDataOptions).GetProperties().Select(property => property.Name));
+        // Feature 162 adds only the per-capability source map; C1/C1-M still has no setting.
+        Assert.Equal(["ChatProvider", "CapabilitySources"], typeof(FinancialDataOptions).GetProperties().Select(property => property.Name));
         Assert.True(LegacyCyclicalWavesDerivedMetricFilter.IsExcluded(Derived("[{\"sourceProvider\":\"CyclicalWaves\"}]")));
         Assert.True(LegacyCyclicalWavesDerivedMetricFilter.IsExcluded(
             Derived("[{\"sourceProvider\":\"CyclicalWaves\"},{\"sourceProvider\":\"NoavaranCurrentApi\"}]")));
@@ -327,14 +328,37 @@ public sealed class CyclicalWavesV2ChatReadTests : IDisposable
     [InlineData("خودرو- لیدر فشل بازار", "خودرو", true)]
     [InlineData("رصد معاملات عمده‌ها - سه شنبه 5 آبان 1405", "فولاد", false)]
     [InlineData("فولادی - گزارش", "فولاد", false)]
-    public void Analysis_TitleLeadingSegmentMatchesTicker(string title, string ticker, bool matches) =>
+    // Feature 162: the ticker is searched as a whole word anywhere in the title.
+    [InlineData("شگل، بخش سوم - نسبت P/s", "شگل", true)]
+    [InlineData("شگل، بخش دوم- تعادلی", "شگل", true)]
+    [InlineData("حق تقدم شگل", "شگل", true)]
+    [InlineData("شایعه اخابر", "اخابر", true)]
+    [InlineData("بورس کالا- فولاد", "فولاد", true)]
+    [InlineData("همراه، گزارش عملکرد تابستان 1405", "همراه", true)]
+    [InlineData("فرابورس- بررسی گزارش سه‌ماهه تابستان 1405", "بورس", false)]
+    [InlineData("مخابرات ایران", "اخابر", false)]
+    [InlineData("كگهر- گزارش", "کگهر", true)]
+    public void Analysis_TitleWordMatchesTicker(string title, string ticker, bool matches) =>
         Assert.Equal(matches, CyclicalWavesV2ComprehensiveAnalysisQuery.MatchesTicker(
-            title, [], FinancialCopilot.Domain.Financial.Services.PersianSymbolNormalizer.Normalize(ticker)));
+            title, FinancialCopilot.Domain.Financial.Services.PersianSymbolNormalizer.Normalize(ticker)));
 
     [Fact]
-    public void Analysis_TagMatchesTicker() =>
-        Assert.True(CyclicalWavesV2ComprehensiveAnalysisQuery.MatchesTicker(
-            "گزارش بازار", [new CyclicalWavesV2AnalysisTagRow { Name = "فولاد", NormalizedName = "فولاد" }], "فولاد"));
+    public void Analysis_TagAloneDoesNotSelectAnArticleForATicker() =>
+        // Owner rule (Feature 162): an article is found by the ticker in its title; «رصد معاملات عمده» reports tag many tickers.
+        Assert.False(CyclicalWavesV2ComprehensiveAnalysisQuery.MatchesTicker("رصد معاملات عمده‌ها یکشنبه ۱۲ مهر ۱۴۰۵", "فولاد"));
+
+    [Fact]
+    public void Analysis_SummaryIsWholeUpToTheSafetyBound()
+    {
+        var whole = string.Join(' ', Enumerable.Repeat("متن", 1_000));
+        Assert.Equal(whole, CyclicalWavesV2ComprehensiveAnalysisQuery.BoundSummary(whole));
+
+        var tooLong = string.Join(' ', Enumerable.Repeat("کلمه", 2_000));
+        var bounded = CyclicalWavesV2ComprehensiveAnalysisQuery.BoundSummary(tooLong);
+        Assert.EndsWith(" …", bounded);
+        Assert.True(bounded.Length <= CyclicalWavesV2ComprehensiveAnalysisQuery.SummaryCapChars + 2);
+        Assert.EndsWith("کلمه …", bounded);
+    }
 
     [Theory]
     [InlineData("نمودار_P_S", "PS")]

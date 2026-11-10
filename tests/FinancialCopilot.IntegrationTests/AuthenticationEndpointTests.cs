@@ -197,6 +197,10 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Feature 162: tests never inherit the local Development capability source map
+        // (appsettings.Development.json maps comprehensive_analysis for local runs); a test host that
+        // needs the map sets it after calling this base.
+        builder.UseSetting("FinancialData:CapabilitySources:comprehensive_analysis", string.Empty);
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             var keyHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ApiKey)));

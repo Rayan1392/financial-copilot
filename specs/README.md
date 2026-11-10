@@ -37,6 +37,8 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `156-symbol-snapshot-default-card`: Gate B approved 2026-11-09; implemented locally (uncommitted), flag off, live Development check open. A message that is only an eligible ticker gets one card (latest price, monthly sales, quarterly report) and next-step buttons instead of a refusal, on the V2 path behind `SymbolSnapshot:Enabled`.
 
+- `162-capability-source-map-comprehensive-analysis`: Gate B approved 2026-11-10; implemented on branch `feature/162-capability-source-map` (uncommitted), map empty by default. «تحلیل جامع X» answers from the CyclicalWaves v2 analyses while the provider stays NoavaranAmin: title and whole summary, fixed TahlilApp link (ADR 0001).
+
 ## Mobile Experience
 
 - `153-mobile-pwa-workspace` — mobile-first workspace at `/m` (chat, history, market, watchlist, account), device routing behind a rollout flag, and an installable PWA that caches static assets only.

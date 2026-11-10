@@ -92,6 +92,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     private ChatCapabilityAvailabilityOutcome Availability(string executionRoute) =>
         capabilityAvailability?.Evaluate(executionRoute) ?? ChatCapabilityAvailabilityOutcome.Available;
 
+    /// <summary>Feature 162: the provider that answers a capability (its override, otherwise the base mode).</summary>
+    private FinancialDataChatProvider SourceFor(string executionRoute) =>
+        capabilityAvailability?.SourceFor(executionRoute) ?? FinancialDataChatProvider.NoavaranAmin;
+
+    /// <summary>Feature 162: true when a capability is answered by a provider other than the base mode.</summary>
+    private bool IsSourceOverridden(string executionRoute) =>
+        capabilityAvailability is not null &&
+        capabilityAvailability.SourceFor(executionRoute) != capabilityAvailability.Provider;
+
     internal static readonly ActivitySource ActivitySource =
         new("FinancialCopilot.AI.OrchestrationV2.Workflow", "2.0");
 
@@ -398,6 +407,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (request.SemanticFrame is { } semanticFrame &&
             !MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message))
         {
+            stepActivity?.SetTag("chat.capability_source", SourceFor(semanticFrame.CapabilityCode).ToString());
             var interpretation = semanticFrame.Interpretation;
             var entities = string.Join(',', interpretation.EntityMentions
                 .Select(entity => $"{entity.EntityType ?? "entity"}:{entity.Text}"));
@@ -433,9 +443,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     scannerResult = ScannerToolResult.Success(scanner.Plan, scanner.Table, scanner.Table.ExecutionFacts.FromCache);
                     break;
                 case SymbolLookupTableResult lookup: lookupResult = SymbolLookupToolResult.Success(lookup); break;
-                case ComprehensiveAnalysisQueryResponse analysis: comprehensiveAnalysisResult = ComprehensiveAnalysisToolResult.Success(analysis); break;
+                case ComprehensiveAnalysisQueryResponse analysis: comprehensiveAnalysisResult = comprehensiveAnalysisAdapter.ToResult(analysis); break;
                 case SemanticComprehensiveAnalysisPayload combined:
-                    comprehensiveAnalysisResult = ComprehensiveAnalysisToolResult.Success(combined.Analysis);
+                    comprehensiveAnalysisResult = comprehensiveAnalysisAdapter.ToResult(combined.Analysis);
                     lookupResult = combined.Lookup.Rows.Count > 0
                         ? SymbolLookupToolResult.Success(combined.Lookup)
                         : null;
@@ -462,7 +472,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             if (semantic.Execution.Payload is SymbolSnapshotResult)
                 stepActivity?.SetTag("workflow.intent", "SymbolSnapshot");
             // A snapshot with no data is a complete answer, so the registered financial source never replaces it.
+            // Feature 162: a capability answered by another provider has no cross-provider fallback.
             var canUseFeature141 = directFeature141 is null && !policyBlocked && !IsCyclicalWavesMode
+                && !IsSourceOverridden(semanticFrame.CapabilityCode)
                 && semanticFrame.CapabilityCode != SymbolSnapshotCapability.Code
                 && semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired
                 or CapabilityExecutionStatus.DisambiguationRequired
@@ -1197,9 +1209,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         var agentTools = new List<AITool> { scannerTool, lookupTool };
-        // C2: the analysis tool exists only where the policy allows comprehensive analysis (CyclicalWaves mode).
+        // C2: the analysis tool exists only where the policy allows comprehensive analysis; Feature 162 picks the
+        // tool by the capability's source, so a NoavaranAmin base with the v2 override gets the v2 tool.
         if (Availability(CapabilityExecutionRoutes.ComprehensiveAnalysis).IsAvailable)
-            agentTools.Add(IsCyclicalWavesMode ? cyclicalWavesAnalysisTool : comprehensiveAnalysisTool);
+            agentTools.Add(SourceFor(CapabilityExecutionRoutes.ComprehensiveAnalysis) == FinancialDataChatProvider.CyclicalWaves
+                ? cyclicalWavesAnalysisTool
+                : comprehensiveAnalysisTool);
         if (feature141Tool is not null) agentTools.Add(feature141Tool);
         if (cyclicalWavesGaugeTool is not null) agentTools.Add(cyclicalWavesGaugeTool);
         var systemInstructions = BuildSystemInstructions();

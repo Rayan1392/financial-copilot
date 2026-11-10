@@ -21,7 +21,7 @@ Reproduced by the whole-path tests in this change: a no-route company, an outsid
 
 1. **Success path untouched.** When the legacy use case returns a result, nothing changes: same call, chart content, gauge, status, billing, usage and fields. The coverage reader is not called and no new branch is added before the use case.
 2. **No data with a frame.** Only when the legacy branch finds no data and the request has a `SemanticFrame`, it calls `IMonthlyReportCoverageReader` with the symbol the branch used and shows the Feature 158 reply. `HasRoute` and `Unknown` keep the legacy sentence. The turn is recorded with the matching outcome and reason. Billing stays the existing zero-charge `NoData`.
-3. **Two companies.** A frame whose `CompanyOrSymbol` slot carries `multiple_companies_not_supported` enters the semantic route. The bypass condition changes only for that case.
+3. **Two companies.** The entry condition of the semantic route is unchanged. Inside the same no-data branch, a frame whose `CompanyOrSymbol` slot carries `multiple_companies_not_supported` gets the clarification, before any coverage read, with the pending action the gate stored kept for the customer's reply. The clarification appears only when no data was found. A two-company question whose first-extracted company has data keeps today's single-company chart, by the owner's rule that the success path must not change.
 4. **One owner.** `AiDialogueOutcomePolicy.ComposeMonthlyReportNoData` holds the coverage-kind-to-reply mapping for both the executor and this branch.
 
 With no `SemanticFrame` (Rollback, Legacy modes) nothing changes.

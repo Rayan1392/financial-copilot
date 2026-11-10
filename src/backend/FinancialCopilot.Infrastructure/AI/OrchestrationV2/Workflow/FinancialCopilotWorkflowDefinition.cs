@@ -396,8 +396,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         // reinterpret the same explicit chart request as a metric lookup and ask
         // for information that the trend parser can resolve directly.
         if (request.SemanticFrame is { } semanticFrame &&
-            (!MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message) ||
-             CarriesMultipleCompanyClarification(semanticFrame)))
+            !MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message))
         {
             var interpretation = semanticFrame.Interpretation;
             var entities = string.Join(',', interpretation.EntityMentions
@@ -908,11 +907,18 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             stepActivity?.SetTag("workflow.intent", "MonthlyActivityTrend");
 
             // BUG-019: a framed monthly-trend question takes this branch, so a turn with no data gets the true reason here.
+            // A two-company question with data keeps its chart: the clarification applies only when no data was found.
             if (monthlyActivityTrendResult is null && request.SemanticFrame is { } bypassedFrame)
             {
                 var language = bypassedFrame.Interpretation.ReplyLanguage;
-                var reply = AiDialogueOutcomePolicy.ComposeMonthlyReportNoData(
-                    await monthlyReportCoverageReader.ReadAsync(symbol, ct), language, symbol);
+                var reply = CarriesMultipleCompanyClarification(bypassedFrame)
+                    ? new MonthlyReportNoDataReply(
+                        CapabilityExecutionStatus.ClarificationRequired,
+                        DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported,
+                        AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+                            DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported, language, null, false)))
+                    : AiDialogueOutcomePolicy.ComposeMonthlyReportNoData(
+                        await monthlyReportCoverageReader.ReadAsync(symbol, ct), language, symbol);
                 return new AgentExecutedMessage(
                     msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                     msg.MemoryContext, msg.Reservation,

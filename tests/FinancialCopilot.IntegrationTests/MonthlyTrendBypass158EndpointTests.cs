@@ -117,6 +117,42 @@ public sealed class MonthlyTrendBypass158EndpointTests : IClassFixture<MonthlyTr
         Assert.Equal(SuccessGolden.GaugeKind, root.GetProperty("psVisualizationResult").ValueKind);
     }
 
+    [Fact]
+    public async Task TwoCompanies_FirstHasData_KeepsTodaysChart_AndCoverageReaderIsNeverCalled()
+    {
+        MonthlyTrendBypass158CoverageSpy.Reset();
+
+        var root = await AskAsync("نمودار فروش دارا و کگل");
+
+        Assert.Equal(0, MonthlyTrendBypass158CoverageSpy.Calls);
+        Assert.Equal(TwoCompanyGolden.TextAnswer, root.GetProperty("textAnswer").GetString()!.ReplaceLineEndings("\n"));
+        Assert.Equal("Answered", root.GetProperty("outcome").GetString());
+        Assert.Equal("none", root.GetProperty("outcomeReasonCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(TwoCompanyGolden.CreditsCharged, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.Equal(TwoCompanyGolden.TrendHash, Hash(root.GetProperty("monthlyActivityTrendResult").GetRawText()));
+        Assert.Equal(TwoCompanyGolden.ActionsHash, Hash(root.GetProperty("suggestedActions").GetRawText()));
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("psVisualizationResult").ValueKind);
+    }
+
+    [Fact]
+    public async Task TwoCompanies_NoData_KeepsThePendingActionForTheReply()
+    {
+        var root = await AskAsync("نمودار فروش کگل و شپنا");
+
+        using var scope = _factory.Services.CreateScope();
+        var conversations = scope.ServiceProvider.GetRequiredService<ConversationDbContext>();
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+        var conversation = await conversations.Conversations.AsNoTracking().SingleAsync(item => item.Id == conversationId);
+        var repository = scope.ServiceProvider.GetRequiredService<IConversationTaskStateRepository>();
+        var state = await repository.FindAsync(new(conversationId, conversation.TenantId, conversation.ActorId), default);
+
+        Assert.NotNull(state?.PendingAction);
+        Assert.Equal(PendingDialogueActionKind.Disambiguation, state!.PendingAction!.Kind);
+        Assert.Equal("multiple_companies_not_supported", state.PendingAction.ReasonCode);
+        Assert.Equal(2, state.PendingAction.Candidates.Count);
+    }
+
     private async Task<JsonElement> AskAsync(string question)
     {
         using var client = _factory.CreateClient();
@@ -148,6 +184,16 @@ public sealed class MonthlyTrendBypass158EndpointTests : IClassFixture<MonthlyTr
     private static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     /// <summary>Captured from the workflow before the BUG-019 fix; the owner requires the success path not to change.</summary>
+    /// <summary>Captured with the workflow file at 86500b9, before any BUG-019 change.</summary>
+    private static class TwoCompanyGolden
+    {
+        public const string TextAnswer =
+            "### روند فروش ماهانه - شرکت دارا (دارا)\nآخرین دوره گزارش: 1405/04 | واحد: میلیارد تومان\n\n**خلاصه آخرین ماه:** فروش 100 میلیارد تومان\n**تغییر نسبت به ماه قبل:** دادهٔ ماه قبل موجود نیست.\n**میانگین ۱۲ ماهه:** 100 میلیارد تومان (+0.0٪ نسبت به میانگین)\n\n**نکات تحلیلی:**\n- داده سال قبل برای مقایسه یکسان‌ماهه موجود نیست.\n- فروش این ماه نسبت به میانگین ۱۲ ماهه +0.0٪ بالاتر است (میانگین با 1 دوره موجود محاسبه شده است).\n\n*داده‌های ناقص: 12 دوره موجود نیست.*\n\n*منبع: نوآوران امین | محاسبه: 1405/07/09*";
+        public const decimal CreditsCharged = 1m;
+        public const string TrendHash = "B674C8309073F3781022C4FE779FA90905451CEE9EBF19CD42650F7F43CB569D";
+        public const string ActionsHash = "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945";
+    }
+
     private static class SuccessGolden
     {
         public const string TextAnswer =

@@ -112,19 +112,22 @@ public static class ComprehensiveAnalysisCardComposer
     public const string AllAnalysesLinkTextFa = "تحلیل‌های جامع تحلیل‌اپ";
     public const string PublishedAtLabelFa = "تاریخ انتشار";
 
-    /// <summary>Markdown for the web chat.</summary>
+    /// <summary>
+    /// Markdown for the web chat. Every part is its own paragraph: markdown joins lines separated by a single line
+    /// break, which put the date, the preview, the read-more line and the link on one line.
+    /// </summary>
     public static string ComposeMarkdown(
         IReadOnlyList<ComprehensiveAnalysisSummaryItem> items,
         IReadOnlyList<string> requestedSymbols,
         string analysesUrl) =>
-        Compose(items, requestedSymbols, title => $"### {title}", text => $"[{text}]({analysesUrl})");
+        Compose(items, requestedSymbols, title => $"### {title}", text => $"[{text}]({analysesUrl})", "\n\n");
 
-    /// <summary>Plain text for Telegram: the bare URL, which Telegram links.</summary>
+    /// <summary>Plain text for Telegram: one part per line and the bare URL, which Telegram links.</summary>
     public static string ComposePlainText(
         IReadOnlyList<ComprehensiveAnalysisSummaryItem> items,
         IReadOnlyList<string> requestedSymbols,
         string analysesUrl) =>
-        Compose(items, requestedSymbols, title => title, text => $"{text}: {analysesUrl}");
+        Compose(items, requestedSymbols, title => title, text => $"{text}: {analysesUrl}", "\n");
 
     public static string NoResultSentence(IReadOnlyList<string> requestedSymbols)
     {
@@ -138,30 +141,30 @@ public static class ComprehensiveAnalysisCardComposer
         IReadOnlyList<ComprehensiveAnalysisSummaryItem> items,
         IReadOnlyList<string> requestedSymbols,
         Func<string, string> titleLine,
-        Func<string, string> linkLine)
+        Func<string, string> linkLine,
+        string partSeparator)
     {
-        var builder = new StringBuilder();
         // The items arrive newest first; only the latest analysis is shown.
         var latest = items.Count > 0 ? items[0] : null;
         if (latest is null)
         {
-            builder.Append(NoResultSentence(requestedSymbols)).Append("\n\n").Append(linkLine(AllAnalysesLinkTextFa));
-            return builder.ToString();
+            return NoResultSentence(requestedSymbols) + "\n\n" + linkLine(AllAnalysesLinkTextFa);
         }
 
-        builder.Append(titleLine(latest.Title.Trim())).Append('\n');
+        var parts = new List<string> { titleLine(latest.Title.Trim()) };
         if (!string.IsNullOrWhiteSpace(latest.PersianCreatedAt))
         {
-            builder.Append(PublishedAtLabelFa).Append(": ").Append(latest.PersianCreatedAt).Append('\n');
+            parts.Add($"{PublishedAtLabelFa}: {latest.PersianCreatedAt}");
         }
 
         var preview = latest.PlainTextSummary.Trim();
         if (preview.Length > 0)
         {
-            builder.Append(preview).Append('\n');
+            parts.Add(preview);
         }
 
-        builder.Append('\n').Append(ReadMoreFa).Append('\n').Append(linkLine(LinkTextFa));
+        var builder = new StringBuilder(string.Join(partSeparator, parts));
+        builder.Append("\n\n").Append(ReadMoreFa).Append(partSeparator).Append(linkLine(LinkTextFa));
         return builder.ToString();
     }
 }

@@ -106,7 +106,7 @@ public sealed class Feature162CapabilitySourceMapTests
             Url);
 
         Assert.Equal(
-            "### شگل، بخش سوم - نسبت P/s\nتاریخ انتشار: 1405/08/18\nپیش‌نمایش …\n\nمتن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید\n[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
+            "### شگل، بخش سوم - نسبت P/s\n\nتاریخ انتشار: 1405/08/18\n\nپیش‌نمایش …\n\nمتن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید\n\n[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
             card);
         Assert.DoesNotContain("قدیمی‌تر", card);
     }
@@ -114,7 +114,7 @@ public sealed class Feature162CapabilitySourceMapTests
     [Fact]
     public void CardWithoutPreviewShowsTitleDateAndLink() =>
         Assert.Equal(
-            "### خزامیا\nتاریخ انتشار: 1405/08/18\n\nمتن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید\n[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
+            "### خزامیا\n\nتاریخ انتشار: 1405/08/18\n\nمتن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید\n\n[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)",
             ComprehensiveAnalysisCardComposer.ComposeMarkdown([Item(1, "خزامیا", "  ")], [], Url));
 
     [Theory]

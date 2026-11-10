@@ -65,6 +65,7 @@ public sealed class ComprehensiveAnalysisSemanticRoutingRegressionTests
     [InlineData("تحلیل فولاد", "comprehensive_analysis")]
     [InlineData("فولاد ارزنده است؟", "comprehensive_analysis")]
     [InlineData("آخرین تحلیل فولاد", "comprehensive_analysis")]
+    [InlineData("تحلیل جامع فولاد", "comprehensive_analysis")]
     [InlineData("P/E فولاد", "symbol_metric_lookup")]
     [InlineData("P/S فولاد", "symbol_metric_lookup")]
     [InlineData("EPS فولاد", "symbol_metric_lookup")]
@@ -147,6 +148,10 @@ public sealed class ComprehensiveAnalysisSemanticRoutingRegressionTests
     [InlineData("تحلیل شغدیر", "شغدیر")]
     [InlineData("آخرین تحلیل فملی", "فملی")]
     [InlineData("کرازی ارزنده است؟", "کرازی")]
+    // Feature 162: «جامع» qualifies the analysis and is never a second entity.
+    [InlineData("تحلیل جامع فولاد", "فولاد")]
+    [InlineData("تحلیل جامع کگل", "کگل")]
+    [InlineData("تحلیل جامع فولاد مبارکه", "فولاد")]
     public async Task AnalysisLanguageWithSymbol_RoutesToComprehensiveAnalysisWithoutClarification(string query, string expectedSymbol)
     {
         var prepared = await PrepareAsync(query);

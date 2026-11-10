@@ -3,6 +3,7 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 
@@ -11,15 +12,23 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 /// Live evidence (2026-10-31): most articles carry no tags and name their ticker as the title prefix
 /// («شتوکا- گزارش عملکرد مهر 1405»); topics arrive as underscore tags («گزارش_فصلی», «P-E»).
 /// Only the title, the published summary and the publication date exist; there is no full article body.
+/// Feature 162 (owner, 2026-11-10): an analysis belongs to a ticker when the ticker is a whole word of its title, at
+/// any position («حق تقدم شگل», «شگل، بخش سوم - نسبت P/s»); tags no longer select analyses for a ticker, because
+/// daily reports such as «رصد معاملات عمده» tag many tickers. Topic tags still filter when asked.
+/// The provider `summary` is the whole paid analysis text (owner, 2026-11-10), so only its partial preview leaves this
+/// query (<see cref="ComprehensiveAnalysisTeaserPolicy"/>); the whole text never reaches an answer, the API or a prompt.
 /// </summary>
-public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestionDbContext db) : IComprehensiveAnalysisQueryUseCase
+public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
+    FinancialIngestionDbContext db,
+    IOptions<ComprehensiveAnalysisPresentationOptions>? presentation = null) : IComprehensiveAnalysisQueryUseCase
 {
+    private readonly ComprehensiveAnalysisPresentationOptions _presentation = presentation?.Value ?? new();
+
     public const int DefaultLimit = 5;
     public const int MaximumLimit = 10;
-    private const int SummaryCapChars = 1_500;
     private const int CandidateWindow = 400;
+    private const int MaximumSymbolWords = 3;
     private static readonly TimeSpan TehranOffset = TimeSpan.FromHours(3.5);
-    private static readonly char[] TitleSeparators = ['-', '–', '—', '؛', ':', '|'];
 
     public async Task<ComprehensiveAnalysisQueryResponse> ExecuteAsync(
         ComprehensiveAnalysisQueryRequest request,
@@ -54,12 +63,13 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestion
             candidates.AddRange(await query.OrderByDescending(row => row.PublishedAt).Take(CandidateWindow).ToListAsync(cancellationToken));
         }
 
-        // One narrow query per symbol (tag or title prefix); the exact title-segment rule is applied below.
-        foreach (var (raw, normalized) in symbols.Take(MaximumLimit))
+        // One narrow query per symbol (title contains the ticker in Persian or Arabic letters); the whole-word rule is applied below.
+        foreach (var (raw, _) in symbols.Take(MaximumLimit))
         {
+            var persian = raw.Replace('ي', 'ی').Replace('ك', 'ک');
+            var arabic = persian.Replace('ی', 'ي').Replace('ک', 'ك');
             candidates.AddRange(await query
-                .Where(row => row.Title.StartsWith(raw) ||
-                              db.CyclicalWavesV2AnalysisTags.Any(tag => tag.AnalysisId == row.Id && tag.NormalizedName == normalized))
+                .Where(row => row.Title.Contains(persian) || row.Title.Contains(arabic))
                 .OrderByDescending(row => row.PublishedAt)
                 .Take(CandidateWindow)
                 .ToListAsync(cancellationToken));
@@ -78,7 +88,7 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestion
         {
             if (symbols.Count > 0)
             {
-                var matches = symbols.Where(symbol => MatchesTicker(row.Title, tags[row.Id], symbol.Normalized)).ToList();
+                var matches = symbols.Where(symbol => MatchesTicker(row.Title, symbol.Normalized)).ToList();
                 if (matches.Count == 0)
                 {
                     continue;
@@ -98,16 +108,70 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestion
         return new ComprehensiveAnalysisQueryResponse(items, unresolved);
     }
 
-    /// <summary>An article belongs to a ticker by an equal tag or by the leading title segment.</summary>
-    internal static bool MatchesTicker(string title, IEnumerable<CyclicalWavesV2AnalysisTagRow> tags, string normalizedTicker) =>
-        tags.Any(tag => tag.NormalizedName == normalizedTicker) ||
-        PersianSymbolNormalizer.Normalize(LeadingSegment(title)) == normalizedTicker;
-
-    internal static string LeadingSegment(string title)
+    /// <summary>
+    /// An article belongs to a ticker when the ticker is a whole word of the title (one to three consecutive words for
+    /// tickers written with a space), compared in normalized form. «فرابورس» does not match «بورس».
+    /// </summary>
+    internal static bool MatchesTicker(string title, string normalizedTicker)
     {
-        var index = title.IndexOfAny(TitleSeparators);
-        return (index < 0 ? title : title[..index]).Trim();
+        if (normalizedTicker.Length == 0)
+        {
+            return false;
+        }
+
+        var words = TitleWords(title);
+        for (var start = 0; start < words.Count; start++)
+        {
+            var joined = string.Empty;
+            for (var count = 1; count <= MaximumSymbolWords && start + count <= words.Count; count++)
+            {
+                joined += words[start + count - 1];
+                if (joined == normalizedTicker)
+                {
+                    return true;
+                }
+
+                if (joined.Length >= normalizedTicker.Length)
+                {
+                    break;
+                }
+            }
+        }
+
+        return false;
     }
+
+    /// <summary>Normalized title words, split on white space, punctuation («، ؛ - : / ( )») and symbols («|»).</summary>
+    internal static IReadOnlyList<string> TitleWords(string title)
+    {
+        var words = new List<string>();
+        var current = new System.Text.StringBuilder();
+        foreach (var ch in title)
+        {
+            if (char.IsWhiteSpace(ch) || char.IsPunctuation(ch) || char.IsSymbol(ch) || char.IsSeparator(ch))
+            {
+                Flush();
+                continue;
+            }
+
+            current.Append(ch);
+        }
+
+        Flush();
+        return words;
+
+        void Flush()
+        {
+            var word = PersianSymbolNormalizer.Normalize(current.ToString());
+            if (word.Length > 0)
+            {
+                words.Add(word);
+            }
+
+            current.Clear();
+        }
+    }
+
 
     /// <summary>Topic slugs («نمودار_P_S», «تحلیل تکنیکال») map to stored tag names («P-S», «تحلیل_تکنیکال») by normalized form.</summary>
     internal static string NormalizeTopic(string topic)
@@ -117,18 +181,17 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(FinancialIngestion
         return normalized.StartsWith(chartPrefix, StringComparison.Ordinal) ? normalized[chartPrefix.Length..] : normalized;
     }
 
-    private static ComprehensiveAnalysisSummaryItem ToItem(
+    private ComprehensiveAnalysisSummaryItem ToItem(
         CyclicalWavesV2AnalysisRow row,
         IEnumerable<CyclicalWavesV2AnalysisTagRow> tags,
         IEnumerable<CyclicalWavesV2AnalysisCategoryRow> categories)
     {
-        var summary = row.PlainTextSummary ?? string.Empty;
         return new ComprehensiveAnalysisSummaryItem(
             row.Id,
             row.Title,
             PersianDate(row.PublishedAt),
             string.Join("، ", categories.Select(category => category.Title)),
-            summary.Length > SummaryCapChars ? summary[..SummaryCapChars] : summary,
+            ComprehensiveAnalysisTeaserPolicy.Teaser(row.Title, row.PlainTextSummary, _presentation),
             tags.Select(tag => tag.Name).ToList(),
             row.LastSyncedAt);
     }

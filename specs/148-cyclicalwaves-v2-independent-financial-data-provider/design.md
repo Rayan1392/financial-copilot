@@ -6,6 +6,9 @@
 
 - **C1:** a read-boundary filter in symbol lookup, the scanner and the professional scanner.
 - **C2:** comprehensive analysis is disabled in NoavaranAmin mode.
+  *Amended 2026-11-10 by Feature 162 and `docs/adr/0001-per-capability-chat-data-source.md`: C2 applies only while
+  `FinancialData:CapabilitySources:comprehensive_analysis` is not set to `CyclicalWaves`. Extension decisions 5 and 7
+  stay in force for every other capability.*
 
 Shared-infrastructure changes are limited to four things:
 
@@ -204,7 +207,7 @@ On the frontend:
 | `symbol_lookup` | existing path, with the C1 filter | v2 lookup |
 | `financial_statement_table` (quarterly) | existing | v2 statements |
 | `scanner` | existing path, with the C1 filter | v2 scanner (§10.5) |
-| `comprehensive_analysis` | **unavailable (C2)** | v2 analyses |
+| `comprehensive_analysis` | **unavailable (C2)**; v2 analyses when mapped (Feature 162) | v2 analyses |
 | `ps_gauge_visualization`, `industry_relative_valuation_read` | **retired** | **retired** |
 | all other capability codes | existing | unavailable |
 

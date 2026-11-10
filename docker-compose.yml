@@ -168,6 +168,9 @@ services:
         CyclicalWavesLegacy__AllowCalls: "false"
         # Feature 148: Chat provider selection (legacy CyclicalWaves-derived metrics are always excluded).
         FinancialData__ChatProvider: ${FINANCIAL_DATA_CHAT_PROVIDER:-NoavaranAmin}
+        # Feature 162: per-capability source (empty = the ChatProvider above). Only comprehensive_analysis may be set.
+        FinancialData__CapabilitySources__comprehensive_analysis: ${FINANCIAL_DATA_SOURCE_COMPREHENSIVE_ANALYSIS:-}
+        ComprehensiveAnalysis__TahlilAppAnalysesUrl: ${COMPREHENSIVE_ANALYSIS_TAHLILAPP_URL:-https://tahlilapp.com/app/analysis}
         # Feature 148: CyclicalWaves v2 provider. Credentials only in the ignored .env file.
         CyclicalWavesV2__AuthBaseAddress: ${CYCLICALWAVES_V2_AUTH_BASE_ADDRESS:-https://auth.cycfx.com/api/}
         CyclicalWavesV2__DataBaseAddress: ${CYCLICALWAVES_V2_DATA_BASE_ADDRESS:-https://api.tahlilapp.com/api/}
@@ -475,6 +478,8 @@ services:
         SemanticRouting__CanaryPercentage: "${SemanticRouting__CanaryPercentage:-10}"
         SemanticRouting__DefaultMode: "${SemanticRouting__DefaultMode:-Shadow}"
         SemanticRouting__Capabilities__symbol_vs_industry_relative_valuation: "${SemanticRouting__Capabilities__symbol_vs_industry_relative_valuation:-SemanticPrimary}"
+        # Feature 162: the comprehensive-analysis answer is the fixed TahlilApp card, not model-written text.
+        SemanticRouting__Capabilities__comprehensive_analysis: "${SemanticRouting__Capabilities__comprehensive_analysis:-SemanticPrimary}"
         Serilog__Enrich__0: "${Serilog__Enrich__0:-FromLogContext}"
         Serilog__MinimumLevel__Default: "${Serilog__MinimumLevel__Default:-Information}"
         Serilog__MinimumLevel__Override__Microsoft: "${Serilog__MinimumLevel__Override__Microsoft:-Warning}"

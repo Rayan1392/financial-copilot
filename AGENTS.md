@@ -115,6 +115,15 @@ In V2, the agent LLM reads the system prompt, decides which tools to call (and i
 - `limit`: 1–5 (default 3)
 **Returns:** narrative analysis items from CyclicalWaves with title, author, date, plain-text summary, and tags
 
+**Source and answer (Feature 162):** the tool reads the CyclicalWaves v2 analyses (`cyclicalwaves."Analyses"`) in
+CyclicalWaves mode, and in NoavaranAmin mode only when `FinancialData:CapabilitySources:comprehensive_analysis` is
+`CyclicalWaves`; otherwise it is not offered (C2). An analysis matches a ticker when the ticker is a whole word of its
+title; tags do not select analyses for a ticker. The provider `summary` is the whole paid analysis text, so the query
+returns only a preview (at most 30% and 300 characters, none under 150; `ComprehensiveAnalysis:Teaser*`). The tool text
+is a fixed card for the latest analysis only: `### <title>`, «تاریخ انتشار: <date>», the preview, «متن کامل این تحلیل را
+در بخش تحلیل جامع، تحلیل اپ بخوانید» and `[ادامهٔ این تحلیل در تحلیل‌اپ](<ComprehensiveAnalysis:TahlilAppAnalysesUrl>)`.
+When nothing matches: «برای نماد X تحلیلی در تحلیل‌اپ پیدا نشد.» plus `[تحلیل‌های جامع تحلیل‌اپ](<url>)`.
+
 **IMPORTANT — topic matching:** Topics are stored by `TagName` (underscore slug), not `TagSlug`. Always use the exact slug strings above.
 
 ---

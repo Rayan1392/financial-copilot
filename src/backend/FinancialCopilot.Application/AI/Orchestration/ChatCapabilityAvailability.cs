@@ -13,6 +13,12 @@ public sealed class FinancialDataOptions
 
     // C1/C1-M exclusion of legacy and mixed CyclicalWaves-derived DerivedMetrics is permanent and has no setting.
     public FinancialDataChatProvider ChatProvider { get; set; } = FinancialDataChatProvider.NoavaranAmin;
+
+    /// <summary>
+    /// Feature 162: capability route code → provider name, for routes in <see cref="ChatCapabilitySourceMap.OverridableRoutes"/>
+    /// only. Empty values mean "not overridden". Validated by <see cref="ChatCapabilitySourceMap"/>.
+    /// </summary>
+    public Dictionary<string, string?> CapabilitySources { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public enum ChatCapabilityAvailabilityStatus
@@ -36,7 +42,11 @@ public sealed record ChatCapabilityAvailabilityOutcome(
 
 public interface IChatCapabilityAvailability
 {
+    /// <summary>The base provider mode (<c>FinancialData:ChatProvider</c>).</summary>
     FinancialDataChatProvider Provider { get; }
+
+    /// <summary>The provider that answers <paramref name="executionRoute"/>: its override, otherwise <see cref="Provider"/>.</summary>
+    FinancialDataChatProvider SourceFor(string executionRoute);
 
     /// <param name="executionRoute">A <see cref="CapabilityExecutionRoutes"/> code.</param>
     ChatCapabilityAvailabilityOutcome Evaluate(string executionRoute);
@@ -46,8 +56,14 @@ public interface IChatCapabilityAvailability
 /// The single owner of which Chat capabilities each provider mode may answer (design §10.1).
 /// There is no fallback between providers: an unavailable capability gets an explicit answer.
 /// </summary>
-public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provider) : IChatCapabilityAvailability
+public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provider, ChatCapabilitySourceMap sources)
+    : IChatCapabilityAvailability
 {
+    public ChatCapabilityAvailability(FinancialDataChatProvider provider)
+        : this(provider, ChatCapabilitySourceMap.Empty)
+    {
+    }
+
     public const string RetiredReasonCode = "capability_retired";
     public const string UnavailableForProviderReasonCode = "capability_unavailable_for_provider";
     public const string ComprehensiveAnalysisUnavailableReasonCode = "comprehensive_analysis_unavailable";
@@ -98,6 +114,9 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
 
     public FinancialDataChatProvider Provider { get; } = provider;
 
+    public FinancialDataChatProvider SourceFor(string executionRoute) =>
+        sources.TryGetSource(executionRoute, out var source) ? source : Provider;
+
     public ChatCapabilityAvailabilityOutcome Evaluate(string executionRoute)
     {
         if (RetiredRoutes.Contains(executionRoute))
@@ -105,9 +124,10 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
             return Retired;
         }
 
-        return Provider switch
+        // Feature 162: an overridden capability is judged by its own source's matrix.
+        return SourceFor(executionRoute) switch
         {
-            // C2: NoavaranAmin mode reads neither the legacy nor the v2 analysis tables.
+            // C2: while comprehensive analysis is sourced from NoavaranAmin, neither the legacy nor the v2 analysis tables are read.
             FinancialDataChatProvider.NoavaranAmin when executionRoute == CapabilityExecutionRoutes.ComprehensiveAnalysis =>
                 ComprehensiveAnalysisUnavailable,
             FinancialDataChatProvider.NoavaranAmin => ChatCapabilityAvailabilityOutcome.Available,

@@ -42,7 +42,13 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
             .BindConfiguration(FinancialDataOptions.SectionName)
             .Validate(options => Enum.IsDefined(options.ChatProvider), "FinancialData:ChatProvider must be NoavaranAmin or CyclicalWaves.")
             .ValidateOnStart();
-        services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(financialData.ChatProvider));
+        // Feature 162: an invalid capability source map fails composition, so the host never starts with it.
+        var capabilitySources = ChatCapabilitySourceMap.Create(financialData);
+        services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(financialData.ChatProvider, capabilitySources));
+        services.AddOptions<ComprehensiveAnalysisPresentationOptions>()
+            .BindConfiguration(ComprehensiveAnalysisPresentationOptions.SectionName)
+            .Validate(options => options.IsValid(out _), "ComprehensiveAnalysis settings are invalid: TahlilAppAnalysesUrl must be absolute https, TeaserPercent 1-50, TeaserMaxCharacters 20-1000, TeaserMinimumSourceCharacters 0-2000.")
+            .ValidateOnStart();
 
         AddLegacyRetirement(services);
         AddProvider(services);
@@ -61,6 +67,13 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
             services.Replace(ServiceDescriptor.Scoped<IComprehensiveAnalysisQueryUseCase, CyclicalWavesV2ComprehensiveAnalysisQuery>());
             services.Replace(ServiceDescriptor.Scoped<IScannerExecutionService, CyclicalWavesV2ScannerExecutionService>());
             services.Replace(ServiceDescriptor.Scoped<IPsVisualizationExperienceUseCase, CyclicalWavesV2PsGaugeVisualizationUseCase>());
+        }
+        else if (capabilitySources.TryGetSource(CapabilityExecutionRoutes.ComprehensiveAnalysis, out var analysisSource) &&
+                 analysisSource == FinancialDataChatProvider.CyclicalWaves)
+        {
+            // Feature 162: comprehensive analysis alone reads the v2 analysis tables; every other NoavaranAmin
+            // registration stays untouched.
+            services.Replace(ServiceDescriptor.Scoped<IComprehensiveAnalysisQueryUseCase, CyclicalWavesV2ComprehensiveAnalysisQuery>());
         }
         else
         {

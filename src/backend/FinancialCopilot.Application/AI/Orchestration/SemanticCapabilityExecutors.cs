@@ -620,7 +620,8 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         if (symbols.Length == 0) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
         var topics = SplitValues(frame.Value(QuerySlotType.AnalysisTopic));
         var fromDate = ParseDateTimeOffset(frame.Value(QuerySlotType.Period));
-        var limit = Math.Clamp(ParseInt(frame.Value(QuerySlotType.ResultLimit)) ?? 3, 1, 5);
+        // Feature 162 change «latest-analysis-teaser»: the answer shows the latest analysis only.
+        const int limit = 1;
 
         var analysisTask = TryExecuteAsync(
             () => useCase.ExecuteAsync(
@@ -657,7 +658,9 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         if ((analysisAttempt.Failed && !hasMetrics) || (lookupAttempt.Failed && !hasAnalysis))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
                 DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
-        if (!hasAnalysis && !hasMetrics) return NoData(frame, payload);
+        // Feature 162 (FR7): no analysis for the symbol is a no-data answer, free, even when context metrics exist;
+        // the payload still carries the metrics and the "no analysis found" card.
+        if (!hasAnalysis && !analysisAttempt.Failed) return NoData(frame, payload);
         return hasAnalysis && hasMetrics
             ? Success(frame, payload)
             : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Partial,

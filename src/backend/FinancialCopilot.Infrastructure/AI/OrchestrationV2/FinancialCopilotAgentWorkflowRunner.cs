@@ -14,6 +14,7 @@ using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2;
 
@@ -37,8 +38,12 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider,
-    ISalesGrowthScannerTelemetrySink? salesGrowthTelemetry = null)
+    ISalesGrowthScannerTelemetrySink? salesGrowthTelemetry = null,
+    IOptions<ComprehensiveAnalysisPresentationOptions>? comprehensiveAnalysisPresentation = null)
 {
+    private string AnalysesUrl => comprehensiveAnalysisPresentation?.Value.TahlilAppAnalysesUrl
+        ?? ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;
+
     // Mutable state captured by tool closures; one instance per RunAsync call.
     private sealed class OrchestrationState
     {
@@ -115,10 +120,10 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             {
                 string text => text,
                 Workflow.Feature141ChatAnswer feature141 => feature141.Text,
-                ComprehensiveAnalysisQueryResponse analysis => ComprehensiveAnalysisToolResult.Success(analysis).AgentSummary,
+                ComprehensiveAnalysisQueryResponse analysis => ComprehensiveAnalysisToolResult.Success(analysis, AnalysesUrl).AgentSummary,
                 SemanticComprehensiveAnalysisPayload combined when combined.Lookup.Rows.Count > 0 =>
-                    $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary}",
-                SemanticComprehensiveAnalysisPayload combined => ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary,
+                    $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis, AnalysesUrl).AgentSummary}",
+                SemanticComprehensiveAnalysisPayload combined => ComprehensiveAnalysisToolResult.Success(combined.Analysis, AnalysesUrl).AgentSummary,
                 IndustryRelativeValuationPayload relative => relative.PresentationText,
                 SymbolSnapshotResult snapshot => SymbolSnapshotTextComposer.Compose(snapshot),
                 _ => null

@@ -10,8 +10,13 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-11
+
+دستیار برای «تحلیل جامع» یک نماد، آخرین تحلیل تحلیل‌اپ را معرفی می‌کند و ربات تلگرام اتصال حساب را روشن‌تر مدیریت می‌کند.
+
 ### Added
 
+- پرسش «تحلیل جامع»، «تحلیل» یا «تحلیل بنیادی» یک نماد، آخرین تحلیل تحلیل‌اپ دربارهٔ آن نماد را با عنوان، تاریخ انتشار و بخش کوتاهی از ابتدای متن نشان می‌دهد و برای خواندن متن کامل به بخش تحلیل جامع تحلیل‌اپ پیوند می‌دهد. اگر تحلیلی نباشد همین را می‌گوید و اعتباری کم نمی‌شود.
 - دستور ‎/unlink در ربات تلگرام برای قطع اتصال حساب تلگرام از ساپیو، فقط در گفت‌وگوی خصوصی با ربات.
 
 ### Fixed
@@ -214,7 +219,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.7.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.8.0...develop
+[1.8.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.4.0...v1.5.0

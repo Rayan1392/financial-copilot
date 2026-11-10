@@ -6,12 +6,14 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Telegram;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramAssistantResponseRenderer(
     ITelegramMonthlyTrendChartRenderer monthlyTrendChartRenderer,
-    ILogger<TelegramAssistantResponseRenderer> logger) : ITelegramAssistantResponseRenderer
+    ILogger<TelegramAssistantResponseRenderer> logger,
+    IOptions<ComprehensiveAnalysisPresentationOptions>? comprehensiveAnalysisPresentation = null) : ITelegramAssistantResponseRenderer
 {
     private const int TelegramMessageLimit = 3900;
     private const int TelegramPhotoCaptionLimit = 1024;
@@ -56,12 +58,16 @@ public sealed class TelegramAssistantResponseRenderer(
         var builder = new StringBuilder();
         var isSingleSymbolLookup = response.SymbolLookupTable is { Rows.Count: 1 } &&
                                    response.ScannerTable is null;
+        // Feature 162: the text answer of an analysis turn is the markdown card; Telegram renders the plain card once
+        // instead, also after a single-symbol stock card.
+        var isAnalysisTurn = response.ComprehensiveAnalysisResult is not null &&
+                             response.SemanticCapabilityCode == CapabilityExecutionRoutes.ComprehensiveAnalysis;
 
         if (response.ClarificationRequired && !string.IsNullOrWhiteSpace(response.ClarificationMessage))
         {
             builder.AppendLine(response.ClarificationMessage);
         }
-        else if (!isSingleSymbolLookup && !string.IsNullOrWhiteSpace(response.TextAnswer))
+        else if (!isSingleSymbolLookup && !isAnalysisTurn && !string.IsNullOrWhiteSpace(response.TextAnswer))
         {
             if (TryFormatIndustryComparison(response.TextAnswer, out var comparison))
             {
@@ -120,9 +126,18 @@ public sealed class TelegramAssistantResponseRenderer(
         }
         else
         {
-            AppendAnalysis(builder, response);
+            if (!isAnalysisTurn)
+            {
+                AppendAnalysis(builder, response);
+            }
+
             AppendLookupRows(builder, response.SymbolLookupTable);
             AppendScannerRows(builder, response.ScannerTable);
+        }
+
+        if (isAnalysisTurn)
+        {
+            AppendAnalysisCard(builder, response.ComprehensiveAnalysisResult!);
         }
 
         AppendConfidence(builder, response);
@@ -687,6 +702,15 @@ public sealed class TelegramAssistantResponseRenderer(
             builder.AppendLine($"منبع: ComprehensiveAnalyses | نویسنده: {item.AuthorName}");
             builder.AppendLine();
         }
+    }
+
+    private void AppendAnalysisCard(StringBuilder builder, ComprehensiveAnalysisQueryResponse analysis)
+    {
+        var analysesUrl = comprehensiveAnalysisPresentation?.Value.TahlilAppAnalysesUrl
+                          ?? ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;
+        builder.AppendLine();
+        builder.AppendLine(ComprehensiveAnalysisCardComposer.ComposePlainText(
+            analysis.Items.Take(3).ToList(), analysis.UnresolvedSymbols, analysesUrl));
     }
 
     private static void AppendConfidence(StringBuilder builder, AiQueryResponse response)

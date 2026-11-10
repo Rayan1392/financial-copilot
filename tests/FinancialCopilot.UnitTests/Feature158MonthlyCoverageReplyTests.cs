@@ -22,7 +22,7 @@ public sealed class Feature158MonthlyCoverageReplyTests
 
     [Theory]
     [InlineData("ساختمانی", "construction")]
-    [InlineData("سرمایه‌گذاری", "investment")]
+    [InlineData("سرمایه‌گذاری و هلدینگ", "investment")]
     [InlineData("بانکی", "banking")]
     [InlineData("لیزینگی", "leasing")]
     [InlineData("بیمه‌ای", "insurance")]
@@ -124,7 +124,7 @@ public sealed class Feature158MonthlyCoverageReplyTests
 
     [Theory]
     [InlineData(1_000_001, "ساختمانی", "construction")]
-    [InlineData(1_000_002, "سرمایه‌گذاری", "investment")]
+    [InlineData(1_000_002, "سرمایه‌گذاری و هلدینگ", "investment")]
     [InlineData(1_000_003, "بانکی", "banking")]
     [InlineData(1_000_004, "لیزینگی", "leasing")]
     [InlineData(1_000_006, "بیمه‌ای", "insurance")]

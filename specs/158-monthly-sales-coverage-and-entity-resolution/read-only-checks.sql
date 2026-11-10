@@ -59,7 +59,7 @@ oth AS (
   FROM t LEFT JOIN c ON t.s IN (c.kt,c.ks,c.kc) GROUP BY t.s)
 SELECT o.s, p."ExternalCompanyId", p."ReportingType", p.elig,
        o.noavaran_rows, o.eligible_rows, o.other_ticker_rows, o.other_symbol_rows,
-       CASE p."ReportingType" WHEN 1000001 THEN 'ساختمانی' WHEN 1000002 THEN 'سرمایه‌گذاری' WHEN 1000003 THEN 'بانکی'
+       CASE p."ReportingType" WHEN 1000001 THEN 'ساختمانی' WHEN 1000002 THEN 'سرمایه‌گذاری و هلدینگ' WHEN 1000003 THEN 'بانکی'
             WHEN 1000004 THEN 'لیزینگی' WHEN 1000006 THEN 'بیمه‌ای' WHEN 1000007 THEN 'حمل و نقل دریایی'
             WHEN 1000009 THEN 'تأمین سرمایه' END category_fa,
        CASE WHEN o.noavaran_ticker_rows>1 THEN 'ambiguous_ticker'

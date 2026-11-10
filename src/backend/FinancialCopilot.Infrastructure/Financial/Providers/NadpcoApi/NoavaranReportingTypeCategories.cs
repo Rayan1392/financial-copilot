@@ -11,7 +11,7 @@ internal static class NoavaranReportingTypeCategories
         new Dictionary<int, (string Fa, string En)>
         {
             [1_000_001] = ("ساختمانی", "construction"),
-            [1_000_002] = ("سرمایه‌گذاری", "investment"),
+            [1_000_002] = ("سرمایه‌گذاری و هلدینگ", "investment"),
             [1_000_003] = ("بانکی", "banking"),
             [1_000_004] = ("لیزینگی", "leasing"),
             [1_000_006] = ("بیمه‌ای", "insurance"),

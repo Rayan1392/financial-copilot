@@ -122,5 +122,5 @@ Guard tests, which pass today and must keep passing:
 - [x] For frontend work: not applicable.
 - [ ] Acceptance criteria in `user-story.md` all checked.
 - [~] Reference docs updated: `specs/README.md` index entry (lead-owned; proposed text handed over), affected `docs/*.md` and `README.md` sections.
-- [~] User-visible change: a Persian, user-facing line under `## [Unreleased]` in `CHANGELOG.md` (lead-owned; proposed text handed over; see `AGENTS.md`, "Versions and Releases").
+- [x] User-visible change: a Persian, user-facing line under `## [Unreleased]` in `CHANGELOG.md` (lead-owned; proposed text handed over; see `AGENTS.md`, "Versions and Releases").
 - [~] New questions → `specs/open-questions.md`; deferred work → `specs/backlog.md`; defects found → `specs/bugs.md` (all lead-owned; proposed text handed over).

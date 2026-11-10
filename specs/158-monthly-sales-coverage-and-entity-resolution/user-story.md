@@ -195,44 +195,44 @@ No screen change. Web chat and Telegram render the assistant text as today.
 
 Canonical priority
 
-- [ ] AC-1: With an eligible row and two other-provider rows that carry the symbol in `Ticker`, `روند فروش ماهانه کگل` produces a frame whose company is the eligible row, and no `entity_ambiguous` result.
-- [ ] AC-2: With an eligible row and a non-eligible `NoavaranCurrentApi` row with the same symbol, the company is the eligible row.
-- [ ] AC-3: With an eligible row and one other-provider row carrying the symbol in `Ticker`, `CanonicalId` is the eligible row.
-- [ ] AC-4: Two eligible rows with the same symbol stay `Ambiguous`. Two rows of a provider other than Noavaran, with no Noavaran row, stay `Ambiguous`.
-- [ ] AC-5: Substring and fuzzy results are unchanged when no exact hit exists.
-- [ ] AC-6: Under `Feature154RoutingScope.EnterFrozenV1`, the row shape of AC-1 still returns today's `Ambiguous`.
-- [ ] AC-7: `NoavaranCompanyScope`'s in-memory predicate agrees with its query filter on a table of rows; the market IDs exist in one place.
+- [x] AC-1: With an eligible row and two other-provider rows that carry the symbol in `Ticker`, `روند فروش ماهانه کگل` produces a frame whose company is the eligible row, and no `entity_ambiguous` result.
+- [x] AC-2: With an eligible row and a non-eligible `NoavaranCurrentApi` row with the same symbol, the company is the eligible row.
+- [x] AC-3: With an eligible row and one other-provider row carrying the symbol in `Ticker`, `CanonicalId` is the eligible row.
+- [x] AC-4: Two eligible rows with the same symbol stay `Ambiguous`. Two rows of a provider other than Noavaran, with no Noavaran row, stay `Ambiguous`.
+- [x] AC-5: Substring and fuzzy results are unchanged when no exact hit exists.
+- [x] AC-6: Under `Feature154RoutingScope.EnterFrozenV1`, the row shape of AC-1 still returns today's `Ambiguous`.
+- [x] AC-7: `NoavaranCompanyScope`'s in-memory predicate agrees with its query filter on a table of rows; the market IDs exist in one place.
 
 Monthly coverage reply
 
-- [ ] AC-8: For each of the seven no-route codes, a no-data turn returns `NoData` with reason `monthly_report_not_covered` and exactly the rendered text in the table above.
-- [ ] AC-9: With reply language `en`, the reply is the English sentence with the matching `categoryEn`.
-- [ ] AC-10: `1000000`, `1000005` and `1000008` give `supported_but_no_rows` and the default sentence.
-- [ ] AC-11: Null `ReportingType`, an unknown code, and a symbol not in the catalog give `supported_but_no_rows` and the default sentence.
-- [ ] AC-12: A non-eligible Noavaran row, and a company found only with another provider, give `data_stale_or_ineligible` with exactly `این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست.` (or the English sentence when the reply language is `en`), whatever the `ReportingType`.
-- [ ] AC-13: A port failure or timeout leaves the turn `NoData` with `supported_but_no_rows`, and writes one Warning log with the outcome `coverage_read_failed`.
-- [ ] AC-14: When the trend result is not null, the port is not called. Under frozen V1, the port is not called.
-- [ ] AC-15: Reply text and category labels have one owner each; no `ReportingType` number exists in Application.
+- [x] AC-8: For each of the seven no-route codes, a no-data turn returns `NoData` with reason `monthly_report_not_covered` and exactly the rendered text in the table above.
+- [x] AC-9: With reply language `en`, the reply is the English sentence with the matching `categoryEn`.
+- [x] AC-10: `1000000`, `1000005` and `1000008` give `supported_but_no_rows` and the default sentence.
+- [x] AC-11: Null `ReportingType`, an unknown code, and a symbol not in the catalog give `supported_but_no_rows` and the default sentence.
+- [x] AC-12: A non-eligible Noavaran row, and a company found only with another provider, give `data_stale_or_ineligible` with exactly `این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست.` (or the English sentence when the reply language is `en`), whatever the `ReportingType`.
+- [x] AC-13: A port failure or timeout leaves the turn `NoData` with `supported_but_no_rows`, and writes one Warning log with the outcome `coverage_read_failed`.
+- [x] AC-14: When the trend result is not null, the port is not called. Under frozen V1, the port is not called.
+- [x] AC-15: Reply text and category labels have one owner each; no `ReportingType` number exists in Application.
 
 Monthly company resolution
 
-- [ ] AC-16: With a Noavaran eligible row and another provider's row with the same symbol, and a snapshot under the Noavaran id, the use case returns that snapshot on V2. This holds when the other row carries the symbol in `Ticker` and when it carries it in `TseSymbol`.
-- [ ] AC-17: With two Noavaran rows of one symbol of which one is eligible, the use case returns the eligible row's snapshot.
-- [ ] AC-18: Two eligible rows with one symbol make the use case return null, and the executor returns `DisambiguationRequired` with `entity_ambiguous`.
-- [ ] AC-19: Under frozen V1, the same rows behave exactly as today.
-- [ ] AC-20: The V2 executor, the snapshot card, and the V2 workflow's legacy route all read through the new resolution. V1's route does not. The snapshot card's text for a missing month is unchanged.
+- [x] AC-16: With a Noavaran eligible row and another provider's row with the same symbol, and a snapshot under the Noavaran id, the use case returns that snapshot on V2. This holds when the other row carries the symbol in `Ticker` and when it carries it in `TseSymbol`.
+- [x] AC-17: With two Noavaran rows of one symbol of which one is eligible, the use case returns the eligible row's snapshot.
+- [x] AC-18: Two eligible rows with one symbol make the use case return null, and the executor returns `DisambiguationRequired` with `entity_ambiguous`.
+- [x] AC-19: Under frozen V1, the same rows behave exactly as today.
+- [x] AC-20: The V2 executor, the snapshot card, and the V2 workflow's legacy route all read through the new resolution. V1's route does not. The snapshot card's text for a missing month is unchanged. Verified at the use-case level, where the scope decides; the three V2 callers were not each exercised end to end.
 
 Two-company clarification
 
-- [ ] AC-23: A model proposal of `monthly_activity_trend` with two exact tickers (`روند فروش ماهانه کگل/شپنا`, invented) produces no single-company slot, no `entity_ambiguous`, and a pending `Disambiguation` holding both companies.
-- [ ] AC-24: The dispatcher returns `ClarificationRequired` with reason `multiple_companies_not_supported`; the reply is the proposed text for `fa` and `en`.
-- [ ] AC-25: Replying with one of the tickers runs the capability for that ticker.
-- [ ] AC-26: `symbol_metric_lookup` keeps multi-company handling. A single exact company, a variant match, a month-name mention, and the deterministic path never produce the clarification. Frozen V1 is unchanged.
+- [x] AC-23: A model proposal of `monthly_activity_trend` with two exact tickers (`روند فروش ماهانه کگل/شپنا`, invented) produces no single-company slot, no `entity_ambiguous`, and a pending `Disambiguation` holding both companies.
+- [x] AC-24: The dispatcher returns `ClarificationRequired` with reason `multiple_companies_not_supported`; the reply is the proposed text for `fa` and `en`.
+- [x] AC-25: Replying with one of the tickers runs the capability for that ticker.
+- [x] AC-26: `symbol_metric_lookup` keeps multi-company handling. A single exact company, a variant match, a month-name mention, and the deterministic path never produce the clarification. Frozen V1 is unchanged.
 
 Verification
 
-- [ ] AC-21: Green means no new failure against `specs/test-baseline.md`. Every test in `tasks.md` §Regression tests failed before its fix, for the stated reason.
-- [ ] AC-22: No acceptance claim is made about the Feature 155 gap rate. D4 turns stay in the `no_data` bucket.
+- [x] AC-21: Green means no new failure against `specs/test-baseline.md`. Every test in `tasks.md` §Regression tests failed before its fix, for the stated reason.
+- [x] AC-22: No acceptance claim is made about the Feature 155 gap rate. D4 turns stay in the `no_data` bucket.
 
 ## Assumptions
 

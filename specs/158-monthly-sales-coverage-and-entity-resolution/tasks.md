@@ -10,10 +10,10 @@ Gate A covers D3 (canonical priority and, by the owner's decision OQ-061 option 
 
 ## Before Starting
 
-- [ ] This file's `Status:` line records Gate B approval by the owner (see `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`, "Recording Approval").
-- [ ] The features in `Depends On` are done: none.
-- [ ] Read `user-story.md`, the references it lists, and `.claude/rules/*`.
-- [ ] No open question in `specs/open-questions.md` blocks this spec. OQ-030 does not block; no acceptance claim depends on it.
+- [x] This file's `Status:` line records Gate B approval by the owner (see `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`, "Recording Approval").
+- [x] The features in `Depends On` are done: none.
+- [x] Read `user-story.md`, the references it lists, and `.claude/rules/*`.
+- [x] No open question in `specs/open-questions.md` blocks this spec. OQ-030 does not block; no acceptance claim depends on it.
 
 ## Planning clarifications (presented for Gate B)
 
@@ -157,8 +157,8 @@ New file `tests/FinancialCopilot.UnitTests/Feature158MonthlyCoverageReplyTests.c
 
 Adapter tests, in the same file, added with the adapter in 4.2 because the type does not exist before it:
 
-- [ ] 2.15 `Adapter_MapsSevenCodesToCategories`, `Adapter_MapsSupportedMissingUnknownAndNotEligible`, including a company found only with another provider → `OutsideScope`.
-- [ ] 2.16 `Adapter_ReadFailure_LogsWarningAndReturnsUnknown`, using a disposed context and a recording logger. Asserts one Warning with `coverage_read_failed`.
+- [x] 2.15 `Adapter_MapsSevenCodesToCategories`, `Adapter_MapsSupportedMissingUnknownAndNotEligible`, including a company found only with another provider → `OutsideScope`.
+- [x] 2.16 `Adapter_ReadFailure_LogsWarningAndReturnsUnknown`, using a disposed context and a recording logger. Asserts one Warning with `coverage_read_failed`.
 - [x] 2.17 `Reply_RendersThroughOutcomePolicy`: `ComposeSystemMessage` with the text as detail returns it for `fa` and `en`.
 
 New file `tests/FinancialCopilot.UnitTests/Feature158MultipleCompanyClarificationTests.cs`, using the real gate, resolver and dispatcher validation with a model-proposal stub:
@@ -172,26 +172,26 @@ New file `tests/FinancialCopilot.UnitTests/Feature158MultipleCompanyClarificatio
 
 ### 3. Canonical priority and two-company clarification (D3)
 
-- [ ] 3.1 In `CanonicalQueryEntityResolver.ResolveMentionAsync`, on `IsActive` run the exact steps per tier T1, T2, T3. Inject `Feature154RoutingScope?` like the other shared components. Keep today's code path for the inactive scope.
-- [ ] 3.2 Tests 2.1 to 2.5 pass. Review the existing tests one by one, as listed above.
-- [ ] 3.3 In `ConversationDialogueGate.PrepareAsync`, on `IsActive`, add the two-company check and pending disambiguation. In `SemanticCapabilityDispatcher.Validate`, return `ClarificationRequired` with the new reason. Add the Persian and English arms in `AiDialogueOutcomePolicy`. Tests 2.18 to 2.23 pass.
+- [x] 3.1 In `CanonicalQueryEntityResolver.ResolveMentionAsync`, on `IsActive` run the exact steps per tier T1, T2, T3. Inject `Feature154RoutingScope?` like the other shared components. Keep today's code path for the inactive scope.
+- [x] 3.2 Tests 2.1 to 2.5 pass. Review the existing tests one by one, as listed above.
+- [x] 3.3 In `ConversationDialogueGate.PrepareAsync`, on `IsActive`, add the two-company check and pending disambiguation. In `SemanticCapabilityDispatcher.Validate`, return `ClarificationRequired` with the new reason. Add the Persian and English arms in `AiDialogueOutcomePolicy`. Tests 2.18 to 2.23 pass.
 
 ### 4. Monthly resolution and coverage (D5, D4)
 
-- [ ] 4.1 Add the Infrastructure canonical monthly company resolver: eligible exact match, then `ResolveAsync`. Register it. `MonthlyActivityTrendQueryUseCase` takes it as a required dependency and `Feature154RoutingScope?` as an optional one. Update the `CreateUseCase` helper in `MonthlyActivityTrendStaleComparisonBug076Tests.cs` to pass it (constructor only; assertions unchanged). Tests 2.6 to 2.9 pass.
-- [ ] 4.2 Add `NoavaranReportingTypeCategories` beside `NoavaranMonthlyReportTypeResolver`, and `NoavaranMonthlyReportCoverageReader`. Register the reader for all chat modes. Tests 2.15 and 2.16 pass.
-- [ ] 4.3 In `MonthlyActivityTrendCapabilityExecutor`, take `IMonthlyReportCoverageReader` as a required dependency and `Feature154RoutingScope?` as optional. Map coverage as in `user-story.md`. Update the two constructor sites in `SemanticRouteExecutorTests.cs` (constructor only; assertions unchanged).
-- [ ] 4.4 Add `AiDialogueOutcomePolicy.ComposeMonthlyReportNotCovered(language, categoryFa, categoryEn, symbol)` and `ComposeMonthlyReportOutsideScope(language)`. Tests 2.10 to 2.14 and 2.17 pass.
+- [x] 4.1 Add the Infrastructure canonical monthly company resolver: eligible exact match, then `ResolveAsync`. Register it. `MonthlyActivityTrendQueryUseCase` takes it as a required dependency and `Feature154RoutingScope?` as an optional one. Update the `CreateUseCase` helper in `MonthlyActivityTrendStaleComparisonBug076Tests.cs` to pass it (constructor only; assertions unchanged). Tests 2.6 to 2.9 pass.
+- [x] 4.2 Add `NoavaranReportingTypeCategories` beside `NoavaranMonthlyReportTypeResolver`, and `NoavaranMonthlyReportCoverageReader`. Register the reader for all chat modes. Tests 2.15 and 2.16 pass.
+- [x] 4.3 In `MonthlyActivityTrendCapabilityExecutor`, take `IMonthlyReportCoverageReader` as a required dependency and `Feature154RoutingScope?` as optional. Map coverage as in `user-story.md`. Update the two constructor sites in `SemanticRouteExecutorTests.cs` (constructor only; assertions unchanged).
+- [x] 4.4 Add `AiDialogueOutcomePolicy.ComposeMonthlyReportNotCovered(language, categoryFa, categoryEn, symbol)` and `ComposeMonthlyReportOutsideScope(language)`. Tests 2.10 to 2.14 and 2.17 pass.
 
 ### 5. Read-only verification (no connection in this step)
 
 No DSN exists. No connection is attempted from this plan. Per-symbol causes stay Unverified until the lead runs the checks.
 
-- [ ] 5.1 `read-only-checks.sql` C2 now reports `noavaran_rows`, `eligible_rows`, `other_symbol_rows`, `category_fa`, `resolver_today`, and label F uses any other-provider symbol match. Reviewed by reading; not executed.
-- [ ] 5.2 When the owner provides a read-only DSN, the lead runs the file with the read-only session options in its header. Output is not committed with connection details.
-- [ ] 5.3 From C2, write `specs/158-.../evidence/symbol-causes.md`: one row per symbol, with symbol, label, plain reason (table below), `category_fa` where present, and the follow-up. Only public tickers, company names, and counts; no customer text. For فملی and فولاد, record `resolver_today` and `noavaran_rows`.
-- [ ] 5.4 From C3, record how many eligible companies each `ReportingType` covers, and how many symbols are affected by `ambiguous_on_ticker` and `one_other_ticker_row`.
-- [ ] 5.5 Report to the owner. Mark this group `[~]` if no DSN is provided.
+- [~] 5.1 `read-only-checks.sql` C2 now reports `noavaran_rows`, `eligible_rows`, `other_symbol_rows`, `category_fa`, `resolver_today`, and label F uses any other-provider symbol match. Reviewed by reading; not executed.
+- [~] 5.2 When the owner provides a read-only DSN, the lead runs the file with the read-only session options in its header. Output is not committed with connection details.
+- [~] 5.3 From C2, write `specs/158-.../evidence/symbol-causes.md`: one row per symbol, with symbol, label, plain reason (table below), `category_fa` where present, and the follow-up. Only public tickers, company names, and counts; no customer text. For فملی and فولاد, record `resolver_today` and `noavaran_rows`.
+- [~] 5.4 From C3, record how many eligible companies each `ReportingType` covers, and how many symbols are affected by `ambiguous_on_ticker` and `one_other_ticker_row`.
+- [~] 5.5 Report to the owner. Mark this group `[~]` if no DSN is provided.
 
 | C2 label | Plain reason for the owner's list | Reply after this feature | Follow-up |
 |---|---|---|---|
@@ -209,18 +209,18 @@ No DSN exists. No connection is attempted from this plan. Per-symbol causes stay
 
 ## Tests
 
-- [ ] All tests in §2 pass; each was seen failing for its stated reason, or is a named guard.
-- [ ] `tests/FinancialCopilot.ArchitectureTests`: no new failure. Application references no Infrastructure and holds no `ReportingType` number.
+- [x] All tests in §2 pass; each was seen failing for its stated reason, or is a named guard. 2.15 and 2.16 were added with the adapter, as planned. `Composition_WiresTheMonthlyExecutorAndItsCoverageReader` was added as a wiring guard.
+- [x] `tests/FinancialCopilot.ArchitectureTests`: no new failure. Application references no Infrastructure and holds no `ReportingType` number.
 
 ## Definition Of Done
 
-- [ ] `dotnet test src/backend/FinancialCopilot.sln --configuration Release` green: no failure outside `specs/test-baseline.md`.
-- [ ] For database work: not applicable, no migration.
-- [ ] For frontend work: not applicable.
-- [ ] Acceptance criteria in `user-story.md` all checked, or marked with the reason. §5 may stay `[~]` until a DSN exists.
-- [ ] Reference docs updated: `docs/company-master-data-model.md` and `docs/domain-glossary.md` (coverage terms). `specs/README.md` entry updated by the lead.
-- [ ] User-visible change: a Persian line under `## [Unreleased]` in `CHANGELOG.md`, by the lead.
-- [ ] New questions → `specs/open-questions.md`; deferred work → `specs/backlog.md`; defects found → `specs/bugs.md`, by the lead.
+- [~] `dotnet test src/backend/FinancialCopilot.sln --configuration Release`: solution builds; unit and architecture tests have no failure outside `specs/test-baseline.md`. PostgreSQL integration tests not run here (queued by the lead).
+- [x] For database work: not applicable, no migration.
+- [x] For frontend work: not applicable.
+- [x] Acceptance criteria in `user-story.md` all checked, or marked with the reason. §5 may stay `[~]` until a DSN exists.
+- [~] Reference docs updated: `docs/company-master-data-model.md` and `docs/domain-glossary.md` (coverage terms) done. `specs/README.md` entry updated by the lead.
+- [~] User-visible change: a Persian line under `## [Unreleased]` in `CHANGELOG.md`, by the lead (proposed text handed back).
+- [~] New questions → `specs/open-questions.md`; deferred work → `specs/backlog.md`; defects found → `specs/bugs.md`, by the lead (proposed text handed back).
 
 ## Risks
 

@@ -15,6 +15,15 @@ public sealed record CanonicalQueryIndustry(
     string ProviderName,
     string IdentityProvenance);
 
+public static class EntityResolutionMatchKinds
+{
+    public const string ExactTicker = "exact_ticker";
+    public const string ExactCompanyName = "exact_company_name";
+    public const string ApprovedAlias = "approved_alias";
+
+    public static bool IsExact(string matchKind) => matchKind is ExactTicker or ExactCompanyName or ApprovedAlias;
+}
+
 public sealed record EntityResolutionEvidence(
     string MatchKind,
     decimal Confidence,

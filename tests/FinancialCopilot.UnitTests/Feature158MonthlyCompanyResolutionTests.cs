@@ -119,8 +119,13 @@ public sealed class Feature158MonthlyCompanyResolutionTests
             CalculatedAtUtc = DateTimeOffset.UtcNow
         });
 
-    private static MonthlyActivityTrendQueryUseCase CreateUseCase(FinancialIngestionDbContext db) =>
-        new(new CompanyResolverService(db, NullLogger<CompanyResolverService>.Instance),
+    private static MonthlyActivityTrendQueryUseCase CreateUseCase(FinancialIngestionDbContext db)
+    {
+        var resolver = new CompanyResolverService(db, NullLogger<CompanyResolverService>.Instance);
+        return new(
+            resolver,
+            new CanonicalMonthlyCompanyResolver(db, resolver),
             new EfCoreCompanyMonthlyActivityTrendSnapshotRepository(db),
             NullLogger<MonthlyActivityTrendQueryUseCase>.Instance);
+    }
 }

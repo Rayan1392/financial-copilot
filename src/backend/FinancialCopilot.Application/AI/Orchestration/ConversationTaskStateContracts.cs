@@ -5,6 +5,7 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.Semantics.Intent;
 
 public enum PendingDialogueActionKind { Clarification, Disambiguation }
 
@@ -235,7 +236,7 @@ public sealed class ConversationDialogueGate(
                 validatedFrameSlots,
                 timeProvider.GetUtcNow()).ToArray();
         IndustryRelativeValuationResolution? relativeResolution = null;
-        PendingDialogueAction? relativePendingAction = null;
+        PendingDialogueAction? pendingCompanyAction = null;
         if (industryRelativeValuationResolver is not null && IsIndustryRelativeValuationCapability(capability))
         {
             relativeResolution = await industryRelativeValuationResolver.ResolveAsync(capability!, interpretation, cancellationToken);
@@ -294,7 +295,7 @@ public sealed class ConversationDialogueGate(
                         Guid.Empty,
                         0))
                     .ToArray();
-                relativePendingAction = new(
+                pendingCompanyAction = new(
                     validation == QuerySlotValidationState.Ambiguous ? PendingDialogueActionKind.Disambiguation : PendingDialogueActionKind.Clarification,
                     expected,
                     candidateSlots,
@@ -302,6 +303,22 @@ public sealed class ConversationDialogueGate(
                     Guid.Empty,
                     0);
             }
+        }
+        if (pendingCompanyAction is null &&
+            await TryBuildMultipleCompanyClarificationAsync(capability, interpretation, cancellationToken) is { } multipleCompanies)
+        {
+            validatedFrameSlots = validatedFrameSlots
+                .Where(slot => slot.Type != QuerySlotType.CompanyOrSymbol)
+                .Append(new ResolvedQuerySlot(
+                    QuerySlotType.CompanyOrSymbol,
+                    null,
+                    QueryValueProvenance.UserExplicit,
+                    0m,
+                    QuerySlotValidationState.Invalid,
+                    capability,
+                    DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported))
+                .ToArray();
+            pendingCompanyAction = multipleCompanies;
         }
         var resolvedEntities = capability == "symbol_metric_lookup"
             ? await entityResolver.ResolveAllFromInterpretationAsync(interpretation, cancellationToken)
@@ -432,11 +449,11 @@ public sealed class ConversationDialogueGate(
                 .ToArray();
             slots = slots.Where(slot => slot.Type is not QuerySlotType.Metric and not QuerySlotType.Metrics and not QuerySlotType.Period).ToArray();
         }
-        var hasExplicitUnresolvedEntity = relativePendingAction is not null || validatedFrameSlots.Any(slot =>
+        var hasExplicitUnresolvedEntity = pendingCompanyAction is not null || validatedFrameSlots.Any(slot =>
             (slot.Type is QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Product or QuerySlotType.Industry or QuerySlotType.IndustryGroup) &&
             slot.ValidationState is QuerySlotValidationState.Ambiguous or QuerySlotValidationState.Invalid or QuerySlotValidationState.Missing);
         ConversationTaskStateTransition? transition;
-        if (relativePendingAction is not null)
+        if (pendingCompanyAction is not null)
         {
             // First let Feature 120 apply task-switch semantics, then persist the complete
             // Feature-125 pending action and its canonical candidates.
@@ -445,7 +462,7 @@ public sealed class ConversationDialogueGate(
                 scope,
                 capability,
                 switched.Current?.Slots ?? slots,
-                relativePendingAction,
+                pendingCompanyAction,
                 request.CorrelationId + ":pending",
                 cancellationToken);
         }
@@ -654,6 +671,56 @@ public sealed class ConversationDialogueGate(
                 .Where(action => string.Equals(action.Id, actionId, StringComparison.Ordinal))
                 .Select(action => ((SuggestedAction Action, DateTimeOffset CreatedAt)?)(action, message.CreatedAt)))
             .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Feature 158 (V2 only): a capability that answers for one company cannot serve two companies named exactly.
+    /// Only model-proposed mentions count: deterministic mentions are every non-stop-word token, and a month name
+    /// that is also a ticker («دی», «مهر») must not turn an ordinary period question into a clarification.
+    /// </summary>
+    private async Task<PendingDialogueAction?> TryBuildMultipleCompanyClarificationAsync(
+        string? capability,
+        QueryInterpretation interpretation,
+        CancellationToken cancellationToken)
+    {
+        if (!_scope.IsActive || capability is null || IsIndustryRelativeValuationCapability(capability) ||
+            capabilityRegistry?.Find(capability) is not { } definition)
+            return null;
+
+        var slotNames = definition.RequiredSlots.Concat(definition.OptionalSlots).Select(slot => slot.Name).ToArray();
+        if (!slotNames.Contains("symbol", StringComparer.Ordinal) || slotNames.Contains("symbols", StringComparer.Ordinal))
+            return null;
+
+        var mentions = interpretation.EntityMentions
+            .Where(mention => mention.Provenance == QueryValueProvenance.ModelProposed &&
+                              !PersianReportingPeriodNormalizer.IsMonthName(QueryNormalization.Normalize(mention.Text)))
+            .ToArray();
+        if (mentions.Length < 2)
+            return null;
+
+        var companies = (await entityResolver.ResolveAllFromInterpretationAsync(
+                interpretation with { EntityMentions = mentions },
+                cancellationToken))
+            .Where(item => EntityResolutionMatchKinds.IsExact(item.Evidence.MatchKind))
+            .ToArray();
+        if (companies.Length < 2)
+            return null;
+
+        return new PendingDialogueAction(
+            PendingDialogueActionKind.Disambiguation,
+            QuerySlotType.CompanyOrSymbol,
+            companies.Select(item => new ConversationTaskSlot(
+                    QuerySlotType.CompanyOrSymbol,
+                    item.Entity.DisplaySymbol,
+                    item.Entity.CanonicalId,
+                    QueryValueProvenance.UserExplicit,
+                    1m,
+                    Guid.Empty,
+                    0))
+                .ToArray(),
+            DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported,
+            Guid.Empty,
+            0);
     }
 
     private static bool IsIndustryRelativeValuationCapability(string? capability) =>

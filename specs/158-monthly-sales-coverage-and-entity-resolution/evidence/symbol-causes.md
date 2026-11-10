@@ -24,3 +24,12 @@ Source: `read-only-checks.sql`, run by the owner on production on 2026-11-10 in 
 - **Reach of the not-covered reply.** 287 of 877 eligible companies have a no-route type: 1000002 179, 1000006 38, 1000001 28, 1000003 17, 1000004 15, 1000009 10. Type 1000007 has no eligible company. None of the 287 has a monthly snapshot.
 - **Routed types.** 1000000: 436 of 480 have a snapshot. 1000005: 72 of 88. 1000008: 19 of 22.
 - **Provider sync.** The six no-route symbols above have 31 to 35 failed `MonthlyProductionSales` runs each in 365 days, except تابان with 6. `last_error` in the query is a lexical maximum, not the latest error, so it does not say why each run failed.
+
+## Recorded replies, last 180 days
+
+Aggregated counts from `Messages` for questions naming a symbol with the word for sales, excluding the automation actor. Run by the owner on 2026-11-10. No question text.
+
+- `entity_ambiguous` appears on 4 turns only: `فملی` 2 and `فولاد` 2. All four are on product capabilities (`product_sales_trend` 3, `product_revenue_mix` 1). None has a separator or names both symbols.
+- `monthly_activity_trend` for `فملی` is always answered (outcome 0). For `فولاد` it is answered on 17 turns and `supported_but_no_rows` on 2. It is never `entity_ambiguous`.
+- So the recorded ambiguity is not a monthly-sales defect and is not caused by duplicate company rows. Its cause was not reproduced; question text was not read.
+- `فسبزوار`: answered in August; `supported_but_no_rows` on all 6 turns in November (3 on `monthly_activity_trend`, 3 on `product_sales_trend`), although snapshots exist as of 2026-11-10. Not explained: the data may have arrived after those turns.

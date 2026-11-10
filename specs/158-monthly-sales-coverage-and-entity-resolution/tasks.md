@@ -225,7 +225,7 @@ No DSN exists. No connection is attempted from this plan. Per-symbol causes stay
 - [x] For frontend work: not applicable.
 - [x] Acceptance criteria in `user-story.md` all checked, or marked with the reason. §5 may stay `[~]` until a DSN exists.
 - [~] Reference docs updated: `docs/company-master-data-model.md` and `docs/domain-glossary.md` (coverage terms) done. `specs/README.md` entry updated by the lead.
-- [~] User-visible change: a Persian line under `## [Unreleased]` in `CHANGELOG.md`, by the lead (proposed text handed back).
+- [x] User-visible change: a Persian line under `## [Unreleased]` in `CHANGELOG.md`, by the lead (proposed text handed back).
 - [~] New questions → `specs/open-questions.md`; deferred work → `specs/backlog.md`; defects found → `specs/bugs.md`, by the lead (proposed text handed back).
 
 ## Risks

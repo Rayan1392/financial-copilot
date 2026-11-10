@@ -61,7 +61,7 @@ Each behaviour test is written first and seen failing for the reason named.
 
 ### 1. Regression tests first (must fail today)
 
-Questions are invented. Tests use literal strings where possible so they compile and fail by assertion before any production code exists. The endpoint harness must use no PostgreSQL on port 5432; confirm this before relying on it.
+Questions are invented. Tests use literal strings where possible so they compile and fail by assertion before any production code exists. The endpoint test uses the existing `AiFacadeApiFactory`, which runs on in-memory databases, so port 5432 is not used.
 
 | Task | Test | File | Fails today because |
 |---|---|---|---|
@@ -80,6 +80,7 @@ Guard tests, which pass today and must keep passing:
 - [ ] 1.10 `Gate_GreetingWithQuestion_KeepsCurrentRoute` and `Gate_ShortRealQuestion_KeepsCurrentRoute`
 - [ ] 1.11 `Gate_HelpPhraseDuringPendingClarification_KeepsExistingFlow`
 - [ ] 1.12 `Gate_HelpPhraseUnderFrozenV1_KeepsCurrentRoute` and `Gate_HelpPhraseInRollbackMode_KeepsCurrentRoute`
+- [ ] 1.13 `Gate_EligibleTickerEqualToListedPhrase_SnapshotWins` (AC-16), `Catalog_AssistantHelp_IsNotOfferedToTheModelOrStarterPrompts` (AC-17), `TelegramRenderer_AssistantHelpResponse_ShowsTextAndSuggestions` (AC-18)
 
 ### 2. Capability and reply
 
@@ -111,7 +112,7 @@ Guard tests, which pass today and must keep passing:
 
 ## Tests
 
-- [ ] Unit / integration / architecture tests for the above (`tests/FinancialCopilot.UnitTests`, `tests/FinancialCopilot.IntegrationTests`, `tests/FinancialCopilot.ArchitectureTests`). Named in task group 1 and tasks 2.3 and AC-16 to AC-18.
+- [ ] Unit / integration / architecture tests for the above (`tests/FinancialCopilot.UnitTests`, `tests/FinancialCopilot.IntegrationTests`, `tests/FinancialCopilot.ArchitectureTests`). Named in task group 1 and task 2.3.
 - [ ] Frontend tests for UI work: not applicable, no frontend change.
 
 ## Definition Of Done

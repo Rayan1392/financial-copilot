@@ -60,6 +60,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IProductRevenueMixFollowUpSuggestionService productRevenueMixFollowUpSuggestionService,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IMonthlyReportCoverageReader monthlyReportCoverageReader,
     IMonthlySalesProductFollowUpSuggestionService monthlySalesProductFollowUpSuggestionService,
     IMonthlyProductTrendFollowUpSuggestionService monthlyProductTrendFollowUpSuggestionService,
     IMonthlySalesQualityRankingFollowUpSuggestionService monthlySalesQualityRankingFollowUpSuggestionService,
@@ -905,11 +906,37 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
             stepActivity?.SetTag("workflow.intent", "MonthlyActivityTrend");
 
+            // BUG-019: a framed monthly-trend question takes this branch, so a turn with no data gets the true reason here.
+            // A two-company question with data keeps its chart: the clarification applies only when no data was found.
+            if (monthlyActivityTrendResult is null && request.SemanticFrame is { } bypassedFrame)
+            {
+                var language = bypassedFrame.Interpretation.ReplyLanguage;
+                var reply = CarriesMultipleCompanyClarification(bypassedFrame)
+                    ? new MonthlyReportNoDataReply(
+                        CapabilityExecutionStatus.ClarificationRequired,
+                        DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported,
+                        AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+                            DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported, language, null, false)))
+                    : AiDialogueOutcomePolicy.ComposeMonthlyReportNoData(
+                        await monthlyReportCoverageReader.ReadAsync(symbol, ct), language, symbol);
+                return new AgentExecutedMessage(
+                    msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                    msg.MemoryContext, msg.Reservation,
+                    reply.Text ?? MonthlyActivityTrendNotFoundText(symbol),
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    monthlySalesQualityRankingResult,
+                    reply.Status == CapabilityExecutionStatus.NoData ? SemanticBillingCompletionStatus.NoData : "ClarificationRequired",
+                    false, modelClient, trendUsage,
+                    SemanticOutcome: SemanticDialogueOutcome(reply.Status),
+                    SemanticOutcomeReasonCode: reply.ReasonCode,
+                    SemanticReplyLanguage: language);
+            }
+
             return new AgentExecutedMessage(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
                 monthlyActivityTrendResult is null
-                    ? $"اطلاعات روند فروش ماهانه برای نماد «{symbol}» در پایگاه داده یافت نشد."
+                    ? MonthlyActivityTrendNotFoundText(symbol)
                     : BuildMonthlyActivityTrendContent(monthlyActivityTrendResult),
                 scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
@@ -2102,6 +2129,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             SemanticOutcome: DialogueOutcome.Unsupported, SemanticOutcomeReasonCode: outcome.ReasonCode,
             SemanticReplyLanguage: replyLanguage);
     }
+
+    private static string MonthlyActivityTrendNotFoundText(string symbol) =>
+        $"اطلاعات روند فروش ماهانه برای نماد «{symbol}» در پایگاه داده یافت نشد.";
+
+    private static bool CarriesMultipleCompanyClarification(ValidatedQueryFrame frame) =>
+        frame.Slots.Any(slot => slot.Type == QuerySlotType.CompanyOrSymbol &&
+                                slot.Detail == DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported);
 
     private static DialogueOutcome SemanticDialogueOutcome(CapabilityExecutionStatus status) => status switch
     {

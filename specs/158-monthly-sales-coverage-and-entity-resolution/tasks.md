@@ -84,6 +84,8 @@ Baseline run on this branch: 267 passed, 0 failed for the classes below. Each te
 
 Registered at `ServiceCollectionExtensions.cs:1421`. `IMonthlyActivityTrendQueryUseCase` has four callers.
 
+**Correction, 2026-11-10 (BUG-019):** the table below says this legacy route runs only in rollback, legacy or shadow mode. That was wrong: an explicit monthly-trend question with a semantic frame also takes it. See `changes/fix-monthly-trend-reply-bypass/`.
+
 | Caller | Path | After |
 |---|---|---|
 | `MonthlyActivityTrendCapabilityExecutor` (`SemanticCapabilityExecutors.cs:160`) | V2 semantic route; default | D5 resolution, D4 reply. **Customer sees** a chart when the row has data; otherwise the table in `user-story.md` |

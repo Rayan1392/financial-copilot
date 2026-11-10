@@ -178,19 +178,8 @@ public sealed class MonthlyActivityTrendCapabilityExecutor(
 
         // Feature 158: tell the customer why no monthly data can exist, when that is known.
         var coverage = await _coverageReader.ReadAsync(symbol, cancellationToken);
-        var language = frame.Interpretation.ReplyLanguage;
-        return coverage.Kind switch
-        {
-            MonthlyReportCoverageKind.NoRoute => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
-                DialogueOutcomeReasonCodes.MonthlyReportNotCovered,
-                AiDialogueOutcomePolicy.ComposeMonthlyReportNotCovered(language, coverage.CategoryFa!, coverage.CategoryEn!, symbol)),
-            MonthlyReportCoverageKind.OutsideScope => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
-                DialogueOutcomeReasonCodes.DataStaleOrIneligible,
-                AiDialogueOutcomePolicy.ComposeMonthlyReportOutsideScope(language)),
-            MonthlyReportCoverageKind.CompanyAmbiguous => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired,
-                DialogueOutcomeReasonCodes.EntityAmbiguous),
-            _ => NoData(frame)
-        };
+        var reply = AiDialogueOutcomePolicy.ComposeMonthlyReportNoData(coverage, frame.Interpretation.ReplyLanguage, symbol);
+        return new(frame.CapabilityCode, frame.RegistryVersion, reply.Status, reply.ReasonCode, reply.Text);
     }
 }
 

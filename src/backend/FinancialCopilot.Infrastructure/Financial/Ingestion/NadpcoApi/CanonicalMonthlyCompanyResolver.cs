@@ -21,20 +21,27 @@ internal sealed class CanonicalMonthlyCompanyResolver(
 {
     private const string ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName;
 
+    private static readonly Func<NormalizedCompanyRow, string?>[] SymbolColumnsByPriority =
+    [
+        row => row.Ticker,
+        row => row.TseSymbol,
+        row => row.CompanySymbol
+    ];
+
     public async Task<CompanyResolutionOutcome> ResolveAsync(string symbol, CancellationToken cancellationToken)
     {
         var normalized = PersianSymbolNormalizer.Normalize(symbol);
         if (normalized.Length > 0)
         {
             var eligible = await NoavaranCompanyScope.EligibleCompanies(dbContext, ProviderName).ToListAsync(cancellationToken);
-            var matches = eligible
-                .Where(row => Matches(row.Ticker, normalized) || Matches(row.TseSymbol, normalized) || Matches(row.CompanySymbol, normalized))
-                .Take(2)
-                .ToArray();
-            if (matches.Length > 1)
-                return new(CompanyResolutionStatus.Ambiguous, Reason: "company_identifier_ambiguous");
-            if (matches.Length == 1)
-                return new(CompanyResolutionStatus.Resolved, ToResolved(matches[0]));
+            foreach (var column in SymbolColumnsByPriority)
+            {
+                var matches = eligible.Where(row => Matches(column(row), normalized)).Take(2).ToArray();
+                if (matches.Length > 1)
+                    return new(CompanyResolutionStatus.Ambiguous, Reason: "company_identifier_ambiguous");
+                if (matches.Length == 1)
+                    return new(CompanyResolutionStatus.Resolved, ToResolved(matches[0]));
+            }
         }
 
         return await resolutionOutcomes.ResolveAsync(symbol, ProviderName, cancellationToken);

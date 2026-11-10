@@ -693,26 +693,25 @@ public sealed class ConversationDialogueGate(
 
         var mentions = interpretation.EntityMentions
             .Where(mention => mention.Provenance == QueryValueProvenance.ModelProposed &&
+                              SemanticRoutingTelemetryFactory.IsCompanyMention(mention) &&
+                              !QueryNormalization.IsEntityDistractor(mention.Text) &&
                               !PersianReportingPeriodNormalizer.IsMonthName(QueryNormalization.Normalize(mention.Text)))
+            .OrderBy(mention => mention.Start)
             .ToArray();
         if (mentions.Length < 2)
             return null;
 
-        var companies = (await entityResolver.ResolveAllFromInterpretationAsync(
-                interpretation with { EntityMentions = mentions },
-                cancellationToken))
-            .Where(item => EntityResolutionMatchKinds.IsExact(item.Evidence.MatchKind))
-            .ToArray();
-        if (companies.Length < 2)
+        var companies = await ResolveExactCompaniesFromSeparateSpansAsync(mentions, cancellationToken);
+        if (companies.Count < 2)
             return null;
 
         return new PendingDialogueAction(
             PendingDialogueActionKind.Disambiguation,
             QuerySlotType.CompanyOrSymbol,
-            companies.Select(item => new ConversationTaskSlot(
+            companies.Select(company => new ConversationTaskSlot(
                     QuerySlotType.CompanyOrSymbol,
-                    item.Entity.DisplaySymbol,
-                    item.Entity.CanonicalId,
+                    company.DisplaySymbol,
+                    company.CanonicalId,
                     QueryValueProvenance.UserExplicit,
                     1m,
                     Guid.Empty,
@@ -721,6 +720,45 @@ public sealed class ConversationDialogueGate(
             DialogueOutcomeReasonCodes.MultipleCompaniesNotSupported,
             Guid.Empty,
             0);
+    }
+
+    /// <summary>
+    /// Exact companies named by separate parts of the message. Adjacent mentions are tried as one phrase first, with
+    /// the resolver's own window and adjacency, and the longest span wins, so one multi-word company name or two
+    /// overlapping model spans never count as two companies.
+    /// </summary>
+    private async Task<IReadOnlyList<CanonicalQueryEntity>> ResolveExactCompaniesFromSeparateSpansAsync(
+        IReadOnlyList<EntityMention> mentions,
+        CancellationToken cancellationToken)
+    {
+        const int maximumPhraseMentions = 4;
+        const int maximumAdjacentGap = 2;
+
+        var spans = new List<(int Start, int End, CanonicalQueryEntity Company)>();
+        for (var length = Math.Min(maximumPhraseMentions, mentions.Count); length >= 1; length--)
+        for (var start = 0; start + length <= mentions.Count; start++)
+        {
+            var window = mentions.Skip(start).Take(length).ToArray();
+            if (!window.Zip(window.Skip(1), (left, right) => right.Start - (left.Start + left.Length) <= maximumAdjacentGap).All(adjacent => adjacent))
+                continue;
+            var text = string.Join(' ', window.Select(mention => mention.Text));
+            if (await entityResolver.ResolveMentionAsync(text, cancellationToken) is EntityResolutionResult.Resolved match &&
+                EntityResolutionMatchKinds.IsExact(match.Evidence.MatchKind))
+                spans.Add((window[0].Start, window.Max(mention => mention.Start + mention.Length), match.Entity));
+        }
+
+        var selected = new List<(int Start, int End, CanonicalQueryEntity Company)>();
+        foreach (var span in spans.OrderByDescending(item => item.End - item.Start).ThenBy(item => item.Start))
+        {
+            if (!selected.Any(other => span.Start < other.End && other.Start < span.End))
+                selected.Add(span);
+        }
+
+        return selected
+            .OrderBy(span => span.Start)
+            .Select(span => span.Company)
+            .DistinctBy(company => company.CanonicalId)
+            .ToArray();
     }
 
     private static bool IsIndustryRelativeValuationCapability(string? capability) =>

@@ -207,6 +207,12 @@ No DSN exists. No connection is attempted from this plan. Per-symbol causes stay
 
 **If none of the ten symbols has a no-route type,** D4 changes nothing for those ten symbols' questions. D4 still applies to the other companies in the seven types (count from C3). D5 helps only symbols labelled F. Symbols labelled A, D, E, H, I, J or K keep the default sentence, and goal 1 is then not met for them: the list gives the true reason to the owner, but the customer reply changes only with a further approved item, such as a backfill or new wording.
 
+## Review fixes (owner-approved 2026-11-10)
+
+- [x] A mention counts toward the two-company clarification only when its `EntityType` is blank, `company` or `symbol`. Tests: `NonCompanyEntityType_DoesNotCountAsACompany`, guard `BlankSymbolAndCompanyEntityTypes_StillClarify`.
+- [x] Two companies must come from non-overlapping spans, with adjacent mentions tried as one phrase first. Tests: `AdjacentMentionsFormingOneCompanyName_AnswerForThatCompany`, `OverlappingSpansOfTwoCompanies_AnswerForTheLongerSpan`, guard `CompanyNamePhraseAndSeparateTicker_StillClarify`.
+- [x] The monthly resolver applies per-column priority inside the eligible set (`Ticker`, then `TseSymbol`, then `CompanySymbol`). Tests: `EligibleTickerRow_OutranksAnotherEligibleRowsCompanySymbol`, `EligibleTseSymbolRow_OutranksAnotherEligibleRowsCompanySymbol`, guard `TwoEligibleRowsMatchingOnlyInCompanySymbol_ReturnNull`.
+
 ## Tests
 
 - [x] All tests in §2 pass; each was seen failing for its stated reason, or is a named guard. 2.15 and 2.16 were added with the adapter, as planned. `Composition_WiresTheMonthlyExecutorAndItsCoverageReader` was added as a wiring guard.

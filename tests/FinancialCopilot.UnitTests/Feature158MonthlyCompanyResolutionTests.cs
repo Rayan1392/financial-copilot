@@ -78,6 +78,55 @@ public sealed class Feature158MonthlyCompanyResolutionTests
     }
 
     [Fact]
+    public async Task EligibleTickerRow_OutranksAnotherEligibleRowsCompanySymbol()
+    {
+        await using var db = CreateDb();
+        var tickerRow = Eligible("اول", NoavaranId);
+        tickerRow.Ticker = Symbol;
+        db.Companies.Add(tickerRow);
+        db.Companies.Add(Eligible("دوم", "200"));
+        db.Companies.Local.Single(row => row.ExternalCompanyId == "200").CompanySymbol = Symbol;
+        SeedSnapshot(db, NoavaranId);
+        await db.SaveChangesAsync();
+
+        var result = await CreateUseCase(db).ExecuteAsync(new MonthlyActivityTrendQuery("q", Symbol));
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task EligibleTseSymbolRow_OutranksAnotherEligibleRowsCompanySymbol()
+    {
+        await using var db = CreateDb();
+        db.Companies.Add(Eligible(Symbol, NoavaranId));
+        db.Companies.Local.Single().CompanySymbol = "اول";
+        db.Companies.Add(Eligible("دوم", "200"));
+        db.Companies.Local.Single(row => row.ExternalCompanyId == "200").CompanySymbol = Symbol;
+        SeedSnapshot(db, NoavaranId);
+        await db.SaveChangesAsync();
+
+        var result = await CreateUseCase(db).ExecuteAsync(new MonthlyActivityTrendQuery("q", Symbol));
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task TwoEligibleRowsMatchingOnlyInCompanySymbol_ReturnNull()
+    {
+        await using var db = CreateDb();
+        db.Companies.Add(Eligible("اول", NoavaranId));
+        db.Companies.Add(Eligible("دوم", "200"));
+        foreach (var row in db.Companies.Local)
+            row.CompanySymbol = Symbol;
+        SeedSnapshot(db, NoavaranId);
+        await db.SaveChangesAsync();
+
+        var result = await CreateUseCase(db).ExecuteAsync(new MonthlyActivityTrendQuery("q", Symbol));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public async Task FrozenV1_KeepsResolveBySymbolBehaviour()
     {
         await using var db = CreateDb();

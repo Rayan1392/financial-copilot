@@ -194,6 +194,80 @@ public sealed class Feature158MultipleCompanyClarificationTests
         }
     }
 
+    [Fact]
+    public async Task NonCompanyEntityType_DoesNotCountAsACompany()
+    {
+        await using var db = CreateDb();
+        AddEligible(db, First, "1");
+        AddEligible(db, "فولاد", "2");
+        await db.SaveChangesAsync();
+        var repository = new Feature158TaskStateRepository();
+        var (gate, conversation, tenant, actor) = Gate(
+            db, repository, TypedProposal(Monthly, (First, "company"), ("فولاد", "industry")));
+
+        var prepared = await gate.PrepareAsync(new AiQueryRequest("روند فروش ماهانه کگل فولاد", tenant, actor, "c1"), conversation, default);
+
+        Assert.DoesNotContain(prepared.Request.SemanticFrame!.Slots, slot => slot.Detail == Reason);
+        Assert.Null((await repository.FindAsync(new(conversation, tenant, actor), default))!.PendingAction);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("symbol")]
+    [InlineData("company")]
+    public async Task BlankSymbolAndCompanyEntityTypes_StillClarify(string? entityType)
+    {
+        await using var db = CreateDb();
+        AddEligible(db, First, "1");
+        AddEligible(db, Second, "2");
+        await db.SaveChangesAsync();
+        var (gate, conversation, tenant, actor) = Gate(
+            db, new Feature158TaskStateRepository(), TypedProposal(Monthly, (First, entityType), (Second, entityType)));
+
+        var prepared = await gate.PrepareAsync(new AiQueryRequest(TwoTickers, tenant, actor, "c1"), conversation, default);
+
+        Assert.Contains(prepared.Request.SemanticFrame!.Slots, slot => slot.Detail == Reason);
+    }
+
+    [Fact]
+    public async Task AdjacentMentionsFormingOneCompanyName_AnswerForThatCompany()
+    {
+        await using var db = CreateDb();
+        AddEligible(db, "پارس", "1");
+        AddEligibleNamed(db, "پخودرو", "پارس خودرو", "2");
+        await db.SaveChangesAsync();
+        var (gate, conversation, tenant, actor) = Gate(db, new Feature158TaskStateRepository(), Proposal(Monthly, "پارس", "خودرو"));
+
+        await AssertAnswersFor(gate, "روند فروش ماهانه پارس خودرو", conversation, tenant, actor, "پخودرو");
+    }
+
+    [Fact]
+    public async Task OverlappingSpansOfTwoCompanies_AnswerForTheLongerSpan()
+    {
+        await using var db = CreateDb();
+        AddEligible(db, "فولاد", "1");
+        AddEligibleNamed(db, "فمبارکه", "فولاد مبارکه", "2");
+        await db.SaveChangesAsync();
+        var (gate, conversation, tenant, actor) = Gate(db, new Feature158TaskStateRepository(), Proposal(Monthly, "فولاد", "فولاد مبارکه"));
+
+        await AssertAnswersFor(gate, "روند فروش ماهانه فولاد مبارکه", conversation, tenant, actor, "فمبارکه");
+    }
+
+    [Fact]
+    public async Task CompanyNamePhraseAndSeparateTicker_StillClarify()
+    {
+        await using var db = CreateDb();
+        AddEligible(db, "پارس", "1");
+        AddEligibleNamed(db, "پخودرو", "پارس خودرو", "2");
+        AddEligible(db, First, "3");
+        await db.SaveChangesAsync();
+        var (gate, conversation, tenant, actor) = Gate(db, new Feature158TaskStateRepository(), Proposal(Monthly, "پارس", "خودرو", First));
+
+        var prepared = await gate.PrepareAsync(new AiQueryRequest("روند فروش ماهانه پارس خودرو و کگل", tenant, actor, "c1"), conversation, default);
+
+        Assert.Contains(prepared.Request.SemanticFrame!.Slots, slot => slot.Detail == Reason);
+    }
+
     private static async Task AssertAnswersFor(
         ConversationDialogueGate gate, string message, Guid conversation, Guid tenant, Guid actor, string symbol)
     {
@@ -208,6 +282,9 @@ public sealed class Feature158MultipleCompanyClarificationTests
 
     private static QueryInterpretationProposal Proposal(string capability, params string[] entities) =>
         new([capability], [], null, 0.95m, ["test"], null, entities.Select(item => new SemanticEntityProposal(item, "company")).ToArray(), []);
+
+    private static QueryInterpretationProposal TypedProposal(string capability, params (string Text, string? Type)[] entities) =>
+        new([capability], [], null, 0.95m, ["test"], null, entities.Select(item => new SemanticEntityProposal(item.Text, item.Type)).ToArray(), []);
 
     private static (ConversationDialogueGate Gate, Guid Conversation, Guid Tenant, Guid Actor) Gate(
         FinancialIngestionDbContext db, IConversationTaskStateRepository repository, params QueryInterpretationProposal?[]? proposals)
@@ -241,6 +318,13 @@ public sealed class Feature158MultipleCompanyClarificationTests
             Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalCompanyId = externalId, Name = "شرکت " + externalId,
             TseSymbol = symbol, CompanySymbol = symbol, PrecedencyRight = 0, MarketId = NoavaranCompanyScope.BourseMarketId
         }).Entity;
+
+    private static void AddEligibleNamed(FinancialIngestionDbContext db, string symbol, string name, string externalId) =>
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalCompanyId = externalId, Name = name,
+            TseSymbol = symbol, CompanySymbol = symbol, PrecedencyRight = 0, MarketId = NoavaranCompanyScope.BourseMarketId
+        });
 
     private static void AddOther(FinancialIngestionDbContext db, string provider, string symbol, string externalId) =>
         db.Companies.Add(new NormalizedCompanyRow

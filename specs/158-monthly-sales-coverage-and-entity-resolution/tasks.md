@@ -187,11 +187,11 @@ New file `tests/FinancialCopilot.UnitTests/Feature158MultipleCompanyClarificatio
 
 No DSN exists. No connection is attempted from this plan. Per-symbol causes stay Unverified until the lead runs the checks.
 
-- [~] 5.1 `read-only-checks.sql` C2 now reports `noavaran_rows`, `eligible_rows`, `other_symbol_rows`, `category_fa`, `resolver_today`, and label F uses any other-provider symbol match. Reviewed by reading; not executed.
-- [~] 5.2 When the owner provides a read-only DSN, the lead runs the file with the read-only session options in its header. Output is not committed with connection details.
-- [~] 5.3 From C2, write `specs/158-.../evidence/symbol-causes.md`: one row per symbol, with symbol, label, plain reason (table below), `category_fa` where present, and the follow-up. Only public tickers, company names, and counts; no customer text. For فملی and فولاد, record `resolver_today` and `noavaran_rows`.
-- [~] 5.4 From C3, record how many eligible companies each `ReportingType` covers, and how many symbols are affected by `ambiguous_on_ticker` and `one_other_ticker_row`.
-- [~] 5.5 Report to the owner. Mark this group `[~]` if no DSN is provided.
+- [x] 5.1 `read-only-checks.sql` C2 now reports `noavaran_rows`, `eligible_rows`, `other_symbol_rows`, `category_fa`, `resolver_today`, and label F uses any other-provider symbol match. Reviewed by reading; not executed.
+- [x] 5.2 When the owner provides a read-only DSN, the lead runs the file with the read-only session options in its header. Output is not committed with connection details.
+- [x] 5.3 From C2, write `specs/158-.../evidence/symbol-causes.md`: one row per symbol, with symbol, label, plain reason (table below), `category_fa` where present, and the follow-up. Only public tickers, company names, and counts; no customer text. For فملی and فولاد, record `resolver_today` and `noavaran_rows`.
+- [x] 5.4 From C3, record how many eligible companies each `ReportingType` covers, and how many symbols are affected by `ambiguous_on_ticker` and `one_other_ticker_row`.
+- [x] 5.5 Report to the owner. Mark this group `[~]` if no DSN is provided.
 
 | C2 label | Plain reason for the owner's list | Reply after this feature | Follow-up |
 |---|---|---|---|

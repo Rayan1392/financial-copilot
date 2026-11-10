@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
@@ -145,6 +146,25 @@ public static class AiDialogueOutcomePolicy
             ? "این نماد در فهرست شرکت‌های تحت پوشش گزارش ماهانه نیست."
             : "This symbol is not on the list of companies covered by monthly reports.";
 
+    /// <summary>The one mapping from a company's monthly coverage to the reply for a monthly question with no data.</summary>
+    public static MonthlyReportNoDataReply ComposeMonthlyReportNoData(MonthlyReportCoverage coverage, string language, string symbol) =>
+        coverage.Kind switch
+        {
+            MonthlyReportCoverageKind.NoRoute => new(
+                CapabilityExecutionStatus.NoData,
+                DialogueOutcomeReasonCodes.MonthlyReportNotCovered,
+                ComposeMonthlyReportNotCovered(language, coverage.CategoryFa!, coverage.CategoryEn!, symbol)),
+            MonthlyReportCoverageKind.OutsideScope => new(
+                CapabilityExecutionStatus.NoData,
+                DialogueOutcomeReasonCodes.DataStaleOrIneligible,
+                ComposeMonthlyReportOutsideScope(language)),
+            MonthlyReportCoverageKind.CompanyAmbiguous => new(
+                CapabilityExecutionStatus.DisambiguationRequired,
+                DialogueOutcomeReasonCodes.EntityAmbiguous,
+                null),
+            _ => new(CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, null)
+        };
+
     public static DialogueOutcomeResult FromException(string message, Exception exception)
     {
         var language = DetectReplyLanguage(message);
@@ -260,6 +280,9 @@ public static class AiDialogueOutcomePolicy
             : outcome;
     }
 }
+
+/// <summary>Text is null when the caller keeps its own default sentence.</summary>
+public sealed record MonthlyReportNoDataReply(CapabilityExecutionStatus Status, string ReasonCode, string? Text);
 
 public sealed record DialogueOutcomeResult(
     DialogueOutcome Outcome,

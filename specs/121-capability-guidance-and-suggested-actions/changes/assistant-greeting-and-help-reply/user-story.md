@@ -70,20 +70,20 @@ Six customers in the Feature 155 baseline sent a greeting, asked the assistant t
 1. A rule runs in `ConversationDialogueGate.PrepareAsync`, after the Symbol Snapshot check and before the hybrid interpreter.
 2. Matching works on a **compact key**: `QueryNormalization.Normalize(message)` (which already removes punctuation and unifies Arabic letters and ZWNJ), with spaces removed and `ؤ` replaced by `و`. So `چی می‌تونم بپرسم؟`, `چی میتونم بپرسم` and `چي ميتونم بپرسم` give one key.
 3. A message longer than 80 characters never matches.
-4. The whole message must equal a listed phrase. For the introduction and follow-up patterns only, these leading words are removed first, one or more times: `سلام`, `درود`, `خب`, `خوب`, `پس`, `باشه`, `ببخشید`, `لطفا`, `لطفاً`. Nothing else is removed.
+4. The whole message must equal a listed phrase. For the introduction and follow-up patterns only, these leading words are removed first, one or more times: `سلام`, `درود`, `خب`, `خوب`, `پس`, `باشه`, `ببخشید`, `لطفا`, `لطفاً`. For pattern 2 only, the standalone tokens `کامل`, `کاملا` and its spelling `کاملاً` are also removed wherever they occur, before compaction. Nothing else is removed, and the whole remaining message must still equal a listed phrase, so these words alone never match.
 5. Matching is exact against the lists below. There is no fuzzy or partial match.
 
 ### Phrase lists
 
-All phrases are invented, same-pattern text. Each row is one entry; spacing and ZWNJ variants collapse through the compact key. Checked in a scratch run: all 80 compact keys are unique, and the deterministic interpreter proposes no capability for any of them today.
+All phrases are invented, same-pattern text. Each row is one entry; spacing and ZWNJ variants collapse through the compact key. Checked in a scratch run: all 84 compact keys are unique, and the deterministic interpreter proposes no capability for any of them today.
 
 **Pattern 1 — Greeting (22)**
 
 `سلام` · `سلام علیکم` · `درود` · `درود بر شما` · `وقت بخیر` · `وقت به خیر` · `روز بخیر` · `صبح بخیر` · `ظهر بخیر` · `عصر بخیر` · `سلام وقت بخیر` · `سلام صبح بخیر` · `سلام روز بخیر` · `سلام خسته نباشید` · `خسته نباشید` · `سلام خوبی` · `سلام چطوری` · `سلام ساپیو` · `سلام دستیار` · `hi` · `hello` · `hey`
 
-**Pattern 2 — Introduce the assistant and say what it does (29)**
+**Pattern 2 — Introduce the assistant and say what it does (33)**
 
-`خودت را معرفی کن` · `خودت رو معرفی کن` · `خودتو معرفی کن` · `خودت را معرفی کن و بگو چه کارهایی بلدی` · `خودت رو معرفی کن و بگو چه کارهایی بلدی` · `خودتو معرفی کن و بگو چه کارهایی بلدی` · `خودت را معرفی کن و بگو چه کارهایی میتوانی انجام بدهی` · `خودتو معرفی کن و بگو چیکار میکنی` · `خودتو معرفی کن و بگو چیکار میتونی بکنی` · `کی هستی` · `تو کی هستی` · `تو چی هستی` · `شما کی هستید` · `چیکار میکنی` · `چکار میکنی` · `چه کار میکنی` · `چیکار میتونی بکنی` · `چکار میتونی بکنی` · `چه کاری میتونی بکنی` · `چه کارهایی میتونی بکنی` · `چه کارهایی میتوانی انجام بدهی` · `چه کارهایی بلدی` · `چه کارایی بلدی` · `چی بلدی` · `چیکار بلدی` · `who are you` · `introduce yourself` · `what can you do` · `what do you do`
+`خودت را معرفی کن` · `خودت رو معرفی کن` · `خودتو معرفی کن` · `خودت را معرفی کن و بگو چه کارهایی بلدی` · `خودت رو معرفی کن و بگو چه کارهایی بلدی` · `خودتو معرفی کن و بگو چه کارهایی بلدی` · `خودت را معرفی کن و بگو چه کارهایی میتوانی انجام بدهی` · `خودت را معرفی کن و بگو چیکار میکنی` · `خودت رو معرفی کن و بگو چیکار میکنی` · `خودتو معرفی کن و بگو چیکار میکنی` · `خودت را معرفی کن و بگو چیکار میتونی بکنی` · `خودت رو معرفی کن و بگو چیکار میتونی بکنی` · `خودتو معرفی کن و بگو چیکار میتونی بکنی` · `کی هستی` · `تو کی هستی` · `تو چی هستی` · `شما کی هستید` · `چیکار میکنی` · `چکار میکنی` · `چه کار میکنی` · `چیکار میتونی بکنی` · `چکار میتونی بکنی` · `چه کاری میتونی بکنی` · `چه کارهایی میتونی بکنی` · `چه کارهایی میتوانی انجام بدهی` · `چه کارهایی بلدی` · `چه کارایی بلدی` · `چی بلدی` · `چیکار بلدی` · `who are you` · `introduce yourself` · `what can you do` · `what do you do`
 
 **Pattern 3 — Follow-up asking what can be asked (29)**
 
@@ -193,8 +193,8 @@ No frontend or Telegram code change. Web shows the text through `MarkdownMessage
 
 - [ ] AC-01: Every phrase in the three lists routes to `assistant_help` and the model proposal provider is not called.
 - [ ] AC-02: Punctuation, ZWNJ, Arabic-letter, and `ؤ` variants of a listed phrase match (`سلام!`, `چی می‌تونم بپرسم؟`, `چي ميتونم بپرسم`, `چه سؤال‌هایی می‌تونم بپرسم؟`).
-- [ ] AC-03: A leading word from Requirement 4 before a pattern 2 or 3 phrase matches (`خب چی می‌تونم بپرسم؟`, `سلام، خودت را معرفی کن و بگو چه کارهایی بلدی؟`). The word alone (`خب`) does not.
-- [ ] AC-04: These keep today's route: `سلام، کگل چطور است؟`, `کگل`, `قیمت کگل`, a message over 80 characters.
+- [ ] AC-03: A leading word from Requirement 4 before a pattern 2 or 3 phrase matches (`خب چی می‌تونم بپرسم؟`, `سلام، خودت را معرفی کن و بگو چه کارهایی بلدی؟`). The word alone (`خب`) does not. A pattern 2 phrase with `کامل`, `کاملا` or `کاملاً` matches (`خودت را کامل معرفی کن و بگو چه کارهایی بلدی؟`).
+- [ ] AC-04: These keep today's route: `سلام، کگل چطور است؟`, `کگل`, `قیمت کگل`, `کامل`, `گزارش کامل کگل`, a message over 80 characters.
 - [ ] AC-05: The Persian reply equals Requirement 6 character for character, and the English reply equals Requirement 7.
 - [ ] AC-06: The response carries the four suggested actions of Requirement 8, in order.
 - [ ] AC-07: Each sample's deterministic interpretation has the expected top capability, no missing slot, and one company mention equal to the example symbol.

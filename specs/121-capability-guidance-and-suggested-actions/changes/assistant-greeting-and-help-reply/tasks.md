@@ -65,8 +65,8 @@ Questions are invented. Tests use literal strings where possible so they compile
 
 | Task | Test | File | Fails today because |
 |---|---|---|---|
-| - [ ] 1.1 | `Gate_WholeMessageHelpPhrase_RoutesToAssistantHelpWithoutCallingTheModel` (theory, all 80 phrases) | new `tests/FinancialCopilot.UnitTests/AssistantHelpReply121Tests.cs` | The stub proposal provider is called and the frame is not `assistant_help`. |
-| - [ ] 1.2 | `Gate_HelpPhraseVariants_Match` (theory: punctuation, ZWNJ, Arabic letters, `ؤ`, leading words) | same | Same. |
+| - [ ] 1.1 | `Gate_WholeMessageHelpPhrase_RoutesToAssistantHelpWithoutCallingTheModel` (theory, all 84 phrases) | new `tests/FinancialCopilot.UnitTests/AssistantHelpReply121Tests.cs` | The stub proposal provider is called and the frame is not `assistant_help`. |
+| - [ ] 1.2 | `Gate_HelpPhraseVariants_Match` (theory: punctuation, ZWNJ, Arabic letters, `ؤ`, leading words, and pattern 2 with `کامل`, for example `خودت را کامل معرفی کن و بگو چه کارهایی بلدی؟`) | same | Same. |
 | - [ ] 1.3 | `Gate_FollowUpAfterGenericRefusal_RoutesToAssistantHelp` | same | Same; the state has no pending action, but no rule exists. |
 | - [ ] 1.4 | `Gate_FollowUpAfterNormalAnswer_RoutesToAssistantHelpAndLeavesTaskStateUnchanged` | same | Frame differs, and the state version changes. |
 | - [ ] 1.5 | `Catalog_AssistantHelp_IsGateRoutedOnlyWithNoSlots` | same | `registry.Find("assistant_help")` is null. |
@@ -77,7 +77,7 @@ Questions are invented. Tests use literal strings where possible so they compile
 
 Guard tests, which pass today and must keep passing:
 
-- [ ] 1.10 `Gate_GreetingWithQuestion_KeepsCurrentRoute` and `Gate_ShortRealQuestion_KeepsCurrentRoute`
+- [ ] 1.10 `Gate_GreetingWithQuestion_KeepsCurrentRoute`, `Gate_ShortRealQuestion_KeepsCurrentRoute`, and `Gate_AdverbWithoutListedPhrase_KeepsCurrentRoute` (theory: `کامل`, `گزارش کامل کگل`)
 - [ ] 1.11 `Gate_HelpPhraseDuringPendingClarification_KeepsExistingFlow`
 - [ ] 1.12 `Gate_HelpPhraseUnderFrozenV1_KeepsCurrentRoute` and `Gate_HelpPhraseInRollbackMode_KeepsCurrentRoute`
 - [ ] 1.13 `Gate_EligibleTickerEqualToListedPhrase_SnapshotWins` (AC-16), `Catalog_AssistantHelp_IsNotOfferedToTheModelOrStarterPrompts` (AC-17), `TelegramRenderer_AssistantHelpResponse_ShowsTextAndSuggestions` (AC-18)

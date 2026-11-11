@@ -217,12 +217,42 @@ public sealed class Feature150UnavailableTopicTests
         Assert.Equal(TopicCode, run.Result.Request.SemanticFrame?.CapabilityCode);
     }
 
+    // BUG-022 (owner, 2026-11-11): these go to comprehensive analysis without the model, whose proposal here is a
+    // different capability (product_revenue_mix), so the model can no longer change their route.
     [Theory]
     [InlineData("تحلیل بنیادی فولاد")]
     [InlineData("تحلیل فولاد")]
     [InlineData("تحلیل جامع فولاد")]
-    public async Task Gate_AnalysisQuestions_KeepTodaysRoute(string message) =>
-        AssertTodayRoute(await PrepareAsync(message, availability: MappedAnalysis()));
+    [InlineData("تحلیل اخابر")]
+    public async Task Gate_AnalysisQuestions_GoToComprehensiveAnalysisWithoutTheModel(string message)
+    {
+        var run = await PrepareAsync(message, availability: MappedAnalysis());
+
+        var frame = run.Result.Request.SemanticFrame;
+        Assert.Equal("comprehensive_analysis", frame?.CapabilityCode);
+        Assert.Equal(0, run.Provider.Calls);
+        Assert.Equal("کگل", frame!.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).Value);
+        Assert.DoesNotContain(frame.Slots, slot => slot.Type == QuerySlotType.AnalysisTopic && slot.Value is not null);
+    }
+
+    [Fact]
+    public async Task Gate_AnalysisQuestion_WhenTheRestIsNotACompany_KeepsTodaysRoute() =>
+        AssertTodayRoute(await PrepareAsync("تحلیل فروش فولاد", availability: MappedAnalysis(), resolver: ResolverKind.Missing));
+
+    [Fact]
+    public async Task Gate_AnalysisQuestion_WithoutComprehensiveAnalysis_KeepsTodaysRoute() =>
+        AssertTodayRoute(await PrepareAsync("تحلیل فولاد", availability: Availability(FinancialDataChatProvider.NoavaranAmin)));
+
+    [Theory]
+    [InlineData("تحلیل اخابر", "اخابر")]
+    [InlineData("تحلیل جامع فولاد", "فولاد")]
+    [InlineData("تحلیل بنیادی مخابرات ایران", "مخابرات ایران")]
+    [InlineData("تحلیل فروش فولاد", "فروش فولاد")]
+    [InlineData("فولاد", null)]
+    [InlineData("تحلیل", null)]
+    [InlineData("تحلیل جامع", null)]
+    public void AnalysisRequestCompanyText_IsTheRestAfterTheAnalysisWords(string message, string? expected) =>
+        Assert.Equal(expected, UnavailableTopicCatalog.AnalysisRequestCompanyText(message));
 
     // ---- BUG-020: technical questions search TahlilApp while comprehensive analysis is available ----
 

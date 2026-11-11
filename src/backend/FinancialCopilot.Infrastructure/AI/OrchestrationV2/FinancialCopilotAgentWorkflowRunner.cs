@@ -39,7 +39,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider,
     ISalesGrowthScannerTelemetrySink? salesGrowthTelemetry = null,
-    IOptions<ComprehensiveAnalysisPresentationOptions>? comprehensiveAnalysisPresentation = null)
+    IOptions<ComprehensiveAnalysisPresentationOptions>? comprehensiveAnalysisPresentation = null,
+    IFollowUpSuggestionPipeline? followUpSuggestionPipeline = null)
 {
     private string AnalysesUrl => comprehensiveAnalysisPresentation?.Value.TahlilAppAnalysesUrl
         ?? ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;
@@ -156,6 +157,21 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 semanticText = AiDialogueOutcomePolicy.ComposeSystemMessage(semanticDialogueOutcome);
             outcomeTelemetry.Record(request, semanticDialogueOutcome,
                 request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", now);
+            // Feature 121 change «follow-up-suggestion-pipeline»: the fallback runner uses the same follow-up chain.
+            var followUps = followUpSuggestionPipeline is null
+                ? FollowUpSuggestionResult.NotApplied
+                : await followUpSuggestionPipeline.BuildAsync(new FollowUpSuggestionContext(
+                    request,
+                    SemanticIntent(semanticFrame.CapabilityCode),
+                    semanticOutcome,
+                    semanticFrame.Interpretation.ReplyLanguage,
+                    semantic.Execution.Payload as SymbolSnapshotResult,
+                    semantic.Execution.Payload as ProductRevenueMixResponse,
+                    semantic.Execution.Payload as MonthlyActivityTrendResponse,
+                    semantic.Execution.Payload as MonthlyProductTrendResult,
+                    semantic.Execution.Payload as MonthlySalesQualityRankingResponse,
+                    semantic.Execution.Payload as FinancialStatementTableResult,
+                    semantic.Execution.Payload as FinancialStatementAnalysisResponse), cancellationToken);
             var persisted = await persistenceFunction.PersistAsync(
                 conversationId, request, SemanticIntent(semanticFrame.CapabilityCode), clarification,
                 semanticClarificationMessage, semanticText, scannerPayload?.Plan, scannerPayload?.Table,
@@ -171,7 +187,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 monthlySalesQualityRankingResult: semantic.Execution.Payload as MonthlySalesQualityRankingResponse,
                 disclosureListingResult: semantic.Execution.Payload as DisclosureListingResult,
                 psVisualizationResult: semantic.Execution.Payload as PsVisualizationResult,
-                symbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult);
+                symbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult,
+                deterministicSuggestedActions: followUps.Actions,
+                deterministicSuggestionsApplied: followUps.Applied);
             await dialogueGate.RecordOutcomeAsync(request, conversationId, clarification, semantic.Execution.ReasonCode, cancellationToken);
             return new AiQueryResponse(
                 conversationId, persisted.UserMessageId, persisted.AssistantMessageId,

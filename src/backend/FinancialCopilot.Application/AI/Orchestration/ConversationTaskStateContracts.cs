@@ -644,8 +644,16 @@ public sealed class ConversationDialogueGate(
     {
         if (!_scope.IsActive || capabilityRegistry is null || capabilityAvailability is null ||
             capabilityAvailability.Provider != FinancialDataChatProvider.NoavaranAmin ||
-            request.Context?.InsightEventId is not null ||
-            UnavailableTopicCatalog.Match(request.Message)?.ReasonCode != UnavailableTopicCatalog.TechnicalAnalysisReasonCode ||
+            request.Context?.InsightEventId is not null)
+            return null;
+
+        // BUG-022: «تحلیل X» / «تحلیل جامع X» / «تحلیل بنیادی X» (only analysis words and one company) are routed here
+        // too, so the model cannot send them elsewhere. Anything else in the message keeps today's routing.
+        // A valuation or advice word («تحلیل ارزش ذاتی X») is not a plain analysis request: C3 / OQ-072 keep its route.
+        var topic = UnavailableTopicCatalog.Match(request.Message);
+        var technical = topic?.ReasonCode == UnavailableTopicCatalog.TechnicalAnalysisReasonCode;
+        var analysisCompanyText = topic is null ? UnavailableTopicCatalog.AnalysisRequestCompanyText(request.Message) : null;
+        if (!technical && analysisCompanyText is null ||
             !capabilityAvailability.Evaluate(CapabilityExecutionRoutes.ComprehensiveAnalysis).IsAvailable)
             return null;
 
@@ -656,16 +664,20 @@ public sealed class ConversationDialogueGate(
         EntityResolutionResult entity;
         try
         {
-            entity = await ResolveTopicCompanyAsync(request.Message, cancellationToken);
+            entity = technical
+                ? await ResolveTopicCompanyAsync(request.Message, cancellationToken)
+                : await entityResolver.ResolveMentionAsync(analysisCompanyText!, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return null;
         }
 
-        return entity is EntityResolutionResult.Resolved resolved
+        if (entity is not EntityResolutionResult.Resolved resolved)
+            return null;
+        return technical
             ? UnavailableTopicCatalog.BuildTechnicalAnalysisInterpretation(request.Message, resolved.Entity.DisplaySymbol, capabilityRegistry.Version)
-            : null;
+            : UnavailableTopicCatalog.BuildAnalysisRequestInterpretation(request.Message, resolved.Entity.DisplaySymbol, capabilityRegistry.Version);
     }
 
     /// <summary>

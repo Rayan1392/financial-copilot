@@ -82,11 +82,45 @@ public static class UnavailableTopicCatalog
     /// BUG-020 (owner, 2026-11-11): while comprehensive analysis is available, a technical question about one exact ticker
     /// asks TahlilApp for its technical analysis instead of being refused. The frame enricher adds the technical topic.
     /// </summary>
-    public static QueryInterpretation BuildTechnicalAnalysisInterpretation(string message, string symbol, int registryVersion)
+    public static QueryInterpretation BuildTechnicalAnalysisInterpretation(string message, string symbol, int registryVersion) =>
+        BuildComprehensiveAnalysisInterpretation(message, symbol, registryVersion, "technical-analysis-topic");
+
+    /// <summary>
+    /// BUG-022 (owner, 2026-11-11): «تحلیل X», «تحلیل جامع X» and «تحلیل بنیادی X» take the comprehensive-analysis route
+    /// deterministically, so the model's proposal cannot send one of them elsewhere.
+    /// </summary>
+    public static QueryInterpretation BuildAnalysisRequestInterpretation(string message, string symbol, int registryVersion) =>
+        BuildComprehensiveAnalysisInterpretation(message, symbol, registryVersion, "analysis-request");
+
+    /// <summary>
+    /// BUG-022: the company text of a message made only of analysis words («تحلیل», «تحلیل جامع», «تحلیل بنیادی», the
+    /// technical words, the plural «ها»/«های») and one company. Null when «تحلیل» is missing or nothing else remains.
+    /// Whether the rest is exactly one company is decided by the caller's entity resolution.
+    /// </summary>
+    public static string? AnalysisRequestCompanyText(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message) || message.Length > MaxMessageLength)
+            return null;
+
+        var words = QueryNormalization.Normalize(message).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (!words.Contains(AnalysisWord, StringComparer.Ordinal))
+            return null;
+
+        var rest = words.Where(word => !AnalysisRequestWords.Contains(word)).ToArray();
+        return rest.Length == 0 ? null : string.Join(' ', rest);
+    }
+
+    private const string AnalysisWord = "تحلیل";
+
+    private static readonly HashSet<string> AnalysisRequestWords =
+        new(StringComparer.Ordinal) { AnalysisWord, "جامع", "بنیادی", "تکنیکال", "پیوت", "ها", "های" };
+
+    private static QueryInterpretation BuildComprehensiveAnalysisInterpretation(
+        string message, string symbol, int registryVersion, string evidenceValue)
     {
         const decimal confidence = 1m;
         const string code = CapabilityExecutionRoutes.ComprehensiveAnalysis;
-        var evidence = new InterpretationEvidence(code, "technical-analysis-topic", QueryValueProvenance.UserExplicit);
+        var evidence = new InterpretationEvidence(code, evidenceValue, QueryValueProvenance.UserExplicit);
         var start = Math.Max(0, message.IndexOf(symbol, StringComparison.Ordinal));
         return new QueryInterpretation(
             message,

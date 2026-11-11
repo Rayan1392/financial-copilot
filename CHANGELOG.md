@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-11
+
+مشترکان طرح Max متن کامل تحلیل جامع تحلیل‌اپ را می‌بینند و دستیار به پرسش‌های تحلیل تکنیکال، قیمت و ارزش‌گذاری پاسخ درست‌تری می‌دهد.
+
 ### Added
 
 - مشترکان طرح Max در پاسخ «تحلیل جامع» یک نماد، متن کامل آخرین تحلیل تحلیل‌اپ را می‌بینند؛ برای بقیهٔ کاربران مثل قبل پیش‌نمایش نشان داده می‌شود.
@@ -231,7 +235,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.8.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.9.0...develop
+[1.9.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.5.0...v1.6.0

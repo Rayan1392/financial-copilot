@@ -72,6 +72,38 @@ public static class ComprehensiveAnalysisTeaserPolicy
         return body[..end].TrimEnd() + Ellipsis;
     }
 
+    /// <summary>
+    /// Feature 162 change «max-plan-full-analysis-text»: the whole text for an entitled reader, without a repeated title.
+    /// </summary>
+    public static string FullText(string title, string? text) => WithoutRepeatedTitle(title, (text ?? string.Empty).Trim());
+
+    /// <summary>
+    /// <paramref name="text"/> when it fits in <paramref name="maxLength"/>; otherwise cut at the last sentence end (or
+    /// word boundary) so that the result with <see cref="Ellipsis"/> fits.
+    /// </summary>
+    public static string FitTo(string text, int maxLength)
+    {
+        if (text.Length <= maxLength)
+        {
+            return text;
+        }
+
+        var limit = Math.Max(0, maxLength - Ellipsis.Length);
+        if (limit == 0)
+        {
+            return string.Empty;
+        }
+
+        var end = LastSentenceEnd(text, limit);
+        if (end < limit * 2 / 5)
+        {
+            var space = text.LastIndexOf(' ', limit - 1, limit);
+            end = space > 0 ? space : limit;
+        }
+
+        return text[..end].TrimEnd() + Ellipsis;
+    }
+
     /// <summary>Exclusive end of the last sentence that finishes within the first <paramref name="limit"/> characters.</summary>
     private static int LastSentenceEnd(string body, int limit)
     {
@@ -116,18 +148,61 @@ public static class ComprehensiveAnalysisCardComposer
     /// Markdown for the web chat. Every part is its own paragraph: markdown joins lines separated by a single line
     /// break, which put the date, the preview, the read-more line and the link on one line.
     /// </summary>
+    /// <param name="fullText">
+    /// Feature 162 change «max-plan-full-analysis-text»: the items carry the whole text (entitled reader), so the card
+    /// shows it with its paragraphs, leaves out the read-more sentence and links to the analyses section.
+    /// </param>
     public static string ComposeMarkdown(
         IReadOnlyList<ComprehensiveAnalysisSummaryItem> items,
         IReadOnlyList<string> requestedSymbols,
-        string analysesUrl) =>
-        Compose(items, requestedSymbols, title => $"### {title}", text => $"[{text}]({analysesUrl})", "\n\n");
+        string analysesUrl,
+        IReadOnlyList<string>? technicalAnalysisNotFoundSymbols = null,
+        bool fullText = false) =>
+        WithTechnicalNotFoundLine(technicalAnalysisNotFoundSymbols,
+            Compose(items, requestedSymbols, title => $"### {title}", text => $"[{text}]({analysesUrl})", "\n\n",
+                fullText, fullText ? AsMarkdownParagraphs : null, null), "\n\n");
 
     /// <summary>Plain text for Telegram: one part per line and the bare URL, which Telegram links.</summary>
+    /// <param name="maxLength">
+    /// Telegram's message limit. Only a whole-text card can pass it; its text is then cut (sentence end, else word
+    /// boundary, then « …») so that the whole card fits, and the link line is kept.
+    /// </param>
     public static string ComposePlainText(
         IReadOnlyList<ComprehensiveAnalysisSummaryItem> items,
         IReadOnlyList<string> requestedSymbols,
-        string analysesUrl) =>
-        Compose(items, requestedSymbols, title => title, text => $"{text}: {analysesUrl}", "\n");
+        string analysesUrl,
+        IReadOnlyList<string>? technicalAnalysisNotFoundSymbols = null,
+        bool fullText = false,
+        int? maxLength = null)
+    {
+        string Card(int? textLimit) => WithTechnicalNotFoundLine(technicalAnalysisNotFoundSymbols,
+            Compose(items, requestedSymbols, title => title, text => $"{text}: {analysesUrl}", "\n", fullText, null, textLimit),
+            "\n");
+
+        var card = Card(null);
+        if (!fullText || maxLength is not { } limit || card.Length <= limit || items.Count == 0)
+        {
+            return card;
+        }
+
+        var text = items[0].PlainTextSummary.Trim();
+        return Card(Math.Max(0, text.Length - (card.Length - limit)));
+    }
+
+    /// <summary>Markdown joins lines split by one line break; every line of the whole text becomes its own paragraph.</summary>
+    private static string AsMarkdownParagraphs(string text) =>
+        string.Join("\n\n", text.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+    /// <summary>BUG-020 (owner, 2026-11-11): no technical analysis → say so, then the latest analysis card.</summary>
+    public static string TechnicalAnalysisNotFoundSentence(IReadOnlyList<string> symbols) =>
+        $"برای نماد {string.Join("، ", symbols)} تحلیل تکنیکالی در تحلیل‌اپ پیدا نشد.";
+
+    private static string WithTechnicalNotFoundLine(IReadOnlyList<string>? symbols, string card, string separator)
+    {
+        var names = (symbols ?? []).Where(symbol => !string.IsNullOrWhiteSpace(symbol)).Select(symbol => symbol.Trim()).ToList();
+        return names.Count == 0 ? card : TechnicalAnalysisNotFoundSentence(names) + separator + card;
+    }
 
     public static string NoResultSentence(IReadOnlyList<string> requestedSymbols)
     {
@@ -142,7 +217,10 @@ public static class ComprehensiveAnalysisCardComposer
         IReadOnlyList<string> requestedSymbols,
         Func<string, string> titleLine,
         Func<string, string> linkLine,
-        string partSeparator)
+        string partSeparator,
+        bool fullText = false,
+        Func<string, string>? textLayout = null,
+        int? textLimit = null)
     {
         // The items arrive newest first; only the latest analysis is shown.
         var latest = items.Count > 0 ? items[0] : null;
@@ -157,14 +235,26 @@ public static class ComprehensiveAnalysisCardComposer
             parts.Add($"{PublishedAtLabelFa}: {latest.PersianCreatedAt}");
         }
 
-        var preview = latest.PlainTextSummary.Trim();
-        if (preview.Length > 0)
+        var text = latest.PlainTextSummary.Trim();
+        if (textLimit is { } limit)
         {
-            parts.Add(preview);
+            text = ComprehensiveAnalysisTeaserPolicy.FitTo(text, limit);
+        }
+
+        if (text.Length > 0)
+        {
+            parts.Add(textLayout?.Invoke(text) ?? text);
         }
 
         var builder = new StringBuilder(string.Join(partSeparator, parts));
-        builder.Append("\n\n").Append(ReadMoreFa).Append(partSeparator).Append(linkLine(LinkTextFa));
+        // Whole text (entitled reader): no read-more sentence, and the link goes to the analyses section.
+        builder.Append("\n\n");
+        if (!fullText)
+        {
+            builder.Append(ReadMoreFa).Append(partSeparator);
+        }
+
+        builder.Append(linkLine(fullText ? AllAnalysesLinkTextFa : LinkTextFa));
         return builder.ToString();
     }
 }

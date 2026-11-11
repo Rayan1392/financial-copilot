@@ -44,7 +44,9 @@ shows the latest analysis whose title contains the asked ticker as a whole word:
 and the fixed link `ComprehensiveAnalysis:TahlilAppAnalysesUrl`. **The provider field `summary` is the whole paid
 analysis text, not a summary** (owner, 2026-11-10); only the preview (at most `TeaserPercent`=30% and
 `TeaserMaxCharacters`=300, none under `TeaserMinimumSourceCharacters`=150) leaves the query
-(default `https://tahlilapp.com/app/analysis`). It needs the `Analysis` sync to run (`CyclicalWavesV2:IngestionEnabled`
+(default `https://tahlilapp.com/app/analysis`). Exception: for a user whose plan grants
+`ComprehensiveAnalysis.FullText` (Max; `billing_plan_capabilities`) the query returns the whole text, bounded at 20,000
+characters (change `max-plan-full-analysis-text`, 2026-11-11). It needs the `Analysis` sync to run (`CyclicalWavesV2:IngestionEnabled`
 on the Worker).
 
 Read-only production check before setting the map (run by the owner; no credentials in this file):

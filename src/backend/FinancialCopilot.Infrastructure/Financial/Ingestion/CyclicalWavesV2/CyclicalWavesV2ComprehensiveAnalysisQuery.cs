@@ -26,9 +26,16 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
 
     public const int DefaultLimit = 5;
     public const int MaximumLimit = 10;
+
+    /// <summary>Upper bound of the whole text for an entitled reader (change «max-plan-full-analysis-text»).</summary>
+    public const int MaximumFullTextCharacters = 20_000;
     private const int CandidateWindow = 400;
     private const int MaximumSymbolWords = 3;
     private static readonly TimeSpan TehranOffset = TimeSpan.FromHours(3.5);
+    private static readonly string TechnicalTopic = NormalizeTopic(ComprehensiveAnalysisTopics.TechnicalAnalysis);
+    private const string TechnicalWordPersian = ComprehensiveAnalysisTopics.TechnicalTitleWord;
+    private static readonly string TechnicalWordArabic = TechnicalWordPersian.Replace('ی', 'ي').Replace('ک', 'ك');
+    private static readonly string TechnicalWordNormalized = PersianSymbolNormalizer.Normalize(TechnicalWordPersian);
 
     public async Task<ComprehensiveAnalysisQueryResponse> ExecuteAsync(
         ComprehensiveAnalysisQueryRequest request,
@@ -52,9 +59,13 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
             query = query.Where(row => row.PublishedAt >= from.ToUniversalTime());
         }
 
+        // BUG-020: most analyses carry no tags, so a technical analysis is also one whose title has «تکنیکال»
+        // (Persian or Arabic letters here; the whole-word rule is applied below).
+        var technical = topics.Contains(TechnicalTopic);
         if (topics.Count > 0)
         {
-            query = query.Where(row => db.CyclicalWavesV2AnalysisTags.Any(tag => tag.AnalysisId == row.Id && topics.Contains(tag.NormalizedName)));
+            query = query.Where(row => db.CyclicalWavesV2AnalysisTags.Any(tag => tag.AnalysisId == row.Id && topics.Contains(tag.NormalizedName)) ||
+                                       (technical && (row.Title.Contains(TechnicalWordPersian) || row.Title.Contains(TechnicalWordArabic))));
         }
 
         var candidates = new List<CyclicalWavesV2AnalysisRow>();
@@ -86,6 +97,12 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
         var items = new List<ComprehensiveAnalysisSummaryItem>();
         foreach (var row in candidates)
         {
+            if (topics.Count > 0 && !tags[row.Id].Any(tag => topics.Contains(tag.NormalizedName)) &&
+                !(technical && TitleWords(row.Title).Contains(TechnicalWordNormalized)))
+            {
+                continue;
+            }
+
             if (symbols.Count > 0)
             {
                 var matches = symbols.Where(symbol => MatchesTicker(row.Title, symbol.Normalized)).ToList();
@@ -97,7 +114,7 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
                 matchedSymbols.UnionWith(matches.Select(symbol => symbol.Raw));
             }
 
-            items.Add(ToItem(row, tags[row.Id], categories[row.Id]));
+            items.Add(ToItem(row, tags[row.Id], categories[row.Id], request.IncludeFullText));
             if (items.Count == limit)
             {
                 break;
@@ -105,7 +122,8 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
         }
 
         var unresolved = symbols.Select(symbol => symbol.Raw).Where(symbol => !matchedSymbols.Contains(symbol)).ToList();
-        return new ComprehensiveAnalysisQueryResponse(items, unresolved);
+        return new ComprehensiveAnalysisQueryResponse(items, unresolved,
+            FullTextIncluded: request.IncludeFullText && items.Count > 0);
     }
 
     /// <summary>
@@ -184,14 +202,21 @@ public sealed class CyclicalWavesV2ComprehensiveAnalysisQuery(
     private ComprehensiveAnalysisSummaryItem ToItem(
         CyclicalWavesV2AnalysisRow row,
         IEnumerable<CyclicalWavesV2AnalysisTagRow> tags,
-        IEnumerable<CyclicalWavesV2AnalysisCategoryRow> categories)
+        IEnumerable<CyclicalWavesV2AnalysisCategoryRow> categories,
+        bool includeFullText)
     {
+        // Change «max-plan-full-analysis-text»: the whole text only for an entitled reader (bounded, the longest seen is
+        // about 4,000 characters); everyone else gets the preview, so the whole text never leaves this query for them.
+        var text = includeFullText
+            ? ComprehensiveAnalysisTeaserPolicy.FitTo(
+                ComprehensiveAnalysisTeaserPolicy.FullText(row.Title, row.PlainTextSummary), MaximumFullTextCharacters)
+            : ComprehensiveAnalysisTeaserPolicy.Teaser(row.Title, row.PlainTextSummary, _presentation);
         return new ComprehensiveAnalysisSummaryItem(
             row.Id,
             row.Title,
             PersianDate(row.PublishedAt),
             string.Join("، ", categories.Select(category => category.Title)),
-            ComprehensiveAnalysisTeaserPolicy.Teaser(row.Title, row.PlainTextSummary, _presentation),
+            text,
             tags.Select(tag => tag.Name).ToList(),
             row.LastSyncedAt);
     }

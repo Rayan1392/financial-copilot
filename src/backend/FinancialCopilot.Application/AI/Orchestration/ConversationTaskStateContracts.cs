@@ -118,7 +118,8 @@ public sealed class ConversationDialogueGate(
     Feature154RoutingScope? feature154 = null,
     IEligibleSymbolResolver? eligibleSymbolResolver = null,
     SymbolSnapshotOptions? symbolSnapshotOptions = null,
-    IConversationalCapabilityRegistry? capabilityRegistry = null) : IConversationDialogueGate
+    IConversationalCapabilityRegistry? capabilityRegistry = null,
+    IChatCapabilityAvailability? capabilityAvailability = null) : IConversationDialogueGate
 {
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
@@ -126,7 +127,11 @@ public sealed class ConversationDialogueGate(
     public async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken)
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
-        var symbolSnapshotInterpretation = await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken);
+        var symbolSnapshotInterpretation = await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken)
+            ?? await TryInterpretTechnicalAnalysisAsync(request, scope, cancellationToken);
+        if (symbolSnapshotInterpretation is null &&
+            await TryPrepareUnavailableTopicAsync(request, scope, cancellationToken) is { } unavailableTopic)
+            return unavailableTopic;
         if (symbolSnapshotInterpretation is null &&
             await TryPrepareAssistantHelpAsync(request, scope, cancellationToken) is { } assistantHelp)
             return assistantHelp;
@@ -608,6 +613,140 @@ public sealed class ConversationDialogueGate(
         return active?.PendingAction is not null
             ? null
             : SymbolSnapshotIntentRules.BuildInterpretation(request.Message, eligible.Symbol, capabilityRegistry.Version);
+    }
+
+    /// <summary>
+    /// The company of a topic question: an exact ticker first; otherwise the deterministic interpreter's mention in the
+    /// message without its topic words (Noavaran rows often carry the symbol in TseSymbol/CompanySymbol, not Ticker).
+    /// </summary>
+    private async Task<EntityResolutionResult> ResolveTopicCompanyAsync(string message, CancellationToken cancellationToken)
+    {
+        var exact = await entityResolver.ResolveExactTickerFromTextAsync(message, cancellationToken);
+        if (exact is not EntityResolutionResult.Missing)
+            return exact;
+
+        var remaining = UnavailableTopicCatalog.WithoutTopicWords(message);
+        return remaining.Length == 0
+            ? exact
+            : await entityResolver.ResolveFromInterpretationAsync(interpreter.Interpret(remaining), cancellationToken);
+    }
+
+    /// <summary>
+    /// BUG-020 (owner, 2026-11-11; V2, NoavaranAmin base provider): while comprehensive analysis is available, a
+    /// technical-analysis question («تکنیکال X», «پیوت X», «تحلیل تکنیکال X») about one exact ticker goes to comprehensive
+    /// analysis with the technical topic, through the normal frame path. Without an exact ticker, or while comprehensive
+    /// analysis is unavailable, the unavailable-topic refusal below still answers. Never during a pending question.
+    /// </summary>
+    private async Task<QueryInterpretation?> TryInterpretTechnicalAnalysisAsync(
+        AiQueryRequest request,
+        ConversationTaskStateScope scope,
+        CancellationToken cancellationToken)
+    {
+        if (!_scope.IsActive || capabilityRegistry is null || capabilityAvailability is null ||
+            capabilityAvailability.Provider != FinancialDataChatProvider.NoavaranAmin ||
+            request.Context?.InsightEventId is not null ||
+            UnavailableTopicCatalog.Match(request.Message)?.ReasonCode != UnavailableTopicCatalog.TechnicalAnalysisReasonCode ||
+            !capabilityAvailability.Evaluate(CapabilityExecutionRoutes.ComprehensiveAnalysis).IsAvailable)
+            return null;
+
+        var active = await stateService.GetActiveAsync(scope, cancellationToken);
+        if (active?.PendingAction is not null)
+            return null;
+
+        EntityResolutionResult entity;
+        try
+        {
+            entity = await ResolveTopicCompanyAsync(request.Message, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
+        }
+
+        return entity is EntityResolutionResult.Resolved resolved
+            ? UnavailableTopicCatalog.BuildTechnicalAnalysisInterpretation(request.Message, resolved.Entity.DisplaySymbol, capabilityRegistry.Version)
+            : null;
+    }
+
+    /// <summary>
+    /// Feature 150 change «unavailable-capability-refusals-and-answer-correctness» (V2 only, NoavaranAmin base provider):
+    /// a technical-analysis, valuation, or advice question gets a fixed refusal before any model call, instead of an
+    /// unrelated capability. It never answers a pending question and never writes task state.
+    /// <list type="bullet">
+    /// <item>Off when the base provider is CyclicalWaves: that mode answers the equilibrium range itself (OQ-068).</item>
+    /// <item>Gate B C1–C3 / OQ-072: when the deterministic interpreter would pick comprehensive analysis and that
+    /// capability is available (for example «تحلیل تکنیکال فولاد» with the CyclicalWaves analysis source), today's route stays.</item>
+    /// <item>The company slot is filled only for one exact ticker; otherwise it stays empty and nothing is asked.</item>
+    /// <item>Rollout mode Legacy or Rollback for <c>unavailable_topic</c> turns the rule off.</item>
+    /// </list>
+    /// </summary>
+    private async Task<ConversationDialogueGateResult?> TryPrepareUnavailableTopicAsync(
+        AiQueryRequest request,
+        ConversationTaskStateScope scope,
+        CancellationToken cancellationToken)
+    {
+        if (!_scope.IsActive || capabilityRegistry is null || capabilityAvailability is null ||
+            capabilityAvailability.Provider != FinancialDataChatProvider.NoavaranAmin ||
+            request.Context?.InsightEventId is not null)
+            return null;
+
+        var topic = UnavailableTopicCatalog.Match(request.Message);
+        if (topic is null)
+            return null;
+
+        if (interpreter.Interpret(request.Message).CapabilityCandidates.FirstOrDefault()?.CapabilityCode ==
+                CapabilityExecutionRoutes.ComprehensiveAnalysis &&
+            capabilityAvailability.Evaluate(CapabilityExecutionRoutes.ComprehensiveAnalysis).IsAvailable)
+            return null;
+
+        if (!rolloutCoordinator.Decide(UnavailableTopicCapability.Code, request.ActorId.ToString("N")).ExecuteSemanticRoute)
+            return null;
+
+        var active = await stateService.GetActiveAsync(scope, cancellationToken);
+        if (active?.PendingAction is not null)
+            return null;
+
+        var interpretation = UnavailableTopicCatalog.BuildInterpretation(request.Message, topic, capabilityRegistry.Version);
+        EntityResolutionResult entity;
+        try
+        {
+            entity = await ResolveTopicCompanyAsync(request.Message, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // The refusal does not depend on the company; without it the follow-ups show the catalog example.
+            entity = new EntityResolutionResult.Missing("CompanyOrSymbol");
+        }
+
+        ResolvedQuerySlot[] slots = entity is EntityResolutionResult.Resolved resolved
+            ? [new ResolvedQuerySlot(QuerySlotType.CompanyOrSymbol, resolved.Entity.DisplaySymbol, QueryValueProvenance.UserExplicit,
+                resolved.Evidence.Confidence, QuerySlotValidationState.Valid, UnavailableTopicCapability.Code, CanonicalEntity: resolved.Entity)]
+            : [];
+        eventSink?.Record(new SemanticDialogueEvent(
+            SemanticEventName.InterpretationCompleted,
+            request.CorrelationId,
+            UnavailableTopicCapability.Code,
+            interpretation.RegistryVersion,
+            topic.ReasonCode,
+            request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+            timeProvider.GetUtcNow()));
+        var frame = new ValidatedQueryFrame(
+            UnavailableTopicCapability.Code,
+            interpretation.RegistryVersion,
+            slots,
+            interpretation,
+            UnavailableTopicCapability.Code,
+            interpretation.Confidence);
+        return new ConversationDialogueGateResult(
+            request with
+            {
+                OriginalUserMessage = request.OriginalUserMessage ?? request.Message,
+                SemanticFrame = frame,
+                SemanticShadowFrame = null,
+                SemanticRoutingDisposition = "SemanticPrimary"
+            },
+            null,
+            []);
     }
 
     /// <summary>

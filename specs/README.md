@@ -37,7 +37,9 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `156-symbol-snapshot-default-card`: Gate B approved 2026-11-09; implemented locally (uncommitted), flag off, live Development check open. A message that is only an eligible ticker gets one card (latest price, monthly sales, quarterly report) and next-step buttons instead of a refusal, on the V2 path behind `SymbolSnapshot:Enabled`.
 
-- `162-capability-source-map-comprehensive-analysis`: Gate B approved 2026-11-10; implemented on branch `feature/162-capability-source-map` (uncommitted), map empty by default. «تحلیل جامع X» answers from the CyclicalWaves v2 analyses while the provider stays NoavaranAmin: title and whole summary, fixed TahlilApp link (ADR 0001).
+- `150-shared-chat-routing-intent-and-entity-resolution-fixes/changes/unavailable-capability-refusals-and-answer-correctness`: Gate B approved 2026-11-11; implemented on branch `track/a-routing-answer-correctness` (uncommitted). Technical-analysis, valuation, and buy-advice questions get a fixed refusal with follow-ups instead of an unrelated table (BUG-004, BUG-005); price answers lose the wrong «واحد: میلیون ریال» note (BUG-006); a metric with no value is NoData and free (BUG-007).
+
+- `162-capability-source-map-comprehensive-analysis`: Gate B approved 2026-11-10; implemented on branch `feature/162-capability-source-map` (uncommitted), map empty by default. «تحلیل جامع X» answers from the CyclicalWaves v2 analyses while the provider stays NoavaranAmin: title and whole summary, fixed TahlilApp link (ADR 0001). Changes: `latest-analysis-teaser` (preview of the latest analysis), `bug-020-technical-analysis-topic`, `per-analysis-link` (withdrawn), `max-plan-full-analysis-text` (Gate B 2026-11-11, branch `track/a-routing-answer-correctness`, uncommitted: whole text for Max).
 
 ## Mobile Experience
 

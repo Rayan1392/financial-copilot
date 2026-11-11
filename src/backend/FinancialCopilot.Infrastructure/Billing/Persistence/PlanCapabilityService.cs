@@ -86,6 +86,26 @@ public sealed class PlanCapabilityService(BillingDbContext dbContext, TimeProvid
             (timeProvider ?? TimeProvider.System).GetUtcNow());
     }
 
+    public async Task<bool> IsEnabledAsync(
+        CustomerAccount account,
+        string capabilityCode,
+        CancellationToken cancellationToken)
+    {
+        var planCode = await ReadEffectivePlanCodeAsync(account.Id, cancellationToken);
+        if (string.IsNullOrWhiteSpace(planCode))
+        {
+            return false;
+        }
+
+        // The newest policy version decides, as in ValidateCanExecuteAsync; a disabled newest row denies.
+        var newest = await dbContext.PlanCapabilities.AsNoTracking()
+            .Where(row => row.PlanCode == planCode && row.CapabilityCode == capabilityCode)
+            .OrderByDescending(row => row.PolicyVersion)
+            .Select(row => (bool?)row.IsEnabled)
+            .FirstOrDefaultAsync(cancellationToken);
+        return newest == true;
+    }
+
     public async Task<decimal?> GetLimitAsync(
         CustomerAccount account,
         string capabilityCode,

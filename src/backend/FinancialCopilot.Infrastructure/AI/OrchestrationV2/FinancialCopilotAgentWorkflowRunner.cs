@@ -121,8 +121,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 string text => text,
                 Workflow.Feature141ChatAnswer feature141 => feature141.Text,
                 ComprehensiveAnalysisQueryResponse analysis => ComprehensiveAnalysisToolResult.Success(analysis, AnalysesUrl).AgentSummary,
-                SemanticComprehensiveAnalysisPayload combined when combined.Lookup.Rows.Count > 0 =>
-                    $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis, AnalysesUrl).AgentSummary}",
+                // BUG-020: the Persian analysis card only, never the lookup's English summary.
                 SemanticComprehensiveAnalysisPayload combined => ComprehensiveAnalysisToolResult.Success(combined.Analysis, AnalysesUrl).AgentSummary,
                 IndustryRelativeValuationPayload relative => relative.PresentationText,
                 SymbolSnapshotResult snapshot => SymbolSnapshotTextComposer.Compose(snapshot),
@@ -148,7 +147,12 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             var semanticDialogueOutcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
                 new DialogueOutcomeResult(semanticOutcome, semantic.Execution.ReasonCode,
                     semanticFrame.Interpretation.ReplyLanguage, null, false), semanticText);
-            if (semanticOutcome is not DialogueOutcome.Answered and not DialogueOutcome.PartialAnswer)
+            // Feature 150 change (BUG-007): a lookup with rows but no value for the asked metric is NoData with the
+            // deterministic «مقدار قابل اتکایی … موجود نیست» sentence, not the generic no-data text.
+            if (semanticOutcome == DialogueOutcome.NoData && lookupTable is { Rows.Count: > 0 } && semantic.Execution.Payload is SymbolLookupTableResult)
+                semanticText = consistencyValidator.ValidateSymbolLookup(lookupTable, null,
+                    new AnswerConsistencyContext(request.CorrelationId, conversationId, "MicrosoftAgentFrameworkV2", WorkflowVersion: 2)).Answer;
+            else if (semanticOutcome is not DialogueOutcome.Answered and not DialogueOutcome.PartialAnswer)
                 semanticText = AiDialogueOutcomePolicy.ComposeSystemMessage(semanticDialogueOutcome);
             outcomeTelemetry.Record(request, semanticDialogueOutcome,
                 request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", now);

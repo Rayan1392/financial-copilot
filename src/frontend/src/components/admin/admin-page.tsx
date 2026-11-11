@@ -95,6 +95,10 @@ const permissionLabels: Record<string, { label: string; description: string }> =
     label: "دریافت تحلیل سهام",
     description: "پرس‌وجو درباره تحلیل جامع و وضعیت نمادها.",
   },
+  "ComprehensiveAnalysis.FullText": {
+    label: "متن کامل تحلیل جامع",
+    description: "نمایش متن کامل آخرین تحلیل تحلیل‌اپ در پاسخ به «تحلیل جامع» به‌جای پیش‌نمایش.",
+  },
   "MarketPulse.Read": {
     label: "مشاهده نبض بازار",
     description: "خواندن خلاصه شاخص‌ها و وضعیت بازار.",
@@ -122,8 +126,10 @@ const permissionLabels: Record<string, { label: string; description: string }> =
 };
 
 permissionLabels["Page.Disclosures"] = {
-  label: "\u0635\u0641\u062d\u0647 \u0641\u0647\u0631\u0633\u062a \u0627\u0637\u0644\u0627\u0639\u06cc\u0647\u200c\u0647\u0627\u06cc \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647",
-  description: "\u062a\u0639\u06cc\u06cc\u0646 \u0645\u06cc\u200c\u06a9\u0646\u062f \u06a9\u062f\u0627\u0645 \u0637\u0631\u062d\u200c\u0647\u0627 \u0627\u0645\u06a9\u0627\u0646 \u0645\u0634\u0627\u0647\u062f\u0647 \u0641\u0647\u0631\u0633\u062a \u0627\u0637\u0644\u0627\u0639\u06cc\u0647\u200c\u0647\u0627 \u0631\u0627 \u062f\u0627\u0631\u0646\u062f.",
+  label:
+    "\u0635\u0641\u062d\u0647 \u0641\u0647\u0631\u0633\u062a \u0627\u0637\u0644\u0627\u0639\u06cc\u0647\u200c\u0647\u0627\u06cc \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647",
+  description:
+    "\u062a\u0639\u06cc\u06cc\u0646 \u0645\u06cc\u200c\u06a9\u0646\u062f \u06a9\u062f\u0627\u0645 \u0637\u0631\u062d\u200c\u0647\u0627 \u0627\u0645\u06a9\u0627\u0646 \u0645\u0634\u0627\u0647\u062f\u0647 \u0641\u0647\u0631\u0633\u062a \u0627\u0637\u0644\u0627\u0639\u06cc\u0647\u200c\u0647\u0627 \u0631\u0627 \u062f\u0627\u0631\u0646\u062f.",
 };
 
 function permissionCopy(code: string) {
@@ -673,10 +679,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
         search: search.trim() || undefined,
         status: statusFilter as "any" | "enabled" | "disabled" | "locked",
         acquisitionSource: (sourceFilter || undefined) as
-          | "native"
-          | "tahlilapp"
-          | "unknown"
-          | undefined,
+          "native" | "tahlilapp" | "unknown" | undefined,
         linkedProvider: (providerFilter || undefined) as "tahlilapp" | "telegram" | undefined,
         externalProvider: externalId.trim() ? "tahlilapp" : undefined,
         externalUserId: externalId.trim() || undefined,
@@ -1342,9 +1345,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
                             طرح: {data.planName ?? data.planCode ?? "نامشخص"} · فعال:{" "}
                             {data.isActive ? "بله" : "خیر"}
                           </p>
-                          <p>
-                            سهمیه: {data.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"}
-                          </p>
+                          <p>سهمیه: {data.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"}</p>
                           <p>
                             بازه: {dateLabel(data.effectiveFromUtc)} تا{" "}
                             {dateLabel(data.effectiveToUtc)} · بازبینی: {data.revision}
@@ -1968,7 +1969,8 @@ function BillingPanel({ user }: { user: AuthUser }) {
   const [creditSaving, setCreditSaving] = useState(false);
   const [subscription, setSubscription] = useState<AdminSubscription | null>(null);
   const [ledger, setLedger] = useState<AdminUsageLedger[]>([]);
-  const [topUpReconciliation, setTopUpReconciliation] = useState<TahlilAppTopUpReconciliation | null>(null);
+  const [topUpReconciliation, setTopUpReconciliation] =
+    useState<TahlilAppTopUpReconciliation | null>(null);
   const [topUpReconciliationLoading, setTopUpReconciliationLoading] = useState(false);
   const [topUpReconciliationError, setTopUpReconciliationError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -2331,7 +2333,9 @@ function BillingPanel({ user }: { user: AuthUser }) {
   return (
     <>
       <div className="space-y-4">
-        {hasPermission(user, adminPermissions.billingAuditRead) && <TahlilAppTopUpReconciliationPanel />}
+        {hasPermission(user, adminPermissions.billingAuditRead) && (
+          <TahlilAppTopUpReconciliationPanel />
+        )}
         <Panel title="طرح‌ها">
           <Message error={error} success={success} />
           <div className="overflow-x-auto rounded-xl border border-slate-100">
@@ -2356,7 +2360,11 @@ function BillingPanel({ user }: { user: AuthUser }) {
                       </code>
                     </TableCell>
                     <TableCell className="font-medium">{plan.name}</TableCell>
-                    <TableCell>{plan.quotaMode === "Unlimited" ? "نامحدود" : plan.includedCredits.toLocaleString("fa-IR")}</TableCell>
+                    <TableCell>
+                      {plan.quotaMode === "Unlimited"
+                        ? "نامحدود"
+                        : plan.includedCredits.toLocaleString("fa-IR")}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -2369,14 +2377,16 @@ function BillingPanel({ user }: { user: AuthUser }) {
                         </Button>
                         {hasPermission(user, adminPermissions.plansManage) && (
                           <>
-                            {plan.quotaMode === "Finite" && <Button
-                              className="rounded-lg"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => void editIncludedCredits(plan)}
-                            >
-                              ویرایش اعتبار
-                            </Button>}
+                            {plan.quotaMode === "Finite" && (
+                              <Button
+                                className="rounded-lg"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void editIncludedCredits(plan)}
+                              >
+                                ویرایش اعتبار
+                              </Button>
+                            )}
                             <Button
                               className="rounded-lg"
                               size="sm"
@@ -2494,7 +2504,10 @@ function BillingPanel({ user }: { user: AuthUser }) {
                                   <div className="space-y-1 text-xs text-slate-600">
                                     {item.subscription.data?.planCode && (
                                       <div>
-                                        طرح: {item.subscription.data.planCode} · سهمیه: {item.subscription.data.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"}
+                                        طرح: {item.subscription.data.planCode} · سهمیه:{" "}
+                                        {item.subscription.data.creditQuotaMode === "Unlimited"
+                                          ? "نامحدود"
+                                          : "محدود"}
                                       </div>
                                     )}
                                     {item.credits.data?.spendableCredits != null && (

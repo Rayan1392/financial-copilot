@@ -98,7 +98,8 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
                 requestedSymbol,
                 requestedMetricCode,
                 requestedMetricDisplay,
-                requestedCell));
+                requestedCell,
+                statePriceUnit: true));
         }
 
         // Multiple symbols, or multiple metrics without a known requested primary metric:
@@ -128,11 +129,16 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         string symbol,
         string metricCode,
         string metricDisplay,
-        ScannerTableCell cell)
+        ScannerTableCell cell,
+        bool statePriceUnit = false)
     {
+        // Feature 150 change (BUG-006): the share price is in ریال, as on the Feature 156 card. Only the requested-metric
+        // path (V2) states it, so V1 text is unchanged.
+        var unitFa = statePriceUnit && IsLatestPrice(metricCode) ? " ریال" : string.Empty;
+        var unitEn = statePriceUnit && IsLatestPrice(metricCode) ? " Rials" : string.Empty;
         var sentence = persian
-            ? $"{MetricDisplayForPersianSentence(metricCode, metricDisplay)} نماد {symbol} برابر است با {cell.FormattedValue}."
-            : $"The {metricDisplay} of {symbol} is {cell.FormattedValue}.";
+            ? $"{MetricDisplayForPersianSentence(metricCode, metricDisplay)} نماد {symbol} برابر است با {cell.FormattedValue}{unitFa}."
+            : $"The {metricDisplay} of {symbol} is {cell.FormattedValue}{unitEn}.";
 
         if (!IsQuoteMetric(metricCode) || string.IsNullOrWhiteSpace(cell.TradingDatePersian))
         {
@@ -157,6 +163,9 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         || string.Equals(metricCode, "CURRENT_RATIO", StringComparison.OrdinalIgnoreCase)
         || string.Equals(metricCode, "QUICK_RATIO", StringComparison.OrdinalIgnoreCase)
         || string.Equals(metricCode, "DEBT_TO_EQUITY", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLatestPrice(string metricCode) =>
+        string.Equals(metricCode, "LATEST_PRICE", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsQuoteMetric(string metricCode) =>
         string.Equals(metricCode, "LATEST_PRICE", StringComparison.OrdinalIgnoreCase) ||
@@ -268,16 +277,22 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
     }
 
     private static string WithUnitNote(SymbolLookupTableResult table, string sentence) =>
-        HasMonthlySalesMonetaryColumn(table)
+        ShowsMonthlySalesUnitNote(table)
             ? $"{(ContainsPersian(table) ? MonthlySalesUnitNoteFa : MonthlySalesUnitNoteEn)}{Environment.NewLine}{sentence}"
             : sentence;
 
-    private static bool HasMonthlySalesMonetaryColumn(SymbolLookupTableResult table) =>
-        table.Columns.Any(IsMonthlySalesMonetaryColumn);
+    // Feature 150 change (BUG-006): when the asked metrics are known (V2 sets them), the note follows what was asked,
+    // not a monthly-sales context column. Without them (V1) the column test is kept unchanged.
+    private static bool ShowsMonthlySalesUnitNote(SymbolLookupTableResult table) =>
+        table.RequestedMetricCodes is { Count: > 0 } requested
+            ? requested.Any(IsMonthlySalesMonetaryCode)
+            : table.Columns.Any(IsMonthlySalesMonetaryColumn);
 
-    private static bool IsMonthlySalesMonetaryColumn(ScannerTableColumn column)
+    private static bool IsMonthlySalesMonetaryColumn(ScannerTableColumn column) =>
+        IsMonthlySalesMonetaryCode(column.MetricCode ?? column.Identifier);
+
+    private static bool IsMonthlySalesMonetaryCode(string metricCode)
     {
-        var metricCode = column.MetricCode ?? column.Identifier;
         return string.Equals(metricCode, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(metricCode, "AVG_12M_MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(metricCode, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", StringComparison.OrdinalIgnoreCase) ||

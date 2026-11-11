@@ -67,7 +67,9 @@ public sealed class TelegramAssistantResponseRenderer(
         {
             builder.AppendLine(response.ClarificationMessage);
         }
-        else if (!isSingleSymbolLookup && !isAnalysisTurn && !string.IsNullOrWhiteSpace(response.TextAnswer))
+        // Feature 150 change (BUG-007): the stock card shows no "no value" sentence, so a NoData lookup prints it.
+        else if ((!isSingleSymbolLookup || response.Outcome == DialogueOutcome.NoData) && !isAnalysisTurn &&
+                 !string.IsNullOrWhiteSpace(response.TextAnswer))
         {
             if (TryFormatIndustryComparison(response.TextAnswer, out var comparison))
             {
@@ -709,8 +711,10 @@ public sealed class TelegramAssistantResponseRenderer(
         var analysesUrl = comprehensiveAnalysisPresentation?.Value.TahlilAppAnalysesUrl
                           ?? ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;
         builder.AppendLine();
+        // Change «max-plan-full-analysis-text»: a whole-text card is cut to one Telegram message (link kept).
         builder.AppendLine(ComprehensiveAnalysisCardComposer.ComposePlainText(
-            analysis.Items.Take(3).ToList(), analysis.UnresolvedSymbols, analysesUrl));
+            analysis.Items.Take(3).ToList(), analysis.UnresolvedSymbols, analysesUrl, analysis.TechnicalAnalysisNotFoundSymbols,
+            analysis.FullTextIncluded, TelegramMessageLimit));
     }
 
     private static void AppendConfidence(StringBuilder builder, AiQueryResponse response)

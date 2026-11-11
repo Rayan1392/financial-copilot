@@ -533,9 +533,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticScannerPayload => scannerResult!.AgentSummary,
                 SymbolLookupTableResult => lookupResult!.AgentSummary,
                 ComprehensiveAnalysisQueryResponse => comprehensiveAnalysisResult!.AgentSummary,
-                SemanticComprehensiveAnalysisPayload => lookupResult is null
-                    ? comprehensiveAnalysisResult!.AgentSummary
-                    : $"{lookupResult.AgentSummary}\n\n{comprehensiveAnalysisResult!.AgentSummary}",
+                // BUG-020: the answer is the Persian analysis card only; the context lookup's English summary
+                // («Found metric data for 1 symbol(s).») is never shown. The lookup table still travels as data.
+                SemanticComprehensiveAnalysisPayload => comprehensiveAnalysisResult!.AgentSummary,
                 FinancialStatementAnalysisResponse analysis => analysis.RenderedAnswer,
                 FinancialStatementTableResult table => table.RenderedAnswer,
                 FinancialStatementValueSearchResult valueSearch => valueSearch.Outcome == FinancialStatementValueSearchOutcome.NoMatch
@@ -1421,9 +1421,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var consistencyContext = new AnswerConsistencyContext(
             msg.Request.CorrelationId, msg.ConversationId, "MicrosoftAgentFrameworkV2", WorkflowVersion: 2);
 
-        var groundedAnswer = outcome.Outcome == DialogueOutcome.Answered
+        // Feature 150 change (BUG-007): a lookup with rows but no value for the asked metric is NoData; its reply is the
+        // deterministic «مقدار قابل اتکایی … موجود نیست» sentence, not the generic no-data text.
+        var noValueLookup = outcome.Outcome == DialogueOutcome.NoData && detectedIntent == DetectedIntent.SymbolLookup &&
+            msg.LookupResult?.Table is { Rows.Count: > 0 };
+        var groundedAnswer = outcome.Outcome == DialogueOutcome.Answered || noValueLookup
             ? GroundAgentProse(
-                detectedIntent, msg.ScannerResult, msg.LookupResult, msg.AgentResponseText, consistencyContext)
+                detectedIntent, msg.ScannerResult, msg.LookupResult, noValueLookup ? null : msg.AgentResponseText, consistencyContext)
             : AiDialogueOutcomePolicy.ComposeSystemMessage(
                 outcome,
                 detectedIntent == DetectedIntent.Unknown ? null : msg.AgentResponseText);

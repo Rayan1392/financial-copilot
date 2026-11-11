@@ -37,7 +37,7 @@ public sealed class SemanticQueryFrameEnricher(Feature154RoutingScope? feature15
                 AddValueSearch(enriched, capabilityCode, interpretation.OriginalText);
                 break;
             case "comprehensive_analysis":
-                AddComprehensiveAnalysis(enriched, capabilityCode, interpretation.OriginalText, now);
+                AddComprehensiveAnalysis(enriched, capabilityCode, interpretation.OriginalText, now, _feature154);
                 break;
             case "financial_statement_table" when _feature154:
                 AddStatementTable(enriched, capabilityCode,
@@ -82,11 +82,16 @@ public sealed class SemanticQueryFrameEnricher(Feature154RoutingScope? feature15
         IDictionary<QuerySlotType, ResolvedQuerySlot> slots,
         string capabilityCode,
         string message,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool v2)
     {
         var normalized = QueryNormalization.Normalize(message);
         var topics = new List<string>();
-        AddTopic(topics, normalized, "تحلیل_تکنیکال", "تحلیل تکنیکال", "technical analysis");
+        // BUG-020 (V2): «تکنیکال X» and «پیوت X» are routed here by the dialogue gate and ask for the same topic.
+        if (v2)
+            AddTopic(topics, normalized, ComprehensiveAnalysisTopics.TechnicalAnalysis, "تحلیل تکنیکال", "technical analysis", "تکنیکال", "پیوت", "technical", "pivot");
+        else
+            AddTopic(topics, normalized, "تحلیل_تکنیکال", "تحلیل تکنیکال", "technical analysis");
         AddTopic(topics, normalized, "قیمت_تعادلی", "قیمت تعادلی", "equilibrium price");
         AddTopic(topics, normalized, "رصد_معاملات_عمده", "رصد معاملات عمده", "معاملات عمده", "suspicious volume", "block trades");
         AddTopic(topics, normalized, "گزارش_فصلی", "گزارش فصلی", "گزارش عملکرد", "quarterly report");

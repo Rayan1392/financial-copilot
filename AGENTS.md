@@ -123,6 +123,11 @@ returns only a preview (at most 30% and 300 characters, none under 150; `Compreh
 is a fixed card for the latest analysis only: `### <title>`, «تاریخ انتشار: <date>», the preview, «متن کامل این تحلیل را
 در بخش تحلیل جامع، تحلیل اپ بخوانید» and `[ادامهٔ این تحلیل در تحلیل‌اپ](<ComprehensiveAnalysis:TahlilAppAnalysesUrl>)`.
 When nothing matches: «برای نماد X تحلیلی در تحلیل‌اپ پیدا نشد.» plus `[تحلیل‌های جامع تحلیل‌اپ](<url>)`.
+Max plan (change `max-plan-full-analysis-text`): a user whose effective plan has the enabled plan capability
+`ComprehensiveAnalysis.FullText` (seeded for Max only; port `IComprehensiveAnalysisFullTextEntitlement`, fail closed,
+2-second budget) gets the whole text instead of the preview, without the read-more sentence, and the link line
+`[تحلیل‌های جامع تحلیل‌اپ](<url>)`; Telegram cuts that card to one message. API clients and the LLM tool path always
+get the preview.
 
 **IMPORTANT — topic matching:** Topics are stored by `TagName` (underscore slug), not `TagSlug`. Always use the exact slug strings above.
 

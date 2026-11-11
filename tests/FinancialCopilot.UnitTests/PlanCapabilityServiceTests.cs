@@ -8,18 +8,23 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class PlanCapabilityServiceTests
 {
+    // Feature 152: Max has Pro's matrix. Feature 162 change «max-plan-full-analysis-text» (owner, 2026-11-11) adds one
+    // Max-only row: the whole TahlilApp analysis text.
     [Fact]
-    public void MaxSeededCapabilityMatrixExactlyMatchesPro()
+    public void MaxSeededCapabilityMatrixMatchesPro_PlusOnlyTheFullAnalysisText()
     {
         using var dbContext = CreateDbContext();
         var capabilityEntity = dbContext.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(PlanCapabilityRow));
         Assert.NotNull(capabilityEntity);
-        var seedRows = capabilityEntity!.GetSeedData();
+        var seedRows = capabilityEntity!.GetSeedData().ToList();
         var pro = ReadPlanCapabilities(seedRows, "Pro");
         var max = ReadPlanCapabilities(seedRows, "Max");
 
         Assert.NotEmpty(pro);
-        Assert.Equal(pro.OrderBy(item => item.Key), max.OrderBy(item => item.Key));
+        Assert.Equal((true, (decimal?)null), max["ComprehensiveAnalysis.FullText"]);
+        Assert.Equal(pro.OrderBy(item => item.Key),
+            max.Where(item => item.Key != "ComprehensiveAnalysis.FullText").OrderBy(item => item.Key));
+        Assert.Single(seedRows, row => Equals(row[nameof(PlanCapabilityRow.CapabilityCode)], "ComprehensiveAnalysis.FullText"));
     }
 
     [Fact]

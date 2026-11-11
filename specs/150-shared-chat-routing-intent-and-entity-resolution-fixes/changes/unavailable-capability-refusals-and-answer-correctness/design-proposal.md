@@ -1,6 +1,27 @@
 # Unavailable-capability refusals and answer correctness (BUG-004 to BUG-007)
 
-Status: Proposed — not approved
+Status: Gate A: Approved by the owner on 2026-11-11
+
+Gate A decisions (owner, 2026-11-11: "approved with the recommendations you made"):
+
+| Question | Decision |
+|---|---|
+| OQ-PROPOSED-A1 → OQ-066 | (a) neutral refusal plus data alternatives |
+| OQ-PROPOSED-A2 → OQ-067 | (a) the Persian copy in R1–R3 as written |
+| OQ-PROPOSED-A3 → OQ-068 | The rule depends on the source that would answer the topic. None of the three topics has an overridable route in `ChatCapabilitySourceMap`, and the only other answer (CyclicalWaves v2 equilibrium range, `FinancialCopilotWorkflowDefinition.cs:382`) runs only when the base provider is CyclicalWaves. So in practice: the rule is on only while `FinancialData:ChatProvider` is `NoavaranAmin`. |
+| OQ-PROPOSED-A4 → OQ-069 | (a) only the reported phrases and their direct English forms |
+| OQ-PROPOSED-A5 → OQ-070 | (a) `NoData`, keep the context table, deterministic sentence |
+| OQ-PROPOSED-A8 → OQ-071 | (a) add ` ریال` to the `LATEST_PRICE` sentence only |
+| Scope | R0–R5. R5 (BUG-007) is in this design's scope list; the owner did not remove it. Confirm or remove at Gate B. |
+
+Details and plan: `user-story.md`, `tasks.md` in this folder.
+
+Changes found while re-checking against `develop` `da623ed` (Feature 162 merged); none changes the design:
+
+- `QueryNormalization.Normalize` turns ZWNJ into a space (`QueryNormalization.cs:50`), so «پیوت‌های» yields the word «پیوت». Word matching is enough.
+- P/S gauge and industry-relative valuation are retired in both modes (`ChatCapabilityAvailability.RetiredRoutes`); the CyclicalWaves-mode equilibrium answer still exists, so decision OQ-068 stands.
+- `SemanticRouting:DefaultMode` is `Shadow` in `docker-compose.yml`; Shadow still runs the semantic frame, so the new capability needs no compose entry. `SemanticRouting__Capabilities__unavailable_topic=Rollback` turns the rule off.
+- `RequestedMetricCodes` is set only by the V2 executor (`SemanticCapabilityExecutors.cs:266`, `:800`), so R4 needs no extra V1 guard.
 
 | Field | Value |
 |---|---|

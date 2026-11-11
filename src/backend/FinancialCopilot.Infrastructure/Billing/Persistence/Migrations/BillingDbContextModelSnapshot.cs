@@ -1059,6 +1059,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         },
                         new
                         {
+                            PlanCode = "Max",
+                            CapabilityCode = "ComprehensiveAnalysis.FullText",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
                             PlanCode = "Plus",
                             CapabilityCode = "AiQuery.Scanner",
                             PolicyVersion = "v1",

@@ -10,7 +10,8 @@ public sealed class ConversationalCapabilityRegistryTests
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
 
-        Assert.Equal(22, registry.GetAll().Count);
+        // 23 since the Feature 150 change added the gate-routed unavailable_topic capability.
+        Assert.Equal(23, registry.GetAll().Count);
         Assert.DoesNotContain(registry.GetAll(), definition => definition.Code is "unknown" or "clarification");
         Assert.All(registry.GetAll(), definition =>
         {

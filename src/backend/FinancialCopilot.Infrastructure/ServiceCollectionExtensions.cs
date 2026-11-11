@@ -753,6 +753,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationalCapabilityExecutor, SymbolSnapshotCapabilityExecutor>();
         services.AddSingleton<IAssistantHelpReplyComposer, AssistantHelpReplyComposer>();
         services.AddScoped<IConversationalCapabilityExecutor, AssistantHelpCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, UnavailableTopicCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyProductComparisonCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();
@@ -765,6 +766,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationalCapabilityExecutor, DisclosureListingCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlySalesQualityCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, PsGaugeCapabilityExecutor>();
+        // Feature 162 change «max-plan-full-analysis-text»: without billing nobody gets the whole analysis text.
+        services.AddScoped<IComprehensiveAnalysisFullTextEntitlement>(provider =>
+            provider.GetService<ICustomerAccountRepository>() is { } customerAccounts &&
+            provider.GetService<IPlanCapabilityService>() is { } planCapabilities
+                ? new ComprehensiveAnalysisFullTextEntitlement(
+                    customerAccounts, planCapabilities,
+                    provider.GetRequiredService<ILogger<ComprehensiveAnalysisFullTextEntitlement>>())
+                : new NoComprehensiveAnalysisFullTextEntitlement());
         services.AddScoped<IConversationalCapabilityExecutor, ComprehensiveAnalysisCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, StockScreeningCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, PersonalizedInsightExplanationCapabilityExecutor>();

@@ -228,6 +228,10 @@ AI Facade Request
   -> Facade Response
 ```
 
+Before the model interprets a message, `ConversationDialogueGate` applies deterministic, gate-routed capabilities in this order: Symbol Snapshot (Feature 156, a bare eligible ticker), technical-analysis questions about one company while comprehensive analysis is available (BUG-020: routed to `comprehensive_analysis` with the technical topic), unavailable topic (Feature 150 change: technical analysis, equilibrium price or intrinsic value, buy advice; NoavaranAmin base provider only; not when comprehensive analysis would answer and is available), assistant help (Feature 121, greetings). Each is `GateRoutedOnly`, so it is never offered to the model, and each honours its `SemanticRouting:Capabilities:<code>` rollback.
+
+Paid analysis text (Feature 162 change `max-plan-full-analysis-text`): `ComprehensiveAnalysisCapabilityExecutor` asks the Application port `IComprehensiveAnalysisFullTextEntitlement` (Infrastructure `ComprehensiveAnalysisFullTextEntitlement`: the user's individual billing account, its effective plan, `IPlanCapabilityService.IsEnabledAsync` for `ComprehensiveAnalysis.FullText`). It fails closed: an API client, no user, no plan, an error or more than 2 seconds gives the preview. The check runs after the turn's billing reservation, which refreshes the TahlilApp plan when due. Only a granted request sets `ComprehensiveAnalysisQueryRequest.IncludeFullText`, so the whole text never leaves the query for anyone else; the LLM tool path always sets it to false.
+
 `IConfidenceScoreCalculator` calculates the displayed confidence from deterministic evidence and versioned policy. `IUsageChargeCalculator` and `IUsageAccountingService` calculate and persist displayed credit consumption from versioned charging policy. These workflow steps are mandatory and cannot be skipped, modified, or numerically decided by the LLM.
 
 ### Required Tool/Function Adapters

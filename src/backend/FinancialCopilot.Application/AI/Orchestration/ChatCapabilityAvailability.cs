@@ -145,6 +145,23 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
         ComprehensiveAnalysisUnavailableReasonCode => persian
             ? ComprehensiveAnalysisUnavailableMessageFa
             : ComprehensiveAnalysisUnavailableMessageEn,
+        UnavailableTopicCatalog.TechnicalAnalysisReasonCode => persian ? TechnicalAnalysisUnavailableMessageFa : TechnicalAnalysisUnavailableMessageEn,
+        UnavailableTopicCatalog.ValuationReasonCode => persian ? ValuationUnavailableMessageFa : ValuationUnavailableMessageEn,
+        UnavailableTopicCatalog.InvestmentAdviceReasonCode => persian ? InvestmentAdviceUnavailableMessageFa : InvestmentAdviceUnavailableMessageEn,
         _ => null
     };
+
+    // Feature 150 change «unavailable-capability-refusals-and-answer-correctness»: copy approved by the owner (OQ-066, OQ-067).
+    public const string TechnicalAnalysisUnavailableMessageFa =
+        "تحلیل تکنیکال هنوز در دستیار فعال نشده است. می‌توانم روند فروش ماهانه یا گزارش فصلی همین نماد را نشان بدهم.";
+    public const string ValuationUnavailableMessageFa =
+        "قیمت تعادلی و ارزش ذاتی هنوز در دستیار محاسبه نمی‌شوند. می‌توانم آخرین قیمت، روند فروش ماهانه یا گزارش فصلی همین نماد را نشان بدهم.";
+    public const string InvestmentAdviceUnavailableMessageFa =
+        "توصیهٔ خرید یا فروش ارائه نمی‌کنم. می‌توانم آخرین قیمت، روند فروش ماهانه یا گزارش فصلی همین نماد را نشان بدهم تا خودتان تصمیم بگیرید.";
+    public const string TechnicalAnalysisUnavailableMessageEn =
+        "Technical analysis is not available in the assistant yet. I can show this symbol's monthly sales trend or quarterly report.";
+    public const string ValuationUnavailableMessageEn =
+        "Equilibrium price and intrinsic value are not calculated by the assistant yet. I can show this symbol's latest price, monthly sales trend, or quarterly report.";
+    public const string InvestmentAdviceUnavailableMessageEn =
+        "I do not give buy or sell advice. I can show this symbol's latest price, monthly sales trend, or quarterly report so you can decide.";
 }

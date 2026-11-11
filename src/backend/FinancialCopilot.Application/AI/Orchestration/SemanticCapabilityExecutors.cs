@@ -266,7 +266,22 @@ public sealed class SymbolMetricLookupCapabilityExecutor(
         table = table with { RequestedMetricCodes = effectiveRequestedMetrics };
         if (SemanticLookupMetricPolicy.ProjectionMetricCodes(metrics, period) is { } projection)
             table = SemanticLookupMetricPolicy.ProjectMetrics(table, projection, effectiveRequestedMetrics);
-        return table.Rows.Count == 0 ? NoData(frame, table) : Success(frame, table);
+        // Feature 150 change (BUG-007): rows filled only by context columns are not an answer to what was asked.
+        return table.Rows.Count == 0 || !HasAnyRequestedValue(table, effectiveRequestedMetrics)
+            ? NoData(frame, table)
+            : Success(frame, table);
+    }
+
+    private static bool HasAnyRequestedValue(SymbolLookupTableResult table, IReadOnlyCollection<string> requestedMetrics)
+    {
+        var requestedColumnIds = table.Columns
+            .Where(column => requestedMetrics.Contains(column.MetricCode ?? column.Identifier, StringComparer.OrdinalIgnoreCase))
+            .Select(column => column.Identifier)
+            .ToArray();
+        return table.Rows.Any(row => requestedColumnIds.Any(id =>
+            row.Cells.TryGetValue(id, out var cell) &&
+            cell.FreshnessStatus != CellFreshnessStatus.Missing &&
+            !string.IsNullOrWhiteSpace(cell.FormattedValue)));
     }
 }
 
@@ -611,8 +626,13 @@ public sealed class PsGaugeCapabilityExecutor(IPsVisualizationExperienceUseCase 
 public sealed class ComprehensiveAnalysisCapabilityExecutor(
     IComprehensiveAnalysisQueryUseCase useCase,
     ISymbolMetricLookupService lookupService,
-    TimeProvider timeProvider) : IConversationalCapabilityExecutor
+    TimeProvider timeProvider,
+    IComprehensiveAnalysisFullTextEntitlement? fullTextEntitlement = null) : IConversationalCapabilityExecutor
 {
+    private static readonly System.Diagnostics.Metrics.Meter CardMeter = new("FinancialCopilot.ComprehensiveAnalysis", "1.0.0");
+    private static readonly System.Diagnostics.Metrics.Counter<long> CardCounter =
+        CardMeter.CreateCounter<long>("comprehensive_analysis_card_total");
+
     public string CapabilityCode => "comprehensive_analysis";
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
     {
@@ -622,10 +642,13 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         var fromDate = ParseDateTimeOffset(frame.Value(QuerySlotType.Period));
         // Feature 162 change «latest-analysis-teaser»: the answer shows the latest analysis only.
         const int limit = 1;
+        // Change «max-plan-full-analysis-text»: the plan is read after the turn's billing reservation (which refreshes
+        // the TahlilApp status when due); any doubt means the preview.
+        var includeFullText = await IsFullTextGrantedAsync(context, cancellationToken);
 
         var analysisTask = TryExecuteAsync(
             () => useCase.ExecuteAsync(
-                new ComprehensiveAnalysisQueryRequest(symbols, topics, fromDate, limit),
+                new ComprehensiveAnalysisQueryRequest(symbols, topics, fromDate, limit, includeFullText),
                 cancellationToken),
             cancellationToken);
         var lookupTask = TryExecuteAsync(
@@ -640,6 +663,19 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
 
         var analysisAttempt = await analysisTask;
         var lookupAttempt = await lookupTask;
+        // BUG-020 (owner, 2026-11-11): no technical analysis for the symbol → its latest analysis, with a line saying so.
+        if (analysisAttempt.Value is { HasResults: false } &&
+            topics.Contains(ComprehensiveAnalysisTopics.TechnicalAnalysis, StringComparer.Ordinal))
+        {
+            var latestAttempt = await TryExecuteAsync(
+                () => useCase.ExecuteAsync(
+                    new ComprehensiveAnalysisQueryRequest(symbols, topics.Where(topic => topic != ComprehensiveAnalysisTopics.TechnicalAnalysis).ToArray(), fromDate, limit, includeFullText),
+                    cancellationToken),
+                cancellationToken);
+            if (latestAttempt.Value is { HasResults: true } latest)
+                analysisAttempt = new ExecutionAttempt<ComprehensiveAnalysisQueryResponse>(
+                    latest with { TechnicalAnalysisNotFoundSymbols = symbols }, false);
+        }
         if (analysisAttempt.Failed && lookupAttempt.Failed)
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Failed,
                 DialogueOutcomeReasonCodes.ProviderOrToolFailure);
@@ -648,6 +684,8 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         var lookup = lookupAttempt.Value ?? EmptyLookup(symbols, context.Now);
         var payload = new SemanticComprehensiveAnalysisPayload(analysis, lookup);
         var hasAnalysis = analysis.HasResults;
+        if (hasAnalysis)
+            CardCounter.Add(1, new KeyValuePair<string, object?>("text", analysis.FullTextIncluded ? "full" : "preview"));
         var hasMetrics = lookup.Rows.Count > 0;
         var warnings = new List<string>();
         if (analysisAttempt.Failed) warnings.Add("analysis_posts_unavailable");
@@ -665,6 +703,31 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
             ? Success(frame, payload)
             : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Partial,
                 DialogueOutcomeReasonCodes.PartialEvidence, payload, warnings);
+    }
+
+    /// <summary>Fail closed: no port, an error or more than <see cref="ComprehensiveAnalysisFullText.CheckBudget"/> → preview.</summary>
+    private async Task<bool> IsFullTextGrantedAsync(QueryExecutionContext context, CancellationToken cancellationToken)
+    {
+        if (fullTextEntitlement is null || context.ApiClientId is not null || context.UserId is null)
+            return false;
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        budget.CancelAfter(ComprehensiveAnalysisFullText.CheckBudget);
+        try
+        {
+            var check = fullTextEntitlement.IsGrantedAsync(
+                new ComprehensiveAnalysisReader(context.TenantId, context.ActorId, context.UserId, context.ApiClientId),
+                budget.Token);
+            // WaitAsync also bounds an implementation that ignores the token.
+            return await check.WaitAsync(ComprehensiveAnalysisFullText.CheckBudget, timeProvider, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private async Task<ExecutionAttempt<T>> TryExecuteAsync<T>(

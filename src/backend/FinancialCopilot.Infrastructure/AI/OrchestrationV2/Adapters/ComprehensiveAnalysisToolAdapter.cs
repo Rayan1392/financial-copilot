@@ -47,7 +47,9 @@ internal sealed class ComprehensiveAnalysisToolAdapter(
             symbolNames?.Where(s => !string.IsNullOrWhiteSpace(s)).ToList() ?? [],
             validatedTopicTags,
             fromDate,
-            clampedLimit);
+            clampedLimit,
+            // Change «max-plan-full-analysis-text»: the LLM tool path never gets the whole text (it reaches a model).
+            IncludeFullText: false);
 
         var result = await useCase.ExecuteAsync(request, cancellationToken);
 
@@ -69,7 +71,9 @@ internal sealed record ComprehensiveAnalysisToolResult
     public string AgentSummary => ComprehensiveAnalysisCardComposer.ComposeMarkdown(
         QueryResponse?.Items ?? [],
         UnresolvedSymbols,
-        AnalysesUrl);
+        AnalysesUrl,
+        QueryResponse?.TechnicalAnalysisNotFoundSymbols,
+        QueryResponse?.FullTextIncluded == true);
 
     public static ComprehensiveAnalysisToolResult Success(ComprehensiveAnalysisQueryResponse response, string analysesUrl) =>
         new() { Succeeded = true, QueryResponse = response, UnresolvedSymbols = response.UnresolvedSymbols, AnalysesUrl = analysesUrl };

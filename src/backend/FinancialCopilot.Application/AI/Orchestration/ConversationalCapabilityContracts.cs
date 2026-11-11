@@ -76,6 +76,7 @@ public static class CapabilityExecutionRoutes
     public const string MonthlyProductComparison = "monthly_product_comparison";
     public const string SymbolSnapshot = "symbol_snapshot";
     public const string AssistantHelp = "assistant_help";
+    public const string UnavailableTopic = "unavailable_topic";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -83,7 +84,7 @@ public static class CapabilityExecutionRoutes
         ProductSalesValue, ProductSalesTrend,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
         MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch,
-        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot, AssistantHelp
+        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot, AssistantHelp, UnavailableTopic
     };
 }
 
@@ -291,7 +292,12 @@ public static class InitialConversationalCapabilityCatalog
         Definition(AssistantHelpCapability.Code, CapabilityExecutionRoutes.AssistantHelp, "summary", "assistant-help",
             [Alias("en", "assistant help"), Alias("fa", "راهنمای دستیار")],
             [Example("en", "hello"), Example("fa", "سلام")],
-            [], [], false) with { GateRoutedOnly = true }
+            [], [], false) with { GateRoutedOnly = true },
+        // Feature 150 change: technical analysis, valuation, and advice questions get a fixed refusal (gate only).
+        Definition(UnavailableTopicCapability.Code, CapabilityExecutionRoutes.UnavailableTopic, "summary", "unavailable-topic",
+            [Alias("en", "topic not available yet"), Alias("fa", "موضوع پشتیبانی‌نشده")],
+            [Example("en", "technical analysis فولاد"), Example("fa", "تکنیکال فولاد")],
+            [], [Slot("symbol", "symbol", false)], false) with { GateRoutedOnly = true }
     ];
 
     private static CapabilityDefinition Definition(
@@ -328,6 +334,7 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.SymbolSnapshot => ["canonical_company_identity", "monthly_activity_reports", "financial_statements"],
         CapabilityExecutionRoutes.IndustryRelativeValuation => ["published_industry_relative_valuation_snapshot"],
         CapabilityExecutionRoutes.AssistantHelp => ["assistant_help_copy"],
+        CapabilityExecutionRoutes.UnavailableTopic => ["unavailable_topic_copy"],
         _ => throw new InvalidOperationException($"No governed data requirements exist for route '{route}'.")
     };
 

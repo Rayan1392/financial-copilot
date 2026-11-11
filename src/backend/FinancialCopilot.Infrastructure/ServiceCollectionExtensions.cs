@@ -1441,6 +1441,20 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMonthlySalesQualityRankingFollowUpSuggestionService, MonthlySalesQualityRankingFollowUpSuggestionService>();
         services.AddSingleton<IQuarterlyFinancialReportFollowUpSuggestionService, QuarterlyFinancialReportFollowUpSuggestionService>();
         services.AddSingleton<IFinancialStatementAnalysisFollowUpSuggestionService, FinancialStatementAnalysisFollowUpSuggestionService>();
+        // Feature 121 change «follow-up-suggestion-pipeline»: one Chain of Responsibility for every answer's follow-ups.
+        // The first eight providers are the former if/else chain (same order); the last two are new (Answered only).
+        services.AddSingleton<RelatedFollowUpActionFactory>();
+        services.AddScoped<IFollowUpSuggestionProvider, SymbolSnapshotFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, AssistantHelpFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, ProductRevenueMixFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, MonthlySalesProductFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, MonthlyProductTrendFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, MonthlySalesQualityRankingFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, QuarterlyFinancialReportFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, FinancialStatementAnalysisFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, BalanceSheetReportFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, SingleSymbolFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionPipeline, FollowUpSuggestionPipeline>();
         // Spec 112 — provider-neutral feed over persisted monthly reports and financial statements.
         services.AddScoped<ICompanyDisclosureFeedRepository, CompanyDisclosureFeedRepository>();
         services.AddSingleton<CompanyDisclosureFeedCache>();

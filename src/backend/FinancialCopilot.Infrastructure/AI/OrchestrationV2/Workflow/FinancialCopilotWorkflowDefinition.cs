@@ -58,16 +58,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IFinancialStatementAnalysisUseCase financialStatementAnalysisUseCase,
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
-    IProductRevenueMixFollowUpSuggestionService productRevenueMixFollowUpSuggestionService,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IMonthlyReportCoverageReader monthlyReportCoverageReader,
-    IMonthlySalesProductFollowUpSuggestionService monthlySalesProductFollowUpSuggestionService,
-    IMonthlyProductTrendFollowUpSuggestionService monthlyProductTrendFollowUpSuggestionService,
-    IMonthlySalesQualityRankingFollowUpSuggestionService monthlySalesQualityRankingFollowUpSuggestionService,
-    IQuarterlyFinancialReportFollowUpSuggestionService quarterlyFinancialReportFollowUpSuggestionService,
-    IFinancialStatementAnalysisFollowUpSuggestionService financialStatementAnalysisFollowUpSuggestionService,
-    ISymbolSnapshotFollowUpSuggestionService symbolSnapshotFollowUpSuggestionService,
-    IAssistantHelpReplyComposer assistantHelpReplyComposer,
+    // Feature 121 change «follow-up-suggestion-pipeline»: every answer's follow-ups come from this chain.
+    IFollowUpSuggestionPipeline followUpSuggestionPipeline,
     IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IMonthlyProductTrendQueryUseCase monthlyProductTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
@@ -1435,54 +1429,23 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var confidenceScore = CalculateConfidenceScore(
             msg.Request.CorrelationId, groundedAnswer, msg.LookupResult?.Table, explainableAnswer);
 
-        // Feature 075 extension: typed result owns the authoritative follow-ups, including empty.
-        var feature075Applied = detectedIntent == DetectedIntent.ProductRevenueMix &&
-            msg.ProductRevenueMixResult is not null &&
-            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
-        var feature137Applied = detectedIntent == DetectedIntent.MonthlyActivityTrend &&
-            msg.MonthlyActivityTrendResult is not null &&
-            msg.MonthlyActivityTrendResult.ChartPoints.Any(point => point.CurrentFiscalYearSalesAmount.HasValue) &&
-            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
-        // Feature 138: applies only to a resolved, usable typed product trend (result-driven, never phrasing).
-        var feature138Applied = detectedIntent == DetectedIntent.MonthlyProductTrend &&
-            msg.MonthlyProductTrendResult is { IsResolved: true } productTrend &&
-            productTrend.Points.Any(point => !point.IsGap && point.SalesValueMillionRial.HasValue) &&
-            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
-        var monthlyRankingFollowUpsApplied = detectedIntent == DetectedIntent.MonthlySalesQualityRanking &&
-            msg.MonthlySalesQualityRankingResult is { Items.Count: > 0 } &&
-            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
-        var quarterlyReportFollowUpsApplied = msg.FinancialStatementTableResult?.QuarterlyResult is
-                { Outcome: QuarterlyFinancialReportOutcome.SuccessfulTable or QuarterlyFinancialReportOutcome.PartialTable } &&
-            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
-        var financialStatementAnalysisFollowUpsApplied = msg.FinancialStatementAnalysisResult is
-                { SourceReferences.Count: > 0 } &&
-            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
-        var symbolSnapshotFollowUpsApplied = msg.SymbolSnapshotResult is not null;
-        var assistantHelpActionsApplied = msg.Request.SemanticFrame?.CapabilityCode == AssistantHelpCapability.Code &&
-            outcome.Outcome == DialogueOutcome.Answered;
-        IReadOnlyCollection<SuggestedAction>? deterministicActions = null;
-        if (symbolSnapshotFollowUpsApplied)
-            deterministicActions = symbolSnapshotFollowUpSuggestionService.Build(msg.SymbolSnapshotResult!);
-        else if (assistantHelpActionsApplied)
-            deterministicActions = assistantHelpReplyComposer.Compose(outcome.ReplyLanguage).Actions;
-        else if (feature075Applied)
-            deterministicActions = productRevenueMixFollowUpSuggestionService.Build(msg.ProductRevenueMixResult!);
-        else if (feature137Applied)
-            deterministicActions = await monthlySalesProductFollowUpSuggestionService.BuildAsync(
-                msg.MonthlyActivityTrendResult!, ct);
-        else if (feature138Applied)
-            deterministicActions = monthlyProductTrendFollowUpSuggestionService.Build(msg.MonthlyProductTrendResult!);
-        else if (monthlyRankingFollowUpsApplied)
-            deterministicActions = monthlySalesQualityRankingFollowUpSuggestionService.Build(msg.MonthlySalesQualityRankingResult!);
-        else if (quarterlyReportFollowUpsApplied)
-            deterministicActions = quarterlyFinancialReportFollowUpSuggestionService.Build(
-                msg.FinancialStatementTableResult!.QuarterlyResult!);
-        else if (financialStatementAnalysisFollowUpsApplied)
-            deterministicActions = financialStatementAnalysisFollowUpSuggestionService.Build(
-                msg.FinancialStatementAnalysisResult!);
-        var deterministicApplied = feature075Applied || feature137Applied || feature138Applied ||
-            monthlyRankingFollowUpsApplied || quarterlyReportFollowUpsApplied ||
-            financialStatementAnalysisFollowUpsApplied || symbolSnapshotFollowUpsApplied || assistantHelpActionsApplied;
+        // Feature 121 change «follow-up-suggestion-pipeline»: the former if/else chain of eight follow-up services is now
+        // the first eight providers of one Chain of Responsibility (same conditions, same order); new providers follow.
+        // When no provider owns the answer, MessagePersistenceFunction falls back to the guidance service as before.
+        var followUps = await followUpSuggestionPipeline.BuildAsync(new FollowUpSuggestionContext(
+            msg.Request,
+            detectedIntent,
+            outcome.Outcome,
+            outcome.ReplyLanguage,
+            msg.SymbolSnapshotResult,
+            msg.ProductRevenueMixResult,
+            msg.MonthlyActivityTrendResult,
+            msg.MonthlyProductTrendResult,
+            msg.MonthlySalesQualityRankingResult,
+            msg.FinancialStatementTableResult,
+            msg.FinancialStatementAnalysisResult), ct);
+        var deterministicActions = followUps.Actions;
+        var deterministicApplied = followUps.Applied;
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);

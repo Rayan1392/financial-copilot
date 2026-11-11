@@ -166,6 +166,63 @@ describe("useChatThread (follow-up, spec AC-06b)", () => {
     expect(sendChatMessage).toHaveBeenCalledOnce();
   });
 
+  it("shows the question while it is sent and until its persisted copy is loaded (BUG-023)", async () => {
+    let answerSend!: (value: unknown) => void;
+    let loadAnswer!: (value: ChatMessage[]) => void;
+    getThreadMessages
+      .mockResolvedValueOnce(before)
+      .mockImplementationOnce(() => new Promise((resolve) => (loadAnswer = resolve)));
+    sendChatMessage.mockImplementation(() => new Promise((resolve) => (answerSend = resolve)));
+    const { result } = renderHook(() => useChatThread(THREAD), {
+      wrapper: wrapper(new QueryClient()),
+    });
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+
+    act(() => result.current.submit("دوم"));
+    expect(result.current.pendingMessage).toBe("دوم");
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledOnce());
+    expect(result.current.isPending).toBe(true);
+
+    // The answer is ready but not loaded yet: the question and the progress indicator stay.
+    await act(async () => answerSend({ ok: true, result: { threadId: THREAD } }));
+    await waitFor(() => expect(getThreadMessages).toHaveBeenCalledTimes(2));
+    expect(result.current.pendingMessage).toBe("دوم");
+    expect(result.current.isPending).toBe(true);
+
+    // The persisted copy replaces it: shown once, never doubled.
+    await act(async () => loadAnswer([...before, user("u2", "دوم"), assistant("a2")]));
+    await waitFor(() => expect(result.current.messages).toHaveLength(4));
+    expect(result.current.pendingMessage).toBeNull();
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+  });
+
+  it("an empty conversation shows its first question while it is sent (BUG-023)", async () => {
+    getThreadMessages.mockResolvedValue([]);
+    sendChatMessage.mockImplementation(() => new Promise(() => {}));
+    const { result } = renderHook(() => useChatThread(THREAD), {
+      wrapper: wrapper(new QueryClient()),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => result.current.submit("گزارش فصلی فملی"));
+
+    expect(result.current.pendingMessage).toBe("گزارش فصلی فملی");
+  });
+
+  it("a failed send drops the pending question and keeps the draft (BUG-023)", async () => {
+    getThreadMessages.mockResolvedValue(before);
+    sendChatMessage.mockRejectedValue(new TypeError("Failed to fetch"));
+    const { result } = renderHook(() => useChatThread(THREAD), {
+      wrapper: wrapper(new QueryClient()),
+    });
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+
+    act(() => result.current.submit("دوم"));
+
+    await waitFor(() => expect(result.current.failure?.draft).toBe("دوم"));
+    expect(result.current.pendingMessage).toBeNull();
+  });
+
   it("desktop (no reconciliation) keeps its earlier behavior", async () => {
     getThreadMessages.mockResolvedValue(before);
     sendChatMessage.mockRejectedValue(new TypeError("Failed to fetch"));

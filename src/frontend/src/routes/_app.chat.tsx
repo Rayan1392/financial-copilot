@@ -8,6 +8,7 @@ import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useFollowedSymbols } from "@/lib/workspace/queries";
 import { ChatErrorNotice } from "@/components/app/chat-error-notice";
 import { useStartChat } from "@/lib/chat/use-start-chat";
+import { withPendingQuestion } from "@/lib/chat/pending-question";
 
 export const Route = createFileRoute("/_app/chat")({
   component: NewChatPage,
@@ -43,14 +44,7 @@ function NewChatPage() {
       >
         {pendingMessage ? (
           <MessageList
-            messages={[
-              {
-                id: "pending-user-message",
-                role: "user",
-                created_at: new Date().toISOString(),
-                content: { text: pendingMessage },
-              },
-            ]}
+            messages={withPendingQuestion([], pendingMessage)}
             loading={false}
             streaming={startChat.isPending}
             onSuggested={submit}

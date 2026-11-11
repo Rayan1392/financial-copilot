@@ -4,6 +4,7 @@ import { PromptInput } from "@/components/app/prompt-input";
 import { useEffect, useRef } from "react";
 import { ChatErrorNotice } from "@/components/app/chat-error-notice";
 import { useChatThread } from "@/lib/chat/use-chat-thread";
+import { withPendingQuestion } from "@/lib/chat/pending-question";
 
 export const Route = createFileRoute("/_app/c/$threadId")({
   component: ChatThreadPage,
@@ -13,7 +14,9 @@ function ChatThreadPage() {
   const { threadId } = Route.useParams();
   const scrollRef = useRef<HTMLDivElement>(null);
   const thread = useChatThread(threadId);
-  const { messages, isLoading, submit, showDiagnostics } = thread;
+  const { isLoading, submit, showDiagnostics, pendingMessage } = thread;
+  // The question being sent shows at once, not only after its answer is persisted (BUG-023).
+  const messages = withPendingQuestion(thread.messages, pendingMessage);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });

@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-11
+
+پاسخ‌های موفق دربارهٔ یک نماد، از جمله ترازنامه، کادرهای پیشنهاد پرسش مرتبط دارند و پرسش «تحلیل X» آخرین تحلیل همان نماد را از تحلیل‌اپ نشان می‌دهد.
+
 ### Added
 
 - پاسخ ترازنامه («ترازنامه X» یا «صورت وضعیت X») و پاسخ‌های موفق دیگر دربارهٔ یک نماد، مثل P/E، فروش ماهانه یا تحلیل جامع، حالا در انتها کادرهای پیشنهاد پرسش مرتبط دارند؛ پیشنهادهای پاسخ‌هایی که قبلاً کادر داشتند تغییری نکرده است.
@@ -243,7 +247,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.9.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.10.0...develop
+[1.10.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.6.0...v1.7.0

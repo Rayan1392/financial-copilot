@@ -1,4 +1,4 @@
-# Change to Feature 162 — a link to the analysis itself
+# Change to Feature 159 — a link to the analysis itself
 
 Status: Withdrawn — not implemented
 
@@ -64,7 +64,7 @@ the shown analysis with the pattern `https://api.tahlilapp.com/api/blogs/<Id>`, 
 
 - Unit: composer puts `https://api.tahlilapp.com/api/blogs/<id>` in the web and Telegram cards; no-result card keeps
   the section link; template validation (missing `{id}`, two `{id}`, http, relative).
-- Integration (`Feature162MappedNoavaranAminChatApiFactory`): «تحلیل جامع فولاد» ends with the seeded analysis' id link;
+- Integration (`Feature159MappedNoavaranAminChatApiFactory`): «تحلیل جامع فولاد» ends with the seeded analysis' id link;
   «تحلیل تکنیکال کگل» links to the کگل analysis 150002; «تحلیل جامع فملی» keeps the section link.
 - Docs: `AGENTS.md` card line, `docs/providers/cyclicalwaves-v2/README.md`, `.env.example`, `docker-compose.yml`,
   `appsettings.json`, OQ-063 note, `CHANGELOG.md` `[Unreleased]`.

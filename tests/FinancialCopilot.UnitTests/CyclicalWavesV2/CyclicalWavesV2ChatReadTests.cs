@@ -314,7 +314,7 @@ public sealed class CyclicalWavesV2ChatReadTests : IDisposable
         var options = new FinancialDataOptions();
         configuration.GetSection(FinancialDataOptions.SectionName).Bind(options);
 
-        // Feature 162 adds only the per-capability source map; C1/C1-M still has no setting.
+        // Feature 159 adds only the per-capability source map; C1/C1-M still has no setting.
         Assert.Equal(["ChatProvider", "CapabilitySources"], typeof(FinancialDataOptions).GetProperties().Select(property => property.Name));
         Assert.True(LegacyCyclicalWavesDerivedMetricFilter.IsExcluded(Derived("[{\"sourceProvider\":\"CyclicalWaves\"}]")));
         Assert.True(LegacyCyclicalWavesDerivedMetricFilter.IsExcluded(
@@ -328,7 +328,7 @@ public sealed class CyclicalWavesV2ChatReadTests : IDisposable
     [InlineData("خودرو- لیدر فشل بازار", "خودرو", true)]
     [InlineData("رصد معاملات عمده‌ها - سه شنبه 5 آبان 1405", "فولاد", false)]
     [InlineData("فولادی - گزارش", "فولاد", false)]
-    // Feature 162: the ticker is searched as a whole word anywhere in the title.
+    // Feature 159: the ticker is searched as a whole word anywhere in the title.
     [InlineData("شگل، بخش سوم - نسبت P/s", "شگل", true)]
     [InlineData("شگل، بخش دوم- تعادلی", "شگل", true)]
     [InlineData("حق تقدم شگل", "شگل", true)]
@@ -344,7 +344,7 @@ public sealed class CyclicalWavesV2ChatReadTests : IDisposable
 
     [Fact]
     public void Analysis_TagAloneDoesNotSelectAnArticleForATicker() =>
-        // Owner rule (Feature 162): an article is found by the ticker in its title; «رصد معاملات عمده» reports tag many tickers.
+        // Owner rule (Feature 159): an article is found by the ticker in its title; «رصد معاملات عمده» reports tag many tickers.
         Assert.False(CyclicalWavesV2ComprehensiveAnalysisQuery.MatchesTicker("رصد معاملات عمده‌ها یکشنبه ۱۲ مهر ۱۴۰۵", "فولاد"));
 
     [Theory]

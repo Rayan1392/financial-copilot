@@ -16,7 +16,7 @@ Gate A decisions (owner, 2026-11-11: "approved with the recommendations you made
 
 Details and plan: `user-story.md`, `tasks.md` in this folder.
 
-Changes found while re-checking against `develop` `da623ed` (Feature 162 merged); none changes the design:
+Changes found while re-checking against `develop` `da623ed` (Feature 159 merged); none changes the design:
 
 - `QueryNormalization.Normalize` turns ZWNJ into a space (`QueryNormalization.cs:50`), so «پیوت‌های» yields the word «پیوت». Word matching is enough.
 - P/S gauge and industry-relative valuation are retired in both modes (`ChatCapabilityAvailability.RetiredRoutes`); the CyclicalWaves-mode equilibrium answer still exists, so decision OQ-068 stands.

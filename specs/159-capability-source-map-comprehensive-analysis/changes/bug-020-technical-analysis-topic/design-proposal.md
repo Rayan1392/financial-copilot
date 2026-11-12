@@ -33,7 +33,7 @@ Owner answers 2026-11-11: §4.1 = (a) not-found line, then the latest analysis c
 
 - E2E: «تحلیل تکنیکال فولاد» with a seeded technical-titled analysis → that card; with only a tagged one → that card; «تحلیل جامع فملی» and the none-technical case → no English text.
 - Unit: v2 query title rule (whole word «تکنیکال», Arabic letters), tag rule unchanged.
-- Feature 162 tests unchanged and green.
+- Feature 159 tests unchanged and green.
 
 ## 4. Questions for the owner
 

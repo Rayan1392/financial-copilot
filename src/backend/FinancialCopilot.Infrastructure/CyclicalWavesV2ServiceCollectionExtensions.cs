@@ -42,7 +42,7 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
             .BindConfiguration(FinancialDataOptions.SectionName)
             .Validate(options => Enum.IsDefined(options.ChatProvider), "FinancialData:ChatProvider must be NoavaranAmin or CyclicalWaves.")
             .ValidateOnStart();
-        // Feature 162: an invalid capability source map fails composition, so the host never starts with it.
+        // Feature 159: an invalid capability source map fails composition, so the host never starts with it.
         var capabilitySources = ChatCapabilitySourceMap.Create(financialData);
         services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(financialData.ChatProvider, capabilitySources));
         services.AddOptions<ComprehensiveAnalysisPresentationOptions>()
@@ -71,7 +71,7 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
         else if (capabilitySources.TryGetSource(CapabilityExecutionRoutes.ComprehensiveAnalysis, out var analysisSource) &&
                  analysisSource == FinancialDataChatProvider.CyclicalWaves)
         {
-            // Feature 162: comprehensive analysis alone reads the v2 analysis tables; every other NoavaranAmin
+            // Feature 159: comprehensive analysis alone reads the v2 analysis tables; every other NoavaranAmin
             // registration stays untouched.
             services.Replace(ServiceDescriptor.Scoped<IComprehensiveAnalysisQueryUseCase, CyclicalWavesV2ComprehensiveAnalysisQuery>());
         }

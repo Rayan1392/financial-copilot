@@ -3,7 +3,7 @@ using System.Globalization;
 namespace FinancialCopilot.Application.AI.Orchestration;
 
 /// <summary>
-/// Per-capability Chat data source (Feature 162, ADR 0001). Chat keeps one base provider
+/// Per-capability Chat data source (Feature 159, ADR 0001). Chat keeps one base provider
 /// (<see cref="FinancialDataOptions.ChatProvider"/>); <c>FinancialData:CapabilitySources</c> may assign another provider
 /// to a capability in <see cref="OverridableRoutes"/> only. An empty map means every capability uses the base provider.
 /// There is no fallback between providers.

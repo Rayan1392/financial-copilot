@@ -10,8 +10,8 @@ using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.UnitTests;
 
-/// <summary>Feature 162: per-capability source map, the comprehensive-analysis card, and its Telegram rendering.</summary>
-public sealed class Feature162CapabilitySourceMapTests
+/// <summary>Feature 159: per-capability source map, the comprehensive-analysis card, and its Telegram rendering.</summary>
+public sealed class Feature159CapabilitySourceMapTests
 {
     private const string Url = "https://tahlilapp.com/app/analysis";
 

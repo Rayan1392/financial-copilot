@@ -7,7 +7,7 @@ internal sealed class ComprehensiveAnalysisToolAdapter(
     IComprehensiveAnalysisQueryUseCase useCase,
     IOptions<ComprehensiveAnalysisPresentationOptions> presentation)
 {
-    /// <summary>The configured fixed TahlilApp analyses link (Feature 162).</summary>
+    /// <summary>The configured fixed TahlilApp analyses link (Feature 159).</summary>
     internal string AnalysesUrl => presentation.Value.TahlilAppAnalysesUrl;
 
     internal ComprehensiveAnalysisToolResult ToResult(ComprehensiveAnalysisQueryResponse response) =>
@@ -67,7 +67,7 @@ internal sealed record ComprehensiveAnalysisToolResult
     public string CompletionStatus { get; init; } = "Completed";
     public string AnalysesUrl { get; init; } = ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;
 
-    /// <summary>The Feature 162 card: titles and whole summaries, then the fixed TahlilApp link.</summary>
+    /// <summary>The Feature 159 card: titles and whole summaries, then the fixed TahlilApp link.</summary>
     public string AgentSummary => ComprehensiveAnalysisCardComposer.ComposeMarkdown(
         QueryResponse?.Items ?? [],
         UnresolvedSymbols,

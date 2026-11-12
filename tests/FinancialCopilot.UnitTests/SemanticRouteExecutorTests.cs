@@ -162,7 +162,7 @@ public sealed class SemanticRouteExecutorTests
         Assert.True(payload.Analysis.HasResults);
         Assert.NotEmpty(payload.Lookup.Rows);
         Assert.Equal(["تحلیل_تکنیکال"], analysis.Request!.TopicTags);
-        // Feature 162 change: the latest analysis only, whatever limit the frame carries.
+        // Feature 159 change: the latest analysis only, whatever limit the frame carries.
         Assert.Equal(1, analysis.Request.Limit);
         Assert.All(lookup.Request!.Pairs, pair => Assert.Equal("FOLD", pair.SymbolName));
     }
@@ -170,7 +170,7 @@ public sealed class SemanticRouteExecutorTests
     [Fact]
     public async Task ComprehensiveAnalysisExecutor_NoAnalysisIsFreeNoDataAndKeepsTheMetrics()
     {
-        // Feature 162 (FR7): "no analysis found" is not billed, even when the context metrics exist.
+        // Feature 159 (FR7): "no analysis found" is not billed, even when the context metrics exist.
         var executor = new ComprehensiveAnalysisCapabilityExecutor(
             new AnalysisUseCase(hasRows: false), new RecordingLookupService(rows: true), TimeProvider.System);
 

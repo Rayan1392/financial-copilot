@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Hosting;
 namespace FinancialCopilot.IntegrationTests;
 
 /// <summary>
-/// Feature 162 through POST /api/ai/v1/query: base provider NoavaranAmin with
+/// Feature 159 through POST /api/ai/v1/query: base provider NoavaranAmin with
 /// <c>FinancialData:CapabilitySources:comprehensive_analysis = CyclicalWaves</c>. Comprehensive analysis reads only the
 /// three v2 analysis tables; every other capability keeps reading NoavaranAmin data.
 /// </summary>
-public sealed class Feature162ComprehensiveAnalysisSourceMapTests : IClassFixture<Feature162MappedNoavaranAminChatApiFactory>
+public sealed class Feature159ComprehensiveAnalysisSourceMapTests : IClassFixture<Feature159MappedNoavaranAminChatApiFactory>
 {
     private const string Link = "[ادامهٔ این تحلیل در تحلیل‌اپ](https://tahlilapp.com/app/analysis)";
     private const string AllAnalysesLink = "[تحلیل‌های جامع تحلیل‌اپ](https://tahlilapp.com/app/analysis)";
@@ -18,9 +18,9 @@ public sealed class Feature162ComprehensiveAnalysisSourceMapTests : IClassFixtur
         nameof(CyclicalWavesV2AnalysisRow), nameof(CyclicalWavesV2AnalysisTagRow), nameof(CyclicalWavesV2AnalysisCategoryRow)
     ];
 
-    private readonly Feature162MappedNoavaranAminChatApiFactory _factory;
+    private readonly Feature159MappedNoavaranAminChatApiFactory _factory;
 
-    public Feature162ComprehensiveAnalysisSourceMapTests(Feature162MappedNoavaranAminChatApiFactory factory)
+    public Feature159ComprehensiveAnalysisSourceMapTests(Feature159MappedNoavaranAminChatApiFactory factory)
     {
         _factory = factory;
         factory.EnsureSeeded();
@@ -87,7 +87,7 @@ public sealed class Feature162ComprehensiveAnalysisSourceMapTests : IClassFixtur
             type => Assert.Contains(type, AnalysisTables));
 }
 
-public sealed class Feature162MappedNoavaranAminChatApiFactory : Feature148CyclicalWavesChatApiFactory
+public sealed class Feature159MappedNoavaranAminChatApiFactory : Feature148CyclicalWavesChatApiFactory
 {
     protected override string ChatProvider => "NoavaranAmin";
 

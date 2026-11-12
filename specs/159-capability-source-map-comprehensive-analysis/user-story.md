@@ -2,7 +2,7 @@
 
 ## Feature Folder
 
-`162-capability-source-map-comprehensive-analysis`
+`159-capability-source-map-comprehensive-analysis`
 
 ## Layers / Area
 
@@ -23,7 +23,7 @@ M
 
 ## References
 
-- `specs/162-capability-source-map-comprehensive-analysis/design-proposal.md` (Gate A; §6 records the owner's
+- `specs/159-capability-source-map-comprehensive-analysis/design-proposal.md` (Gate A; §6 records the owner's
   Gate B answers and supersedes §2.3, §2.4 and §5)
 - `docs/adr/0001-per-capability-chat-data-source.md`
 - `specs/148-cyclicalwaves-v2-independent-financial-data-provider/design.md` (C2, §10.4)

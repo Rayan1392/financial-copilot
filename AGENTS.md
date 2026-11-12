@@ -115,7 +115,7 @@ In V2, the agent LLM reads the system prompt, decides which tools to call (and i
 - `limit`: 1–5 (default 3)
 **Returns:** narrative analysis items from CyclicalWaves with title, author, date, plain-text summary, and tags
 
-**Source and answer (Feature 162):** the tool reads the CyclicalWaves v2 analyses (`cyclicalwaves."Analyses"`) in
+**Source and answer (Feature 159):** the tool reads the CyclicalWaves v2 analyses (`cyclicalwaves."Analyses"`) in
 CyclicalWaves mode, and in NoavaranAmin mode only when `FinancialData:CapabilitySources:comprehensive_analysis` is
 `CyclicalWaves`; otherwise it is not offered (C2). An analysis matches a ticker when the ticker is a whole word of its
 title; tags do not select analyses for a ticker. The provider `summary` is the whole paid analysis text, so the query

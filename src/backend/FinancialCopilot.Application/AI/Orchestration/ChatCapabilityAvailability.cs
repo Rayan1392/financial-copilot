@@ -15,7 +15,7 @@ public sealed class FinancialDataOptions
     public FinancialDataChatProvider ChatProvider { get; set; } = FinancialDataChatProvider.NoavaranAmin;
 
     /// <summary>
-    /// Feature 162: capability route code → provider name, for routes in <see cref="ChatCapabilitySourceMap.OverridableRoutes"/>
+    /// Feature 159: capability route code → provider name, for routes in <see cref="ChatCapabilitySourceMap.OverridableRoutes"/>
     /// only. Empty values mean "not overridden". Validated by <see cref="ChatCapabilitySourceMap"/>.
     /// </summary>
     public Dictionary<string, string?> CapabilitySources { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -124,7 +124,7 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
             return Retired;
         }
 
-        // Feature 162: an overridden capability is judged by its own source's matrix.
+        // Feature 159: an overridden capability is judged by its own source's matrix.
         return SourceFor(executionRoute) switch
         {
             // C2: while comprehensive analysis is sourced from NoavaranAmin, neither the legacy nor the v2 analysis tables are read.

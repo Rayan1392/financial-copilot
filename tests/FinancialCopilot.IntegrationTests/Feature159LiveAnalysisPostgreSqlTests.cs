@@ -8,16 +8,16 @@ using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWavesV2;
 namespace FinancialCopilot.IntegrationTests;
 
 /// <summary>
-/// Feature 162 AC9 (live Development check): real TahlilApp analyses, captured from
+/// Feature 159 AC9 (live Development check): real TahlilApp analyses, captured from
 /// <c>GET https://api.tahlilapp.com/api/blogs?filter[type]=analysis</c> into the file named by
-/// <c>FEATURE162_LIVE_ANALYSES_JSON</c>, go through the real parser, store and query on an isolated PostgreSQL
+/// <c>FEATURE159_LIVE_ANALYSES_JSON</c>, go through the real parser, store and query on an isolated PostgreSQL
 /// (<c>FINANCIAL_COPILOT_TEST_POSTGRES_CONNECTION_STRING</c>). Skipped unless both are set. The rendered cards are
 /// written next to the capture for review.
 /// </summary>
 [Collection(PostgreSqlIntegrationCollection.Name)]
-public sealed class Feature162LiveAnalysisPostgreSqlTests(PostgreSqlIntegrationFixture fixture)
+public sealed class Feature159LiveAnalysisPostgreSqlTests(PostgreSqlIntegrationFixture fixture)
 {
-    private const string CaptureVariable = "FEATURE162_LIVE_ANALYSES_JSON";
+    private const string CaptureVariable = "FEATURE159_LIVE_ANALYSES_JSON";
     private const string Url = "https://tahlilapp.com/app/analysis";
 
     [SkippableTheory]

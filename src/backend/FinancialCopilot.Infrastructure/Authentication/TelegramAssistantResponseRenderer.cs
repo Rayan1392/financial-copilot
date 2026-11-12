@@ -58,7 +58,7 @@ public sealed class TelegramAssistantResponseRenderer(
         var builder = new StringBuilder();
         var isSingleSymbolLookup = response.SymbolLookupTable is { Rows.Count: 1 } &&
                                    response.ScannerTable is null;
-        // Feature 162: the text answer of an analysis turn is the markdown card; Telegram renders the plain card once
+        // Feature 159: the text answer of an analysis turn is the markdown card; Telegram renders the plain card once
         // instead, also after a single-symbol stock card.
         var isAnalysisTurn = response.ComprehensiveAnalysisResult is not null &&
                              response.SemanticCapabilityCode == CapabilityExecutionRoutes.ComprehensiveAnalysis;

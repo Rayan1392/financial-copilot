@@ -412,7 +412,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Max", "MarketPulse.Read"),
         Enabled("Max", "AiQuery.PersonalDigest", 30),
         Enabled("Max", "Notifications.Telegram"),
-        // Feature 162 change «max-plan-full-analysis-text»: only Max sees the whole TahlilApp analysis text.
+        // Feature 159 change «max-plan-full-analysis-text»: only Max sees the whole TahlilApp analysis text.
         Enabled("Max", "ComprehensiveAnalysis.FullText"),
         Enabled("Plus", "AiQuery.Scanner"),
         Enabled("Plus", "AiQuery.StockAnalysis"),

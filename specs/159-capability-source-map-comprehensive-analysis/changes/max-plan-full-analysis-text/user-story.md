@@ -2,7 +2,7 @@
 
 ## Feature Folder
 
-`162-capability-source-map-comprehensive-analysis/changes/max-plan-full-analysis-text`
+`159-capability-source-map-comprehensive-analysis/changes/max-plan-full-analysis-text`
 
 ## Layers / Area
 
@@ -19,12 +19,12 @@ M
 
 ## Depends On
 
-162-capability-source-map-comprehensive-analysis (change `latest-analysis-teaser`; change `bug-020-technical-analysis-topic` on branch `track/a-routing-answer-correctness`)
+159-capability-source-map-comprehensive-analysis (change `latest-analysis-teaser`; change `bug-020-technical-analysis-topic` on branch `track/a-routing-answer-correctness`)
 
 ## References
 
 - `design-proposal.md` in this folder (Gate A approved 2026-11-11)
-- `specs/162-capability-source-map-comprehensive-analysis/changes/latest-analysis-teaser/design-proposal.md`
+- `specs/159-capability-source-map-comprehensive-analysis/changes/latest-analysis-teaser/design-proposal.md`
 - `docs/providers/cyclicalwaves-v2/README.md` (provider `summary` is the whole paid text)
 - Billing model: `BillingDbContext`, `billing_plan_capabilities` (`PlanCapabilityRow`, `BaselinePlanCapabilities`),
   `IPlanCapabilityService`, `IBillableAccountResolver`, `TahlilAppSubscriptionPolicy`
@@ -113,7 +113,7 @@ new capability in `src/frontend/src/components/admin/admin-page.tsx` `permission
 
 - `QueryExecutionContext.ActorId` alone is not enough to find the billing account (API clients); the user id and the
   API client id are passed explicitly, as the billing hook does.
-- The production chat answers «تحلیل جامع X» through the semantic route (Feature 162; Shadow and SemanticPrimary both
+- The production chat answers «تحلیل جامع X» through the semantic route (Feature 159; Shadow and SemanticPrimary both
   execute the frame); the agent tool path is not used for it.
 - The existing `IPlanCapabilityService.ValidateCanExecuteAsync` allows an account with no plan (organization
   integrations); it is not used here, because paid text must fail closed.

@@ -35,7 +35,7 @@ remain disabled. NoavaranAmin never reads these tables and remains unchanged.
 `docs/Cyclical Waves_api_document_2026_05_26.pdf` describe the retired `back1.cyclicalwaves.com` integration.
 No code calls those endpoints any more.
 
-## Comprehensive analysis in NoavaranAmin mode (Feature 162)
+## Comprehensive analysis in NoavaranAmin mode (Feature 159)
 
 `FinancialData:CapabilitySources:comprehensive_analysis=CyclicalWaves` lets Chat answer comprehensive analysis from
 `cyclicalwaves."Analyses"` while `FinancialData:ChatProvider` stays `NoavaranAmin` (ADR

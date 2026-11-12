@@ -11,11 +11,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FinancialCopilot.IntegrationTests;
 
 /// <summary>
-/// Feature 162 change «max-plan-full-analysis-text» through POST /api/ai/v1/query in the production shape (NoavaranAmin,
+/// Feature 159 change «max-plan-full-analysis-text» through POST /api/ai/v1/query in the production shape (NoavaranAmin,
 /// comprehensive analysis from CyclicalWaves v2): a Max user reads the whole analysis text, everyone else the preview.
 /// Own fixture instance: the tests change the test user's plan.
 /// </summary>
-public sealed class Feature162MaxFullTextE2ETests : IClassFixture<Feature162MappedNoavaranAminChatApiFactory>
+public sealed class Feature159MaxFullTextE2ETests : IClassFixture<Feature159MappedNoavaranAminChatApiFactory>
 {
     private const string Question = "تحلیل جامع فولاد";
     private const string Title = "فولاد- تحلیل نمونهٔ کامل آبان";
@@ -27,9 +27,9 @@ public sealed class Feature162MaxFullTextE2ETests : IClassFixture<Feature162Mapp
         "بند سوم تحلیل: موجودی کالا و حساب‌های دریافتنی در فصل اخیر بیشتر شده و جریان نقد عملیاتی مثبت مانده است.",
         LastParagraph);
 
-    private readonly Feature162MappedNoavaranAminChatApiFactory _factory;
+    private readonly Feature159MappedNoavaranAminChatApiFactory _factory;
 
-    public Feature162MaxFullTextE2ETests(Feature162MappedNoavaranAminChatApiFactory factory)
+    public Feature159MaxFullTextE2ETests(Feature159MappedNoavaranAminChatApiFactory factory)
     {
         _factory = factory;
         factory.EnsureSeeded();
@@ -109,7 +109,7 @@ public sealed class Feature162MaxFullTextE2ETests : IClassFixture<Feature162Mapp
         return json.RootElement.GetProperty("textAnswer").GetString() ?? string.Empty;
     }
 
-    private static void SeedLatestFoladAnalysis(Feature162MappedNoavaranAminChatApiFactory factory)
+    private static void SeedLatestFoladAnalysis(Feature159MappedNoavaranAminChatApiFactory factory)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
@@ -125,7 +125,7 @@ public sealed class Feature162MaxFullTextE2ETests : IClassFixture<Feature162Mapp
         db.SaveChanges();
     }
 
-    private static void SetPlan(Feature162MappedNoavaranAminChatApiFactory factory, string? plan, DateTimeOffset? effectiveTo)
+    private static void SetPlan(Feature159MappedNoavaranAminChatApiFactory factory, string? plan, DateTimeOffset? effectiveTo)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
@@ -135,7 +135,7 @@ public sealed class Feature162MaxFullTextE2ETests : IClassFixture<Feature162Mapp
         db.SaveChanges();
     }
 
-    private static void SetFullTextRow(Feature162MappedNoavaranAminChatApiFactory factory, bool enabled)
+    private static void SetFullTextRow(Feature159MappedNoavaranAminChatApiFactory factory, bool enabled)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();

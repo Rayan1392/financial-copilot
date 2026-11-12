@@ -1,4 +1,4 @@
-# Change to Feature 162 — whole analysis text for Max subscribers
+# Change to Feature 159 — whole analysis text for Max subscribers
 
 Status: Gate A: Approved by the owner on 2026-11-11
 
@@ -84,7 +84,7 @@ current card (30% / 300-character preview, read-more sentence, fixed link).
 - Unit: entitlement (Max active → granted; Max expired, Pro, Free, no account, error, timeout → not granted);
   composer full-text card for web and Telegram, without the read-more sentence; Telegram 4,096 cut; the query returns
   the preview unless `IncludeFullText`.
-- Integration (`Feature162MappedNoavaranAminChatApiFactory`): a Max user's «تحلیل جامع فولاد» shows the whole seeded
+- Integration (`Feature159MappedNoavaranAminChatApiFactory`): a Max user's «تحلیل جامع فولاد» shows the whole seeded
   text; a Free user's shows the preview; the Max row disabled → preview; «تحلیل تکنیکال کگل» fallback for Max.
 - Migration test for the new capability row; architecture tests (port in Application, implementation in
   Infrastructure).

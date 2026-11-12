@@ -148,7 +148,7 @@ public sealed class ComprehensiveAnalysisSemanticRoutingRegressionTests
     [InlineData("تحلیل شغدیر", "شغدیر")]
     [InlineData("آخرین تحلیل فملی", "فملی")]
     [InlineData("کرازی ارزنده است؟", "کرازی")]
-    // Feature 162: «جامع» qualifies the analysis and is never a second entity.
+    // Feature 159: «جامع» qualifies the analysis and is never a second entity.
     [InlineData("تحلیل جامع فولاد", "فولاد")]
     [InlineData("تحلیل جامع کگل", "کگل")]
     [InlineData("تحلیل جامع فولاد مبارکه", "فولاد")]

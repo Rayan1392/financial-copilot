@@ -117,7 +117,7 @@ public sealed class CyclicalWavesV2CompositionTests
     }
 
     [Fact]
-    public void Feature162_NoavaranAminWithAnalysisMapped_SwapsOnlyComprehensiveAnalysis()
+    public void Feature159_NoavaranAminWithAnalysisMapped_SwapsOnlyComprehensiveAnalysis()
     {
         var unmapped = Compose("NoavaranAmin");
         var mapped = Compose("NoavaranAmin", ("FinancialData:CapabilitySources:comprehensive_analysis", "CyclicalWaves"));
@@ -142,7 +142,7 @@ public sealed class CyclicalWavesV2CompositionTests
     }
 
     [Fact]
-    public void Feature162_MappedAvailabilityAnswersAnalysisFromCyclicalWavesAndKeepsTheBaseMode()
+    public void Feature159_MappedAvailabilityAnswersAnalysisFromCyclicalWavesAndKeepsTheBaseMode()
     {
         using var provider = Build("NoavaranAmin", configure: null,
             ("FinancialData:CapabilitySources:comprehensive_analysis", "CyclicalWaves"));
@@ -157,7 +157,7 @@ public sealed class CyclicalWavesV2CompositionTests
     [Theory]
     [InlineData("")]
     [InlineData("  ")]
-    public void Feature162_EmptyMapValueMeansUnmapped(string value)
+    public void Feature159_EmptyMapValueMeansUnmapped(string value)
     {
         var services = Compose("NoavaranAmin", ("FinancialData:CapabilitySources:comprehensive_analysis", value));
 
@@ -169,7 +169,7 @@ public sealed class CyclicalWavesV2CompositionTests
     [InlineData("NoavaranAmin", "comprehensive_analysis", "Codal", "unknown provider")]
     [InlineData("NoavaranAmin", "comprehensive_analysis", "1", "unknown provider")]
     [InlineData("CyclicalWaves", "comprehensive_analysis", "CyclicalWaves", "only while FinancialData:ChatProvider is NoavaranAmin")]
-    public void Feature162_InvalidMapFailsComposition(string mode, string route, string source, string message)
+    public void Feature159_InvalidMapFailsComposition(string mode, string route, string source, string message)
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
             Compose(mode, ($"FinancialData:CapabilitySources:{route}", source)));
@@ -180,7 +180,7 @@ public sealed class CyclicalWavesV2CompositionTests
     [Theory]
     [InlineData("http://tahlilapp.com/app/analysis")]
     [InlineData("app/analysis")]
-    public void Feature162_AnalysesLinkMustBeAbsoluteHttps(string url)
+    public void Feature159_AnalysesLinkMustBeAbsoluteHttps(string url)
     {
         using var provider = Build("NoavaranAmin", configure: null, ("ComprehensiveAnalysis:TahlilAppAnalysesUrl", url));
 
@@ -189,7 +189,7 @@ public sealed class CyclicalWavesV2CompositionTests
     }
 
     [Fact]
-    public void Feature162_AnalysesLinkDefaultsToTheTahlilAppAnalysisPage()
+    public void Feature159_AnalysesLinkDefaultsToTheTahlilAppAnalysisPage()
     {
         using var provider = Build("NoavaranAmin");
 

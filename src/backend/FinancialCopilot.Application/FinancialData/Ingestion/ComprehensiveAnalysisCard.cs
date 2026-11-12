@@ -3,7 +3,7 @@ using System.Text;
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 /// <summary>
-/// Feature 162: how a comprehensive-analysis answer links to and previews TahlilApp. TahlilApp has one fixed page for
+/// Feature 159: how a comprehensive-analysis answer links to and previews TahlilApp. TahlilApp has one fixed page for
 /// its comprehensive analyses (owner answer to OQ-063, 2026-11-10); there is no per-article link. The analysis text is
 /// paid TahlilApp content, so only a partial preview is shown (change «latest-analysis-teaser», 2026-11-10).
 /// </summary>
@@ -73,7 +73,7 @@ public static class ComprehensiveAnalysisTeaserPolicy
     }
 
     /// <summary>
-    /// Feature 162 change «max-plan-full-analysis-text»: the whole text for an entitled reader, without a repeated title.
+    /// Feature 159 change «max-plan-full-analysis-text»: the whole text for an entitled reader, without a repeated title.
     /// </summary>
     public static string FullText(string title, string? text) => WithoutRepeatedTitle(title, (text ?? string.Empty).Trim());
 
@@ -134,7 +134,7 @@ public static class ComprehensiveAnalysisTeaserPolicy
 }
 
 /// <summary>
-/// Feature 162 answer card for the latest analysis of a ticker: title, publish date, partial preview, a read-more line
+/// Feature 159 answer card for the latest analysis of a ticker: title, publish date, partial preview, a read-more line
 /// and the fixed TahlilApp link. No LLM writes this text.
 /// </summary>
 public static class ComprehensiveAnalysisCardComposer
@@ -149,7 +149,7 @@ public static class ComprehensiveAnalysisCardComposer
     /// break, which put the date, the preview, the read-more line and the link on one line.
     /// </summary>
     /// <param name="fullText">
-    /// Feature 162 change «max-plan-full-analysis-text»: the items carry the whole text (entitled reader), so the card
+    /// Feature 159 change «max-plan-full-analysis-text»: the items carry the whole text (entitled reader), so the card
     /// shows it with its paragraphs, leaves out the read-more sentence and links to the analyses section.
     /// </param>
     public static string ComposeMarkdown(

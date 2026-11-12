@@ -2,13 +2,16 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
-## Current state (2026-11-11, ~18:15 +0330)
+## Current state (2026-11-11, ~19:45 +0330)
 
-- Latest released version: **1.9.0**, annotated tag `v1.9.0` (tag object `27757f8`) on prod merge commit
-  `8465aa9` (parents: prod `c43609a`, develop release commit `ce1ff2e`). Tag pushed 2026-11-11 ~18:13 +0330.
-  Deploy run 43041307287 succeeded in ~8.5m (all steps green). `/releases` returned 200 and contains "1.9.0".
-- Previous release: 1.8.0 (`v1.8.0` on `6c960b1`, run 42917616701 success).
-- Base for "commits since last release": `v1.9.0`.
+- Latest released version: **1.10.0**, annotated tag `v1.10.0` (tag object `ed75d7e`) on prod merge commit
+  `7b69391` (parents: prod `1e68bd6`, develop release commit `355a1cd`). Tag pushed 2026-11-11 ~19:31 +0330.
+  Deploy run 43054189283 succeeded in ~8.5m (all steps green). `/releases` returned 200 and contains "1.10.0".
+- Previous release: 1.9.0 (`v1.9.0` on `8465aa9`, run 43041307287 success).
+- Base for "commits since last release": `v1.10.0`.
+- prod carries owner commit `1e68bd6` ("a": this MEMORY.md + deleted `.deepcode/settings.json` and a `.roo` skill)
+  that develop lacks; it stays on prod only. This file therefore differs between prod and develop; committing
+  it on develop will conflict with prod on the next develop->prod merge (resolve by taking the newer content).
 - Pattern since 1.4.0: release commit on develop, `Merge branch 'develop' into prod` (--no-ff) in the main
   worktree (prod checked out there), tag the prod merge commit. develop may be checked out in `D:\wt\a`.
 - Note: `da623ed` (analysis-card line breaks fix) landed on develop after the 1.8.0 release commit but was
@@ -18,7 +21,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 ## Open items
 
-- **Tag renumbering not pushed yet.** On GitHub: `v1.1.0`, `v1.2.0`, `v1.4.0`–`v1.9.0` (correct) plus the old
+- **Tag renumbering not pushed yet.** On GitHub: `v1.1.0`, `v1.2.0`, `v1.4.0`–`v1.10.0` (correct) plus the old
   `v1.2.3`–`v1.3.6`; `v0.2.3`–`v0.3.5` and `v1.0.0` do not exist. Renumbering must run with the "Deploy prod
   tag" workflow disabled (each v* push deploys); the owner runs it by hand. Mapping table:
   `docs/release/release-process.md`. Until then the `[1.0.0]`, `[1.1.0]` and `[0.x]` compare links 404.
@@ -34,6 +37,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.10.0 | 2026-11-11 | 7b69391 | run 43054189283 success | follow-up suggestion boxes on balance sheet and other single-symbol answers; «تحلیل X» takes the comprehensive-analysis route |
 | 1.9.0 | 2026-11-11 | 8465aa9 | run 43041307287 success | full TahlilApp analysis text for Max; technical-analysis route; unavailable valuation topics refused without charge; price-unit and "Found metric data" fixes |
 | 1.8.0 | 2026-11-11 | 6c960b1 | run 42917616701 success | TahlilApp comprehensive-analysis card (preview); Telegram /unlink and link-failure reasons |
 | 1.7.0 | 2026-11-10 | 14dadae | run 42830596519 success | |

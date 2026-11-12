@@ -1,4 +1,4 @@
-# Tasks: Feature 162 change — whole analysis text for Max subscribers
+# Tasks: Feature 159 change — whole analysis text for Max subscribers
 
 Status: Gate B: Approved by the owner on 2026-11-11
 
@@ -7,7 +7,7 @@ this plan, including T6b.
 
 ## Feature Folder
 
-`162-capability-source-map-comprehensive-analysis/changes/max-plan-full-analysis-text` (branch
+`159-capability-source-map-comprehensive-analysis/changes/max-plan-full-analysis-text` (branch
 `track/a-routing-answer-correctness`, on top of the uncommitted Feature 150 / BUG-020 work)
 
 ## Before Starting
@@ -78,8 +78,8 @@ this plan, including T6b.
   Telegram 4,096 cut keeps the link.
 - [x] T5 Unit: query returns the whole text only with `IncludeFullText`. Covered by T6 through the real query (the V2
   query has no unit-test harness).
-- [x] T6 Integration (`Feature162MappedNoavaranAminChatApiFactory` with seeded billing accounts): AC-1, AC-2 (Free and
-  expired Max), AC-3, AC-5, AC-7. `Feature162MaxFullTextE2ETests` (5 tests: Max, Free, expired Max, row disabled, API
+- [x] T6 Integration (`Feature159MappedNoavaranAminChatApiFactory` with seeded billing accounts): AC-1, AC-2 (Free and
+  expired Max), AC-3, AC-5, AC-7. `Feature159MaxFullTextE2ETests` (5 tests: Max, Free, expired Max, row disabled, API
   client). AC-5 (BUG-020 fallback) is covered at unit level (T3).
 - [x] T6b Update the test that pins the Max capability rows. It was `PlanCapabilityServiceTests.MaxSeededCapabilityMatrixExactlyMatchesPro`
   (now `…MatchesPro_PlusOnlyTheFullAnalysisText`); `BillingDomainTests` does not pin the matrix.

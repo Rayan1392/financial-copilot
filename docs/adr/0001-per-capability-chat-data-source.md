@@ -1,7 +1,7 @@
 # 0001 — Per-capability chat data source
 
 Status: Accepted by the owner on 2026-11-10
-Related: specs/162-capability-source-map-comprehensive-analysis/, specs/148-cyclicalwaves-v2-independent-financial-data-provider/ (C2), specs/160-valuation-pe-and-gauge-equilibrium/ (parked)
+Related: specs/159-capability-source-map-comprehensive-analysis/, specs/148-cyclicalwaves-v2-independent-financial-data-provider/ (C2), specs/160-valuation-pe-and-gauge-equilibrium/ (parked)
 
 ## Context
 
@@ -21,7 +21,7 @@ between providers: an overridden capability answers only from its assigned sourc
 as missing. Values from one provider are never written into the other provider's stores or combined into one
 calculated value.
 
-Step 1 (Feature 162) allowlists `comprehensive_analysis`. Steps 2 and 3 extend the allowlist only through their
+Step 1 (Feature 159) allowlists `comprehensive_analysis`. Steps 2 and 3 extend the allowlist only through their
 own approved features.
 
 ## Consequences

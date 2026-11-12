@@ -8,7 +8,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class PlanCapabilityServiceTests
 {
-    // Feature 152: Max has Pro's matrix. Feature 162 change «max-plan-full-analysis-text» (owner, 2026-11-11) adds one
+    // Feature 152: Max has Pro's matrix. Feature 159 change «max-plan-full-analysis-text» (owner, 2026-11-11) adds one
     // Max-only row: the whole TahlilApp analysis text.
     [Fact]
     public void MaxSeededCapabilityMatrixMatchesPro_PlusOnlyTheFullAnalysisText()

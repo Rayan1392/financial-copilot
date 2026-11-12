@@ -640,7 +640,7 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         if (symbols.Length == 0) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
         var topics = SplitValues(frame.Value(QuerySlotType.AnalysisTopic));
         var fromDate = ParseDateTimeOffset(frame.Value(QuerySlotType.Period));
-        // Feature 162 change «latest-analysis-teaser»: the answer shows the latest analysis only.
+        // Feature 159 change «latest-analysis-teaser»: the answer shows the latest analysis only.
         const int limit = 1;
         // Change «max-plan-full-analysis-text»: the plan is read after the turn's billing reservation (which refreshes
         // the TahlilApp status when due); any doubt means the preview.
@@ -696,7 +696,7 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         if ((analysisAttempt.Failed && !hasMetrics) || (lookupAttempt.Failed && !hasAnalysis))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
                 DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
-        // Feature 162 (FR7): no analysis for the symbol is a no-data answer, free, even when context metrics exist;
+        // Feature 159 (FR7): no analysis for the symbol is a no-data answer, free, even when context metrics exist;
         // the payload still carries the metrics and the "no analysis found" card.
         if (!hasAnalysis && !analysisAttempt.Failed) return NoData(frame, payload);
         return hasAnalysis && hasMetrics

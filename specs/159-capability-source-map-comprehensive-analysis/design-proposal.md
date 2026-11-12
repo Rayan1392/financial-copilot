@@ -1,4 +1,4 @@
-# Feature 162 — Capability Source Map, Step 1: Comprehensive Analysis from CyclicalWaves v2
+# Feature 159 — Capability Source Map, Step 1: Comprehensive Analysis from CyclicalWaves v2
 
 Status: Gate A: Approved by the owner on 2026-11-10
 

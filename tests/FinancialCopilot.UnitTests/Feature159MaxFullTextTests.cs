@@ -10,8 +10,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FinancialCopilot.UnitTests;
 
-/// <summary>Feature 162 change «max-plan-full-analysis-text»: only Max gets the whole analysis text; any doubt → preview.</summary>
-public sealed class Feature162MaxFullTextTests
+/// <summary>Feature 159 change «max-plan-full-analysis-text»: only Max gets the whole analysis text; any doubt → preview.</summary>
+public sealed class Feature159MaxFullTextTests
 {
     private const string Capability = ComprehensiveAnalysisFullText.CapabilityCode;
     private static readonly string Url = ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;

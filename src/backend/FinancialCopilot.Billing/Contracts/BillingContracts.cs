@@ -321,7 +321,7 @@ public interface IPlanCapabilityService
     /// <summary>
     /// True only when the account's effective plan is set and has an enabled row for <paramref name="capabilityCode"/>.
     /// Unlike <see cref="ValidateCanExecuteAsync"/>, an account without a plan is not allowed (fail closed), so this is
-    /// the check for paid content (Feature 162 change «max-plan-full-analysis-text»).
+    /// the check for paid content (Feature 159 change «max-plan-full-analysis-text»).
     /// </summary>
     Task<bool> IsEnabledAsync(
         CustomerAccount account,

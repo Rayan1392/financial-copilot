@@ -1,4 +1,4 @@
-# Change to Feature 162 — latest analysis with a partial preview
+# Change to Feature 159 — latest analysis with a partial preview
 
 Status: Gate A: Approved by the owner on 2026-11-10
 
@@ -6,11 +6,11 @@ Approval record: on 2026-11-10 the owner answered the three questions of this pr
 داده شود / 3- «متن کامل این تحلیل را در بخش تحلیل جامع، تحلیل اپ بخوانید»») and wrote «Gate B Approved with above
 answers», which approves this design and the plan in `tasks.md`.
 
-Supersedes: Feature 162 `design-proposal.md` §6 (whole summary, up to three analyses) and `user-story.md` FR4.
+Supersedes: Feature 159 `design-proposal.md` §6 (whole summary, up to three analyses) and `user-story.md` FR4.
 
 ## Problem
 
-The TahlilApp field `summary` is the whole analysis text, not a summary (owner, 2026-11-10). Feature 162 shows it
+The TahlilApp field `summary` is the whole analysis text, not a summary (owner, 2026-11-10). Feature 159 shows it
 verbatim, so the paid TahlilApp content is given away. A ticker can also have many analyses; the owner wants only the
 latest by publish date.
 

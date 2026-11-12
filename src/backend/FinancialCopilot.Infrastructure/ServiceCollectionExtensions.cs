@@ -766,7 +766,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationalCapabilityExecutor, DisclosureListingCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlySalesQualityCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, PsGaugeCapabilityExecutor>();
-        // Feature 162 change «max-plan-full-analysis-text»: without billing nobody gets the whole analysis text.
+        // Feature 159 change «max-plan-full-analysis-text»: without billing nobody gets the whole analysis text.
         services.AddScoped<IComprehensiveAnalysisFullTextEntitlement>(provider =>
             provider.GetService<ICustomerAccountRepository>() is { } customerAccounts &&
             provider.GetService<IPlanCapabilityService>() is { } planCapabilities

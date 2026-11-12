@@ -8,7 +8,7 @@ cut and the disclaimer, and set symbol-in-title matching (`design-proposal.md` �
 
 ## Feature Folder
 
-`162-capability-source-map-comprehensive-analysis` (branch `feature/162-capability-source-map`, worktree `D:\wt\f`)
+`159-capability-source-map-comprehensive-analysis` (branch `feature/162-capability-source-map`, worktree `D:\wt\f`)
 
 ## Before Starting
 
@@ -69,7 +69,7 @@ cut and the disclaimer, and set symbol-in-title matching (`design-proposal.md` �
 ## Tests
 
 - [x] Unit tests listed above (`tests/FinancialCopilot.UnitTests`).
-- [x] Integration: `Feature162ComprehensiveAnalysisSourceMapTests` with the `Feature148TableReadRecorder`: mapped NoavaranAmin reads only the three analysis tables from the v2 schema; unmapped reads none; 0 credits on no result.
+- [x] Integration: `Feature159ComprehensiveAnalysisSourceMapTests` with the `Feature148TableReadRecorder`: mapped NoavaranAmin reads only the three analysis tables from the v2 schema; unmapped reads none; 0 credits on no result.
 - [x] Integration: existing `Feature148ChatProviderE2ETests` and NoavaranAmin regression suites unchanged.
 - [x] Architecture: Application does not reference Infrastructure; no other route may be overridden (allowlist test).
 - [x] Live Development check (AC9) on disposable PostgreSQL.
@@ -101,17 +101,17 @@ cut and the disclaimer, and set symbol-in-title matching (`design-proposal.md` �
 - Telegram: the drop (one lookup row → analysis missing) and duplicate (text + appendix) were reproduced by tests on
   the old renderer (actual 0 and 2 occurrences) before the fix. Other turns keep the old analysis appendix.
 - Tests: unit 3,396 run, 32 failed = exactly the `specs/test-baseline.md` set (29 methods). Architecture: 1 failure,
-  the known BUG-003. Integration (Feature 148/162/analysis filter): Feature 162 green; 9 failures that fail identically
+  the known BUG-003. Integration (Feature 148/162/analysis filter): Feature 159 green; 9 failures that fail identically
   on clean `develop` e32fd5c (recorded in `specs/backlog.md`). Build: 0 warnings.
 - Owner request (2026-11-10): local runs map `comprehensive_analysis` to `CyclicalWaves` in `appsettings.Development.json`
   (not `appsettings.json`: every integration test host reads that file, and the trial broke 34 tests; production uses
   the `Production` environment). `AuthenticationApiFactory` resets the map so test hosts stay independent of local
-  settings; the Feature 162 host sets it after the base. Integration result unchanged: only the 9 pre-existing failures.
+  settings; the Feature 159 host sets it after the base. Integration result unchanged: only the 9 pre-existing failures.
 - Local run (2026-11-10): `appsettings.Development.json` also sets `ChatProvider=NoavaranAmin`,
   `ComprehensiveAnalysis:TahlilAppAnalysesUrl` and `SemanticRouting:Capabilities:comprehensive_analysis=SemanticPrimary`
   (local user-secrets set `DefaultMode=Shadow`, where the LLM writes the answer from the card instead of showing it).
   docker-compose defaults `SemanticRouting__DefaultMode` to `Shadow` too: production shows the card verbatim only with
   that capability on `SemanticPrimary` (owner decision at release).
 - AC9 live check (2026-11-10): disposable PostgreSQL 18 (port 55441) with 200 real analyses captured from the public
-  TahlilApp API; `Feature162LiveAnalysisPostgreSqlTests` (skipped unless `FEATURE162_LIVE_ANALYSES_JSON` is set) passed
+  TahlilApp API; `Feature159LiveAnalysisPostgreSqlTests` (skipped unless `FEATURE159_LIVE_ANALYSES_JSON` is set) passed
   for شگل (three «شگل، بخش …» titles), وتجارت and اخابر, together with the existing v2 PostgreSQL tests (9/9).

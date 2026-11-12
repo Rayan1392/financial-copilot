@@ -86,11 +86,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     private ChatCapabilityAvailabilityOutcome Availability(string executionRoute) =>
         capabilityAvailability?.Evaluate(executionRoute) ?? ChatCapabilityAvailabilityOutcome.Available;
 
-    /// <summary>Feature 162: the provider that answers a capability (its override, otherwise the base mode).</summary>
+    /// <summary>Feature 159: the provider that answers a capability (its override, otherwise the base mode).</summary>
     private FinancialDataChatProvider SourceFor(string executionRoute) =>
         capabilityAvailability?.SourceFor(executionRoute) ?? FinancialDataChatProvider.NoavaranAmin;
 
-    /// <summary>Feature 162: true when a capability is answered by a provider other than the base mode.</summary>
+    /// <summary>Feature 159: true when a capability is answered by a provider other than the base mode.</summary>
     private bool IsSourceOverridden(string executionRoute) =>
         capabilityAvailability is not null &&
         capabilityAvailability.SourceFor(executionRoute) != capabilityAvailability.Provider;
@@ -466,7 +466,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             if (semantic.Execution.Payload is SymbolSnapshotResult)
                 stepActivity?.SetTag("workflow.intent", "SymbolSnapshot");
             // A snapshot with no data is a complete answer, so the registered financial source never replaces it.
-            // Feature 162: a capability answered by another provider has no cross-provider fallback.
+            // Feature 159: a capability answered by another provider has no cross-provider fallback.
             var canUseFeature141 = directFeature141 is null && !policyBlocked && !IsCyclicalWavesMode
                 && !IsSourceOverridden(semanticFrame.CapabilityCode)
                 && semanticFrame.CapabilityCode != SymbolSnapshotCapability.Code
@@ -1203,7 +1203,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         var agentTools = new List<AITool> { scannerTool, lookupTool };
-        // C2: the analysis tool exists only where the policy allows comprehensive analysis; Feature 162 picks the
+        // C2: the analysis tool exists only where the policy allows comprehensive analysis; Feature 159 picks the
         // tool by the capability's source, so a NoavaranAmin base with the v2 override gets the v2 tool.
         if (Availability(CapabilityExecutionRoutes.ComprehensiveAnalysis).IsAvailable)
             agentTools.Add(SourceFor(CapabilityExecutionRoutes.ComprehensiveAnalysis) == FinancialDataChatProvider.CyclicalWaves

@@ -84,14 +84,14 @@ public sealed class Feature150UnavailableTopicE2ETests : IClassFixture<Feature14
 }
 
 /// <summary>
-/// The production shape after Feature 162: NoavaranAmin base provider, comprehensive analysis from CyclicalWaves.
+/// The production shape after Feature 159: NoavaranAmin base provider, comprehensive analysis from CyclicalWaves.
 /// Covers the refusals (AC-1 to AC-4, AC-7) and the owner's Gate B conditions C1–C3.
 /// </summary>
-public sealed class Feature150UnavailableTopicMappedAnalysisE2ETests : IClassFixture<Feature162MappedNoavaranAminChatApiFactory>
+public sealed class Feature150UnavailableTopicMappedAnalysisE2ETests : IClassFixture<Feature159MappedNoavaranAminChatApiFactory>
 {
-    private readonly Feature162MappedNoavaranAminChatApiFactory _factory;
+    private readonly Feature159MappedNoavaranAminChatApiFactory _factory;
 
-    public Feature150UnavailableTopicMappedAnalysisE2ETests(Feature162MappedNoavaranAminChatApiFactory factory)
+    public Feature150UnavailableTopicMappedAnalysisE2ETests(Feature159MappedNoavaranAminChatApiFactory factory)
     {
         _factory = factory;
         factory.EnsureSeeded();
@@ -104,7 +104,7 @@ public sealed class Feature150UnavailableTopicMappedAnalysisE2ETests : IClassFix
     // companies carry their symbol in TseSymbol/CompanySymbol, not Ticker, as Noavaran rows do.
     private static readonly object SeedLock = new();
 
-    private static void SeedTechnicalAnalyses(Feature162MappedNoavaranAminChatApiFactory factory)
+    private static void SeedTechnicalAnalyses(Feature159MappedNoavaranAminChatApiFactory factory)
     {
         lock (SeedLock)
         {

@@ -26,6 +26,28 @@ interface SendVariables {
   knownMessageIds: readonly string[];
 }
 
+/** The question being sent, with the message IDs the conversation had when it was sent. */
+interface PendingQuestion {
+  text: string;
+  knownMessageIds: readonly string[];
+}
+
+/**
+ * The pending question is shown until the loaded conversation holds a user message that was not there when
+ * it was sent — its persisted copy. Deriving this from the loaded messages (instead of clearing it when the
+ * send succeeds) means the question is never missing or doubled while the answer is loaded (BUG-023).
+ */
+function pendingQuestionText(
+  pending: PendingQuestion | null,
+  messages: readonly ChatMessage[],
+): string | null {
+  if (!pending) return null;
+  const persisted = messages.some(
+    (message) => message.role === "user" && !pending.knownMessageIds.includes(message.id),
+  );
+  return persisted ? null : pending.text;
+}
+
 export interface ThreadSendFailure extends ChatFailure {
   draft: string;
   recovery: SendRecovery;
@@ -46,7 +68,7 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
   const send = useServerFn(sendChatMessage);
   const lastMessageRef = useRef<string>("");
   const [failure, setFailure] = useState<ThreadSendFailure | null>(null);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingQuestion | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   useEffect(() => {
@@ -108,13 +130,13 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
       if (!response.ok) throw new ChatSendError(response.failure.code, response.failure.message);
       return response.result;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setFailure(null);
-      setPendingMessage(null);
-      qc.invalidateQueries({ queryKey: ["messages", threadId] });
       qc.invalidateQueries({ queryKey: ["threads"] });
       qc.invalidateQueries({ queryKey: ["subscription"] });
       qc.invalidateQueries({ queryKey: ["usage"] });
+      // Stay pending until the answer is loaded, so the progress indicator has no gap before it (BUG-023).
+      await qc.invalidateQueries({ queryKey: ["messages", threadId] });
     },
     onError: (error: Error, variables) => {
       const classified = classifyClientError(error);
@@ -124,7 +146,7 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
         knownMessageIds: variables.knownMessageIds,
       };
       const recovery = initialRecovery(attempt, classified.code);
-      setPendingMessage(null);
+      setPending(null);
       setFailure({ ...classified, draft: variables.message, recovery, attempt });
       void qc.invalidateQueries({ queryKey: ["usage"] });
       if (reconcileOnFailure && recovery.kind === "reconciling") void reconcile(attempt);
@@ -139,12 +161,13 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
     variables: Omit<SendVariables, "idempotencyKey" | "knownMessageIds">,
     showAsPending: boolean,
   ) {
+    const knownMessageIds = knownIds();
     setFailure(null);
-    setPendingMessage(showAsPending ? variables.message : null);
+    setPending(showAsPending ? { text: variables.message, knownMessageIds } : null);
     sendMutation.mutate({
       ...variables,
       idempotencyKey: crypto.randomUUID(),
-      knownMessageIds: knownIds(),
+      knownMessageIds,
     });
   }
 
@@ -174,15 +197,17 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
     void reconcile(failure.attempt);
   }
 
+  const messages = messagesQuery.data ?? [];
+
   return {
-    messages: messagesQuery.data ?? [],
+    messages,
     isLoading: messagesQuery.isLoading,
     loadError: messagesQuery.isError ? messagesQuery.error : null,
     refetchMessages: () => messagesQuery.refetch(),
     followedSymbols: new Set(followed?.symbols.map((item) => item.symbol) ?? []),
     showDiagnostics,
     isPending: sendMutation.isPending,
-    pendingMessage,
+    pendingMessage: pendingQuestionText(pending, messages),
     failure,
     clearFailure: () => setFailure(null),
     submit,

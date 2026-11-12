@@ -251,7 +251,7 @@ public sealed class Feature148CyclicalWavesChatE2ETests : IClassFixture<Feature1
         Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
         var item = Assert.Single(root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray());
         Assert.Equal(148001, item.GetProperty("analysisId").GetInt64());
-        // Feature 162 change: the provider summary is the whole paid text, so only a preview leaves the query;
+        // Feature 159 change: the provider summary is the whole paid text, so only a preview leaves the query;
         // this seeded text is shorter than the preview minimum, so no preview at all.
         Assert.Equal(string.Empty, item.GetProperty("plainTextSummary").GetString());
         Assert.Contains("فولاد- گزارش عملکرد شهریور ۱۴۰۵", Feature148Chat.Text(root));

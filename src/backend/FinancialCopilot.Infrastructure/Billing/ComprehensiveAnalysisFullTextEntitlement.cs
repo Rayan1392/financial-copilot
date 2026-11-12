@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace FinancialCopilot.Infrastructure.Billing;
 
 /// <summary>
-/// Feature 162 change «max-plan-full-analysis-text»: the whole analysis text is granted only to a user (never an API
+/// Feature 159 change «max-plan-full-analysis-text»: the whole analysis text is granted only to a user (never an API
 /// client) whose individual account's effective plan has an enabled <see cref="ComprehensiveAnalysisFullText.CapabilityCode"/>
 /// row (Max). Fails closed: no account, another tenant, no plan or any error → not granted. Logs no user id or text.
 /// </summary>

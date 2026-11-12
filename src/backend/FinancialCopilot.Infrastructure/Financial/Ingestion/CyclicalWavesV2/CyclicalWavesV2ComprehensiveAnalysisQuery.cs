@@ -12,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 /// Live evidence (2026-10-31): most articles carry no tags and name their ticker as the title prefix
 /// («شتوکا- گزارش عملکرد مهر 1405»); topics arrive as underscore tags («گزارش_فصلی», «P-E»).
 /// Only the title, the published summary and the publication date exist; there is no full article body.
-/// Feature 162 (owner, 2026-11-10): an analysis belongs to a ticker when the ticker is a whole word of its title, at
+/// Feature 159 (owner, 2026-11-10): an analysis belongs to a ticker when the ticker is a whole word of its title, at
 /// any position («حق تقدم شگل», «شگل، بخش سوم - نسبت P/s»); tags no longer select analyses for a ticker, because
 /// daily reports such as «رصد معاملات عمده» tag many tickers. Topic tags still filter when asked.
 /// The provider `summary` is the whole paid analysis text (owner, 2026-11-10), so only its partial preview leaves this

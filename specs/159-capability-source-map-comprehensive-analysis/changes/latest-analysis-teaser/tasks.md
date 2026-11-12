@@ -1,4 +1,4 @@
-# Tasks: Feature 162 change — latest analysis with a partial preview
+# Tasks: Feature 159 change — latest analysis with a partial preview
 
 Status: Gate B: Approved by the owner on 2026-11-10
 
@@ -6,7 +6,7 @@ Approval record: «Gate B Approved with above answers» (2026-11-10), with the a
 
 ## Feature Folder
 
-`162-capability-source-map-comprehensive-analysis/changes/latest-analysis-teaser` (branch
+`159-capability-source-map-comprehensive-analysis/changes/latest-analysis-teaser` (branch
 `feature/162-latest-analysis-teaser` from `develop` 24bd17e)
 
 ## Acceptance Criteria
@@ -22,8 +22,8 @@ Approval record: «Gate B Approved with above answers» (2026-11-10), with the a
 - [x] 1 Application: `ComprehensiveAnalysisTeaserPolicy` (pure) and the three settings with validation on `ComprehensiveAnalysisPresentationOptions`.
 - [x] 2 `CyclicalWavesV2ComprehensiveAnalysisQuery` returns the preview instead of the whole text (replaces the 6,000-character bound).
 - [x] 3 `ComprehensiveAnalysisCapabilityExecutor` asks for one analysis; `ComprehensiveAnalysisCardComposer` shows the latest item with date, preview, read-more line and link (markdown and plain text).
-- [x] 4 Tests: policy cases (decimal point, title repeat, short text, cap, percent), card, executor limit, query, Telegram, Feature 162 and Feature 148 E2E expectations, live PostgreSQL check with real analyses.
-- [x] 5 Docs: `appsettings.json` defaults, provider README (`summary` is the whole text), `AGENTS.md`, `CHANGELOG.md` line, Feature 162 notes.
+- [x] 4 Tests: policy cases (decimal point, title repeat, short text, cap, percent), card, executor limit, query, Telegram, Feature 159 and Feature 148 E2E expectations, live PostgreSQL check with real analyses.
+- [x] 5 Docs: `appsettings.json` defaults, provider README (`summary` is the whole text), `AGENTS.md`, `CHANGELOG.md` line, Feature 159 notes.
 
 ## Definition Of Done
 

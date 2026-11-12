@@ -15,7 +15,7 @@ public sealed record ComprehensiveAnalysisParseResult(
 // --- Use case input ---
 
 /// <param name="IncludeFullText">
-/// Feature 162 change «max-plan-full-analysis-text»: true only for a reader the entitlement port granted; the items then
+/// Feature 159 change «max-plan-full-analysis-text»: true only for a reader the entitlement port granted; the items then
 /// carry the whole text instead of the preview. Default false: the preview, cut at the source.
 /// </param>
 public sealed record ComprehensiveAnalysisQueryRequest(

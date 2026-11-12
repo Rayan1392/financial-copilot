@@ -265,7 +265,7 @@ scans, professional scans and financial-metric alerts; there is no setting to in
 retired: `CyclicalWavesLegacy:AllowCalls=false` blocks every legacy request before transmission and its
 credentials are optional.
 
-Feature 162 adds one exception per capability: `FinancialData:CapabilitySources` maps a capability route to another
+Feature 159 adds one exception per capability: `FinancialData:CapabilitySources` maps a capability route to another
 provider (only `comprehensive_analysis` is allowed). With `FINANCIAL_DATA_SOURCE_COMPREHENSIVE_ANALYSIS=CyclicalWaves`
 the NoavaranAmin deployment answers comprehensive analysis from the v2 analyses with the fixed TahlilApp link
 `COMPREHENSIVE_ANALYSIS_TAHLILAPP_URL`. Empty (default) keeps C2. Any other key, an unknown provider, or a map used

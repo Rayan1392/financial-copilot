@@ -54,7 +54,7 @@ Order: the two independent fixes first (smallest, no shared files with R0), then
 ### 5. R0 — dialogue gate
 
 - [x] 5.1 Failing gate tests (style of `ComprehensiveAnalysisSemanticRoutingRegressionTests`): stub model returns `product_revenue_mix`; assert frame capability `unavailable_topic`, reason code, zero model calls; symbol slot filled only for a single resolved company; ambiguous/unknown → empty slot, no clarification; pending question → today's route; Symbol Snapshot on + bare ticker → snapshot; V1 scope, CyclicalWaves mode, rollout Rollback → today's route.
-- [x] 5.1a Guard tests for C1–C3, run before and after the change with identical results: «تحلیل بنیادی فولاد», «تحلیل فولاد», «تحلیل جامع فولاد», «تحلیل تکنیکال فولاد» (comprehensive analysis available) → frame `comprehensive_analysis`; a bare ticker with Symbol Snapshot on → `symbol_snapshot`. «تحلیل تکنیکال فولاد» with comprehensive analysis unavailable → technical refusal. Existing Feature 156 and Feature 162 test classes stay green unchanged.
+- [x] 5.1a Guard tests for C1–C3, run before and after the change with identical results: «تحلیل بنیادی فولاد», «تحلیل فولاد», «تحلیل جامع فولاد», «تحلیل تکنیکال فولاد» (comprehensive analysis available) → frame `comprehensive_analysis`; a bare ticker with Symbol Snapshot on → `symbol_snapshot`. «تحلیل تکنیکال فولاد» with comprehensive analysis unavailable → technical refusal. Existing Feature 156 and Feature 159 test classes stay green unchanged.
 - [x] 5.2 `ConversationTaskStateContracts.cs` (`ConversationDialogueGate`): new optional constructor arguments (catalog, `IChatCapabilityAvailability`), default `null` = rule off; `TryPrepareUnavailableTopicAsync` after the snapshot check and before assistant help, same frame shape as assistant help.
 
 ### 6. Workflow behaviour (both V2 runners)
@@ -115,7 +115,7 @@ No database migration, no API contract change, no configuration key, no frontend
 
 ## Results (2026-11-11)
 
-- Full solution run on this branch and on `develop` `da623ed` (same machine, same session): identical failure sets after the catalog-count update. Unit 32 (= `specs/test-baseline.md`), architecture 1 (BUG-003), integration 186 — all 186 also fail on `develop`; not in the baseline file (see the Feature 162 backlog note).
+- Full solution run on this branch and on `develop` `da623ed` (same machine, same session): identical failure sets after the catalog-count update. Unit 32 (= `specs/test-baseline.md`), architecture 1 (BUG-003), integration 186 — all 186 also fail on `develop`; not in the baseline file (see the Feature 159 backlog note).
 - New tests, all green: `Feature150UnavailableTopicTests` (59), `Feature150LookupAnswerCorrectnessTests` (10), `Feature150UnavailableTopicE2ETests` + `…MappedAnalysisE2ETests` + `…CyclicalWavesE2ETests` (20, through `POST /api/ai/v1/query`).
 - Existing test changed on purpose: `ConversationalCapabilityRegistryTests.InitialCatalog_ContainsOnlyExecutableBusinessCapabilities` 22 → 23 capabilities.
 - Gate B C1–C3 verified end to end on the production shape (NoavaranAmin + comprehensive analysis from CyclicalWaves); «تحلیل تکنیکال فولاد» reply checked identical on `develop` (BUG-020 registered on the lead branch).

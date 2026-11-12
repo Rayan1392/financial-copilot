@@ -1,7 +1,7 @@
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 /// <summary>
-/// Feature 162 change «max-plan-full-analysis-text» (owner, 2026-11-11): a reader whose plan grants
+/// Feature 159 change «max-plan-full-analysis-text» (owner, 2026-11-11): a reader whose plan grants
 /// <see cref="CapabilityCode"/> (Max only) gets the whole analysis text; everyone else keeps the partial preview.
 /// </summary>
 public static class ComprehensiveAnalysisFullText

@@ -45,7 +45,8 @@ All paths under `src/frontend/src/`.
 
 - [x] All tasks ticked; acceptance criteria verified.
 - [~] Tests, type check, and lint have no failure outside `specs/test-baseline.md`. No new failure; 2
-  pre-existing test failures are not in the baseline yet (see Implementation Notes) — owner to decide.
+  pre-existing test failures are not in the baseline; the owner had them recorded as BUG-024 and BUG-025
+  in `specs/bugs.md` (2026-11-12).
 - [x] `specs/bugs.md` BUG-023 status updated.
 
 ## Implementation Notes (2026-11-11)

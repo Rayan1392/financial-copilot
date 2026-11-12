@@ -2,13 +2,18 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
-## Current state (2026-11-11, ~19:45 +0330)
+## Current state (2026-11-12, ~09:00 +0330)
 
-- Latest released version: **1.10.0**, annotated tag `v1.10.0` (tag object `ed75d7e`) on prod merge commit
-  `7b69391` (parents: prod `1e68bd6`, develop release commit `355a1cd`). Tag pushed 2026-11-11 ~19:31 +0330.
-  Deploy run 43054189283 succeeded in ~8.5m (all steps green). `/releases` returned 200 and contains "1.10.0".
-- Previous release: 1.9.0 (`v1.9.0` on `8465aa9`, run 43041307287 success).
-- Base for "commits since last release": `v1.10.0`.
+- Latest released version: **1.11.0**, annotated tag `v1.11.0` (tag object `d7a9c92`) on prod merge commit
+  `34e0b32` ("Merge develop into prod for v1.11.0"; parents: prod `3908963`, develop release commit `d8dedcf`).
+  Tag pushed by the owner 2026-11-12 ~08:51 +0330. Deploy run 43160802312 succeeded in 8m12s (all steps green).
+  `/releases` returned 200 and shows 1.11.0 as «نسخهٔ جاری».
+- 1.11.0 announces answers from stored financial statements and monthly reports (code shipped earlier behind the
+  `Feature141:Enabled` flag; prod turns it on through the server `.env`, compose default is false) plus BUG-023.
+  No migrations. No Telegram gateway changes.
+- Previous release: 1.10.0 (`v1.10.0` on `7b69391`, run 43054189283 success).
+- Base for "commits since last release": `v1.11.0`.
+- Owner runs git from Windows PowerShell 5.1: give one command per line, no `&&`, no unset `$VARS` in paths.
 - prod carries owner commit `1e68bd6` ("a": this MEMORY.md + deleted `.deepcode/settings.json` and a `.roo` skill)
   that develop lacks; it stays on prod only. This file therefore differs between prod and develop; committing
   it on develop will conflict with prod on the next develop->prod merge (resolve by taking the newer content).

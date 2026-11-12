@@ -84,6 +84,68 @@ public sealed class TelegramAiAssistant089Tests
     }
 
     [Fact]
+    public async Task Stale_binding_recovers_current_message_and_reuses_replacement()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var conversations = new FakeConversationRepository();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), conversations, ai);
+        var initial = await adapter.HandleAsync(Update("پرسش اول", telegramUserId: 1001, updateId: 910), CancellationToken.None);
+        var bindingId = (await db.TelegramConversationBindings.SingleAsync()).Id;
+        Assert.True(await conversations.DeleteAsync(initial.ConversationId!.Value, actor.TenantId, actor.ActorId, CancellationToken.None));
+
+        var update = Update("پرسش دوم", telegramUserId: 1001, updateId: 911);
+        var recovered = await adapter.HandleAsync(update, CancellationToken.None);
+        var replay = await adapter.HandleAsync(update, CancellationToken.None);
+        var followUp = await adapter.HandleAsync(Update("پرسش سوم", telegramUserId: 1001, updateId: 912), CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, recovered.Status);
+        Assert.NotEqual(initial.ConversationId, recovered.ConversationId);
+        Assert.NotNull(recovered.ConversationId);
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
+        Assert.Equal(recovered.ConversationId, replay.ConversationId);
+        Assert.Equal(recovered.ConversationId, followUp.ConversationId);
+        Assert.Equal(3, ai.CallCount);
+        var binding = await db.TelegramConversationBindings.SingleAsync();
+        Assert.Equal(bindingId, binding.Id);
+        Assert.Equal(recovered.ConversationId, binding.ConversationId);
+    }
+
+    [Fact]
+    public async Task Stale_binding_reuses_a_concurrent_repair_and_discards_its_candidate()
+    {
+        var options = new DbContextOptionsBuilder<AuthDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        await using var db = new AuthDbContext(options);
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var conversations = new FakeConversationRepository();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), conversations, ai);
+        var initial = await adapter.HandleAsync(Update("پرسش اول", telegramUserId: 1001, updateId: 920), CancellationToken.None);
+        Assert.True(await conversations.DeleteAsync(initial.ConversationId!.Value, actor.TenantId, actor.ActorId, CancellationToken.None));
+        var winningId = await conversations.CreateEmptyAsync(actor.TenantId, actor.ActorId, DateTimeOffset.UtcNow, CancellationToken.None);
+        Guid discardedId = default;
+        conversations.OnCreate = async candidateId =>
+        {
+            discardedId = candidateId;
+            await using var concurrentDb = new AuthDbContext(options);
+            var binding = await concurrentDb.TelegramConversationBindings.SingleAsync();
+            binding.ConversationId = winningId;
+            await concurrentDb.SaveChangesAsync();
+        };
+
+        var recovered = await adapter.HandleAsync(Update("پرسش دوم", telegramUserId: 1001, updateId: 921), CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, recovered.Status);
+        Assert.Equal(winningId, ai.LastRequest?.ConversationId);
+        Assert.Equal(winningId, recovered.ConversationId);
+        Assert.NotEqual(Guid.Empty, discardedId);
+        Assert.Null(await conversations.FindAsync(discardedId, actor.TenantId, actor.ActorId, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Duplicate_update_replays_without_second_ai_call()
     {
         await using var db = CreateDb();
@@ -942,14 +1004,26 @@ public sealed class TelegramAiAssistant089Tests
 
     private sealed class FakeConversationRepository : IConversationRepository
     {
-        public Task<Guid> CreateAsync(Guid tenantId, Guid actorId, DateTimeOffset startedAt, CancellationToken cancellationToken) =>
-            Task.FromResult(Guid.NewGuid());
+        private readonly Dictionary<Guid, ConversationSummary> entries = [];
 
-        public Task<Guid> CreateEmptyAsync(Guid tenantId, Guid actorId, DateTimeOffset startedAt, CancellationToken cancellationToken) =>
-            Task.FromResult(Guid.NewGuid());
+        public Func<Guid, Task>? OnCreate { get; set; }
+
+        public Task<Guid> CreateAsync(Guid tenantId, Guid actorId, DateTimeOffset startedAt, CancellationToken cancellationToken) =>
+            CreateEmptyAsync(tenantId, actorId, startedAt, cancellationToken);
+
+        public async Task<Guid> CreateEmptyAsync(Guid tenantId, Guid actorId, DateTimeOffset startedAt, CancellationToken cancellationToken)
+        {
+            var id = Guid.NewGuid();
+            entries.Add(id, new ConversationSummary(id, tenantId, actorId, startedAt, startedAt, 0, string.Empty));
+            if (OnCreate is not null)
+                await OnCreate(id);
+            return id;
+        }
 
         public Task<ConversationSummary?> FindAsync(Guid conversationId, Guid tenantId, Guid actorId, CancellationToken cancellationToken) =>
-            Task.FromResult<ConversationSummary?>(null);
+            Task.FromResult(entries.TryGetValue(conversationId, out var entry) && entry.TenantId == tenantId && entry.ActorId == actorId
+                ? entry
+                : null);
 
         public Task<IReadOnlyCollection<ConversationSummary>> ListByActorAsync(Guid tenantId, Guid actorId, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<ConversationSummary>>([]);
@@ -958,7 +1032,8 @@ public sealed class TelegramAiAssistant089Tests
             Task.CompletedTask;
 
         public Task<bool> DeleteAsync(Guid conversationId, Guid tenantId, Guid actorId, CancellationToken cancellationToken) =>
-            Task.FromResult(false);
+            Task.FromResult(entries.TryGetValue(conversationId, out var entry) && entry.TenantId == tenantId && entry.ActorId == actorId
+                && entries.Remove(conversationId));
 
         public Task<PersistedConversationExchange> PersistExchangeAsync(
             ConversationExchange exchange,

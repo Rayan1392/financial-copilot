@@ -1619,6 +1619,11 @@ public sealed class TelegramAiAssistantAdapter(
             cancellationToken);
         if (binding is not null)
         {
+            if (await conversations.FindAsync(binding.ConversationId, actor.TenantId, actor.ActorId, cancellationToken) is null)
+            {
+                return await RepairConversationBindingAsync(binding, now, cancellationToken);
+            }
+
             binding.LastMessageAtUtc = now;
             await authDbContext.SaveChangesAsync(cancellationToken);
             return binding.ConversationId;
@@ -1640,6 +1645,48 @@ public sealed class TelegramAiAssistantAdapter(
         });
         await authDbContext.SaveChangesAsync(cancellationToken);
         return conversationId;
+    }
+
+    private async Task<Guid> RepairConversationBindingAsync(
+        TelegramConversationBindingRow binding,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var staleConversationId = binding.ConversationId;
+        var replacementId = await conversations.CreateEmptyAsync(binding.TenantId, binding.ActorId, now, cancellationToken);
+        var activeBinding = authDbContext.TelegramConversationBindings.Where(row =>
+            row.Id == binding.Id && row.RevokedAtUtc == null);
+
+        if (authDbContext.Database.IsRelational())
+        {
+            authDbContext.Entry(binding).State = EntityState.Detached;
+            var replaced = await activeBinding.Where(row => row.ConversationId == staleConversationId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(row => row.ConversationId, replacementId)
+                    .SetProperty(row => row.LastMessageAtUtc, now), cancellationToken);
+            if (replaced == 1)
+                return replacementId;
+        }
+        else
+        {
+            // The in-memory provider does not support ExecuteUpdateAsync.
+            var entry = authDbContext.Entry(binding);
+            await entry.ReloadAsync(cancellationToken);
+            if (entry.State != EntityState.Detached && binding.RevokedAtUtc is null && binding.ConversationId == staleConversationId)
+            {
+                binding.ConversationId = replacementId;
+                binding.LastMessageAtUtc = now;
+                await authDbContext.SaveChangesAsync(cancellationToken);
+                return replacementId;
+            }
+        }
+
+        // Another request repaired or revoked the binding. Discard our unused candidate.
+        await conversations.DeleteAsync(replacementId, binding.TenantId, binding.ActorId, cancellationToken);
+        var winningId = await activeBinding.Where(row => row.ConversationId != staleConversationId)
+            .Select(row => (Guid?)row.ConversationId)
+            .SingleOrDefaultAsync(cancellationToken);
+        return winningId ?? throw new ConversationNotFoundException(staleConversationId);
     }
 
     private async Task TouchConversationBindingAsync(

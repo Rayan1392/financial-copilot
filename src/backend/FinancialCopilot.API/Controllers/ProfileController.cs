@@ -29,7 +29,7 @@ public sealed class ProfileController(OwnProfileUseCase profiles) : ControllerBa
         var view = await profiles.GetAsync(userId, cancellationToken);
         if (view is null)
         {
-            return NotFound();
+            return Ok(new OwnProfileResponse(null, null, null, null, null, null));
         }
 
         return Ok(new OwnProfileResponse(

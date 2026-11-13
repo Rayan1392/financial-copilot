@@ -42,6 +42,26 @@ public sealed class OwnProfileIntegrationTests(TahlilAppLaunchApiFactory factory
     }
 
     [Fact]
+    public async Task OwnProfile_WithoutTahlilAppProfile_ReturnsEmptyNullableProfile_WithNoStore()
+    {
+        var token = factory.CreateWebAppToken(includeTenant: false);
+
+        using var response = await GetAsync("/api/auth/v1/profile", token);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.GetValues("Cache-Control").Single());
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var document = await JsonDocument.ParseAsync(stream);
+        var profile = document.RootElement;
+        Assert.Equal(JsonValueKind.Null, profile.GetProperty("firstName").ValueKind);
+        Assert.Equal(JsonValueKind.Null, profile.GetProperty("lastName").ValueKind);
+        Assert.Equal(JsonValueKind.Null, profile.GetProperty("nationalIdMasked").ValueKind);
+        Assert.Equal(JsonValueKind.Null, profile.GetProperty("mobileMasked").ValueKind);
+        Assert.Equal(JsonValueKind.Null, profile.GetProperty("profileSyncedAtUtc").ValueKind);
+        Assert.Equal(JsonValueKind.Null, profile.GetProperty("displayName").ValueKind);
+    }
+
+    [Fact]
     public async Task Reveal_ReturnsOwnNationalIdAndMobile_InFull()
     {
         var token = await LaunchWithProfileAsync();

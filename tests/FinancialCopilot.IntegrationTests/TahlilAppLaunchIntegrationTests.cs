@@ -544,6 +544,7 @@ public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
                 ["Authentication:OwnedIdentity:PublicRegistrationEnabled"] = "false",
                 ["Authentication:TahlilApp:Enabled"] = "true",
                 ["Authentication:TahlilApp:BaseUrl"] = "https://tahlilapp.example.test",
+                ["Billing:TahlilAppTopUps:Enabled"] = "false",
                 ["DataProtection:KeyRingPath"] = _keyRing,
                 ["Feature141:Enabled"] = "false"
             });

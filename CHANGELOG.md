@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.12.3] - 2026-11-13
+
+این نسخه خطای دریافت پروفایل را برای حساب‌هایی که هنوز اطلاعات تحلیل‌اپ ندارند برطرف می‌کند.
+
 ### Fixed
 
 - اگر برای حساب کاربری هنوز اطلاعاتی از تحلیل‌اپ ثبت نشده باشد، دریافت پروفایل دیگر خطای ۴۰۴ نمی‌دهد.
@@ -303,7 +307,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.2...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.3...develop
+[1.12.3]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.2...v1.12.3
 [1.12.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.1...v1.12.0

@@ -5,13 +5,16 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
+using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -78,8 +81,22 @@ public sealed class TelegramAssistant130IntegrationTests : IClassFixture<Telegra
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-        Assert.Single(await db.TelegramConversationBindings.ToListAsync());
+        var originalBinding = await db.TelegramConversationBindings.AsNoTracking().SingleAsync();
         Assert.Single(await db.TelegramProcessedUpdates.Where(row => row.TelegramUpdateId == 13_001L).ToListAsync());
+
+        var conversations = scope.ServiceProvider.GetRequiredService<IConversationRepository>();
+        Assert.True(await conversations.DeleteAsync(originalBinding.ConversationId,
+            originalBinding.TenantId, originalBinding.ActorId, CancellationToken.None));
+        var nextRequest = request with { telegramUpdateId = 13_002L, telegramMessageId = 82L, correlationId = "telegram:13002" };
+        using var recoveredResponse = await gateway.PostAsJsonAsync("/api/v1/telegram/assistant/updates", nextRequest);
+        recoveredResponse.EnsureSuccessStatusCode();
+        var recovered = await recoveredResponse.Content.ReadFromJsonAsync<TelegramAssistantResult>();
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, recovered!.Status);
+        Assert.NotEqual(first.ConversationId, recovered.ConversationId);
+        Assert.Equal(2, orchestrator.CallCount);
+        var repairedBinding = await db.TelegramConversationBindings.AsNoTracking().SingleAsync();
+        Assert.Equal(originalBinding.Id, repairedBinding.Id);
+        Assert.Equal(recovered.ConversationId, repairedBinding.ConversationId);
     }
 
     [Fact]
@@ -162,6 +179,7 @@ public sealed class TelegramAssistant130IntegrationTests : IClassFixture<Telegra
 public sealed class TelegramAssistant130ApiFactory : OwnedIdentityApiFactory
 {
     public const string GatewayApiKey = "feature-130-integration-key";
+    private const string ConversationDatabaseName = "telegram-assistant-conversations";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -171,6 +189,8 @@ public sealed class TelegramAssistant130ApiFactory : OwnedIdentityApiFactory
             var keyHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(GatewayApiKey)));
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["Authentication:Smtp:UserName"] = "feature-130@example.test",
+                ["Authentication:Smtp:Password"] = "not-a-real-password",
                 ["Authentication:ApiKeys:Clients:2:ClientId"] = "13000000-0000-0000-0000-000000000001",
                 ["Authentication:ApiKeys:Clients:2:TenantId"] = "11111111-1111-1111-1111-111111111111",
                 ["Authentication:ApiKeys:Clients:2:Name"] = "Feature 130 TelegramGateway",
@@ -182,15 +202,32 @@ public sealed class TelegramAssistant130ApiFactory : OwnedIdentityApiFactory
         });
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<AuthDbContext>();
-            services.RemoveAll<DbContextOptions<AuthDbContext>>();
-            services.RemoveAll<IDbContextOptionsConfiguration<AuthDbContext>>();
-            services.AddDbContext<AuthDbContext>(options => options.UseInMemoryDatabase("telegram-assistant-auth"));
+            // Keep the base SQLite Auth store so recovery exercises the relational update.
+            services.AddDbContext<AuthDbContext>(options =>
+                options.ReplaceService<IModelCustomizer, TelegramSqliteModelCustomizer>());
+            services.RemoveAll<ConversationDbContext>();
+            services.RemoveAll<DbContextOptions<ConversationDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<ConversationDbContext>>();
+            services.AddDbContext<ConversationDbContext>(options => options.UseInMemoryDatabase(ConversationDatabaseName));
             services.RemoveAll<IAiQueryOrchestrationService>();
             services.AddSingleton<RecordingTelegramOrchestrationService>();
             services.AddSingleton<IAiQueryOrchestrationService>(provider =>
                 provider.GetRequiredService<RecordingTelegramOrchestrationService>());
         });
+    }
+}
+
+public sealed class TelegramSqliteModelCustomizer(ModelCustomizerDependencies dependencies) : ModelCustomizer(dependencies)
+{
+    public override void Customize(ModelBuilder modelBuilder, DbContext context)
+    {
+        base.Customize(modelBuilder, context);
+        // SQLite needs a comparable storage type for DateTimeOffset expiry filters.
+        modelBuilder.Entity<TelegramProcessedUpdateRow>().Property(row => row.ExpiresAtUtc)
+            .HasConversion<DateTimeOffsetToBinaryConverter>();
+        // SQLite does not generate the PostgreSQL row versions used by the link flow.
+        modelBuilder.Entity<TelegramAccountLinkRow>().Property(row => row.Version).ValueGeneratedNever();
+        modelBuilder.Entity<TelegramLinkTokenRow>().Property(row => row.Version).ValueGeneratedNever();
     }
 }
 

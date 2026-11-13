@@ -272,7 +272,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.1...develop
+[1.11.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.8.0...v1.9.0

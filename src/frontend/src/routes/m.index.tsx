@@ -155,7 +155,7 @@ function MobileNewChat() {
               <h3 id="my-symbols" className="mb-2 text-m-title font-bold text-muted-foreground">
                 دیده‌بان من
               </h3>
-              <ul className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 scrollbar-hide">
+              <ul className="relative -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 scrollbar-hide">
                 {symbols.slice(0, WATCHLIST_STRIP_LIMIT).map((row) => (
                   <li key={row.symbol} className="shrink-0">
                     <button

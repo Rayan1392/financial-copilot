@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
+import { AccountInitial } from "@/components/mobile/account-initial";
 import { AdminPanelLink } from "@/components/mobile/admin-panel-link";
 import { CreditSummary } from "@/components/mobile/credit-summary";
 import { IconTile } from "@/components/mobile/icon-tile";
@@ -71,12 +72,11 @@ function MobileAccount() {
     <MobileScreen title="حساب کاربری" backFallback="/m" showTabBar={false} hideNewChat>
       <div className="space-y-4 px-4 pb-8 pt-4">
         <section className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="flex size-14 shrink-0 items-center justify-center rounded-full bg-emerald-soft text-m-hero font-bold text-emerald ring-1 ring-emerald/30"
-          >
-            {displayName ? Array.from(displayName)[0] : "؟"}
-          </span>
+          <AccountInitial
+            name={displayName}
+            className="size-14 text-m-hero"
+            iconClassName="size-7"
+          />
           <div className="min-w-0">
             {displayName && <p className="truncate text-m-head font-bold">{displayName}</p>}
             {email && (

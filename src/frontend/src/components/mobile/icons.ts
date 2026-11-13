@@ -19,6 +19,7 @@ export { Binoculars as NavWatchlistIcon } from "@phosphor-icons/react/dist/csr/B
 // App bar and common actions
 export { NotePencil as NewChatIcon } from "@phosphor-icons/react/dist/csr/NotePencil";
 export { Wallet as CreditIcon } from "@phosphor-icons/react/dist/csr/Wallet";
+export { User as AccountIcon } from "@phosphor-icons/react/dist/csr/User";
 export { GearSix as AdminIcon } from "@phosphor-icons/react/dist/csr/GearSix";
 export { ArrowUp as SendIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 export { X as CloseIcon } from "@phosphor-icons/react/dist/csr/X";

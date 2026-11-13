@@ -44,9 +44,12 @@ export function MobileScreen({
       <TopAppBar {...bar} />
       <OfflineBanner online={online} />
       <DesktopSuggestion />
+      {/* `relative` makes main the containing block of absolute descendants (sr-only labels in the watchlist strip),
+          so they are clipped here. Escaping them widened the document; Android Chrome then grew the layout viewport
+          and the keyboard check collapsed the screen to its app bar (hotfix 1.12.2). */}
       <main
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-[env(safe-area-inset-left)] scrollbar-thin"
+        className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-[env(safe-area-inset-left)] scrollbar-thin"
       >
         {children}
       </main>

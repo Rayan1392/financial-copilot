@@ -10,6 +10,13 @@
 
 ## [Unreleased]
 
+## [1.12.2] - 2026-11-13
+
+### Fixed
+
+- در نسخهٔ موبایل روی گوشی‌های اندروید (مانند شیائومی)، صفحهٔ گفتگو دیگر بعد از باز شدن خالی نمی‌شود و نوار پایین و کادر نوشتن پرسش سر جای خود می‌مانند.
+- در نسخهٔ موبایل، اگر نام شما ثبت نشده باشد، به جای علامت سؤال یک آیکون کاربر در بالای صفحه نمایش داده می‌شود.
+
 ## [1.12.1] - 2026-11-13
 
 ### Changed
@@ -292,7 +299,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.2...develop
+[1.12.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.1...v1.12.0
 [1.11.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.0...v1.11.1

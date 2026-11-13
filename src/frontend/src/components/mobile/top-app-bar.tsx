@@ -1,5 +1,6 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { AccountInitial } from "@/components/mobile/account-initial";
 import { CreditIcon, NewChatIcon, SendIcon } from "@/components/mobile/icons";
 import { computeCreditProgress } from "@/lib/credit-progress";
 import { formatNumber } from "@/lib/format/persian";
@@ -15,13 +16,7 @@ function AccountAvatar() {
   const name = officialDisplayName(profile?.displayName ?? null);
   return (
     <Link to="/m/account" aria-label="حساب کاربری" className={APP_BAR_ICON_BUTTON}>
-      {/* Without a display name the avatar shows «؟», as the account screen does. */}
-      <span
-        aria-hidden="true"
-        className="flex size-9 items-center justify-center rounded-full bg-emerald-soft text-m-title font-bold text-emerald ring-1 ring-emerald/30"
-      >
-        {name ? Array.from(name)[0] : "؟"}
-      </span>
+      <AccountInitial name={name} className="size-9 text-m-title" />
     </Link>
   );
 }

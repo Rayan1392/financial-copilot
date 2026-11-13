@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-11-13
+
+### Changed
+
+- در نسخهٔ موبایل، کادر نوشتن پرسش تا وقتی خالی است یک پرسش نمونه نشان می‌دهد: «عملکرد مالی فصلی فملی را بررسی کن».
+
+### Fixed
+
+- در نسخهٔ موبایل، متن راهنمای کادر نوشتن پرسش از سمت راست کادر نمایش داده می‌شود، نه از سمت چپ.
+
 ## [1.12.0] - 2026-11-13
 
 نسخهٔ موبایل ساپیو ظاهر تازه‌ای گرفته است: متن‌ها درشت‌تر و کوتاه‌تر، آیکون‌ها جذاب‌تر و صفحهٔ شروع گفتگو با شش پرسش نمونه که متن کاملشان دیده می‌شود.
@@ -282,7 +292,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.1...develop
+[1.12.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.1...v1.12.0
 [1.11.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.10.0...v1.11.0

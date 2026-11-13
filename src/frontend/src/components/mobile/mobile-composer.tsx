@@ -12,6 +12,9 @@ interface MobileComposerProps {
   online: boolean;
 }
 
+/** An example question, so the empty composer also shows how to ask. */
+export const COMPOSER_PLACEHOLDER = "عملکرد مالی فصلی فملی را بررسی کن";
+
 const MAX_ROWS = 6;
 const LINE_HEIGHT_PX = 28;
 
@@ -61,7 +64,8 @@ export function MobileComposer({
           ref={textareaRef}
           rows={1}
           value={value}
-          dir="auto"
+          // While empty, "auto" resolves to left-to-right and puts the Persian placeholder on the left edge.
+          dir={value ? "auto" : "rtl"}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== "Enter" || event.shiftKey || coarsePointer) return;
@@ -69,7 +73,7 @@ export function MobileComposer({
             submit();
           }}
           enterKeyHint={coarsePointer ? "enter" : "send"}
-          placeholder="بپرسید…"
+          placeholder={COMPOSER_PLACEHOLDER}
           className="min-h-12 flex-1 resize-none rounded-3xl bg-surface px-4 py-2.5 text-m-body leading-7 text-foreground ring-1 ring-hairline placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald/40"
         />
         <button

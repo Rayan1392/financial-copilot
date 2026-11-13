@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MobileComposer } from "../mobile-composer";
+import { COMPOSER_PLACEHOLDER, MobileComposer } from "../mobile-composer";
 
 function mockPointer(coarse: boolean) {
   vi.stubGlobal("matchMedia", (query: string) => ({
@@ -34,6 +34,19 @@ function Harness({
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("MobileComposer placeholder (hotfix 1.12.1)", () => {
+  it("shows the example question right-aligned while empty and follows the typed text afterwards", () => {
+    mockPointer(true);
+    render(<Harness onSubmit={vi.fn()} />);
+    const input = screen.getByLabelText("پرسش خود را بنویسید");
+    expect(input).toHaveAttribute("placeholder", "عملکرد مالی فصلی فملی را بررسی کن");
+    expect(COMPOSER_PLACEHOLDER).toBe("عملکرد مالی فصلی فملی را بررسی کن");
+    expect(input).toHaveAttribute("dir", "rtl");
+    fireEvent.change(input, { target: { value: "P/E of FOLD" } });
+    expect(input).toHaveAttribute("dir", "auto");
+  });
+});
 
 describe("MobileComposer (AC-05)", () => {
   it("uses a 16 px input so iOS does not zoom on focus", () => {

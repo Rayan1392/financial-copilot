@@ -36,5 +36,28 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // The phone workspace takes icons only from components/mobile/icons.ts (Feature 153 change
+    // mobile-ui-refresh), so the icon set has one owner.
+    files: ["src/components/mobile/**/*.{ts,tsx}", "src/routes/m.*.tsx", "src/routes/m.tsx"],
+    ignores: ["src/components/mobile/icons.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message: "Import phone icons from @/components/mobile/icons.",
+            },
+            {
+              name: "@phosphor-icons/react",
+              message: "Import phone icons from @/components/mobile/icons.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintPluginPrettier,
 );

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { RefreshIcon } from "@/components/mobile/icons";
 import {
   GENERIC_CHAT_ERROR_TEXT,
   INSUFFICIENT_CREDIT_TEXT,
@@ -29,7 +29,7 @@ function messageFor(failure: ChatFailure, recovery: SendRecovery): string {
 }
 
 const ACTION =
-  "inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40";
+  "inline-flex min-h-12 items-center rounded-xl px-4 text-m-title font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40";
 
 /**
  * Failed-send card (spec AC-06a/b, AC-07). It never offers a retry of the original request: a same-key resend
@@ -51,9 +51,9 @@ export function ChatErrorCard({
     return (
       <div
         role="status"
-        className="mx-4 flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm text-muted-foreground"
+        className="mx-4 flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-m-title text-muted-foreground"
       >
-        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        <RefreshIcon className="size-5 animate-spin" aria-hidden="true" />
         در حال بررسی وضعیت...
       </div>
     );
@@ -66,7 +66,7 @@ export function ChatErrorCard({
       role="alert"
       className="mx-4 rounded-2xl border border-rose/30 bg-rose/10 px-4 py-3 text-right"
     >
-      <p className="text-sm leading-7 text-foreground">{messageFor(failure, recovery)}</p>
+      <p className="text-m-title leading-7 text-foreground">{messageFor(failure, recovery)}</p>
       {hasActions && (
         <div className="mt-2 flex flex-wrap gap-2">
           {actions.history && (

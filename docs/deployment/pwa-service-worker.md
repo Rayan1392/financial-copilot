@@ -7,7 +7,7 @@ The worker caches **static assets only**:
 |---|---|
 | `/assets/*` (content-hashed JS, CSS, fonts) | cache-first, cache `sapio-static-<build id>`, at most 200 entries |
 | `/offline.html`, `/manifest.webmanifest`, `/favicon.ico`, `/icons/*` | precached on install |
-| Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) | stale-while-revalidate, at most 30 entries |
+| `/fonts/*` (self-hosted Vazirmatn and JetBrains Mono, `public/fonts`) | precached on install, then cache-first in `sapio-static-<build id>`; the old `sapio-fonts-v1` cache is deleted on activation |
 | Page navigations (HTML) | network only; `/offline.html` when the network fails |
 | `/_serverFn/*`, `/api/*`, the API origin, any other origin, any non-GET | not handled (straight to the network) |
 

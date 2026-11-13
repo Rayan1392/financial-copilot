@@ -180,16 +180,16 @@ export function QuarterlyTrendChartMobile({ model }: { model: QuarterlyFinancial
   return (
     <div className="space-y-3 bg-surface p-3">
       <div className="space-y-1">
-        <h4 className="text-sm font-semibold leading-6 text-foreground">{title}</h4>
+        <h4 className="text-m-title font-semibold leading-6 text-foreground">{title}</h4>
         {axisNotes.map((note) => (
-          <p key={note} className="text-xs leading-5 text-muted-foreground">
+          <p key={note} className="text-m-cap leading-5 text-muted-foreground">
             {note}
           </p>
         ))}
       </div>
 
       <ul
-        className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] leading-6 text-foreground"
+        className="flex flex-wrap gap-x-4 gap-y-1 text-m-sub leading-6 text-foreground"
         aria-label="راهنمای نمودار"
       >
         {series.map((item) => (
@@ -319,7 +319,7 @@ export function QuarterlyTrendChartMobile({ model }: { model: QuarterlyFinancial
 
       <div className="rounded-xl bg-background/40 p-3 ring-1 ring-hairline">
         <div aria-live="polite">
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-m-title font-semibold text-foreground">
             {periodName(selectedIndex)}
             <span className="font-normal text-muted-foreground">
               {" "}
@@ -327,9 +327,11 @@ export function QuarterlyTrendChartMobile({ model }: { model: QuarterlyFinancial
             </span>
           </p>
           {periodDetail(selectedIndex) && (
-            <p className="text-xs leading-6 text-muted-foreground">{periodDetail(selectedIndex)}</p>
+            <p className="text-m-cap leading-6 text-muted-foreground">
+              {periodDetail(selectedIndex)}
+            </p>
           )}
-          <dl className="mt-2 space-y-1.5 text-sm">
+          <dl className="mt-2 space-y-1.5 text-m-title">
             {series.map((item) => {
               const value = valueText(item, selectedIndex);
               return (
@@ -360,7 +362,7 @@ export function QuarterlyTrendChartMobile({ model }: { model: QuarterlyFinancial
             type="button"
             onClick={() => setSelected(selectedIndex - 1)}
             disabled={selectedIndex === 0}
-            className="min-h-11 rounded-xl bg-surface-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
+            className="min-h-11 rounded-xl bg-surface-2 text-m-title font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
           >
             فصل قبل
           </button>
@@ -368,7 +370,7 @@ export function QuarterlyTrendChartMobile({ model }: { model: QuarterlyFinancial
             type="button"
             onClick={() => setSelected(selectedIndex + 1)}
             disabled={selectedIndex >= points.length - 1}
-            className="min-h-11 rounded-xl bg-surface-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
+            className="min-h-11 rounded-xl bg-surface-2 text-m-title font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
           >
             فصل بعد
           </button>

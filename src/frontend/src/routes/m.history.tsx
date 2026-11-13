@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { ConversationRow } from "@/components/mobile/conversation-row";
 import { BottomSheet, SheetAction } from "@/components/mobile/bottom-sheet";
 import { ConfirmSheet } from "@/components/mobile/confirm-sheet";
+import { EmptyState, stateActionClass } from "@/components/mobile/empty-state";
+import { ErrorState } from "@/components/mobile/error-state";
+import { CloseIcon, DeleteIcon, NavChatIcon, SearchIcon } from "@/components/mobile/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ChatThread } from "@/lib/chat.functions";
 import { matchesPersianSearch } from "@/lib/format/persian-search";
@@ -42,8 +44,8 @@ function MobileHistory() {
   return (
     <MobileScreen title="تاریخچه">
       <div className="sticky top-0 z-10 bg-background px-4 pb-2 pt-3">
-        <div className="flex items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-hairline focus-within:ring-2 focus-within:ring-emerald/40">
-          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <div className="flex items-center gap-2 rounded-2xl bg-surface px-3.5 ring-1 ring-hairline focus-within:ring-2 focus-within:ring-emerald/40">
+          <SearchIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <label htmlFor="history-search" className="sr-only">
             جست‌وجو در عنوان گفتگوها
           </label>
@@ -52,8 +54,8 @@ function MobileHistory() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="جست‌وجو در عنوان گفتگوها…"
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-base focus:outline-none"
+            placeholder="جست‌وجو…"
+            className="min-h-12 min-w-0 flex-1 bg-transparent text-m-body focus:outline-none"
           />
           {query && (
             <button
@@ -62,7 +64,7 @@ function MobileHistory() {
               aria-label="پاک کردن جست‌وجو"
               className="flex size-11 shrink-0 items-center justify-center text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
             >
-              <X className="size-4" aria-hidden="true" />
+              <CloseIcon className="size-5" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -75,28 +77,19 @@ function MobileHistory() {
           ))}
         </div>
       ) : conversations.isError && threads.length === 0 ? (
-        <div role="alert" className="m-4 rounded-2xl bg-surface p-4 text-sm ring-1 ring-hairline">
-          <p>تاریخچه در دسترس نیست</p>
-          <button
-            type="button"
-            onClick={() => void conversations.refetch()}
-            className="mt-2 min-h-11 rounded-xl bg-surface-2 px-4 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-          >
-            تلاش مجدد
-          </button>
-        </div>
+        <ErrorState message="تاریخچه در دسترس نیست" onRetry={() => void conversations.refetch()} />
       ) : threads.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <p className="text-base">هنوز گفتگویی ندارید</p>
-          <Link
-            to="/m"
-            className="flex min-h-11 items-center rounded-xl bg-emerald px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-          >
-            شروع گفتگو
-          </Link>
-        </div>
+        <EmptyState
+          icon={NavChatIcon}
+          title="هنوز گفتگویی ندارید"
+          action={
+            <Link to="/m" className={stateActionClass}>
+              شروع گفتگو
+            </Link>
+          }
+        />
       ) : groups.length === 0 ? (
-        <p role="status" className="px-6 py-12 text-center text-sm text-muted-foreground">
+        <p role="status" className="px-6 py-12 text-center text-m-title text-muted-foreground">
           نتیجه‌ای یافت نشد
         </p>
       ) : (
@@ -105,7 +98,7 @@ function MobileHistory() {
             <section key={group} aria-labelledby={`history-${group}`}>
               <h2
                 id={`history-${group}`}
-                className="mb-1.5 px-1 text-[13px] font-semibold text-muted-foreground"
+                className="mb-2 px-1 text-m-title font-bold text-muted-foreground"
               >
                 {label}
               </h2>
@@ -122,9 +115,7 @@ function MobileHistory() {
             </section>
           ))}
           {threads.length === HISTORY_LIMIT && (
-            <p className="py-2 text-center text-xs text-muted-foreground">
-              — فقط ۱۰۰ گفتگوی اخیر نمایش داده می‌شود —
-            </p>
+            <p className="py-2 text-center text-m-cap text-muted-foreground">۱۰۰ گفتگوی اخیر</p>
           )}
         </div>
       )}
@@ -136,6 +127,7 @@ function MobileHistory() {
       >
         <SheetAction
           tone="danger"
+          icon={DeleteIcon}
           onClick={() => {
             setConfirmFor(actionsFor);
             setActionsFor(null);

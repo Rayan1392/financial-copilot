@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MoreHorizontal } from "lucide-react";
+import { MoreIcon } from "@/components/mobile/icons";
 import type { ChatThread } from "@/lib/chat.functions";
 
 /** History row (design §5): title clamped to two lines, time or date, and a 44 px ⋯ for row actions. */
@@ -17,15 +17,15 @@ export function ConversationRow({
       <Link
         to="/m/c/$threadId"
         params={{ threadId: thread.id }}
-        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-4 py-2 active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 px-4 py-2.5 active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40"
       >
         <span
           dir="auto"
-          className="line-clamp-2 min-w-0 flex-1 text-[15px] leading-7 text-foreground"
+          className="line-clamp-2 min-w-0 flex-1 text-m-body leading-7 text-foreground"
         >
           {thread.title || "گفتگوی بدون عنوان"}
         </span>
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{timestamp}</span>
+        <span className="shrink-0 text-m-cap tabular-nums text-muted-foreground">{timestamp}</span>
       </Link>
       <button
         type="button"
@@ -33,7 +33,7 @@ export function ConversationRow({
         aria-label={`گزینه‌های گفتگوی ${thread.title || "بدون عنوان"}`}
         className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
       >
-        <MoreHorizontal className="size-5" aria-hidden="true" />
+        <MoreIcon weight="bold" className="size-6" aria-hidden="true" />
       </button>
     </li>
   );

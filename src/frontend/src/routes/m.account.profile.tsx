@@ -16,7 +16,10 @@ function MobileProfile() {
       showTabBar={false}
       hideNewChat
     >
-      <ProfilePanel as="div" signInRedirect="/m/account/profile" showHeading={false} />
+      {/* The shared panel is sized for desktop; compact density applies the phone caption floor to it. */}
+      <div data-density="compact">
+        <ProfilePanel as="div" signInRedirect="/m/account/profile" showHeading={false} />
+      </div>
     </MobileScreen>
   );
 }

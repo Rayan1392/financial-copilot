@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { IndexCard } from "@/components/mobile/index-card";
 import { RefreshButton } from "@/components/mobile/refresh-button";
-import { SignedChange } from "@/components/mobile/signed-change";
-import { StaleChip } from "@/components/mobile/stale-chip";
+import { ErrorState } from "@/components/mobile/error-state";
+import { SymbolRow } from "@/components/mobile/symbol-row";
 import { SymbolSheet, type SymbolSheetSubject } from "@/components/mobile/symbol-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { MarketMover } from "@/lib/market-view.functions";
-import { formatNumber, relativeTime } from "@/lib/format/persian";
+import { relativeTime } from "@/lib/format/persian";
 import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
 import { useFollowedSymbols, useMarketSummary } from "@/lib/workspace/queries";
 import {
@@ -54,9 +53,9 @@ function MobileMarket() {
     <MobileScreen title="بازار">
       <div className="px-4 pb-6 pt-3">
         <div className="mb-2 flex items-center gap-2">
-          <h2 className="text-[13px] font-semibold text-muted-foreground">وضعیت شاخص‌ها</h2>
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            {data?.asOf ? `به‌روزرسانی ${relativeTime(data.asOf)}` : ""}
+          <h2 className="text-m-title font-bold text-muted-foreground">شاخص‌ها</h2>
+          <span className="min-w-0 flex-1 truncate text-m-sub text-muted-foreground">
+            {data?.asOf ? relativeTime(data.asOf) : ""}
           </span>
           <RefreshButton
             label="به‌روزرسانی داده بازار"
@@ -65,7 +64,7 @@ function MobileMarket() {
           />
         </div>
         {session.label && (
-          <p role="status" className="mb-2 text-xs text-muted-foreground">
+          <p role="status" className="mb-2 text-m-sub text-muted-foreground">
             {session.label}
           </p>
         )}
@@ -81,26 +80,20 @@ function MobileMarket() {
             ))}
           </div>
         ) : !data ? (
-          <div role="alert" className="rounded-2xl bg-surface p-4 text-sm ring-1 ring-hairline">
-            <p>
-              {isForbidden(summary.error)
-                ? "دسترسی به داده بازار برای اشتراک شما فعال نیست"
-                : "داده بازار در دسترس نیست"}
-            </p>
-            {!isForbidden(summary.error) && (
-              <button
-                type="button"
-                onClick={() => void summary.refetch()}
-                className="mt-2 min-h-11 rounded-xl bg-surface-2 px-4 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-              >
-                تلاش مجدد
-              </button>
-            )}
+          <div className="-mx-4">
+            <ErrorState
+              message={
+                isForbidden(summary.error)
+                  ? "دسترسی به داده بازار برای اشتراک شما فعال نیست"
+                  : "داده بازار در دسترس نیست"
+              }
+              onRetry={isForbidden(summary.error) ? undefined : () => void summary.refetch()}
+            />
           </div>
         ) : (
           <>
             {data.indices.length === 0 ? (
-              <p className="rounded-2xl bg-surface p-4 text-sm text-muted-foreground ring-1 ring-hairline">
+              <p className="rounded-2xl bg-surface p-4 text-m-title text-muted-foreground ring-1 ring-hairline">
                 داده شاخص در دسترس نیست
               </p>
             ) : (
@@ -149,33 +142,18 @@ function MoverList({
   if (movers.length === 0) return null;
   return (
     <section className="mt-5" aria-label={title}>
-      <h2 className="mb-1.5 text-[13px] font-semibold text-muted-foreground">{title}</h2>
+      <h2 className="mb-2 text-m-title font-bold text-muted-foreground">{title}</h2>
       <ul className="overflow-hidden rounded-2xl bg-surface ring-1 ring-hairline">
         {movers.map((mover) => (
-          <li key={mover.symbol} className="border-b border-hairline last:border-b-0">
-            <button
-              type="button"
-              onClick={() => onSelect(mover)}
-              className="flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-right active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <bdi className="font-semibold text-foreground">{mover.symbol}</bdi>
-                  {isLaggingQuote(mover, session) && <StaleChip />}
-                </span>
-                {mover.name && (
-                  <span className="block truncate text-xs text-muted-foreground">{mover.name}</span>
-                )}
-              </span>
-              <span className="flex flex-col items-end text-sm">
-                <span className="tabular-nums text-foreground">
-                  {formatNumber(mover.latestPrice)}
-                </span>
-                <SignedChange value={mover.changePercent} />
-              </span>
-              <ChevronLeft className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            </button>
-          </li>
+          <SymbolRow
+            key={mover.symbol}
+            symbol={mover.symbol}
+            companyName={mover.name}
+            price={mover.latestPrice}
+            changePercent={mover.changePercent}
+            stale={isLaggingQuote(mover, session)}
+            onSelect={() => onSelect(mover)}
+          />
         ))}
       </ul>
     </section>

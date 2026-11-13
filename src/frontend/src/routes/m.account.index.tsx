@@ -1,9 +1,19 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
-import { ChevronLeft, Download, LogOut, Monitor, Moon, Send, ShieldCheck, Sun } from "lucide-react";
+import { useState } from "react";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
+import { AdminPanelLink } from "@/components/mobile/admin-panel-link";
 import { CreditSummary } from "@/components/mobile/credit-summary";
+import { IconTile } from "@/components/mobile/icon-tile";
+import {
+  ChevronIcon,
+  DarkThemeIcon,
+  DesktopIcon,
+  DownloadIcon,
+  SecurityIcon,
+  SignOutIcon,
+  TelegramIcon,
+} from "@/components/mobile/icons";
 import { IosInstallSheet } from "@/components/mobile/ios-install-sheet";
 import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
 import { useTheme } from "@/components/app/theme-toggle";
@@ -21,18 +31,10 @@ export const Route = createFileRoute("/m/account/")({
 });
 
 const ROW =
-  "flex min-h-[52px] w-full items-center gap-3 px-4 text-right text-[15px] active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40";
-
-function RowIcon({ children }: { children: ReactNode }) {
-  return (
-    <span className="flex size-5 shrink-0 items-center justify-center text-muted-foreground">
-      {children}
-    </span>
-  );
-}
+  "flex min-h-16 w-full items-center gap-3 px-4 py-2 text-right text-m-body active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40";
 
 const chevron = (
-  <ChevronLeft className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+  <ChevronIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
 );
 
 function MobileAccount() {
@@ -71,14 +73,14 @@ function MobileAccount() {
         <section className="flex items-center gap-3">
           <span
             aria-hidden="true"
-            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-emerald-soft text-lg font-semibold text-emerald ring-1 ring-emerald/30"
+            className="flex size-14 shrink-0 items-center justify-center rounded-full bg-emerald-soft text-m-hero font-bold text-emerald ring-1 ring-emerald/30"
           >
             {displayName ? Array.from(displayName)[0] : "؟"}
           </span>
           <div className="min-w-0">
-            {displayName && <p className="truncate text-base font-semibold">{displayName}</p>}
+            {displayName && <p className="truncate text-m-head font-bold">{displayName}</p>}
             {email && (
-              <p dir="ltr" className="truncate text-right text-sm text-muted-foreground">
+              <p dir="ltr" className="truncate text-right text-m-sub text-muted-foreground">
                 {email}
               </p>
             )}
@@ -90,34 +92,38 @@ function MobileAccount() {
         <ul className="overflow-hidden rounded-2xl bg-surface ring-1 ring-hairline [&>li]:border-b [&>li]:border-hairline [&>li:last-child]:border-b-0">
           <li>
             <Link to="/m/account/profile" className={ROW}>
-              <RowIcon>
-                <ShieldCheck className="size-5" aria-hidden="true" />
-              </RowIcon>
+              <IconTile icon={SecurityIcon} />
               <span className="flex-1">پروفایل و امنیت حساب</span>
               {chevron}
             </Link>
           </li>
           <li>
             <Link to="/telegram-link" className={ROW}>
-              <RowIcon>
-                <Send className="size-5" aria-hidden="true" />
-              </RowIcon>
+              <IconTile icon={TelegramIcon} />
               <span className="flex-1">اتصال تلگرام</span>
               {chevron}
             </Link>
           </li>
           <li>
-            <button type="button" onClick={toggleTheme} className={ROW}>
-              <RowIcon>
-                {theme === "dark" ? (
-                  <Moon className="size-5" aria-hidden="true" />
-                ) : (
-                  <Sun className="size-5" aria-hidden="true" />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={theme === "dark"}
+              onClick={toggleTheme}
+              className={ROW}
+            >
+              <IconTile icon={DarkThemeIcon} tone="gold" />
+              <span className="flex-1">حالت تیره</span>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors",
+                  theme === "dark"
+                    ? "justify-end bg-emerald"
+                    : "justify-start bg-muted-foreground/40",
                 )}
-              </RowIcon>
-              <span className="flex-1">پوسته: {theme === "dark" ? "تیره" : "روشن"}</span>
-              <span className="text-sm text-emerald">
-                {theme === "dark" ? "تغییر به روشن" : "تغییر به تیره"}
+              >
+                <span className="size-6 rounded-full bg-white shadow" />
               </span>
             </button>
           </li>
@@ -130,9 +136,7 @@ function MobileAccount() {
                 }
                 className={ROW}
               >
-                <RowIcon>
-                  <Download className="size-5" aria-hidden="true" />
-                </RowIcon>
+                <IconTile icon={DownloadIcon} />
                 <span className="flex-1">نصب برنامه</span>
                 {chevron}
               </button>
@@ -140,13 +144,12 @@ function MobileAccount() {
           )}
           <li>
             <button type="button" onClick={switchToDesktop} className={ROW}>
-              <RowIcon>
-                <Monitor className="size-5" aria-hidden="true" />
-              </RowIcon>
-              <span className="flex-1">نمایش نسخه دسکتاپ</span>
+              <IconTile icon={DesktopIcon} tone="neutral" />
+              <span className="flex-1">نسخه دسکتاپ</span>
               {chevron}
             </button>
           </li>
+          <AdminPanelLink className={ROW} />
         </ul>
 
         <button
@@ -158,11 +161,11 @@ function MobileAccount() {
             "rounded-2xl bg-surface mobile-danger-text ring-1 ring-hairline disabled:opacity-60",
           )}
         >
-          <LogOut className="size-5" aria-hidden="true" />
+          <IconTile icon={SignOutIcon} tone="danger" />
           <span className="flex-1">خروج از حساب</span>
         </button>
         <div className="flex justify-center">
-          <ReleaseVersionLink />
+          <ReleaseVersionLink className="text-m-cap" />
         </div>
       </div>
       <IosInstallSheet open={iosOpen} onOpenChange={setIosOpen} />

@@ -25,7 +25,7 @@ export function ConfirmSheet({
       {error && (
         <p
           role="alert"
-          className="mx-2 mb-2 rounded-xl bg-rose/10 px-3 py-2 text-sm mobile-danger-text"
+          className="mx-2 mb-2 rounded-xl bg-rose/10 px-3 py-2 text-m-title mobile-danger-text"
         >
           {error}
         </p>
@@ -35,14 +35,14 @@ export function ConfirmSheet({
           type="button"
           onClick={onConfirm}
           disabled={pending}
-          className="min-h-12 flex-1 rounded-xl bg-rose text-[15px] font-semibold text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose/40 disabled:opacity-60"
+          className="min-h-12 flex-1 rounded-xl bg-rose text-m-body font-semibold text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose/40 disabled:opacity-60"
         >
           {confirmLabel}
         </button>
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="min-h-12 flex-1 rounded-xl bg-surface text-[15px] font-medium text-foreground ring-1 ring-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-12 flex-1 rounded-xl bg-surface text-m-body font-medium text-foreground ring-1 ring-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           انصراف
         </button>

@@ -39,7 +39,7 @@ describe("MobileComposer (AC-05)", () => {
   it("uses a 16 px input so iOS does not zoom on focus", () => {
     mockPointer(true);
     render(<Harness onSubmit={vi.fn()} />);
-    expect(screen.getByLabelText("پرسش خود را بنویسید")).toHaveClass("text-base");
+    expect(screen.getByLabelText("پرسش خود را بنویسید")).toHaveClass("text-m-body");
   });
 
   it("on touch screens Enter inserts a newline and only the button sends", () => {

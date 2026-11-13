@@ -121,7 +121,7 @@ function UserBubble({ text, compact = false }: { text: string; compact?: boolean
       <div
         className={
           compact
-            ? "max-w-[85%] bg-surface ring-1 ring-hairline rounded-2xl px-4 py-2.5 text-foreground text-pretty text-[15px] leading-7"
+            ? "max-w-[85%] bg-emerald-soft ring-1 ring-emerald/20 rounded-3xl rounded-ss-md px-4 py-2.5 text-foreground text-pretty text-m-body"
             : "max-w-[56ch] bg-surface ring-1 ring-hairline rounded-2xl px-5 py-3 text-foreground text-pretty text-sm"
         }
         dir="auto"

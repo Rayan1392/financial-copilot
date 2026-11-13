@@ -2,8 +2,8 @@
  * SapioAI service worker (Feature 153, spec §9.3 and §9.7).
  *
  * Caches static, user-independent assets only. It never caches HTML documents, server-function (`/_serverFn/`)
- * or API responses, auth endpoints, or anything cross-origin except the public Google Fonts files, and it never
- * stores a response marked `no-store` or `private`.
+ * or API responses, auth endpoints, or anything cross-origin, and it never stores a response marked `no-store`
+ * or `private`. Fonts are self-hosted under /fonts and precached with the other static files.
  *
  * The page registers `/sw.js?v=<build id>`; the version names the static cache, and activation removes caches of
  * other versions. Emergency rollback: deploy public/sw-kill.js as /sw.js (docs/deployment/pwa-service-worker.md).
@@ -12,9 +12,9 @@
 
 const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const STATIC_CACHE = "sapio-static-" + VERSION;
-const FONT_CACHE = "sapio-fonts-v1";
+/** Cache of the Google Fonts files used before fonts were self-hosted; removed on activation. */
+const LEGACY_FONT_CACHE = "sapio-fonts-v1";
 const MAX_STATIC_ENTRIES = 200;
-const MAX_FONT_ENTRIES = 30;
 const OFFLINE_PAGE = "/offline.html";
 const PRECACHE_PATHS = [
   OFFLINE_PAGE,
@@ -24,12 +24,13 @@ const PRECACHE_PATHS = [
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
   "/icons/apple-touch-icon.png",
+  "/fonts/vazirmatn-variable.woff2",
+  "/fonts/jetbrains-mono-latin-variable.woff2",
 ];
-const FONT_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];
 
 /**
  * Decides how a request is handled. Pure, so it can be unit-tested outside a worker.
- * @returns {"passthrough" | "navigation" | "static" | "font"}
+ * @returns {"passthrough" | "navigation" | "static"}
  */
 function routeRequest(request, scopeOrigin) {
   if (request.method !== "GET") return "passthrough";
@@ -41,7 +42,6 @@ function routeRequest(request, scopeOrigin) {
     if (PRECACHE_PATHS.includes(url.pathname) && url.search === "") return "static";
     return "passthrough";
   }
-  if (FONT_ORIGINS.includes(url.origin)) return "font";
   // Every other origin, including the API origin, goes straight to the network.
   return "passthrough";
 }
@@ -70,21 +70,6 @@ async function cacheFirst(request) {
     await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES);
   }
   return response;
-}
-
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(FONT_CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then(async (response) => {
-      if (isCacheable(response)) {
-        await cache.put(request, response.clone());
-        await trimCache(FONT_CACHE, MAX_FONT_ENTRIES);
-      }
-      return response;
-    })
-    .catch(() => cached);
-  return cached || network;
 }
 
 async function networkOnlyNavigation(request) {
@@ -130,7 +115,11 @@ if (typeof module !== "undefined" && module.exports) {
         .then((names) =>
           Promise.all(
             names
-              .filter((name) => name.startsWith("sapio-static-") && name !== STATIC_CACHE)
+              .filter(
+                (name) =>
+                  (name.startsWith("sapio-static-") && name !== STATIC_CACHE) ||
+                  name === LEGACY_FONT_CACHE,
+              )
               .map((name) => caches.delete(name)),
           ),
         )
@@ -147,7 +136,6 @@ if (typeof module !== "undefined" && module.exports) {
     const route = routeRequest(event.request, self.location.origin);
     if (route === "navigation") event.respondWith(networkOnlyNavigation(event.request));
     else if (route === "static") event.respondWith(cacheFirst(event.request));
-    else if (route === "font") event.respondWith(staleWhileRevalidate(event.request));
     // "passthrough": no respondWith, so the browser handles the request as if no worker existed.
   });
 }

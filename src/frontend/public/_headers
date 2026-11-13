@@ -12,3 +12,6 @@
   Cache-Control: no-cache
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+# Self-hosted fonts keep fixed names, so they are revalidated after a week rather than cached forever.
+/fonts/*
+  Cache-Control: public, max-age=604800

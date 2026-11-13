@@ -9,11 +9,11 @@ export function MobileUserBubble({ text, uncertain }: { text: string; uncertain?
     <div className="flex flex-col items-start px-4">
       <div
         dir="auto"
-        className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-surface px-4 py-2.5 text-[15px] leading-7 text-foreground ring-1 ring-hairline"
+        className="max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-ss-md bg-emerald-soft px-4 py-2.5 text-m-body text-foreground ring-1 ring-emerald/20"
       >
         {text}
       </div>
-      {uncertain && <span className="mt-1 text-xs text-gold">وضعیت نامشخص</span>}
+      {uncertain && <span className="mt-1 text-m-cap text-gold">وضعیت نامشخص</span>}
     </div>
   );
 }
@@ -30,7 +30,7 @@ export function PendingAnswer() {
   }, []);
   return (
     <AnalysisProgress className="px-4">
-      {long && <p aria-live="polite">تحلیل‌های مفصل ممکن است کمی بیشتر طول بکشد</p>}
+      {long && <p aria-live="polite">کمی بیشتر طول می‌کشد…</p>}
     </AnalysisProgress>
   );
 }

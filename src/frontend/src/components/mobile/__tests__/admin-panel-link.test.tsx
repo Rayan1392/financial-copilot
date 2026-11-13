@@ -14,7 +14,7 @@ vi.mock("@/integrations/financial-copilot/auth", async (importOriginal) => ({
   },
 }));
 
-import { AdminSettingsButton } from "../top-app-bar";
+import { AdminPanelLink } from "../admin-panel-link";
 
 function user(permissions: string[]): AuthUser {
   return { userId: "u1", email: "u@example.com", tenantId: "t1", roles: [], permissions };
@@ -24,22 +24,22 @@ afterEach(() => {
   authState.user = null;
 });
 
-describe("AdminSettingsButton", () => {
+describe("AdminPanelLink", () => {
   it("links admins to the admin panel", async () => {
     authState.user = user(["admin.users.read"]);
-    await renderInRouter(<AdminSettingsButton />);
+    await renderInRouter(<AdminPanelLink />);
     const link = await screen.findByRole("link", { name: "پنل مدیریت" });
     expect(link).toHaveAttribute("href", "/admin");
   });
 
   it("stays hidden for users without an admin permission", async () => {
     authState.user = user(["chat.use"]);
-    await renderInRouter(<AdminSettingsButton />);
+    await renderInRouter(<AdminPanelLink />);
     expect(screen.queryByRole("link", { name: "پنل مدیریت" })).not.toBeInTheDocument();
   });
 
   it("stays hidden when signed out and appears after an admin signs in", async () => {
-    await renderInRouter(<AdminSettingsButton />);
+    await renderInRouter(<AdminPanelLink />);
     expect(screen.queryByRole("link", { name: "پنل مدیریت" })).not.toBeInTheDocument();
 
     authState.user = user(["admin.plans.read"]);

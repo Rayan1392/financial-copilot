@@ -129,7 +129,7 @@ async function smallText(page) {
       if (!ownText || element.offsetParent === null || element.id === "recharts_measurement_span")
         continue;
       const size = parseFloat(getComputedStyle(element).fontSize);
-      if (size < 12)
+      if (size < 12.9)
         offenders.push(
           `${element.tagName.toLowerCase()} ${size}px «${element.textContent.trim().slice(0, 20)}»`,
         );
@@ -228,14 +228,84 @@ async function main() {
       );
     });
 
-    await check("AC-02 «گفتگوی جدید» on every screen, including a conversation", async () => {
-      for (const route of ["/m", "/m/history", "/m/market", "/m/watchlist", threadRoute]) {
-        await open(page, route);
+    await check(
+      "AC-02 «گفتگوی جدید» on every screen except the new-chat screen itself",
+      async () => {
+        for (const route of ["/m/history", "/m/market", "/m/watchlist", threadRoute]) {
+          await open(page, route);
+          assert(
+            await page.getByRole("link", { name: "گفتگوی جدید" }).count(),
+            `missing on ${route}`,
+          );
+        }
+        await open(page, "/m");
         assert(
-          await page.getByRole("link", { name: "گفتگوی جدید" }).count(),
-          `missing on ${route}`,
+          (await page.getByRole("link", { name: "گفتگوی جدید" }).count()) === 0,
+          "shown on /m, which already is the new chat",
         );
-      }
+      },
+    );
+
+    await check("Top bar: avatar, title and credit only on tabs; no admin gear", async () => {
+      await open(page, "/m/market");
+      const items = await page.$$eval("header a, header button", (elements) =>
+        elements.map((element) => element.getAttribute("aria-label") ?? element.textContent.trim()),
+      );
+      assert(items.length === 3, items.join(" | "));
+      assert(!items.includes("پنل مدیریت"), "admin entry still in the bar");
+    });
+
+    await check(
+      "Home: six full-width starter cards showing the whole question; watchlist strip with prices",
+      async () => {
+        await open(page, "/m");
+        const cards = await page.$$eval("main ul[data-starters] > li > button", (buttons) =>
+          buttons.map((button) => ({
+            text: button.textContent.trim(),
+            width: button.getBoundingClientRect().width,
+            questionSize: parseFloat(
+              getComputedStyle(button.querySelector("span span + span")).fontSize,
+            ),
+            clipped: button.scrollWidth > button.clientWidth + 1,
+          })),
+        );
+        assert(cards.length === 6, `${cards.length} starter cards`);
+        for (const question of [
+          "ترکیب فروش محصولات کگهر را بررسی کن",
+          "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
+          "صورت وضعیت مالی فاذر را بررسی کن",
+        ])
+          assert(
+            cards.some((card) => card.text.includes(question)),
+            `the question is not shown: ${question}`,
+          );
+        assert(
+          cards.every((card) => card.width >= 320 && !card.clipped),
+          "a card is not full width or clips its text at 360 px",
+        );
+        assert(
+          cards.every((card) => card.questionSize >= 14),
+          `question text below 14 px: ${cards.map((card) => card.questionSize).join()}`,
+        );
+        const strip = await page.$$eval("section[aria-labelledby='my-symbols'] button", (buttons) =>
+          buttons.map((button) => button.textContent),
+        );
+        assert(strip.length >= 1, "no watchlist strip");
+        assert(
+          strip.every((text) => /[۰-۹]/.test(text) && /[▲▼–]/.test(text)),
+          `strip without price or change: ${strip.join(" | ")}`,
+        );
+      },
+    );
+
+    await check("Starter card sends its unchanged question", async () => {
+      await open(page, "/m");
+      await page.getByRole("button", { name: /رتبه‌بندی گزارش‌های ماهانه را نشان بده/ }).click();
+      await page.waitForURL(/\/m\/c\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+      await page
+        .getByText("پاسخ آزمایشی به «رتبه‌بندی گزارش‌های ماهانه را نشان بده»")
+        .first()
+        .waitFor({ timeout: 15_000 });
     });
 
     await check(
@@ -282,7 +352,7 @@ async function main() {
       await open(page, "/m");
       await page.getByLabel("پرسش خود را بنویسید").fill("گزارش فصلی فملی");
       await page.getByRole("button", { name: "ارسال" }).click();
-      await page.getByText("در حال تحلیل...").first().waitFor({ timeout: 5_000 });
+      await page.locator("[data-testid='analysis-progress']").first().waitFor({ timeout: 5_000 });
       await page.waitForURL(/\/m\/c\/[0-9a-f-]{36}$/, { timeout: 15_000 });
       await page
         .getByText("پاسخ آزمایشی به «گزارش فصلی فملی»")
@@ -308,13 +378,13 @@ async function main() {
 
     await check("AC-10/11/13 history: limit 100, normalized search, 100-item note", async () => {
       await open(page, "/m/history");
-      await page.getByText("— فقط ۱۰۰ گفتگوی اخیر نمایش داده می‌شود —").waitFor();
-      await page.getByLabel("جستجو در عنوان گفتگوها").fill("كگهر");
+      await page.getByText("۱۰۰ گفتگوی اخیر", { exact: true }).waitFor();
+      await page.getByLabel("جست‌وجو در عنوان گفتگوها").fill("كگهر");
       await page
         .getByRole("link", { name: /روند فروش ماهانه کگهر/ })
         .first()
         .waitFor();
-      await page.getByLabel("جستجو در عنوان گفتگوها").fill("عبارتی که وجود ندارد");
+      await page.getByLabel("جست‌وجو در عنوان گفتگوها").fill("عبارتی که وجود ندارد");
       await page.getByText("نتیجه‌ای یافت نشد").waitFor();
     });
 
@@ -363,10 +433,28 @@ async function main() {
       async () => {
         await open(page, "/m/watchlist");
         await page.getByText("پالایش نفت اصفهان").waitFor();
-        await page.getByText("داده قدیمی").first().waitFor();
+        const rows = await page.$$eval("main ul > li > button", (buttons) =>
+          buttons.map((button) => ({
+            text: button.textContent,
+            height: button.getBoundingClientRect().height,
+          })),
+        );
+        assert(rows.length >= 2, `${rows.length} rows`);
+        assert(
+          rows.every((row) => row.height >= 64 && /[▲▼–]/.test(row.text)),
+          "row below 64 px or without a direction cue",
+        );
         await page.getByRole("button", { name: /شپنا/ }).first().click();
         await page.getByText("گزارش فصلی شپنا").waitFor();
         await page.getByRole("button", { name: "حذف از دیده‌بان" }).waitFor();
+        // The sheet has its own close button; the old «بستن» row is gone.
+        const dialog = page.getByRole("dialog");
+        assert(
+          (await dialog.getByRole("button", { name: "بستن" }).count()) === 1,
+          "close controls",
+        );
+        await page.keyboard.press("Escape");
+        await dialog.waitFor({ state: "detached", timeout: 5_000 });
       },
     );
 
@@ -375,7 +463,7 @@ async function main() {
       async () => {
         await open(page, "/m/watchlist");
         await page.getByRole("button", { name: "افزودن", exact: true }).click();
-        const search = page.getByLabel("جستجوی نماد یا نام شرکت");
+        const search = page.getByLabel("جست‌وجوی نماد یا نام شرکت");
         await search.fill("کگل");
         await page.getByRole("button", { name: /کگل/ }).click();
         await page
@@ -391,7 +479,7 @@ async function main() {
       "AC-19 account: credits, text-only purchase guidance, no tahlilapp.com link",
       async () => {
         await open(page, "/m/account");
-        await page.getByText("۱,۲۰۰ از ۲,۶۰۰").waitFor();
+        await page.getByText(/۱.۲۰۰ از ۲.۶۰۰/).waitFor();
         await page
           .getByText("برای خرید یا تمدید اعتبار، از طریق حساب کاربری خود در تحلیل‌اپ اقدام کنید.")
           .waitFor();
@@ -399,8 +487,14 @@ async function main() {
           (await page.$$("a[href*='tahlilapp.com']")).length === 0,
           "external purchase link rendered",
         );
-        await page.getByRole("button", { name: "نمایش نسخه دسکتاپ" }).waitFor();
+        await page.getByRole("button", { name: "نسخه دسکتاپ" }).waitFor();
         await page.getByRole("button", { name: "خروج از حساب" }).waitFor();
+        const theme = page.getByRole("switch", { name: "حالت تیره" });
+        assert((await theme.getAttribute("aria-checked")) === "true", "theme switch state");
+        assert(
+          (await page.getByRole("link", { name: "پنل مدیریت" }).count()) === 0,
+          "admin row shown to a user without an admin permission",
+        );
       },
     );
 
@@ -431,7 +525,7 @@ async function main() {
       "AC-23 desktop switch lands on the desktop path and is not redirected back after reload",
       async () => {
         await open(page, "/m/account");
-        await page.getByRole("button", { name: "نمایش نسخه دسکتاپ" }).click();
+        await page.getByRole("button", { name: "نسخه دسکتاپ" }).click();
         await page.waitForURL(/\/profile$/);
         await page.reload({ waitUntil: "networkidle" });
         assert(page.url().endsWith("/profile"), page.url());
@@ -710,7 +804,7 @@ async function main() {
             : "";
         });
         if (theme === "dark") {
-          await check(`Design §1 text ≥ 12 px and 44 px targets ${route}`, async () => {
+          await check(`Type scale: text ≥ 13 px and 44 px targets ${route}`, async () => {
             const small = await smallText(themedPage);
             const targets = await smallTargets(themedPage);
             assert(
@@ -788,6 +882,58 @@ async function main() {
     );
     await desktop.close();
 
+    // Fonts are self-hosted: nothing is requested from Google Fonts, on the phone or the desktop workspace.
+    const fontContext = await newPhoneContext(browser);
+    const fontPage = await fontContext.newPage();
+    const requested = [];
+    fontPage.on("request", (request) => requested.push(request.url()));
+    await check(
+      "Fonts: no Google Fonts request on /m and /chat; Vazirmatn served from /fonts",
+      async () => {
+        await open(fontPage, "/m/history");
+        await fontPage.evaluate(() => document.fonts.ready);
+        await fontPage.goto(APP_URL + "/chat", { waitUntil: "networkidle" });
+        await fontPage.evaluate(() => document.fonts.ready);
+        const external = requested.filter((url) => /fonts\.(googleapis|gstatic)\.com/.test(url));
+        assert(external.length === 0, external.slice(0, 3).join("; "));
+        assert(
+          requested.some((url) => url.endsWith("/fonts/vazirmatn-variable.woff2")),
+          "the self-hosted font was never requested",
+        );
+        const loaded = await fontPage.evaluate(() =>
+          [...document.fonts].some(
+            (face) => /Vazirmatn/.test(face.family) && face.status === "loaded",
+          ),
+        );
+        assert(loaded, "Vazirmatn did not load");
+      },
+    );
+    await check("Type scale: body 17 px, secondary 14 px, tab label 13 px", async () => {
+      await open(fontPage, "/m/watchlist");
+      const sizes = await fontPage.evaluate(() => {
+        const px = (selector) => {
+          const element = document.querySelector(selector);
+          return element ? parseFloat(getComputedStyle(element).fontSize) : null;
+        };
+        return {
+          symbol: px("main ul > li > button bdi"),
+          company: px("main ul > li > button span.truncate"),
+          tab: px("nav[aria-label='ناوبری اصلی'] a"),
+          input: px("textarea, input[type='search']"),
+        };
+      });
+      assert(
+        sizes.symbol === 17 && sizes.company === 14 && sizes.tab === 13,
+        JSON.stringify(sizes),
+      );
+      await open(fontPage, "/m");
+      const input = await fontPage.evaluate(() =>
+        parseFloat(getComputedStyle(document.querySelector("textarea")).fontSize),
+      );
+      assert(input === 17, `composer input ${input}px`);
+    });
+    await fontContext.close();
+
     // PWA (production build only): no API/server-function data or HTML in Cache Storage; offline reload (AC-26/27).
     const pwa = await newPhoneContext(browser);
     const pwaPage = await pwa.newPage();
@@ -812,12 +958,28 @@ async function main() {
           (/\.html$|\/m(\/|$)/.test(entry) && !entry.endsWith("/offline.html")),
       );
       assert(forbidden.length === 0, forbidden.join("; "));
-      return `${cached.length} cached entries, all static`;
+      for (const font of [
+        "/fonts/vazirmatn-variable.woff2",
+        "/fonts/jetbrains-mono-latin-variable.woff2",
+      ])
+        assert(
+          cached.some((entry) => entry.endsWith(font)),
+          `${font} is not precached`,
+        );
+      return `${cached.length} cached entries, all static, fonts precached`;
     });
     await check(
       "AC-27 reload while offline shows /offline.html; «تلاش مجدد» loads the app when back online",
       async () => {
         await pwa.setOffline(true);
+        // Offline, the worker still serves the text font from its cache.
+        const offlineFont = await pwaPage.evaluate(() =>
+          fetch("/fonts/vazirmatn-variable.woff2").then(
+            (response) => response.ok,
+            () => false,
+          ),
+        );
+        assert(offlineFont, "the font is not available offline");
         await pwaPage.reload().catch(() => undefined);
         await pwaPage
           .getByRole("heading", { name: "اتصال اینترنت برقرار نیست" })

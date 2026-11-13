@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowDown, MoreHorizontal } from "lucide-react";
 import { MessageList } from "@/components/app/message-list";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { MobileComposer } from "@/components/mobile/mobile-composer";
@@ -8,6 +7,10 @@ import { ChatErrorCard } from "@/components/mobile/chat-error-card";
 import { MobileUserBubble, PendingAnswer } from "@/components/mobile/pending-exchange";
 import { BottomSheet, SheetAction } from "@/components/mobile/bottom-sheet";
 import { ConfirmSheet } from "@/components/mobile/confirm-sheet";
+import { EmptyState, stateActionClass } from "@/components/mobile/empty-state";
+import { ErrorState } from "@/components/mobile/error-state";
+import { DeleteIcon, MoreIcon, SearchIcon, SendIcon } from "@/components/mobile/icons";
+import { APP_BAR_ICON_BUTTON } from "@/components/mobile/top-app-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatThread } from "@/lib/chat/use-chat-thread";
 import { restoresDraftImmediately } from "@/lib/chat/send-recovery";
@@ -113,9 +116,9 @@ function ConversationScreen({ threadId }: { threadId: string }) {
           type="button"
           aria-label="گزینه‌های گفتگو"
           onClick={() => setMenuOpen(true)}
-          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+          className={APP_BAR_ICON_BUTTON}
         >
-          <MoreHorizontal className="size-5" aria-hidden="true" />
+          <MoreIcon weight="bold" className="size-6" aria-hidden="true" />
         </button>
       }
       footer={
@@ -135,16 +138,10 @@ function ConversationScreen({ threadId }: { threadId: string }) {
           <Skeleton className="ms-auto h-12 w-2/5 rounded-2xl" />
         </div>
       ) : thread.loadError ? (
-        <div role="alert" className="m-4 rounded-2xl bg-surface p-4 text-sm ring-1 ring-hairline">
-          <p>بارگذاری گفتگو ناموفق بود</p>
-          <button
-            type="button"
-            onClick={() => void thread.refetchMessages()}
-            className="mt-2 min-h-11 rounded-xl bg-surface-2 px-4 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-          >
-            تلاش مجدد
-          </button>
-        </div>
+        <ErrorState
+          message="بارگذاری گفتگو ناموفق بود"
+          onRetry={() => void thread.refetchMessages()}
+        />
       ) : (
         <MessageList
           messages={thread.messages}
@@ -191,15 +188,16 @@ function ConversationScreen({ threadId }: { threadId: string }) {
               mainRef.current?.querySelectorAll<HTMLElement>('[data-role="assistant"]');
             answers?.[answers.length - 1]?.scrollIntoView({ block: "start", behavior: "smooth" });
           }}
-          className="sticky bottom-3 mx-auto flex min-h-11 items-center gap-2 rounded-full bg-emerald px-4 text-sm font-medium text-primary-foreground shadow-lg"
+          className="sticky bottom-3 mx-auto flex min-h-12 items-center gap-2 rounded-full bg-emerald px-5 text-m-title font-bold text-primary-foreground shadow-lg"
         >
-          <ArrowDown className="size-4" aria-hidden="true" />
+          <SendIcon weight="bold" className="size-5 rotate-180" aria-hidden="true" />
           پیام‌های جدید
         </button>
       )}
       <BottomSheet open={menuOpen} onOpenChange={setMenuOpen} title={title}>
         <SheetAction
           tone="danger"
+          icon={DeleteIcon}
           onClick={() => {
             setMenuOpen(false);
             setConfirmOpen(true);
@@ -225,23 +223,23 @@ function ConversationScreen({ threadId }: { threadId: string }) {
 function ConversationNotFound() {
   return (
     <MobileScreen title="گفتگو" backFallback="/m/history" showTabBar={false}>
-      <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-        <p className="text-base font-semibold">این گفتگو پیدا نشد</p>
-        <div className="flex gap-2">
-          <Link
-            to="/m/history"
-            className="flex min-h-11 items-center rounded-xl bg-surface px-4 text-sm font-medium ring-1 ring-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-          >
-            تاریخچه
-          </Link>
-          <Link
-            to="/m"
-            className="flex min-h-11 items-center rounded-xl bg-emerald px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-          >
-            گفتگوی جدید
-          </Link>
-        </div>
-      </div>
+      <EmptyState
+        icon={SearchIcon}
+        title="این گفتگو پیدا نشد"
+        action={
+          <div className="flex gap-2">
+            <Link
+              to="/m/history"
+              className="flex min-h-12 items-center rounded-xl bg-surface px-5 text-m-title font-semibold ring-1 ring-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+            >
+              تاریخچه
+            </Link>
+            <Link to="/m" className={stateActionClass}>
+              گفتگوی جدید
+            </Link>
+          </div>
+        }
+      />
     </MobileScreen>
   );
 }

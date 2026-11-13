@@ -38,7 +38,7 @@ export function CreditSummary() {
       className="rounded-2xl bg-surface p-4 ring-1 ring-hairline"
     >
       <div className="flex items-center gap-2">
-        <h2 id="credit-title" className="min-w-0 flex-1 text-[15px] font-semibold">
+        <h2 id="credit-title" className="min-w-0 flex-1 text-m-body font-bold">
           اشتراک: {data?.planName || data?.planCode || "–"}
         </h2>
         <RefreshButton
@@ -50,7 +50,7 @@ export function CreditSummary() {
       {usage.isLoading ? (
         <Skeleton className="mt-2 h-10 w-full" />
       ) : !data ? (
-        <div role="alert" className="mt-2 text-sm">
+        <div role="alert" className="mt-2 text-m-title">
           <p className="mobile-danger-text">اعتبار در دسترس نیست</p>
           <button
             type="button"
@@ -62,9 +62,9 @@ export function CreditSummary() {
         </div>
       ) : (
         <>
-          <div className="mt-2 flex items-center justify-between gap-2 text-sm">
+          <div className="mt-2 flex items-center justify-between gap-2 text-m-title">
             <span className="text-muted-foreground">اعتبار هوش مصنوعی</span>
-            <span className="tabular-nums text-foreground">
+            <span className="font-semibold tabular-nums text-foreground">
               {creditQuotaLabel(
                 data.creditQuotaMode,
                 credit?.limit != null
@@ -75,14 +75,14 @@ export function CreditSummary() {
           </div>
           {data.creditQuotaMode === "Unlimited" ? (
             data.subscriptionExpiresAtUtc && (
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-m-sub text-muted-foreground">
                 تا {new Date(data.subscriptionExpiresAtUtc).toLocaleDateString("fa-IR")}
               </p>
             )
           ) : (
             <>
               <div
-                className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
+                className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-muted"
                 role="progressbar"
                 aria-label="اعتبار باقی‌مانده هوش مصنوعی"
                 aria-valuemin={0}
@@ -100,12 +100,12 @@ export function CreditSummary() {
                 />
               </div>
               {credit?.tone && (
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-m-sub text-muted-foreground">
                   وضعیت اعتبار: {TONE_LABEL[credit.tone]}
                 </p>
               )}
               {data.subscriptionExpiresAtUtc && (
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-m-sub text-muted-foreground">
                   اشتراک تا {new Date(data.subscriptionExpiresAtUtc).toLocaleDateString("fa-IR")}
                 </p>
               )}
@@ -113,7 +113,7 @@ export function CreditSummary() {
           )}
         </>
       )}
-      <p className="mt-3 text-sm leading-7 text-muted-foreground">{PURCHASE_GUIDANCE_TEXT}</p>
+      <p className="mt-3 text-m-title leading-7 text-muted-foreground">{PURCHASE_GUIDANCE_TEXT}</p>
     </section>
   );
 }

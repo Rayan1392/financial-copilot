@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { IconTile, type IconTileTone } from "@/components/mobile/icon-tile";
+import { CloseIcon, type MobileIcon } from "@/components/mobile/icons";
 import {
   Drawer,
   DrawerClose,
@@ -44,18 +45,16 @@ export function BottomSheet({
       >
         <div className="flex items-start gap-2 px-4 pt-3">
           <div className="min-w-0 flex-1">
-            <DrawerTitle className="text-base font-semibold leading-7">{title}</DrawerTitle>
+            <DrawerTitle className="text-m-head font-bold">{title}</DrawerTitle>
             {description && (
-              <DrawerDescription className="mt-0.5 text-sm leading-6">
-                {description}
-              </DrawerDescription>
+              <DrawerDescription className="mt-0.5 text-m-title">{description}</DrawerDescription>
             )}
           </div>
           <DrawerClose
             aria-label="بستن"
             className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <X className="size-5" aria-hidden="true" />
+            <CloseIcon weight="bold" className="size-5" aria-hidden="true" />
           </DrawerClose>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin">{children}</div>
@@ -64,19 +63,23 @@ export function BottomSheet({
   );
 }
 
-/** A full-width 52 px sheet row. */
+/** A full-width 56 px sheet row, with an optional icon tile at the start. */
 export function SheetAction({
   children,
   onClick,
   tone = "default",
   disabled,
   trailing,
+  icon,
+  iconTone,
 }: {
   children: ReactNode;
   onClick: () => void;
   tone?: "default" | "danger";
   disabled?: boolean;
   trailing?: ReactNode;
+  icon?: MobileIcon;
+  iconTone?: IconTileTone;
 }) {
   return (
     <button
@@ -84,10 +87,13 @@ export function SheetAction({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex min-h-[52px] w-full items-center gap-3 rounded-xl px-3 text-right text-[15px] transition-colors active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40 disabled:opacity-50",
+        "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-1.5 text-right text-m-body transition-colors active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40 disabled:opacity-50",
         tone === "danger" ? "mobile-danger-text" : "text-foreground",
       )}
     >
+      {icon && (
+        <IconTile icon={icon} tone={iconTone ?? (tone === "danger" ? "danger" : "neutral")} />
+      )}
       <span className="min-w-0 flex-1">{children}</span>
       {trailing}
     </button>

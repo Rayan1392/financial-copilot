@@ -60,9 +60,12 @@ describe("service worker routing (spec §9.3, §9.7)", () => {
     expect(route(`${ORIGIN}/robots.txt`)).toBe("passthrough");
   });
 
-  it("uses stale-while-revalidate for the public Google Fonts files", () => {
-    expect(route("https://fonts.googleapis.com/css2?family=Vazirmatn")).toBe("font");
-    expect(route("https://fonts.gstatic.com/s/vazirmatn/v1/a.woff2")).toBe("font");
+  it("precaches the self-hosted fonts and leaves Google Fonts hosts alone", () => {
+    expect(worker.PRECACHE_PATHS).toContain("/fonts/vazirmatn-variable.woff2");
+    expect(worker.PRECACHE_PATHS).toContain("/fonts/jetbrains-mono-latin-variable.woff2");
+    expect(route(`${ORIGIN}/fonts/vazirmatn-variable.woff2`)).toBe("static");
+    expect(route("https://fonts.googleapis.com/css2?family=Vazirmatn")).toBe("passthrough");
+    expect(route("https://fonts.gstatic.com/s/vazirmatn/v1/a.woff2")).toBe("passthrough");
   });
 
   it("passes every non-GET request through", () => {

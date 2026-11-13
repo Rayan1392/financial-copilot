@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from "react";
-import { ArrowUp } from "lucide-react";
+import { SendIcon } from "@/components/mobile/icons";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ interface MobileComposerProps {
 }
 
 const MAX_ROWS = 6;
-const LINE_HEIGHT_PX = 26;
+const LINE_HEIGHT_PX = 28;
 
 /**
  * Docked mobile composer (Feature 153 T08). Controlled, so a failed send can put the text back.
@@ -69,8 +69,8 @@ export function MobileComposer({
             submit();
           }}
           enterKeyHint={coarsePointer ? "enter" : "send"}
-          placeholder="پرسش خود را بنویسید…"
-          className="min-h-11 flex-1 resize-none rounded-2xl bg-surface px-4 py-2.5 text-base leading-[26px] text-foreground ring-1 ring-hairline placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald/40"
+          placeholder="بپرسید…"
+          className="min-h-12 flex-1 resize-none rounded-3xl bg-surface px-4 py-2.5 text-m-body leading-7 text-foreground ring-1 ring-hairline placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald/40"
         />
         <button
           type="submit"
@@ -78,19 +78,19 @@ export function MobileComposer({
           aria-label="ارسال"
           aria-describedby={!online ? `${hintId}-offline` : undefined}
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald text-primary-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "flex size-12 shrink-0 items-center justify-center rounded-full bg-emerald text-primary-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             "disabled:cursor-not-allowed disabled:opacity-40",
           )}
         >
-          <ArrowUp className="size-5" aria-hidden="true" />
+          <SendIcon weight="bold" className="size-6" aria-hidden="true" />
         </button>
       </form>
       {!online ? (
-        <p id={`${hintId}-offline`} className="mt-1.5 text-center text-xs text-gold">
+        <p id={`${hintId}-offline`} className="mt-1.5 text-center text-m-cap text-gold">
           برای ارسال پرسش به اینترنت نیاز است
         </p>
       ) : (
-        <p className="mt-1.5 text-center text-xs text-muted-foreground">
+        <p className="mt-1.5 text-center text-m-cap text-muted-foreground">
           صرفاً جنبه آموزشی؛ توصیه سرمایه‌گذاری نیست
         </p>
       )}

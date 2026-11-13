@@ -1,33 +1,53 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ChevronLeft } from "lucide-react";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { MobileComposer } from "@/components/mobile/mobile-composer";
 import { ChatErrorCard } from "@/components/mobile/chat-error-card";
 import { MobileUserBubble, PendingAnswer } from "@/components/mobile/pending-exchange";
 import { SymbolSheet, type SymbolSheetSubject } from "@/components/mobile/symbol-sheet";
 import { InstallCard } from "@/components/mobile/install-card";
+import { IconTile } from "@/components/mobile/icon-tile";
+import {
+  BalanceSheetIcon,
+  MonthlySalesIcon,
+  ProductTrendIcon,
+  QuarterlyReportIcon,
+  RankingIcon,
+  SalesMixIcon,
+  type MobileIcon,
+} from "@/components/mobile/icons";
+import { SignedChange } from "@/components/mobile/signed-change";
 import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
-import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
+import { homeStarterPrompts, type StarterPromptId } from "@/lib/chat/starter-prompts";
+import { formatNumber } from "@/lib/format/persian";
 import { useStartChat } from "@/lib/chat/use-start-chat";
 import { useNewChatIntent, useOpenNewChat } from "@/lib/chat/new-chat-intent";
 import { restoresDraftImmediately } from "@/lib/chat/send-recovery";
 import { useWatchlistWithNames } from "@/lib/workspace/queries";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { markAnswered } from "@/lib/pwa/install";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/m/")({
   head: () => ({ meta: [{ title: "گفتگو — ساپیو" }] }),
   component: MobileNewChat,
 });
 
-const VISIBLE_STARTERS = 4;
+/** Phone icon of each starter capability; the shared prompt list carries the desktop icons. */
+const STARTER_ICONS: Record<StarterPromptId, MobileIcon> = {
+  "sales-mix": SalesMixIcon,
+  "monthly-sales": MonthlySalesIcon,
+  "product-trend": ProductTrendIcon,
+  ranking: RankingIcon,
+  "quarterly-report": QuarterlyReportIcon,
+  "balance-sheet": BalanceSheetIcon,
+};
+const WATCHLIST_STRIP_LIMIT = 8;
 
 function MobileNewChat() {
   const router = useRouter();
   const online = useOnlineStatus();
   const [draft, setDraft] = useState("");
-  const [showAllStarters, setShowAllStarters] = useState(false);
   const [sheetSubject, setSheetSubject] = useState<SymbolSheetSubject | null>(null);
   const { askAbout } = useOpenNewChat();
   const watchlist = useWatchlistWithNames({ freshness: true });
@@ -62,14 +82,13 @@ function MobileNewChat() {
   const failure = startChat.failure;
   const exchangeText = startChat.pendingMessage ?? failure?.draft ?? null;
   // The fixed six cards; watchlist personalization is switched off in starter-prompts.ts.
-  const starterSet = homeStarterPrompts(watchlist.followed);
-  const allStarters = starterSet.prompts;
-  const starters = showAllStarters ? allStarters : allStarters.slice(0, VISIBLE_STARTERS);
+  const starters = homeStarterPrompts(watchlist.followed).prompts;
   const symbols = watchlist.join?.rows ?? [];
 
   return (
     <MobileScreen
       title="ساپیو"
+      hideNewChat
       showTabBar={!startChat.isPending}
       footer={
         <MobileComposer
@@ -91,71 +110,85 @@ function MobileNewChat() {
           {failure && <ChatErrorCard failure={failure} recovery={failure.recovery} />}
         </div>
       ) : (
-        <div className="mx-auto max-w-xl px-4 py-6">
-          <div className="mb-5 flex items-center gap-2">
-            <span aria-hidden="true" className="size-2.5 rounded-full bg-emerald" />
-            <h2 className="text-base font-semibold text-foreground">چه چیزی را بررسی کنیم؟</h2>
-          </div>
-          <ul className="overflow-hidden rounded-2xl bg-surface ring-1 ring-hairline">
-            {starters.map((prompt) => (
-              <li key={prompt.text} className="border-b border-hairline last:border-b-0">
-                <button
-                  type="button"
-                  onClick={() => submit(prompt.text)}
-                  disabled={startChat.isPending || !online}
-                  className="flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-right text-[15px] leading-7 text-foreground active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40 disabled:opacity-50"
-                >
-                  <prompt.icon className="size-4 shrink-0 text-emerald" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">{prompt.text}</span>
-                  <ChevronLeft
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                </button>
-              </li>
-            ))}
-          </ul>
-          {!showAllStarters && allStarters.length > VISIBLE_STARTERS && (
-            <button
-              type="button"
-              onClick={() => setShowAllStarters(true)}
-              className="mt-2 min-h-11 rounded-xl px-3 text-sm font-medium text-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-            >
-              بیشتر
-            </button>
-          )}
-          {symbols.length > 0 && (
-            <section aria-labelledby="my-symbols" className="mt-6">
-              <h3 id="my-symbols" className="mb-2 text-[13px] font-semibold text-muted-foreground">
-                نمادهای دیده‌بان من
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {symbols.slice(0, 8).map((row) => (
+        <div className="mx-auto max-w-xl px-4 py-4">
+          <h2 className="mb-3 text-m-head font-bold text-foreground">چه چیزی را بررسی کنیم؟</h2>
+          <ul data-starters className="flex flex-col gap-2.5">
+            {starters.map((prompt) => {
+              const statement = prompt.tone === "statement";
+              return (
+                <li key={prompt.id}>
+                  {/* The question is shown in full: the cards teach how to phrase a question. */}
                   <button
-                    key={row.symbol}
                     type="button"
-                    onClick={() =>
-                      setSheetSubject({
-                        symbol: row.symbol,
-                        companyName: row.companyName,
-                        price: row.latestPrice,
-                        changePercent: row.changePercent,
-                        asOf: row.asOf,
-                        externalCompanyId: row.externalCompanyId,
-                        followed: true,
-                      })
-                    }
-                    className="min-h-11 rounded-full bg-surface px-4 text-sm text-foreground ring-1 ring-hairline active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+                    onClick={() => submit(prompt.text)}
+                    disabled={startChat.isPending || !online}
+                    className={cn(
+                      "flex min-h-[72px] w-full items-center gap-3 rounded-2xl bg-surface bg-linear-to-l to-transparent to-65% px-3.5 py-2.5 text-right ring-1 ring-hairline transition-colors active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-50",
+                      statement ? "from-gold/10" : "from-emerald/10",
+                    )}
                   >
-                    <bdi>{row.symbol}</bdi>
+                    <IconTile
+                      icon={STARTER_ICONS[prompt.id]}
+                      tone={statement ? "gold" : "emerald"}
+                      className="size-11"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block text-m-cap font-bold",
+                          statement ? "mobile-gold-text" : "text-emerald",
+                        )}
+                      >
+                        {prompt.topic}
+                      </span>
+                      <span className="block text-balance text-m-sub font-medium leading-7 text-foreground">
+                        {prompt.text}
+                      </span>
+                    </span>
                   </button>
+                </li>
+              );
+            })}
+          </ul>
+          {symbols.length > 0 && (
+            <section aria-labelledby="my-symbols" className="mt-5">
+              <h3 id="my-symbols" className="mb-2 text-m-title font-bold text-muted-foreground">
+                دیده‌بان من
+              </h3>
+              <ul className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 scrollbar-hide">
+                {symbols.slice(0, WATCHLIST_STRIP_LIMIT).map((row) => (
+                  <li key={row.symbol} className="shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSheetSubject({
+                          symbol: row.symbol,
+                          companyName: row.companyName,
+                          price: row.latestPrice,
+                          changePercent: row.changePercent,
+                          asOf: row.asOf,
+                          externalCompanyId: row.externalCompanyId,
+                          followed: true,
+                        })
+                      }
+                      className="flex min-h-[92px] min-w-[128px] flex-col items-start gap-0.5 rounded-2xl bg-surface px-3.5 py-3 text-right ring-1 ring-hairline active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40"
+                    >
+                      <bdi className="text-m-body font-bold leading-7 text-foreground">
+                        {row.symbol}
+                      </bdi>
+                      <span className="text-m-sub tabular-nums text-foreground">
+                        {row.latestPrice == null ? "–" : formatNumber(row.latestPrice)}
+                      </span>
+                      <SignedChange value={row.changePercent} className="text-m-sub" />
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </section>
           )}
           <InstallCard />
           <div className="mt-6 flex justify-center">
-            <ReleaseVersionLink />
+            <ReleaseVersionLink className="text-m-cap" />
           </div>
         </div>
       )}

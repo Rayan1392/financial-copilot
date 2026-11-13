@@ -39,7 +39,7 @@ export function MobileScreen({
       dir="rtl"
       // iOS does not shrink dvh for the keyboard; subtracting the measured inset keeps the composer above it.
       style={{ height: "calc(100dvh - var(--keyboard-inset, 0px))" }}
-      className="flex h-screen w-full flex-col overflow-hidden bg-background text-[15px] leading-[1.8] text-foreground"
+      className="flex h-screen w-full flex-col overflow-hidden bg-background text-m-body text-foreground"
     >
       <TopAppBar {...bar} />
       <OfflineBanner online={online} />

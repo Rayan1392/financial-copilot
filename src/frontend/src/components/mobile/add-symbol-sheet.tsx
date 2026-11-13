@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Search } from "lucide-react";
+import { SearchIcon } from "@/components/mobile/icons";
 import { BottomSheet } from "@/components/mobile/bottom-sheet";
 import { searchSymbolMetadata } from "@/lib/metadata.functions";
 import { useFollowActions } from "@/lib/workspace/follow-actions";
@@ -51,7 +51,7 @@ export function AddSymbolSheet({
     <BottomSheet open={open} onOpenChange={onOpenChange} title="افزودن نماد" fullHeight>
       <div className="px-2 pb-2 pt-1">
         <div className="flex items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-hairline focus-within:ring-2 focus-within:ring-emerald/40">
-          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <SearchIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <label htmlFor="add-symbol-search" className="sr-only">
             جست‌وجوی نماد یا نام شرکت
           </label>
@@ -66,24 +66,24 @@ export function AddSymbolSheet({
               setInlineError(null);
             }}
             placeholder="نماد یا نام شرکت…"
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-base focus:outline-none"
+            className="min-h-12 min-w-0 flex-1 bg-transparent text-m-body focus:outline-none"
           />
         </div>
         {inlineError && (
           <p
             role="alert"
-            className="mt-2 rounded-xl bg-rose/10 px-3 py-2 text-sm leading-6 mobile-danger-text"
+            className="mt-2 rounded-xl bg-rose/10 px-3 py-2 text-m-title leading-6 mobile-danger-text"
           >
             {inlineError}
           </p>
         )}
       </div>
       {term.length === 0 ? null : results.isLoading ? (
-        <p role="status" className="px-4 py-6 text-center text-sm text-muted-foreground">
+        <p role="status" className="px-4 py-6 text-center text-m-title text-muted-foreground">
           در حال جست‌وجو…
         </p>
       ) : results.isError ? (
-        <div role="alert" className="px-4 py-6 text-center text-sm">
+        <div role="alert" className="px-4 py-6 text-center text-m-title">
           <p>جست‌وجو ناموفق بود</p>
           <button
             type="button"
@@ -94,7 +94,7 @@ export function AddSymbolSheet({
           </button>
         </div>
       ) : (results.data ?? []).length === 0 ? (
-        <p role="status" className="px-4 py-6 text-center text-sm text-muted-foreground">
+        <p role="status" className="px-4 py-6 text-center text-m-title text-muted-foreground">
           نمادی یافت نشد
         </p>
       ) : (
@@ -117,18 +117,18 @@ export function AddSymbolSheet({
                       },
                     )
                   }
-                  className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-3 text-right active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40 disabled:opacity-70"
+                  className="flex min-h-16 w-full items-center gap-3 rounded-xl px-3 text-right active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald/40 disabled:opacity-70"
                 >
                   <span className="min-w-0 flex-1">
-                    <bdi className="font-semibold text-foreground">{item.symbolCode}</bdi>
-                    <span className="block truncate text-xs text-muted-foreground">
+                    <bdi className="text-m-body font-bold text-foreground">{item.symbolCode}</bdi>
+                    <span className="block truncate text-m-sub text-muted-foreground">
                       {item.companyName}
                     </span>
                   </span>
                   {alreadyFollowed ? (
-                    <span className="text-xs text-emerald">دنبال‌شده</span>
+                    <span className="text-m-sub text-emerald">دنبال‌شده</span>
                   ) : busy ? (
-                    <span className="text-xs text-muted-foreground">…</span>
+                    <span className="text-m-sub text-muted-foreground">…</span>
                   ) : null}
                 </button>
               </li>

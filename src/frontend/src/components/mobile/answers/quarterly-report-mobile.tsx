@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ChevronDown, Download } from "lucide-react";
+import { ChevronIcon, DownloadIcon } from "@/components/mobile/icons";
 import type {
   QuarterlyFinancialTableModel,
   QuarterlyFinancialTableRow,
@@ -45,7 +45,7 @@ function PeriodList({ model, order }: { model: QuarterlyFinancialTableModel; ord
   return (
     <dl
       aria-label="دوره‌های گزارش"
-      className="space-y-0.5 rounded-xl bg-surface px-3 py-2 text-[13px] leading-6 ring-1 ring-hairline"
+      className="space-y-0.5 rounded-xl bg-surface px-3 py-2 text-m-sub leading-6 ring-1 ring-hairline"
     >
       {order.map((index) => {
         const lines = quarterlyPeriodHeaderLines(model.quarters[index]);
@@ -90,11 +90,11 @@ export function QuarterlyReportMobile({
       <header className="space-y-2">
         <h3
           id={titleId}
-          className="break-words text-[15px] font-semibold leading-7 text-foreground"
+          className="break-words text-m-body font-semibold leading-7 text-foreground"
         >
           {model.title}
         </h3>
-        <p className="text-[13px] leading-6 text-muted-foreground">{model.summary}</p>
+        <p className="text-m-sub leading-6 text-muted-foreground">{model.summary}</p>
         <div className="flex flex-wrap items-center gap-2">
           <div
             role="group"
@@ -113,7 +113,7 @@ export function QuarterlyReportMobile({
                 aria-pressed={view === value}
                 onClick={() => setView(value)}
                 className={cn(
-                  "min-h-11 min-w-[4.5rem] rounded-lg px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40",
+                  "min-h-11 min-w-[4.5rem] rounded-lg px-3 text-m-title font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40",
                   view === value
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground",
@@ -128,9 +128,9 @@ export function QuarterlyReportMobile({
             onClick={onDownload}
             disabled={exporting || chartConfigLoading}
             aria-label="دانلود تصویر جدول"
-            className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm text-muted-foreground ring-1 ring-hairline active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-60"
+            className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-m-title text-muted-foreground ring-1 ring-hairline active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-60"
           >
-            <Download className="size-4" aria-hidden="true" />
+            <DownloadIcon className="size-4" aria-hidden="true" />
             {exporting ? "در حال ساخت" : chartConfigLoading ? "آماده‌سازی" : "دانلود تصویر"}
           </button>
         </div>
@@ -138,10 +138,10 @@ export function QuarterlyReportMobile({
 
       {showChart && (
         <details className="group overflow-hidden rounded-xl ring-1 ring-hairline">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 bg-surface px-3 text-sm font-medium text-foreground">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 bg-surface px-3 text-m-title font-medium text-foreground">
             نمودار روند
-            <ChevronDown
-              className="size-4 transition-transform group-open:rotate-180"
+            <ChevronIcon
+              className="size-4 -rotate-90 transition-transform group-open:rotate-90"
               aria-hidden="true"
             />
           </summary>
@@ -168,7 +168,7 @@ export function QuarterlyReportMobile({
       )}
 
       {model.provenanceNotes?.length ? (
-        <details className="rounded-xl bg-surface p-3 text-[13px] leading-6 text-muted-foreground ring-1 ring-hairline">
+        <details className="rounded-xl bg-surface p-3 text-m-sub leading-6 text-muted-foreground ring-1 ring-hairline">
           <summary className="min-h-6 cursor-pointer font-semibold text-foreground">
             {model.templateId === "BankingIncomeStatement"
               ? "توضیحات گزارش و محاسبه"
@@ -206,7 +206,7 @@ function ChangeBadge({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[13px] font-semibold tabular-nums",
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-m-sub font-semibold tabular-nums",
         TONE_CLASS[tone],
       )}
     >
@@ -262,7 +262,7 @@ function MetricCard({
       <div className="flex items-start justify-between gap-3">
         <h4
           className={cn(
-            "min-w-0 text-sm leading-6 text-foreground",
+            "min-w-0 text-m-title leading-6 text-foreground",
             margin ? "font-bold" : "font-semibold",
           )}
         >
@@ -275,19 +275,19 @@ function MetricCard({
 
       <dl className="mt-2 space-y-1">
         <div className="flex items-baseline justify-between gap-3">
-          <dt className="min-w-0 text-[13px] leading-6 text-muted-foreground">
+          <dt className="min-w-0 text-m-sub leading-6 text-muted-foreground">
             {periodText(model, latest)}
           </dt>
-          <dd className="shrink-0 text-base font-semibold text-foreground">
+          <dd className="shrink-0 text-m-body font-semibold text-foreground">
             <CellValue row={row} value={row.values[latest]} />
           </dd>
         </div>
         {previous !== undefined && (
           <div className="flex items-baseline justify-between gap-3">
-            <dt className="min-w-0 text-[13px] leading-6 text-muted-foreground">
+            <dt className="min-w-0 text-m-sub leading-6 text-muted-foreground">
               {periodText(model, previous)}
             </dt>
-            <dd className="shrink-0 text-sm text-foreground">
+            <dd className="shrink-0 text-m-title text-foreground">
               <CellValue row={row} value={row.values[previous]} />
             </dd>
           </div>
@@ -301,11 +301,11 @@ function MetricCard({
             aria-expanded={expanded}
             aria-controls={listId}
             onClick={() => setExpanded((value) => !value)}
-            className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-lg text-[13px] font-medium text-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
+            className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-lg text-m-sub font-medium text-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
           >
             {expanded ? "بستن" : `همه فصل‌ها (${order.length.toLocaleString("fa-IR")})`}
-            <ChevronDown
-              className={cn("size-4 transition-transform", expanded && "rotate-180")}
+            <ChevronIcon
+              className={cn("size-4 transition-transform", expanded ? "rotate-90" : "-rotate-90")}
               aria-hidden="true"
             />
           </button>
@@ -315,7 +315,7 @@ function MetricCard({
                 const numeric = row.chartValues?.[index] ?? null;
                 return (
                   <li key={index} className="space-y-1">
-                    <div className="flex items-baseline justify-between gap-3 text-[13px] leading-6">
+                    <div className="flex items-baseline justify-between gap-3 text-m-sub leading-6">
                       <span className="min-w-0 text-muted-foreground">
                         {periodText(model, index)}
                       </span>
@@ -363,7 +363,7 @@ function ComparisonTable({
 }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-xs text-muted-foreground" aria-hidden="true">
+      <p className="text-m-cap text-muted-foreground" aria-hidden="true">
         ستون شرح ثابت است؛ برای دیدن همه فصل‌ها جدول را افقی بکشید.
       </p>
       <div
@@ -372,7 +372,7 @@ function ComparisonTable({
         tabIndex={0}
         className="overflow-x-auto overscroll-x-contain rounded-xl ring-1 ring-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
       >
-        <table className="min-w-max border-separate border-spacing-0 text-[13px] leading-6">
+        <table className="min-w-max border-separate border-spacing-0 text-m-sub leading-6">
           <thead>
             <tr className="bg-surface-2 text-foreground">
               <th

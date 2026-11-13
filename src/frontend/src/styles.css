@@ -1,7 +1,23 @@
-@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+
+/* Self-hosted fonts (Feature 153 change mobile-ui-refresh): no request leaves the app origin, and the service
+   worker precaches both files, so an offline launch keeps the typeface. */
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/vazirmatn-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/jetbrains-mono-latin-variable.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -41,6 +57,23 @@
 
   --font-sans: "Vazirmatn", "Noto Sans Arabic", Tahoma, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Mobile type scale (`/m`), the one owner of phone text sizes: text-m-body, text-m-sub, and so on.
+     In rem, so the system font-size setting still scales it. */
+  --text-m-hero: 1.5rem; /* 24px: index value, sheet price */
+  --text-m-hero--line-height: 1.35;
+  --text-m-head: 1.25rem; /* 20px: screen title */
+  --text-m-head--line-height: 1.5;
+  --text-m-body: 1.0625rem; /* 17px: body and answer prose */
+  --text-m-body--line-height: 1.8;
+  --text-m-num: 1.0625rem; /* 17px: price and change in a row */
+  --text-m-num--line-height: 1.45;
+  --text-m-title: 0.9375rem; /* 15px: section heading */
+  --text-m-title--line-height: 1.6;
+  --text-m-sub: 0.875rem; /* 14px: secondary text */
+  --text-m-sub--line-height: 1.6;
+  --text-m-cap: 0.8125rem; /* 13px: the smallest text on a phone screen */
+  --text-m-cap--line-height: 1.55;
 }
 
 :root {
@@ -236,18 +269,29 @@
   }
 }
 
-/* Feature 153 T15: answer blocks were sized for desktop. On the phone layout (MessageList density="compact")
-   no text renders below 12 px; desktop keeps its sizes. */
+/* Feature 153 T15 and change mobile-ui-refresh: answer blocks were sized for desktop. On the phone layout
+   (MessageList density="compact") prose inherits the 17 px body size from the screen and no text renders below
+   the 13 px caption size; desktop keeps its sizes. */
 [data-density="compact"]
   :is(
     [class~="text-[7px]"],
     [class~="text-[8px]"],
     [class~="text-[9px]"],
     [class~="text-[10px]"],
-    [class~="text-[11px]"]
+    [class~="text-[11px]"],
+    [class~="text-[12px]"],
+    [class~="text-xs"]
   ) {
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: var(--text-m-cap);
+  line-height: 1.55;
+}
+
+/* Gold as text on the mobile surfaces: the light theme's gold is too light for 4.5:1. */
+.mobile-gold-text {
+  color: var(--gold);
+}
+.light .mobile-gold-text {
+  color: oklch(0.47 0.1 85);
 }
 
 /* Feature 153: danger text on the mobile surfaces. The light theme's rose is too light for 4.5:1 on surfaces. */

@@ -12,7 +12,17 @@ import { isRightsIssueSymbol } from "@/lib/market/instrument-kind";
 /** Visual family of a starter card; each tone maps to theme-aware design tokens. */
 export type StarterPromptTone = "sales" | "statement";
 
+export type StarterPromptId =
+  | "sales-mix"
+  | "monthly-sales"
+  | "product-trend"
+  | "ranking"
+  | "quarterly-report"
+  | "balance-sheet";
+
 export interface StarterPrompt {
+  /** Stable key of the capability; the phone workspace picks its own icon by it. */
+  id: StarterPromptId;
   /** The exact question sent to the assistant. */
   text: string;
   icon: LucideIcon;
@@ -33,6 +43,7 @@ export interface StarterPrompt {
  */
 export const STARTER_PROMPTS: readonly StarterPrompt[] = [
   {
+    id: "sales-mix",
     text: "ترکیب فروش محصولات کگهر را بررسی کن",
     icon: PieChart,
     topic: "ترکیب فروش",
@@ -41,6 +52,7 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     // (e.g. گدنا), so the example stays on a symbol known to work.
   },
   {
+    id: "monthly-sales",
     text: "روند فروش ماهانه کگهر را نشان بده",
     icon: TrendingUp,
     topic: "فروش ماهانه",
@@ -48,18 +60,21 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     forSymbol: (s) => `روند فروش ماهانه ${s} را نشان بده`,
   },
   {
+    id: "product-trend",
     text: "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
     icon: BarChart3,
     topic: "عملکرد محصول",
     tone: "sales",
   },
   {
+    id: "ranking",
     text: "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
     icon: ListOrdered,
     topic: "رتبه‌بندی",
     tone: "sales",
   },
   {
+    id: "quarterly-report",
     text: "عملکرد مالی فصلی فولاد را بررسی کن",
     icon: FileText,
     topic: "سود و زیان فصلی",
@@ -67,6 +82,7 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     forSymbol: (s) => `عملکرد مالی فصلی ${s} را بررسی کن`,
   },
   {
+    id: "balance-sheet",
     text: "صورت وضعیت مالی فاذر را بررسی کن",
     icon: Scale,
     topic: "ترازنامه",

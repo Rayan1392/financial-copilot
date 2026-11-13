@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshIcon } from "@/components/mobile/icons";
 import { cn } from "@/lib/utils";
 
 const MINIMUM_SPIN_MS = 700;
@@ -31,7 +31,7 @@ export function RefreshButton({
       }}
       className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-60"
     >
-      <RefreshCw className={cn("size-4", spinning && "animate-spin")} aria-hidden="true" />
+      <RefreshIcon className={cn("size-5", spinning && "animate-spin")} aria-hidden="true" />
     </button>
   );
 }

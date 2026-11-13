@@ -15,3 +15,6 @@ Ideas and deferred work that are not yet a spec.
 - Same change: the default Unsupported text (`AiDialogueOutcomePolicy.cs`) still offers «تحلیل‌های ثبت‌شده»; review the copy now that comprehensive analysis depends on the source map.
 - Same change: widen the topic phrase list (`مقاومت`, `حمایت`, `هدف قیمتی`, `پیش‌بینی`) only after measuring false positives (OQ-069); `چارت` collides with the sales-chart route.
 - Feature 159: link the card to the shown analysis once TahlilApp has a web page for one analysis (the API URL `https://api.tahlilapp.com/api/blogs/{id}` returns JSON and was rejected by the owner on 2026-11-11). The id is already in the card (`AnalysisId` = `cyclicalwaves."Analyses"."Id"`); design ready in `159-capability-source-map-comprehensive-analysis/changes/per-analysis-link/design-proposal.md`.
+- Feature 153 change `mobile-ui-refresh`: move the legal disclaimer off the composer once OQ-073 is answered.
+- Frontend: make `npm run lint` usable on Windows. With `core.autocrlf=true` the working tree is CRLF and Prettier reports about 33,000 line-ending errors, which hides real findings (measured 2026-11-12). Options: `endOfLine: "auto"` in `.prettierrc`, or `eol=lf` for `src/frontend` in `.gitattributes`.
+- Feature 153 change `mobile-ui-refresh`: real-device pass on iOS Safari and Android Chrome (only headless Chromium was used).

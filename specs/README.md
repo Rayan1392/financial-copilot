@@ -44,6 +44,7 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 ## Mobile Experience
 
 - `153-mobile-pwa-workspace` — mobile-first workspace at `/m` (chat, history, market, watchlist, account), device routing behind a rollout flag, and an installable PWA that caches static assets only.
+- `153-mobile-pwa-workspace/changes/mobile-ui-refresh`: Gate B approved 2026-11-12; implemented on branch `feature/153-mobile-ui-refresh` (uncommitted). Larger type scale, self-hosted fonts (app-wide), Phosphor icons behind one mobile icon module, and redesigned `/m` screens with shorter copy. Frontend only; OQ-073 (disclaimer placement) open.
 
 ## Phase 1 Scanner MVP Specs
 

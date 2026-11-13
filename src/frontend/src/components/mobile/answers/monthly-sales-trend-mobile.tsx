@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download } from "lucide-react";
+import { DownloadIcon } from "@/components/mobile/icons";
 import type { MonthlyActivityTrendResult, PsVisualizationResult } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
 import {
@@ -105,11 +105,11 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
       className="space-y-4 rounded-2xl bg-surface/40 p-3 ring-1 ring-hairline"
     >
       <header className="space-y-2">
-        <h3 id={titleId} className="text-[15px] font-semibold leading-7 text-foreground">
+        <h3 id={titleId} className="text-m-body font-semibold leading-7 text-foreground">
           {viewModel.title} <span className="break-words">{viewModel.companyLabel}</span>
         </h3>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs text-muted-foreground">
+          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-m-cap text-muted-foreground">
             واحد: {viewModel.unitLabel}
           </span>
           {hasChartData && (
@@ -118,9 +118,9 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
               onClick={downloadImage}
               disabled={isDownloading}
               aria-busy={isDownloading}
-              className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm text-muted-foreground ring-1 ring-hairline active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:cursor-wait disabled:opacity-60"
+              className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-m-title text-muted-foreground ring-1 ring-hairline active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:cursor-wait disabled:opacity-60"
             >
-              <Download className="size-4" aria-hidden="true" />
+              <DownloadIcon className="size-4" aria-hidden="true" />
               {isDownloading ? "در حال آماده‌سازی…" : "دانلود تصویر"}
             </button>
           )}
@@ -129,11 +129,11 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
 
       {hasChartData ? (
         <>
-          <p className="text-xs leading-6 text-muted-foreground">
+          <p className="text-m-cap leading-6 text-muted-foreground">
             عدد کنار هر سال، مجموع فروش ماه‌های گزارش‌شده آن سال است.
           </p>
           <ul
-            className="space-y-1.5 text-[13px] leading-6 text-foreground"
+            className="space-y-1.5 text-m-sub leading-6 text-foreground"
             aria-label="راهنمای نمودار"
           >
             {viewModel.legendEntries.map((item) => (
@@ -253,7 +253,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
           {point && (
             <div className="rounded-xl bg-surface p-3 ring-1 ring-hairline">
               <div aria-live="polite" className="min-h-[148px]">
-                <p className="text-sm font-semibold text-foreground">
+                <p className="text-m-title font-semibold text-foreground">
                   {point.fiscalMonthLabel}
                   <span className="font-normal text-muted-foreground">
                     {" "}
@@ -261,7 +261,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
                     {toPersianDigits(String(points.length))}
                   </span>
                 </p>
-                <dl className="mt-2 space-y-1.5 text-sm">
+                <dl className="mt-2 space-y-1.5 text-m-title">
                   <DetailRow
                     color={viewModel.palette.currentYear}
                     term={`${point.fiscalMonthLabel} ${yearLabel(source?.currentFiscalYear, "سال جاری")}`}
@@ -295,7 +295,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
                   type="button"
                   onClick={() => setSelected(selectedIndex - 1)}
                   disabled={selectedIndex === 0}
-                  className="min-h-11 rounded-xl bg-surface-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
+                  className="min-h-11 rounded-xl bg-surface-2 text-m-title font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
                 >
                   ماه قبل
                 </button>
@@ -303,7 +303,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
                   type="button"
                   onClick={() => setSelected(selectedIndex + 1)}
                   disabled={selectedIndex >= points.length - 1}
-                  className="min-h-11 rounded-xl bg-surface-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
+                  className="min-h-11 rounded-xl bg-surface-2 text-m-title font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-40"
                 >
                   ماه بعد
                 </button>
@@ -336,7 +336,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
           </table>
         </>
       ) : (
-        <p className="rounded-xl bg-surface p-3 text-sm text-muted-foreground">
+        <p className="rounded-xl bg-surface p-3 text-m-title text-muted-foreground">
           داده‌ای برای رسم نمودار گزارش نشده است.
         </p>
       )}
@@ -348,7 +348,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
       )}
 
       {viewModel.explanationLines.length > 0 && (
-        <ul className="space-y-1.5 text-[13px] leading-6 text-muted-foreground">
+        <ul className="space-y-1.5 text-m-sub leading-6 text-muted-foreground">
           {viewModel.explanationLines.map((line, index) => (
             <li key={index}>
               {line.beforeValue}
@@ -370,12 +370,12 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
         </ul>
       )}
 
-      <p className="text-xs leading-6 text-muted-foreground">
+      <p className="text-m-cap leading-6 text-muted-foreground">
         {viewModel.sourceContext} · {viewModel.calculationContext}
       </p>
 
       {downloadError && (
-        <p role="alert" className="text-sm mobile-danger-text">
+        <p role="alert" className="text-m-title mobile-danger-text">
           {downloadError}
         </p>
       )}

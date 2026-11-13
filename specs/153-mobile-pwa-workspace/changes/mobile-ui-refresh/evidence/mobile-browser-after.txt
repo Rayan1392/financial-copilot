@@ -1,0 +1,101 @@
+PASS  AC-03 no horizontal scroll /m @320px
+PASS  AC-03 no horizontal scroll /m/history @320px
+PASS  AC-03 no horizontal scroll /m/market @320px
+PASS  AC-03 no horizontal scroll /m/watchlist @320px
+PASS  AC-03 no horizontal scroll /m/account @320px
+PASS  AC-03 no horizontal scroll /m/account/profile @320px
+PASS  AC-03 no horizontal scroll /m/c/d8855e52-53e6-4aa4-a0b1-d5dd8fd0835c @320px
+PASS  AC-03 no horizontal scroll /m/c/cb09e31a-adfa-46b3-9d3e-6f312bb78188 @320px
+PASS  AC-03 no horizontal scroll /m @360px
+PASS  AC-03 no horizontal scroll /m/history @360px
+PASS  AC-03 no horizontal scroll /m/market @360px
+PASS  AC-03 no horizontal scroll /m/watchlist @360px
+PASS  AC-03 no horizontal scroll /m/account @360px
+PASS  AC-03 no horizontal scroll /m/account/profile @360px
+PASS  AC-03 no horizontal scroll /m/c/d8855e52-53e6-4aa4-a0b1-d5dd8fd0835c @360px
+PASS  AC-03 no horizontal scroll /m/c/cb09e31a-adfa-46b3-9d3e-6f312bb78188 @360px
+PASS  AC-03 no horizontal scroll /m @390px
+PASS  AC-03 no horizontal scroll /m/history @390px
+PASS  AC-03 no horizontal scroll /m/market @390px
+PASS  AC-03 no horizontal scroll /m/watchlist @390px
+PASS  AC-03 no horizontal scroll /m/account @390px
+PASS  AC-03 no horizontal scroll /m/account/profile @390px
+PASS  AC-03 no horizontal scroll /m/c/d8855e52-53e6-4aa4-a0b1-d5dd8fd0835c @390px
+PASS  AC-03 no horizontal scroll /m/c/cb09e31a-adfa-46b3-9d3e-6f312bb78188 @390px
+PASS  AC-01 four tabs, aria-current, ≥ 44 px targets
+PASS  AC-02 «گفتگوی جدید» on every screen except the new-chat screen itself
+PASS  Top bar: avatar, title and credit only on tabs; no admin gear
+PASS  Home: six full-width starter cards showing the whole question; watchlist strip with prices
+PASS  Starter card sends its unchanged question
+PASS  Head: /m overrides viewport and adds noindex; manifest and apple tags present
+PASS  AC-06a first-message failure: indeterminate card, history link, no retry, draft restored
+PASS  AC-04 a first question opens /m/c/{id} with the answer
+PASS  AC-06b follow-up lost after the server persisted it: the refetch shows the answer, no error
+PASS  AC-10/11/13 history: limit 100, normalized search, 100-item note
+PASS  AC-08 an unknown conversation shows «این گفتگو پیدا نشد» with history and new-chat links
+PASS  AC-12 delete needs confirmation and removes the row
+PASS  AC-14 market shows all six indices with direction glyphs
+PASS  AC-15/16 watchlist rows with names; symbol sheet offers prompts and unfollow
+PASS  AC-17 add symbol: debounced search, follow with toast, API 400 shown inline
+PASS  AC-19 account: credits, text-only purchase guidance, no tahlilapp.com link
+PASS  T21 offline: banner, send disabled with hint, draft kept across offline → online
+PASS  AC-23 desktop switch lands on the desktop path and is not redirected back after reload
+PASS  Flag off (default): an iPhone opening /chat is not redirected
+PASS  Answers @320px dark: tap a month, cards, table, chart — no page overflow
+PASS  Quarterly trend chart @320px dark: themed, labels fit, tap a period, panel below
+PASS  Answers @360px dark: tap a month, cards, table, chart — no page overflow
+PASS  Quarterly trend chart @360px dark: themed, labels fit, tap a period, panel below
+PASS  Answers @390px dark: tap a month, cards, table, chart — no page overflow
+PASS  Quarterly trend chart @390px dark: themed, labels fit, tap a period, panel below
+PASS  Answers @320px light: tap a month, cards, table, chart — no page overflow
+PASS  Quarterly trend chart @320px light: themed, labels fit, tap a period, panel below
+PASS  Answers @360px light: tap a month, cards, table, chart — no page overflow
+PASS  Quarterly trend chart @360px light: themed, labels fit, tap a period, panel below
+PASS  Answers @390px light: tap a month, cards, table, chart — no page overflow
+PASS  Quarterly trend chart @390px light: themed, labels fit, tap a period, panel below
+FAIL  Desktop answers unchanged: original chart card and fixed quarterly table  — desktop legend
+FAIL  AC-24 signed-out /m/c/{id} → /auth?redirect=… → back to the conversation after login  — locator.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByLabel('رمز عبور')[22m
+
+PASS  AC-30 axe dark /m
+PASS  Type scale: text ≥ 13 px and 44 px targets /m
+PASS  AC-31 landmarks /m
+PASS  AC-30 axe dark /m/history
+PASS  Type scale: text ≥ 13 px and 44 px targets /m/history
+PASS  AC-31 landmarks /m/history
+PASS  AC-30 axe dark /m/market
+PASS  Type scale: text ≥ 13 px and 44 px targets /m/market
+PASS  AC-31 landmarks /m/market
+PASS  AC-30 axe dark /m/watchlist
+PASS  Type scale: text ≥ 13 px and 44 px targets /m/watchlist
+PASS  AC-31 landmarks /m/watchlist
+PASS  AC-30 axe dark /m/account
+PASS  Type scale: text ≥ 13 px and 44 px targets /m/account
+PASS  AC-31 landmarks /m/account
+PASS  AC-30 axe dark /m/account/profile
+PASS  Type scale: text ≥ 13 px and 44 px targets /m/account/profile
+PASS  AC-31 landmarks /m/account/profile
+PASS  AC-30 axe dark /m/c/d8855e52-53e6-4aa4-a0b1-d5dd8fd0835c
+PASS  Type scale: text ≥ 13 px and 44 px targets /m/c/d8855e52-53e6-4aa4-a0b1-d5dd8fd0835c
+PASS  AC-31 landmarks /m/c/d8855e52-53e6-4aa4-a0b1-d5dd8fd0835c
+PASS  AC-30 axe dark /m/c/cb09e31a-adfa-46b3-9d3e-6f312bb78188
+PASS  Type scale: text ≥ 13 px and 44 px targets /m/c/cb09e31a-adfa-46b3-9d3e-6f312bb78188
+PASS  AC-31 landmarks /m/c/cb09e31a-adfa-46b3-9d3e-6f312bb78188
+PASS  AC-30 axe dark with the symbol sheet and delete confirmation open
+PASS  AC-30 axe light /m
+PASS  AC-30 axe light /m/history
+PASS  AC-30 axe light /m/market
+PASS  AC-30 axe light /m/watchlist
+PASS  AC-30 axe light /m/account
+PASS  AC-30 axe light /m/account/profile
+PASS  AC-30 axe light /m/c/d8855e52-53e6-4aa4-a0b1-d5dd8fd0835c
+PASS  AC-30 axe light /m/c/cb09e31a-adfa-46b3-9d3e-6f312bb78188
+PASS  AC-30 axe light with the symbol sheet and delete confirmation open
+PASS  T16 desktop banner below 1024 px; resizing never redirects; desktop head unchanged
+PASS  Fonts: no Google Fonts request on /m and /chat; Vazirmatn served from /fonts
+PASS  Type scale: body 17 px, secondary 14 px, tab label 13 px
+PASS  AC-26 Cache Storage holds static assets only  — 63 cached entries, all static, fonts precached
+PASS  AC-27 reload while offline shows /offline.html; «تلاش مجدد» loads the app when back online
+
+94/96 checks passed. Screenshots: d:\Source\TahlilApp-AI\src\frontend\dist\mobile-evidence

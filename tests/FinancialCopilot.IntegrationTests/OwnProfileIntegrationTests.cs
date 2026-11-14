@@ -6,6 +6,10 @@ using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.Authentication.TahlilApp;
 using FinancialCopilot.Domain.Identity.TahlilApp;
+using FinancialCopilot.Infrastructure.Authentication.Persistence;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using SkiaSharp;
 
 namespace FinancialCopilot.IntegrationTests;
 
@@ -59,6 +63,94 @@ public sealed class OwnProfileIntegrationTests(TahlilAppLaunchApiFactory factory
         Assert.Equal(JsonValueKind.Null, profile.GetProperty("mobileMasked").ValueKind);
         Assert.Equal(JsonValueKind.Null, profile.GetProperty("profileSyncedAtUtc").ValueKind);
         Assert.Equal(JsonValueKind.Null, profile.GetProperty("displayName").ValueKind);
+        Assert.Equal(JsonValueKind.Null, profile.GetProperty("contactMobileMasked").ValueKind);
+        Assert.False(profile.GetProperty("avatarAvailable").GetBoolean());
+    }
+
+    [Fact]
+    public async Task OwnProfile_UpdateNames_UsesLocalOverrideWithoutChangingTahlilAppSource()
+    {
+        var token = await LaunchWithProfileAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/api/auth/v1/profile")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) },
+            Content = JsonContent.Create(new { firstName = "Sara", lastName = "Karimi" })
+        };
+        using var update = await factory.CreateClient().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        var profile = await auth.UserProfiles.SingleAsync(row => row.LocalFirstName == "Sara" && row.LocalLastName == "Karimi");
+        Assert.Equal("Sara", profile.LocalFirstName);
+        Assert.Equal("Karimi", profile.LocalLastName);
+
+        using var response = await GetAsync("/api/auth/v1/profile", token);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var document = await JsonDocument.ParseAsync(stream);
+        Assert.Equal("Sara", document.RootElement.GetProperty("firstName").GetString());
+        Assert.Equal("Karimi", document.RootElement.GetProperty("lastName").GetString());
+
+        Assert.Equal("Ali", profile.FirstName);
+        Assert.Null(profile.LastName);
+    }
+
+    [Fact]
+    public async Task OwnProfile_VerifiesLocalMobile_WithoutChangingTahlilAppMobile()
+    {
+        var token = await LaunchWithProfileAsync();
+        factory.SmsSender.NextCode = "3741437414";
+        using var client = factory.CreateClient();
+
+        using var send = new HttpRequestMessage(HttpMethod.Post, "/api/auth/v1/profile/mobile/request")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) },
+            Content = JsonContent.Create(new { mobile = "09129876543" })
+        };
+        using var sent = await client.SendAsync(send);
+        Assert.Equal(HttpStatusCode.Accepted, sent.StatusCode);
+        Assert.Equal("09129876543", factory.SmsSender.LastMobile);
+
+        using var confirm = new HttpRequestMessage(HttpMethod.Post, "/api/auth/v1/profile/mobile/confirm")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) },
+            Content = JsonContent.Create(new { code = factory.SmsSender.NextCode })
+        };
+        using var confirmed = await client.SendAsync(confirm);
+        Assert.Equal(HttpStatusCode.NoContent, confirmed.StatusCode);
+
+        using var response = await GetAsync("/api/auth/v1/profile", token);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var document = await JsonDocument.ParseAsync(stream);
+        Assert.Equal("0912***6543", document.RootElement.GetProperty("contactMobileMasked").GetString());
+        Assert.Equal("0912•••4567", document.RootElement.GetProperty("mobileMasked").GetString());
+    }
+
+    [Fact]
+    public async Task OwnProfile_AcceptsAndServesNormalizedAvatar()
+    {
+        var token = await LaunchWithProfileAsync();
+        using var bitmap = new SKBitmap(1, 1);
+        bitmap.Erase(SKColors.Red);
+        using var encoded = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        var png = encoded.ToArray();
+        using var client = factory.CreateClient();
+        using var content = new MultipartFormDataContent();
+        var image = new ByteArrayContent(png);
+        image.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        content.Add(image, "File", "avatar.png");
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/api/auth/v1/profile/avatar")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) },
+            Content = content
+        };
+
+        using var uploaded = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.NoContent, uploaded.StatusCode);
+        using var get = await GetAsync("/api/auth/v1/profile/avatar", token);
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        Assert.Equal("image/jpeg", get.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]

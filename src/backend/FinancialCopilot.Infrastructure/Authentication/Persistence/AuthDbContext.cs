@@ -22,6 +22,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<UserOperationalMetadataRow> UserOperationalMetadata => Set<UserOperationalMetadataRow>();
     public DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
     public DbSet<AuthEmailActionTokenRow> AuthEmailActionTokens => Set<AuthEmailActionTokenRow>();
+    public DbSet<AuthMobileOtpRow> AuthMobileOtps => Set<AuthMobileOtpRow>();
     public DbSet<SecurityAdminAuditRow> SecurityAdminAudits => Set<SecurityAdminAuditRow>();
     public DbSet<TelegramAccountLinkRow> TelegramAccountLinks => Set<TelegramAccountLinkRow>();
     public DbSet<TelegramLinkTokenRow> TelegramLinkTokens => Set<TelegramLinkTokenRow>();
@@ -114,6 +115,18 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.EmailKeyHash).HasMaxLength(64).IsRequired();
             entity.Property(row => row.PendingEmail).HasMaxLength(320);
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
+        });
+        builder.Entity<AuthMobileOtpRow>(entity =>
+        {
+            entity.ToTable("auth_mobile_otps");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => row.CodeHash);
+            entity.HasIndex(row => new { row.UserId, row.CreatedAtUtc });
+            entity.HasIndex(row => new { row.UserId, row.MobileHash, row.CreatedAtUtc });
+            entity.Property(row => row.MobileHash).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.MobileEncrypted).HasMaxLength(2000).IsRequired();
+            entity.Property(row => row.CodeHash).HasMaxLength(64).IsRequired();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<SecurityAdminAuditRow>(entity =>
         {
@@ -271,6 +284,13 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.DisplayName).HasMaxLength(100);
             entity.Property(row => row.NationalIdLast4).HasMaxLength(4);
             entity.Property(row => row.MobileLast4).HasMaxLength(4);
+            entity.Property(row => row.LocalFirstName).HasMaxLength(100);
+            entity.Property(row => row.LocalLastName).HasMaxLength(100);
+            entity.Property(row => row.ContactMobileEncrypted).HasMaxLength(2000);
+            entity.Property(row => row.ContactMobileHash).HasMaxLength(64);
+            entity.Property(row => row.ContactMobileLast4).HasMaxLength(4);
+            entity.Property(row => row.AvatarContentType).HasMaxLength(64);
+            entity.HasIndex(row => row.ContactMobileHash).IsUnique().HasFilter("\"ContactMobileHash\" IS NOT NULL");
             entity.HasOne<FinancialCopilotUser>().WithOne().HasForeignKey<UserProfileRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }

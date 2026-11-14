@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.Authentication.Profile;
 using FinancialCopilot.Application.Authentication.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Profile;
+using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +38,24 @@ public static class TahlilAppServiceCollectionExtensions
         services.AddScoped<ITahlilAppSubscriptionSynchronizer, ExternalSubscriptionSynchronizer>();
         services.AddScoped<IOwnProfileStore, OwnProfileStore>();
         services.AddScoped<OwnProfileUseCase>();
+        services
+            .AddOptions<SmsOtpOptions>()
+            .Bind(configuration.GetSection(SmsOtpOptions.SectionName))
+            .Validate(options =>
+                options.TimeoutSeconds is >= 1 and <= 30 &&
+                options.CodeLifetimeMinutes is >= 1 and <= 15 &&
+                options.CooldownSeconds is >= 30 and <= 3600 &&
+                options.MaximumRequestsPerHour is >= 1 and <= 10 &&
+                options.MaximumCodeAttempts is >= 1 and <= 10 &&
+                (!options.Enabled ||
+                    options.Provider == "MelliPayamak" &&
+                    Uri.TryCreate(options.BaseAddress, UriKind.Absolute, out var baseUri) &&
+                    baseUri.Scheme == Uri.UriSchemeHttps && baseUri.Host == "console.melipayamak.com" &&
+                    options.OtpPathToken.Length is >= 16 and <= 256 && options.OtpPathToken.All(char.IsAsciiLetterOrDigit) &&
+                    options.CodeHashSecret.Length >= 32),
+                "Authentication SMS settings are invalid.")
+            .ValidateOnStart();
+        services.AddSingleton<ISmsOtpSender, MelliPayamakOtpSender>();
         services.AddScoped<TahlilAppSyncStateStore>();
         services.AddScoped<ITahlilAppEntitlementStateStore>(provider => provider.GetRequiredService<TahlilAppSyncStateStore>());
         services.AddScoped<ITahlilAppSyncStateRecorder>(provider => provider.GetRequiredService<TahlilAppSyncStateStore>());

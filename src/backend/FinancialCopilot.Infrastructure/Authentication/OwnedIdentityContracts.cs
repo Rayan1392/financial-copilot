@@ -30,6 +30,9 @@ public interface IOwnedIdentityService
     /// cannot learn which applies. Throws 400 for malformed input and 503 when email delivery is disabled.
     /// </summary>
     Task EnrollEmailAsync(Guid userId, string email, CancellationToken cancellationToken);
+    Task RequestEmailChangeAsync(Guid userId, string email, CancellationToken cancellationToken);
+    Task ConfirmEmailChangeAsync(string token, CancellationToken cancellationToken);
+    Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, CancellationToken cancellationToken);
 
     /// <summary>Consumes an <c>email_enrollment</c> token held by <paramref name="userId"/> and sets the email as confirmed.</summary>
     Task ConfirmEmailEnrollmentAsync(Guid userId, string token, CancellationToken cancellationToken);

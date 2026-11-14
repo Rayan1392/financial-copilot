@@ -35,6 +35,8 @@ function profile(displayName: string | null, overrides: Partial<OwnProfile> = {}
     nationalIdMasked: null,
     mobileMasked: null,
     profileSyncedAtUtc: null,
+    contactMobileMasked: null,
+    avatarAvailable: false,
     ...overrides,
   };
 }

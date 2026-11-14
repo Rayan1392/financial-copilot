@@ -24,10 +24,16 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 - `142-manual-noavaran-financial-statement-backfill` — add a DataAdmin-only, company/year/period/category scoped Noavaran current-API financial statement backfill to `/getCompanyId`, reusing provider acquisition and normalized persistence.
 - `143-telegram-financial-statement-report-trigger` — recognize authorized CodalMirror financial-statement announcements and invoke Feature 142's application service through Feature 130/133's existing Telegram channel boundary.
 
+## Account Profile
+
+- [`160-self-service-profile-editing`](./160-self-service-profile-editing/user-story.md) — let users update their local profile, verify contact-mobile and email changes, change passwords, and manage profile photos from desktop and mobile.
+
 ## Financial Statement Reporting
 
 - `144-quarterly-financial-reports-table` — proposed, read-only quarterly income-statement comparison table over persisted statement observations, with standalone-quarter normalization, typed comparisons, and traceable source/calculation evidence.
 - `154-ai-balance-sheet-report` — implemented locally (uncommitted), release gates open: V2-only read-only balance-sheet (ترازنامه / صورت وضعیت مالی) report over persisted Noavaran standalone statements. Banking and General templates are selected by `QuarterlyFinancialReports:BankingIndustryGroupId`. It adds a two-date comparison with five typed baselines, a funding-structure chart, and PNG and text renderings. It reuses Feature 144's fiscal-calendar policy and coexists with Feature 083's full statement table. Open gates: E-5 in each non-Development environment, E-1/E-2/E-8 evidence, and E-7 visual sign-off (see `154-ai-balance-sheet-report/ImplementationReport.md`).
+
+- `161-ai-cash-flow-statement-report` — **Gate A approved 2026-11-14 (amended); Gate B pending.** V2-only cash flow statement (صورت جریان‌های نقدی) report on the Codal classification: operating cash flow = item 128 («- جدید») with investing 121 and financing 123 (Codal), check `128 + 121 = 122`, exact reconciliation with an explicit FX step, General and Banking templates by GroupId, standalone quarters from cumulative statements, waterfall chart and PNG. `user-story.md`, `tasks.md`; OQ-074…OQ-086 answered, OQ-087 open.
 
 ## Admin Analytics
 

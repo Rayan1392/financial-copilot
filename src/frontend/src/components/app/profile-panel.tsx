@@ -21,6 +21,7 @@ import {
   type ProfileRevealField,
 } from "@/integrations/financial-copilot/auth";
 import { MISSING_PROFILE_VALUE, profileDisplayName } from "@/lib/profile-display-name";
+import { ProfileEditor } from "./profile-editor";
 
 const ACCOUNT_STATE_LABELS: Record<AccountAuthState, string> = {
   A: "ورود فقط از طریق تحلیل‌اپ",
@@ -98,6 +99,7 @@ export function ProfilePanel({
           <div className={showHeading ? "mt-5 space-y-4" : "space-y-4"}>
             {subscription}
             <AccountSummaryCard summary={summary} />
+            <ProfileEditor summary={summary} signInRedirect={signInRedirect} />
             {summary.hasTahlilAppIdentity ? <TahlilAppProfileCard /> : null}
             {!summary.emailConfirmed ? <EmailEnrollmentCard /> : null}
             <PasswordCard

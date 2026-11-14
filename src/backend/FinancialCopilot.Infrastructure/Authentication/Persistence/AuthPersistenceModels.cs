@@ -88,6 +88,19 @@ public sealed class AuthEmailActionTokenRow
     public string? PendingEmail { get; set; }
 }
 
+public sealed class AuthMobileOtpRow
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string MobileHash { get; set; } = string.Empty;
+    public string MobileEncrypted { get; set; } = string.Empty;
+    public string CodeHash { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime? ConsumedAtUtc { get; set; }
+    public int AttemptCount { get; set; }
+}
+
 public sealed class SecurityAdminAuditRow
 {
     public Guid Id { get; set; }

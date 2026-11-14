@@ -1,0 +1,240 @@
+[
+  {
+    "Phrase": "همین گزارش را برای فولاد بده",
+    "Message": "همین گزارش را برای فولاد بده",
+    "OriginalUserMessage": "همین گزارش را برای فولاد بده",
+    "SemanticRoutingDisposition": "SemanticPrimary",
+    "Capability": "financial_statement_table",
+    "Slots": [
+      {
+        "Type": 2,
+        "Value": "فولاد",
+        "ValidationState": 0
+      },
+      {
+        "Type": 7,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 10,
+        "Value": "CashFlow",
+        "ValidationState": 0
+      },
+      {
+        "Type": 11,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 12,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 13,
+        "Value": null,
+        "ValidationState": 0
+      }
+    ]
+  },
+  {
+    "Phrase": "دوره قبلش چطور بود؟",
+    "Message": "دوره قبلش چطور بود؟",
+    "OriginalUserMessage": "دوره قبلش چطور بود؟",
+    "SemanticRoutingDisposition": "SemanticPrimary",
+    "Capability": "financial_statement_table",
+    "Slots": [
+      {
+        "Type": 2,
+        "Value": "فولاد",
+        "ValidationState": 0
+      },
+      {
+        "Type": 10,
+        "Value": "CashFlow",
+        "ValidationState": 0
+      }
+    ]
+  },
+  {
+    "Phrase": "با سود خالصش مقایسه کن",
+    "Message": "با سود خالصش مقایسه کن",
+    "OriginalUserMessage": "با سود خالصش مقایسه کن",
+    "SemanticRoutingDisposition": "Clarification",
+    "Capability": "symbol_metric_lookup",
+    "Slots": [
+      {
+        "Type": 2,
+        "Value": "خالص",
+        "ValidationState": 4
+      },
+      {
+        "Type": 3,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 5,
+        "Value": null,
+        "ValidationState": 4
+      },
+      {
+        "Type": 10,
+        "Value": "CashFlow",
+        "ValidationState": 0
+      }
+    ]
+  },
+  {
+    "Phrase": "وضعیت تامین مالی آن چطور است؟",
+    "Message": "وضعیت تامین مالی آن چطور است؟",
+    "OriginalUserMessage": "وضعیت تامین مالی آن چطور است؟",
+    "SemanticRoutingDisposition": "Clarification",
+    "Capability": "comprehensive_analysis",
+    "Slots": [
+      {
+        "Type": 2,
+        "Value": "وضعیت",
+        "ValidationState": 4
+      },
+      {
+        "Type": 15,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 7,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 22,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 10,
+        "Value": "CashFlow",
+        "ValidationState": 0
+      }
+    ]
+  },
+  {
+    "Phrase": "ترازنامه‌اش را هم نشان بده",
+    "Message": "ترازنامه‌اش را هم نشان بده",
+    "OriginalUserMessage": "ترازنامه‌اش را هم نشان بده",
+    "SemanticRoutingDisposition": "Clarification",
+    "Capability": "financial_statement_table",
+    "Slots": [
+      {
+        "Type": 2,
+        "Value": "هم",
+        "ValidationState": 4
+      },
+      {
+        "Type": 7,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 10,
+        "Value": "CashFlow",
+        "ValidationState": 0
+      },
+      {
+        "Type": 11,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 12,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 13,
+        "Value": null,
+        "ValidationState": 0
+      }
+    ]
+  },
+  {
+    "Phrase": "سود و زیانش چطور؟",
+    "Message": "سود و زیانش چطور؟",
+    "OriginalUserMessage": "سود و زیانش چطور؟",
+    "SemanticRoutingDisposition": "Clarification",
+    "Capability": "financial_statement_table",
+    "Slots": [
+      {
+        "Type": 2,
+        "Value": "زیانشچطور",
+        "ValidationState": 4
+      },
+      {
+        "Type": 7,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 10,
+        "Value": "CashFlow",
+        "ValidationState": 0
+      },
+      {
+        "Type": 11,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 12,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 13,
+        "Value": null,
+        "ValidationState": 0
+      }
+    ]
+  },
+  {
+    "Phrase": "ترازنامه‌اش",
+    "Message": "ترازنامه‌اش",
+    "OriginalUserMessage": "ترازنامه‌اش",
+    "SemanticRoutingDisposition": "Clarification",
+    "Capability": "financial_statement_table",
+    "Slots": [
+      {
+        "Type": 2,
+        "Value": "فولاد",
+        "ValidationState": 0
+      },
+      {
+        "Type": 7,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 10,
+        "Value": "BalanceSheet;report=feature154_balance_sheet_report",
+        "ValidationState": 0
+      },
+      {
+        "Type": 11,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 12,
+        "Value": null,
+        "ValidationState": 0
+      },
+      {
+        "Type": 13,
+        "Value": null,
+        "ValidationState": 0
+      }
+    ]
+  }
+]

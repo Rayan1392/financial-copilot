@@ -1,6 +1,6 @@
 # Tasks: AI Cash Flow Statement Report (صورت جریان‌های نقدی)
 
-Status: Gate A: Approved by the owner on 2026-11-14 — plan proposed, Gate B not approved
+Status: Gate B: Approved by the owner on 2026-11-14
 
 ## Feature Folder
 
@@ -10,8 +10,8 @@ Paths: backend relative to `src/backend/`, frontend relative to `src/frontend/sr
 
 ## Before Starting
 
-- [ ] This file's `Status:` line records Gate B approval by the owner (see `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`, "Recording Approval").
-- [ ] The features in `Depends On` are done (their `tasks.md` definition of done is ticked).
+- [x] This file's `Status:` line records Gate B approval by the owner (see `specs/FEATURE_DEVELOPMENT_WORKFLOW.md`, "Recording Approval").
+- [x] The features in `Depends On` are done (their `tasks.md` definition of done is ticked). **Exception approved by the owner on 2026-11-14:** 117, 120, 121 are done; 154 is `[~]` (open: E-7 visual sign-off, E-5 production, E-1/E-2/E-8 evidence) and 144 has task B4 unticked. Feature 161 uses only their implemented code and rules, so work proceeds; T02 must keep every `BalanceSheetReport154*` test green.
 - [ ] Read `user-story.md`, the references it lists, and the relevant `docs/` files.
 - [ ] No open question in `specs/open-questions.md` blocks this spec (OQ-087 must be answered or its proposal (a) confirmed at Gate B).
 

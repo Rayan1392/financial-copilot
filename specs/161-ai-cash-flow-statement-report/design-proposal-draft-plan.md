@@ -1,6 +1,6 @@
 # Feature 161 — Test Data and Expected Results
 
-Status: Gate A: Approved by the owner on 2026-11-14 — test data for the plan in [tasks.md](tasks.md), Gate B not approved
+Status: Gate A: Approved by the owner on 2026-11-14 — test data for the plan in [tasks.md](tasks.md) (Gate B approved 2026-11-14)
 
 The task list, phases, test strategy and definition of done that were drafted here before Gate A now live in [tasks.md](tasks.md). This file keeps the synthetic cases and exact expected results that the tasks and the acceptance criteria in [user-story.md](user-story.md) refer to. Section numbers are kept so existing links stay valid.
 

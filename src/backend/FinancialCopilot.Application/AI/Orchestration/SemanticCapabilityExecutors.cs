@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
+using FinancialCopilot.Application.FinancialData.CashFlowReport;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Insights;
@@ -410,7 +411,8 @@ public sealed class ProductSalesTrendCapabilityExecutor(
 
 public sealed class FinancialStatementTableCapabilityExecutor(
     IFinancialStatementTableQueryUseCase useCase,
-    Feature154RoutingScope? feature154 = null) : IConversationalCapabilityExecutor
+    Feature154RoutingScope? feature154 = null,
+    Feature161CashFlowRoutingScope? feature161 = null) : IConversationalCapabilityExecutor
 {
     /// <summary>
     /// Report family of the last statement-table turn (V2 only). It travels inside the governed statementType slot
@@ -418,10 +420,13 @@ public sealed class FinancialStatementTableCapabilityExecutor(
     /// شگل», «با گزارش قبلی مقایسه کن») repeats that report. V1 never writes it.
     /// </summary>
     public const string Feature154ReportMarker = "feature154_balance_sheet_report";
+    public const string Feature161ReportMarker = "feature161_cash_flow_report";
     public const string Feature144ReportMarker = "feature144_quarterly_report";
 
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
+    private readonly Feature161CashFlowRoutingScope _cashFlowScope = feature161 ?? new(false, Feature154RoutingScope.V2);
+    private bool _feature161 => _cashFlowScope.IsActive;
 
     public string CapabilityCode => "financial_statement_table";
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
@@ -453,13 +458,18 @@ public sealed class FinancialStatementTableCapabilityExecutor(
         // The carried report repeats only for the bare follow-ups the dialogue gate continues («همین را برای X», a
         // baseline/comparison cue); any other carried-over message behaves exactly as with a Feature 083 task (F154-R-14).
         var repeat = FinancialStatementTableIntentRules.LooksLikeRepeatForCompany(original);
+        var cashFlow = _feature161 ? FinancialStatementTableIntentRules.ResolveCashFlowRequest(original)
+            : new FinancialStatementTableIntentRules.CashFlowRequestCue(false, null, null);
+        if (!cashFlow.Use && explicitType is null && carriedReport == Feature161ReportMarker &&
+            (repeat || FinancialStatementTableIntentRules.LooksLikeCashFlowFollowUpCue(original)))
+            cashFlow = FinancialStatementTableIntentRules.ResolveCashFlowFollowUp(original);
         var quarterly = FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(original) ||
                         explicitType is null && carriedReport == Feature144ReportMarker && repeat;
         var balanceSheet = FinancialStatementTableIntentRules.ResolveBalanceSheetRequest(original);
         if (!balanceSheet.Use && explicitType is null && carriedReport == Feature154ReportMarker &&
             (repeat || FinancialStatementTableIntentRules.LooksLikeBalanceSheetFollowUpCue(original)))
             balanceSheet = FinancialStatementTableIntentRules.ResolveBalanceSheetFollowUp(original);
-        var statementType = explicitType ??
+        var statementType = cashFlow.Use ? FinancialStatementType.CashFlow : explicitType ??
                             (quarterly ? FinancialStatementType.IncomeStatement : (FinancialStatementType?)null) ??
                             statementSlot;
         var query = new FinancialStatementTableQuery(
@@ -477,10 +487,14 @@ public sealed class FinancialStatementTableCapabilityExecutor(
             BalanceSheetView: balanceSheet.View,
             BaselineKind: balanceSheet.BaselineKind,
             ComparisonDates: balanceSheet.Dates,
-            UnsupportedVariantFilter: balanceSheet.UnsupportedVariantFilter);
+            UnsupportedVariantFilter: cashFlow.Use ? cashFlow.UnsupportedVariantFilter : balanceSheet.UnsupportedVariantFilter,
+            CashFlowReportRequest: cashFlow.Request is null ? null : cashFlow.Request with
+                { CompanyQuery = frame.Value(QuerySlotType.CompanyOrSymbol) ?? cashFlow.Request.CompanyQuery });
         var result = await useCase.ExecuteAsync(query, cancellationToken);
         if (result?.BalanceSheetReport is { } report)
             return BalanceSheetOutcome(frame, result, report);
+        if (result?.CashFlowReport is { } cashFlowReport)
+            return CashFlowOutcome(frame, result, cashFlowReport);
         return result is null ? NoData(frame) : Success(frame, result);
     }
 
@@ -520,6 +534,17 @@ public sealed class FinancialStatementTableCapabilityExecutor(
         // A date combined with a Feature 083-only filter has no supported rows; the typed message names both (PD-20).
         BalanceSheetOutcomes.UnsupportedDateWithVariant =>
             new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, result),
+        _ => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, result)
+    };
+
+    public static CapabilityExecutionResult CashFlowOutcome(ValidatedQueryFrame frame, FinancialStatementTableResult result,
+        CashFlowReportResult report) => report.Outcome switch
+    {
+        "available" => Success(frame, result),
+        "company_ambiguous" => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, DialogueOutcomeReasonCodes.EntityAmbiguous, result),
+        "company_unresolved" or "provider_unavailable" => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.EntityNotFound, result),
+        "company_classification_unavailable" or "too_many_report_versions" or "unsupported_presentation" or "operating_total_missing" =>
+            new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.DataStaleOrIneligible, result),
         _ => new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows, result)
     };
 }

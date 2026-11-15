@@ -71,6 +71,53 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.ToTable("auth_email_action_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.AuthMobileOtpRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MobileEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("MobileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeHash");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.HasIndex("UserId", "MobileHash", "CreatedAtUtc");
+
+                    b.ToTable("auth_mobile_otps", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.FinancialCopilotRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -935,6 +982,25 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<byte[]>("AvatarBytes")
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("AvatarContentType")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ContactMobileEncrypted")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ContactMobileHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ContactMobileLast4")
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -947,6 +1013,14 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("LastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LocalFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LocalLastName")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -971,6 +1045,10 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("UserId");
+
+                    b.HasIndex("ContactMobileHash")
+                        .IsUnique()
+                        .HasFilter("\"ContactMobileHash\" IS NOT NULL");
 
                     b.ToTable("auth_user_profiles", (string)null);
                 });
@@ -1101,6 +1179,15 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.FinancialCopilotUser", null)
                         .WithMany()
                         .HasForeignKey("UserId");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.AuthMobileOtpRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.FinancialCopilotUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.RefreshTokenRow", b =>

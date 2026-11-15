@@ -1,0 +1,1102 @@
+[
+  {
+    "Case": "fresh-0",
+    "Phrase": "صورت جریان وجوه نقد فلوله",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان وجوه نقد فلوله",
+        "CompanyQuery": "فلوله",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-1",
+    "Phrase": "صورت جریان‌های نقدی فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-2",
+    "Phrase": "گزارش جریان نقدی وبملت",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "گزارش جریان نقدی وبملت",
+        "CompanyQuery": "وبملت",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-3",
+    "Phrase": "گردش وجوه نقد شگل",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-4",
+    "Phrase": "صورت جریان نقد فملی در شش ماهه ۱۴۰۵",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان نقد فملی در شش ماهه ۱۴۰۵",
+        "CompanyQuery": "فملی 1405",
+        "StatementType": 2,
+        "PeriodMonths": 6,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-5",
+    "Phrase": "Cash Flow Statement فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "Cash Flow Statement فولاد",
+        "CompanyQuery": "فولاد",
+        "StatementType": null,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-6",
+    "Phrase": "صورت جریان وجوه نقد فولاد را بررسی کن",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-7",
+    "Phrase": "جدول کامل جریان وجوه نقد فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "جدول کامل جریان وجوه نقد فولاد",
+        "CompanyQuery": "کامل فولاد",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-8",
+    "Phrase": "صورت جریان وجوه نقد تلفیقی فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان وجوه نقد تلفیقی فولاد",
+        "CompanyQuery": "فولاد",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": true,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-9",
+    "Phrase": "صورت جریان وجوه نقد فولاد در ۱۴۰۵/۰۶/۳۱ تلفیقی",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان وجوه نقد فولاد در ۱۴۰۵/۰۶/۳۱ تلفیقی",
+        "CompanyQuery": "فولاد 1405/06/31",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": true,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-10",
+    "Phrase": "جریان نقد عملیاتی فلوله چقدر است؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-11",
+    "Phrase": "مانده وجه نقد وبملت چقدر است؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-12",
+    "Phrase": "فلوله چقدر تسهیلات دریافت کرده؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-13",
+    "Phrase": "خالص جریان نقد تامین مالی فولاد چقدر بوده؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-14",
+    "Phrase": "جریان نقد آزاد کگل چقدر است؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-15",
+    "Phrase": "وبملت چقدر سود سهام نقدی پرداخت کرده؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-16",
+    "Phrase": "مخارج سرمایه‌ای فلوله",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-17",
+    "Phrase": "اثر نرخ ارز بر وجه نقد وبملت",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-18",
+    "Phrase": "آیا سود فلوله پشتوانه نقدی دارد؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-19",
+    "Phrase": "آیا فولاد از عملیات خود نقد تولید می‌کند؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-20",
+    "Phrase": "علت افزایش موجودی نقد وبملت چیست؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-21",
+    "Phrase": "آیا کگل برای سرمایه‌گذاری‌هایش به تسهیلات وابسته است؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-22",
+    "Phrase": "کیفیت سود شگل از نظر جریان نقدی چگونه است؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-23",
+    "Phrase": "تحلیل جریان نقد فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-24",
+    "Phrase": "تحلیل ترازنامه و جریان وجوه نقد فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementPeriodAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-25",
+    "Phrase": "روند جریان نقد عملیاتی فولاد در دو سال اخیر",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "MonthlyActivityTrend",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-26",
+    "Phrase": "جریان نقد فلوله را با سال قبل مقایسه کن",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-27",
+    "Phrase": "جریان نقد عملیاتی کگل و کچاد را مقایسه کن",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-28",
+    "Phrase": "صورت جریان نقدی وبملت را فصل به فصل نشان بده",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان نقدی وبملت را فصل به فصل نشان بده",
+        "CompanyQuery": "وبملت",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-29",
+    "Phrase": "صورت جریان نقدی فلوله در چهار فصل اخیر",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان نقدی فلوله در چهار فصل اخیر",
+        "CompanyQuery": "فلوله چهار",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-30",
+    "Phrase": "جریان وجوه نقد وبملت در شش‌ماهه ۱۴۰۵",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "جریان وجوه نقد وبملت در شش‌ماهه ۱۴۰۵",
+        "CompanyQuery": "وبملت 1405",
+        "StatementType": 2,
+        "PeriodMonths": 6,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-31",
+    "Phrase": "جریان نقد عملیاتی کگل نسبت به سال قبل",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-32",
+    "Phrase": "جریان نقد سالانه فولاد در سه سال اخیر",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-33",
+    "Phrase": "گزارش جریان نقدی فصلی فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "گزارش جریان نقدی فصلی فولاد",
+        "CompanyQuery": "فولاد",
+        "StatementType": 2,
+        "PeriodMonths": 3,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": true,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-34",
+    "Phrase": "جریان نقد فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-35",
+    "Phrase": "جریان نقد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-36",
+    "Phrase": "موجودی نقد وبملت",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-37",
+    "Phrase": "وضعیت نقدینگی وبملت",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-38",
+    "Phrase": "نسبت نقدینگی وبملت",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-39",
+    "Phrase": "جریان نقدینگی حقیقی فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "جریان نقدینگی حقیقی فولاد",
+        "CompanyQuery": "نگی حقیقی فولاد",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-40",
+    "Phrase": "سود نقدی هر سهم فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-41",
+    "Phrase": "DPS فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-42",
+    "Phrase": "سود خالص فلوله چقدر است؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-43",
+    "Phrase": "نسبت جاری فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-44",
+    "Phrase": "جریان نقد عملیاتی بانک‌ها",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-45",
+    "Phrase": "آخرین ترازنامه کگل",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "آخرین ترازنامه کگل",
+        "CompanyQuery": "کگل",
+        "StatementType": 1,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": true,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-46",
+    "Phrase": "ترازنامه وبملت را با پایان سال مالی قبل مقایسه کن",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "ترازنامه وبملت را با پایان سال مالی قبل مقایسه کن",
+        "CompanyQuery": "وبملت",
+        "StatementType": 1,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": true,
+        "BalanceSheetView": "comparison",
+        "BaselineKind": "fiscal_year_end",
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-47",
+    "Phrase": "ترازنامه‌اش",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-48",
+    "Phrase": "گزارش فصلی فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "گزارش فصلی فولاد",
+        "CompanyQuery": "فولاد",
+        "StatementType": 0,
+        "PeriodMonths": 3,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": true,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-49",
+    "Phrase": "صورت سود و زیان فصلی فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت سود و زیان فصلی فولاد",
+        "CompanyQuery": "فولاد",
+        "StatementType": 0,
+        "PeriodMonths": 3,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": true,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-50",
+    "Phrase": "عملکرد ۵ فصل اخیر فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-51",
+    "Phrase": "عملکرد فصلی فملی را بررسی کن",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "عملکرد فصلی فملی را بررسی کن",
+        "CompanyQuery": "فملی",
+        "StatementType": 0,
+        "PeriodMonths": 3,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": true,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-52",
+    "Phrase": "جدول صورت سود و زیان فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "جدول صورت سود و زیان فولاد",
+        "CompanyQuery": "فولاد",
+        "StatementType": 0,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": true,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": [],
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-53",
+    "Phrase": "تحلیل ترازنامه شگل",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementPeriodAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-54",
+    "Phrase": "تحلیل صورت مالی فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementPeriodAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-55",
+    "Phrase": "روند فروش ماهانه فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "MonthlyActivityTrend",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-56",
+    "Phrase": "تحلیل جامع فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-57",
+    "Phrase": "آخرین اطلاعیه جریان وجه نقد فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "DisclosureListing",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-58",
+    "Phrase": "اطلاعیه‌های کدال فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "DisclosureListing",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-59",
+    "Phrase": "ترازنامه و جریان وجوه نقد فولاد",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-60",
+    "Phrase": "صورت جریان نقدی فلوله را نشان بده",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان نقدی فلوله را نشان بده",
+        "CompanyQuery": "فلوله",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "fresh-61",
+    "Phrase": "همین گزارش را برای فولاد بده",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-62",
+    "Phrase": "دوره قبلش چطور بود؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-63",
+    "Phrase": "با سود خالصش مقایسه کن",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-64",
+    "Phrase": "وضعیت تامین مالی آن چطور است؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-65",
+    "Phrase": "ترازنامه‌اش را هم نشان بده",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "fresh-66",
+    "Phrase": "سود و زیانش چطور؟",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "U1",
+    "Phrase": "صورت جریان نقدی فلوله را نشان بده",
+    "IsFollowUp": false,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": [
+      {
+        "UserMessage": "صورت جریان نقدی فلوله را نشان بده",
+        "CompanyQuery": "فلوله",
+        "StatementType": 2,
+        "PeriodMonths": null,
+        "IsAudited": null,
+        "IsRepresented": null,
+        "IsComposing": null,
+        "UseQuarterlyReportTable": false,
+        "QuarterCount": 5,
+        "EndingPeriod": null,
+        "UseBalanceSheetReport": false,
+        "BalanceSheetView": "default",
+        "BaselineKind": null,
+        "ComparisonDates": null,
+        "UnsupportedVariantFilter": null
+      }
+    ]
+  },
+  {
+    "Case": "U2",
+    "Phrase": "همین گزارش را برای فولاد بده",
+    "IsFollowUp": true,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "U3",
+    "Phrase": "دوره قبلش چطور بود؟",
+    "IsFollowUp": true,
+    "Status": 200,
+    "Intent": "Unknown",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "U4",
+    "Phrase": "با سود خالصش مقایسه کن",
+    "IsFollowUp": true,
+    "Status": 200,
+    "Intent": "SymbolLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "U5",
+    "Phrase": "وضعیت تامین مالی آن چطور است؟",
+    "IsFollowUp": true,
+    "Status": 200,
+    "Intent": "ComprehensiveAnalysis",
+    "Clarification": "False",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "U6",
+    "Phrase": "ترازنامه‌اش را هم نشان بده",
+    "IsFollowUp": true,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  },
+  {
+    "Case": "U7",
+    "Phrase": "سود و زیانش چطور؟",
+    "IsFollowUp": true,
+    "Status": 200,
+    "Intent": "FinancialStatementTableLookup",
+    "Clarification": "True",
+    "Executor": null,
+    "TableQueries": []
+  }
+]

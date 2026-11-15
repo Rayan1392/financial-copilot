@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
+using FinancialCopilot.Application.FinancialData.CashFlowReport;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
@@ -977,6 +978,9 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiOrchestrationOptions>>().Value.Mode == AiOrchestrationMode.MicrosoftAgentFrameworkV2
                 ? FinancialCopilot.Application.AI.Orchestration.Feature154RoutingScope.V2
                 : FinancialCopilot.Application.AI.Orchestration.Feature154RoutingScope.V1Frozen);
+        services.AddSingleton(provider => new FinancialCopilot.Application.AI.Orchestration.Feature161CashFlowRoutingScope(
+            configuration.GetValue<bool>($"{CashFlowReportOptions.SectionName}:Enabled"),
+            provider.GetRequiredService<FinancialCopilot.Application.AI.Orchestration.Feature154RoutingScope>()));
 
         var orchestrationMode = configuration
             .GetSection(AiOrchestrationOptions.SectionName)
@@ -1416,6 +1420,9 @@ public static class ServiceCollectionExtensions
         // Feature 154 balance-sheet report (read-only, bounded; reuses Feature 144 resolution and classification).
         services.AddScoped<IBalanceSheetStatementReader, EfCoreBalanceSheetStatementReader>();
         services.AddScoped<IBalanceSheetReportQueryUseCase, BalanceSheetReportQueryUseCase>();
+        services.AddScoped<ICashFlowStatementReader, EfCoreCashFlowStatementReader>();
+        services.Configure<CashFlowReportOptions>(configuration.GetSection(CashFlowReportOptions.SectionName));
+        services.AddScoped<ICashFlowReportQueryUseCase, CashFlowReportQueryUseCase>();
         // Spec 075 â€” product revenue mix: calculator + repository wired after monthly-activity ingestion.
         services.AddScoped<ICompanyProductRevenueMixRepository, EfCoreProductRevenueMixRepository>();
         services.AddScoped<ICompanyProductRevenueMixCalculator, CompanyProductRevenueMixCalculator>();

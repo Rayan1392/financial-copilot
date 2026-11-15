@@ -1,0 +1,60 @@
+{
+  "fixtureA": {
+    "contractVersion": "161.1",
+    "outcome": "available",
+    "templateId": "GeneralCashFlow",
+    "company": { "symbol": "فولاد", "name": "فولاد مبارکه اصفهان", "providerName": "NoavaranCurrentApi" },
+    "request": { "view": "default", "focus": "report" },
+    "columns": [{ "columnId": "a", "kind": "anchor", "label": "شش‌ماهه ۱۴۰۵", "periodMonths": 6, "derivation": "reported_ytd", "state": "available" }],
+    "sections": [
+      { "sectionId": "operating", "label": "فعالیت‌های عملیاتی", "rows": [{ "rowId": "item_128", "label": "جریان نقد عملیاتی", "kind": "subtotal", "sourceItemIds": [122, 121], "cells": { "a": { "value": 476771599, "state": "available" } } }] },
+      { "sectionId": "investing", "label": "فعالیت‌های سرمایه‌گذاری", "rows": [{ "rowId": "item_121", "label": "جریان نقد سرمایه‌گذاری", "kind": "subtotal", "sourceItemIds": [121], "cells": { "a": { "value": -386693808, "state": "available" } } }] },
+      { "sectionId": "financing", "label": "فعالیت‌های تأمین مالی", "rows": [{ "rowId": "item_123", "label": "جریان نقد تأمین مالی", "kind": "subtotal", "sourceItemIds": [123], "cells": { "a": { "value": -152999407, "state": "available" } } }] },
+      { "sectionId": "reconciliation", "label": "تطبیق وجه نقد", "rows": [
+        { "rowId": "item_124", "label": "خالص تغییر وجه نقد", "kind": "subtotal", "sourceItemIds": [124], "cells": { "a": { "value": -62921616, "state": "available" } } },
+        { "rowId": "item_33", "label": "مانده آغاز دوره", "kind": "balance", "sourceItemIds": [33], "cells": { "a": { "value": 369338103, "state": "available" } } },
+        { "rowId": "item_35", "label": "اثر ارز", "kind": "detail", "sourceItemIds": [35], "cells": { "a": { "value": 19413660, "state": "available" } } },
+        { "rowId": "item_125", "label": "مانده پایان دوره", "kind": "subtotal", "sourceItemIds": [125], "cells": { "a": { "value": 325830147, "state": "available" } } }
+      ] }
+    ],
+    "kpis": [],
+    "verification": { "status": "verified", "checks": [] },
+    "warnings": [], "notices": []
+  },
+  "fixtureB": {
+    "contractVersion": "161.1",
+    "outcome": "available",
+    "templateId": "BankingCashFlow",
+    "company": { "symbol": "وبملت", "name": "بانک ملت", "providerName": "NoavaranCurrentApi" },
+    "request": { "view": "default", "focus": "report" },
+    "columns": [{ "columnId": "b", "kind": "anchor", "label": "شش‌ماهه ۱۴۰۵", "periodMonths": 6, "derivation": "reported_ytd", "state": "available" }],
+    "sections": [
+      { "sectionId": "operating", "label": "فعالیت‌های عملیاتی", "rows": [{ "rowId": "item_128", "label": "جریان نقد عملیاتی", "kind": "subtotal", "sourceItemIds": [122, 121], "cells": { "b": { "value": 386206543, "state": "available" } } }] },
+      { "sectionId": "investing", "label": "فعالیت‌های سرمایه‌گذاری", "rows": [{ "rowId": "item_121", "label": "جریان نقد سرمایه‌گذاری", "kind": "subtotal", "sourceItemIds": [121], "cells": { "b": { "value": -43767594, "state": "available" } } }] },
+      { "sectionId": "financing", "label": "فعالیت‌های تأمین مالی", "rows": [{ "rowId": "item_123", "label": "جریان نقد تأمین مالی", "kind": "subtotal", "sourceItemIds": [123], "cells": { "b": { "value": -141868091, "state": "available" } } }] },
+      { "sectionId": "reconciliation", "label": "تطبیق وجه نقد", "rows": [
+        { "rowId": "item_124", "label": "خالص تغییر وجه نقد", "kind": "subtotal", "sourceItemIds": [124], "cells": { "b": { "value": 200570858, "state": "available" } } },
+        { "rowId": "item_33", "label": "مانده آغاز دوره", "kind": "balance", "sourceItemIds": [33], "cells": { "b": { "value": 2718638069, "state": "available" } } },
+        { "rowId": "item_35", "label": "اثر ارز", "kind": "detail", "sourceItemIds": [35], "cells": { "b": { "value": 617787300, "state": "available" } } },
+        { "rowId": "item_125", "label": "مانده پایان دوره", "kind": "subtotal", "sourceItemIds": [125], "cells": { "b": { "value": 3536996227, "state": "available" } } }
+      ] }
+    ],
+    "kpis": [], "verification": { "status": "verified", "checks": [] }, "warnings": [], "notices": []
+  },
+  "quarterly": {
+    "contractVersion": "161.1", "outcome": "available", "templateId": "GeneralCashFlow",
+    "company": { "symbol": "فولاد", "providerName": "NoavaranCurrentApi" }, "request": { "view": "default", "focus": "report" },
+    "columns": [
+      { "columnId": "q1", "kind": "standalone_quarter", "label": "فصل ۲ ۱۴۰۴", "fiscalYear": 1404, "quarter": 2, "periodMonths": 3, "derivation": "ytd_difference", "state": "unavailable", "reason": "missing_predecessor" },
+      { "columnId": "q2", "kind": "standalone_quarter", "label": "فصل ۳ ۱۴۰۴", "fiscalYear": 1404, "quarter": 3, "periodMonths": 3, "derivation": "ytd_difference", "state": "unavailable", "reason": "missing_predecessor" },
+      { "columnId": "q3", "kind": "standalone_quarter", "label": "فصل ۴ ۱۴۰۴", "fiscalYear": 1404, "quarter": 4, "periodMonths": 3, "derivation": "ytd_difference", "state": "unavailable", "reason": "missing_predecessor" },
+      { "columnId": "q4", "kind": "standalone_quarter", "label": "فصل ۱ ۱۴۰۵", "fiscalYear": 1405, "quarter": 1, "periodMonths": 3, "derivation": "reported_ytd", "state": "unavailable", "reason": "missing_predecessor" },
+      { "columnId": "q5", "kind": "standalone_quarter", "label": "فصل ۲ ۱۴۰۵", "fiscalYear": 1405, "quarter": 2, "periodMonths": 3, "derivation": "ytd_difference", "state": "unavailable", "reason": "missing_predecessor" }],
+    "sections": [{ "sectionId": "operating", "label": "فعالیت‌های عملیاتی", "rows": [{ "rowId": "item_128", "label": "جریان نقد عملیاتی", "kind": "subtotal", "sourceItemIds": [122, 121], "cells": { "q1": { "value": null, "state": "unavailable", "reason": "missing_predecessor" }, "q2": { "value": null, "state": "unavailable", "reason": "missing_predecessor" }, "q3": { "value": null, "state": "unavailable", "reason": "missing_predecessor" }, "q4": { "value": null, "state": "unavailable", "reason": "missing_predecessor" }, "q5": { "value": null, "state": "unavailable", "reason": "missing_predecessor" } } }] }], "kpis": [], "verification": { "status": "unverified", "checks": [] }, "warnings": [], "notices": ["Fixture contains no historical quarterly values."]
+  },
+  "failed": {
+    "contractVersion": "161.1", "outcome": "failed", "outcomeReason": "unsupported_presentation", "message": "Unsupported report presentation.",
+    "company": { "symbol": "فولاد", "providerName": "NoavaranCurrentApi" }, "request": { "view": "default", "focus": "report" },
+    "columns": [], "sections": [], "kpis": [], "verification": { "status": "unverified", "checks": [] }, "warnings": [], "notices": []
+  }
+}

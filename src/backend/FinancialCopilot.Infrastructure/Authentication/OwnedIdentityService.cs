@@ -37,6 +37,7 @@ public sealed class OwnedIdentityService(
     private const string VerificationPurpose = "email_verification";
     private const string PasswordResetPurpose = "password_reset";
     private const string EnrollmentPurpose = "email_enrollment";
+    private const string EmailChangePurpose = "email_change";
     private const int MaximumEmailLength = 320;
 
     /// <summary>Authentication method (<c>amr</c>) for sessions created by password login (Design §12).</summary>
@@ -371,12 +372,49 @@ public sealed class OwnedIdentityService(
         await IssueEmailTokenAndSendAsync(user, EnrollmentPurpose, cancellationToken, pendingEmail: normalizedEmail);
     }
 
-    public async Task ConfirmEmailEnrollmentAsync(Guid userId, string token, CancellationToken cancellationToken)
+    public Task ConfirmEmailEnrollmentAsync(Guid userId, string token, CancellationToken cancellationToken) =>
+        ConfirmPendingEmailAsync(userId, token, EnrollmentPurpose, cancellationToken);
+
+    public async Task RequestEmailChangeAsync(Guid userId, string email, CancellationToken cancellationToken)
+    {
+        var normalizedEmail = NormalizeEnrollmentEmail(email);
+        if (!emailOptions.Value.Enabled)
+        {
+            throw new OwnedIdentityException("email-delivery-unavailable", "Email delivery is currently unavailable.", 503);
+        }
+
+        var user = await users.FindByIdAsync(userId.ToString());
+        if (user is null || !user.IsEnabled) throw AccountUnavailable();
+        if (string.Equals(user.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase)) return;
+
+        var owner = await users.FindByEmailAsync(normalizedEmail);
+        if (owner is not null && owner.Id != userId)
+        {
+            logger.LogInformation("Email change request was not eligible. UserId: {UserId}", userId);
+            return;
+        }
+
+        await IssueEmailTokenAndSendAsync(user, EmailChangePurpose, cancellationToken, pendingEmail: normalizedEmail);
+    }
+
+    public async Task ConfirmEmailChangeAsync(string token, CancellationToken cancellationToken)
+    {
+        var tokenRow = await FindEmailTokenAsync(token, EmailChangePurpose, cancellationToken);
+        if (tokenRow.UserId is not { } userId || string.IsNullOrWhiteSpace(tokenRow.PendingEmail))
+            throw InvalidEmailToken();
+        await ConfirmPendingEmailAsync(userId, token, EmailChangePurpose, cancellationToken);
+    }
+
+    private async Task ConfirmPendingEmailAsync(
+        Guid userId,
+        string token,
+        string purpose,
+        CancellationToken cancellationToken)
     {
         await using var transaction = dbContext.Database.IsRelational()
             ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
             : null;
-        var tokenRow = await FindEmailTokenAsync(token, EnrollmentPurpose, cancellationToken);
+        var tokenRow = await FindEmailTokenAsync(token, purpose, cancellationToken);
         // Rejected before consumption, so a token held by another user cannot be burned by this caller.
         if (tokenRow.UserId != userId || string.IsNullOrWhiteSpace(tokenRow.PendingEmail))
         {
@@ -418,6 +456,27 @@ public sealed class OwnedIdentityService(
 
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Email enrollment completed. UserId: {UserId}", user.Id);
+    }
+
+    public async Task ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await users.FindByIdAsync(userId.ToString());
+        if (user is null || !user.IsEnabled) throw AccountUnavailable();
+        var result = await users.ChangePasswordAsync(user, currentPassword, newPassword);
+        if (!result.Succeeded)
+        {
+            var code = result.Errors.Any(error => error.Code.Contains("PasswordMismatch", StringComparison.OrdinalIgnoreCase))
+                ? "current-password-invalid"
+                : "password-rejected";
+            throw new OwnedIdentityException(code, "The password could not be changed.", 400);
+        }
+        await RevokeTokenFamilyAsync(userId, "Password changed.", cancellationToken);
+        logger.LogInformation("Password changed and refresh sessions revoked. UserId: {UserId}", userId);
     }
 
     public async Task AddPasswordAsync(Guid userId, string newPassword, CancellationToken cancellationToken)
@@ -530,7 +589,7 @@ public sealed class OwnedIdentityService(
         }
 
         var rawToken = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
-        var verificationLike = purpose is VerificationPurpose or EnrollmentPurpose;
+        var verificationLike = purpose is VerificationPurpose or EnrollmentPurpose or EmailChangePurpose;
         var lifetime = verificationLike
             ? TimeSpan.FromHours(settings.VerificationTokenHours)
             : TimeSpan.FromMinutes(settings.PasswordResetTokenMinutes);
@@ -628,6 +687,7 @@ public sealed class OwnedIdentityService(
         {
             VerificationPurpose => "verify-email",
             EnrollmentPurpose => "verify-enrollment",
+            EmailChangePurpose => "confirm-email-change",
             _ => "reset-password"
         };
         return $"{emailOptions.Value.FrontendBaseUrl.TrimEnd('/')}/{path}#token={Uri.EscapeDataString(token)}";

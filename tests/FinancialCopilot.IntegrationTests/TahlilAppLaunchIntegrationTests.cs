@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using FinancialCopilot.Application.Authentication.TahlilApp;
 using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
+using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -531,6 +532,7 @@ public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
     private readonly string _keyRing = Directory.CreateTempSubdirectory("tahlilapp-keyring-").FullName;
 
     public FakeTahlilAppGateway Gateway { get; } = new();
+    public FakeSmsOtpSender SmsSender { get; } = new();
     public TahlilAppLogCaptureProvider LogCapture { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -544,6 +546,11 @@ public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
                 ["Authentication:OwnedIdentity:PublicRegistrationEnabled"] = "false",
                 ["Authentication:TahlilApp:Enabled"] = "true",
                 ["Authentication:TahlilApp:BaseUrl"] = "https://tahlilapp.example.test",
+                ["Authentication:Sms:Enabled"] = "true",
+                ["Authentication:Sms:Provider"] = "MelliPayamak",
+                ["Authentication:Sms:BaseAddress"] = "https://console.melipayamak.com",
+                ["Authentication:Sms:OtpPathToken"] = "integrationtesttoken160abc",
+                ["Authentication:Sms:CodeHashSecret"] = "integration-test-sms-code-hash-secret-160-1234567890",
                 ["Billing:TahlilAppTopUps:Enabled"] = "false",
                 ["DataProtection:KeyRingPath"] = _keyRing,
                 ["Feature141:Enabled"] = "false"
@@ -569,6 +576,8 @@ public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
             services.RemoveAll<ITahlilAppIdentityGateway>();
             Gateway.Logs = LogCapture;
             services.AddSingleton<ITahlilAppIdentityGateway>(Gateway);
+            services.RemoveAll<ISmsOtpSender>();
+            services.AddSingleton<ISmsOtpSender>(SmsSender);
         });
     }
 
@@ -586,6 +595,18 @@ public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
                 // Best-effort cleanup of the temporary key ring.
             }
         }
+    }
+}
+
+public sealed class FakeSmsOtpSender : ISmsOtpSender
+{
+    public string NextCode { get; set; } = "3741437414";
+    public string? LastMobile { get; private set; }
+
+    public Task<string> SendAsync(string normalizedMobile, CancellationToken cancellationToken)
+    {
+        LastMobile = normalizedMobile;
+        return Task.FromResult(NextCode);
     }
 }
 

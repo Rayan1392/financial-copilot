@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import {
   adminApi,
   type AdminUserAnalyticsCube,
+  type AdminSubscriptionUsersPage,
 } from "@/integrations/financial-copilot/admin-client";
 import {
   buildDrillTree,
@@ -68,6 +69,14 @@ export function UserAnalyticsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [selections, setSelections] = useState<Selections>({});
+  const [selectedPlan, setSelectedPlan] = useState<{ code: string; name: string } | null>(null);
+  const [subscriptionUsers, setSubscriptionUsers] = useState<AdminSubscriptionUsersPage | null>(
+    null,
+  );
+  const [subscriptionUsersLoading, setSubscriptionUsersLoading] = useState(false);
+  const [subscriptionUsersError, setSubscriptionUsersError] = useState<string | null>(null);
+  const [subscriptionUserCursors, setSubscriptionUserCursors] = useState<(string | null)[]>([null]);
+  const [subscriptionUserPageIndex, setSubscriptionUserPageIndex] = useState(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -84,6 +93,45 @@ export function UserAnalyticsPanel() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  async function loadSubscriptionUsers(planCode: string, cursor: string | null) {
+    setSubscriptionUsersLoading(true);
+    setSubscriptionUsersError(null);
+    try {
+      setSubscriptionUsers(await adminApi.subscriptionUsers(planCode, { pageSize: 20, cursor }));
+    } catch (reason) {
+      setSubscriptionUsers(null);
+      setSubscriptionUsersError(
+        reason instanceof Error ? reason.message : "دریافت کاربران این اشتراک ناموفق بود.",
+      );
+    } finally {
+      setSubscriptionUsersLoading(false);
+    }
+  }
+
+  function selectSubscriptionPlan(plan: { code: string; name: string }) {
+    setSelectedPlan(plan);
+    setSubscriptionUsers(null);
+    setSubscriptionUserCursors([null]);
+    setSubscriptionUserPageIndex(0);
+    void loadSubscriptionUsers(plan.code, null);
+  }
+
+  function nextSubscriptionUsersPage() {
+    const cursor = subscriptionUsers?.nextCursor;
+    if (!selectedPlan || !cursor) return;
+    const nextIndex = subscriptionUserPageIndex + 1;
+    setSubscriptionUserCursors((cursors) => [...cursors.slice(0, nextIndex), cursor]);
+    setSubscriptionUserPageIndex(nextIndex);
+    void loadSubscriptionUsers(selectedPlan.code, cursor);
+  }
+
+  function previousSubscriptionUsersPage() {
+    if (!selectedPlan || subscriptionUserPageIndex === 0) return;
+    const previousIndex = subscriptionUserPageIndex - 1;
+    setSubscriptionUserPageIndex(previousIndex);
+    void loadSubscriptionUsers(selectedPlan.code, subscriptionUserCursors[previousIndex] ?? null);
+  }
 
   const dimensions = useMemo(
     () =>
@@ -246,6 +294,142 @@ export function UserAnalyticsPanel() {
               ),
             )}
           </section>
+
+          {cube.subscriptionBreakdownAvailable && (
+            <Card
+              title="کاربران دارای اشتراک فعال"
+              subtitle="یک طرح را انتخاب کنید تا فهرست کاربران و تاریخ فعال‌سازی را ببینید."
+            >
+              <div className="flex flex-wrap gap-2">
+                {cube.plans.map((plan) => {
+                  const count = sumUsers(cube.cells.filter((cell) => cell.plan === plan.code));
+                  const isSelected = selectedPlan?.code === plan.code;
+                  return (
+                    <button
+                      key={plan.code}
+                      type="button"
+                      disabled={subscriptionUsersLoading}
+                      onClick={() => selectSubscriptionPlan(plan)}
+                      aria-pressed={isSelected}
+                      className={`rounded-xl border px-3 py-2 text-right transition-colors disabled:opacity-60 ${
+                        isSelected
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">{plan.name}</span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        {number(count)} کاربر · مشاهدهٔ فهرست
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedPlan && (
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-slate-800">
+                      کاربران طرح {selectedPlan.name}
+                    </h4>
+                    {subscriptionUsers && (
+                      <span className="text-xs text-slate-500">
+                        زمان مبنا: {new Date(subscriptionUsers.asOfUtc).toLocaleString("fa-IR")}
+                      </span>
+                    )}
+                  </div>
+                  {subscriptionUsersLoading && (
+                    <div
+                      className="flex items-center gap-2 py-3 text-sm text-slate-500"
+                      role="status"
+                    >
+                      <LoaderCircle className="size-4 animate-spin" /> در حال بارگذاری کاربران...
+                    </div>
+                  )}
+                  {subscriptionUsersError && (
+                    <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">
+                      {subscriptionUsersError}
+                    </p>
+                  )}
+                  {subscriptionUsers && !subscriptionUsersLoading && (
+                    <>
+                      {subscriptionUsers.items.length ? (
+                        <div className="overflow-x-auto rounded-xl border border-slate-200">
+                          <table className="w-full min-w-[620px] text-right text-sm">
+                            <thead className="bg-slate-50 text-xs text-slate-500">
+                              <tr>
+                                <th className="px-3 py-2.5 font-medium">کاربر</th>
+                                <th className="px-3 py-2.5 font-medium">وضعیت حساب</th>
+                                <th className="px-3 py-2.5 font-medium">تاریخ فعال‌سازی</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {subscriptionUsers.items.map((item) => (
+                                <tr key={item.customerAccountId}>
+                                  <td className="px-3 py-2.5">
+                                    <span className="block font-medium text-slate-800">
+                                      {item.displayName || "نام ثبت نشده"}
+                                    </span>
+                                    <span
+                                      dir="ltr"
+                                      className="mt-0.5 block text-left text-xs text-slate-500"
+                                    >
+                                      {item.email || item.userId}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-xs text-slate-600">
+                                    {item.isLockedOut
+                                      ? "قفل‌شده"
+                                      : item.isEnabled
+                                        ? "فعال"
+                                        : "غیرفعال"}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-xs text-slate-600">
+                                    {item.effectiveFromUtc
+                                      ? new Date(item.effectiveFromUtc).toLocaleString("fa-IR", {
+                                          timeZone: cube.reportingTimeZone,
+                                        })
+                                      : "نامشخص"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="py-4 text-center text-sm text-slate-500">
+                          کاربری با این اشتراک فعال پیدا نشد.
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+                        <span>صفحه {number(subscriptionUserPageIndex + 1)}</span>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg"
+                            disabled={subscriptionUsersLoading || subscriptionUserPageIndex === 0}
+                            onClick={previousSubscriptionUsersPage}
+                          >
+                            صفحهٔ قبل
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg"
+                            disabled={subscriptionUsersLoading || !subscriptionUsers.hasMore}
+                            onClick={nextSubscriptionUsersPage}
+                          >
+                            صفحهٔ بعد
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </Card>
+          )}
 
           <DrillDownSection
             cells={filtered}

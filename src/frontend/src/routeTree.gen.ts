@@ -17,6 +17,7 @@ import { Route as MRouteImport } from './routes/m'
 import { Route as LaunchFailedRouteImport } from './routes/launch-failed'
 import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ConfirmEmailChangeRouteImport } from './routes/confirm-email-change'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
@@ -85,6 +86,11 @@ const LaunchRoute = LaunchRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmEmailChangeRoute = ConfirmEmailChangeRouteImport.update({
+  id: '/confirm-email-change',
+  path: '/confirm-email-change',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -238,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/launch': typeof LaunchRoute
   '/launch-failed': typeof LaunchFailedRoute
@@ -276,6 +283,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/launch': typeof LaunchRoute
   '/launch-failed': typeof LaunchFailedRoute
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/launch': typeof LaunchRoute
   '/launch-failed': typeof LaunchFailedRoute
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/confirm-email-change'
     | '/forgot-password'
     | '/launch'
     | '/launch-failed'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/confirm-email-change'
     | '/forgot-password'
     | '/launch'
     | '/launch-failed'
@@ -431,6 +442,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/admin'
     | '/auth'
+    | '/confirm-email-change'
     | '/forgot-password'
     | '/launch'
     | '/launch-failed'
@@ -471,6 +483,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  ConfirmEmailChangeRoute: typeof ConfirmEmailChangeRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LaunchRoute: typeof LaunchRoute
   LaunchFailedRoute: typeof LaunchFailedRoute
@@ -547,6 +560,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirm-email-change': {
+      id: '/confirm-email-change'
+      path: '/confirm-email-change'
+      fullPath: '/confirm-email-change'
+      preLoaderRoute: typeof ConfirmEmailChangeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -806,6 +826,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  ConfirmEmailChangeRoute: ConfirmEmailChangeRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LaunchRoute: LaunchRoute,
   LaunchFailedRoute: LaunchFailedRoute,

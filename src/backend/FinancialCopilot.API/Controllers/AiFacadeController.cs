@@ -686,7 +686,8 @@ public sealed class AiFacadeController(
             result.Warnings,
             result.GeneratedAtUtc,
             result.QuarterlyResult,
-            result.BalanceSheetReport);
+            result.BalanceSheetReport,
+            result.CashFlowReport);
     }
 
     private static FinancialStatementTableLineItemHttpResponse MapFinancialStatementTableLineItem(

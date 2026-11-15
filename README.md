@@ -159,6 +159,18 @@ Authentication email is sent through Zoho Mail SMTP as `no-reply@sapioai.ir`; `a
 
 The frontend origin must be an HTTPS origin with no path/query/fragment outside local development. Verification and recovery links use fixed frontend paths and fragments, so the token is removed from browser history before submission. Do not enable email delivery until valid SMTP and frontend-origin settings are present. The API uses a 10 requests/minute in-process public-auth IP limiter and shared-database per-email cooldowns (60 seconds, at most 5/hour); multi-instance deployments must also enforce IP limits at a shared gateway. Password reset revokes all refresh tokens and new owned-user JWTs through Identity security-stamp validation. Pre-feature JWTs without a stamp claim remain valid until their expiry; the checked-in `Authentication:OwnedIdentity:AccessTokenMinutes` value is 15 minutes. Logout revokes refresh sessions but cannot invalidate an already-issued stateless JWT before its expiry.
 
+Feature 160 adds self-service profile editing to both `/_app/profile` and `/m/account/profile`. Apply its Auth database migration before deploying the matching API/frontend build. TahlilApp-sourced names and mobile remain provider-owned; editable names, verified contact mobile, and avatar are stored in the local Auth profile. Email changes take effect after the new address is confirmed. Password changes require the current password and revoke refresh sessions, so the user must sign in again.
+
+SMS verification is disabled by default. Configure the following through the deployment secret manager or ignored `.env`; never put the MelliPayamak endpoint token or code-hash secret in checked-in configuration:
+
+```powershell
+$env:AUTH_SMS_ENABLED = "true"
+$env:AUTH_SMS_OTP_PATH_TOKEN = "<MelliPayamak endpoint token>"
+$env:AUTH_SMS_CODE_HASH_SECRET = "<at-least-32-character-random-secret>"
+```
+
+The root `.env.example` lists all supported `AUTH_SMS_*` settings and Docker Compose maps them to `Authentication:Sms`. Use the documented MelliPayamak HTTPS OTP endpoint; the API stores only a keyed digest of the provider's returned code. Configure secrets before enabling SMS. Automated tests use a fake sender and do not contact MelliPayamak.
+
 When deployed behind a reverse proxy, enable `ForwardedHeaders` only with explicit `KnownProxies` or non-global `KnownNetworks`; arbitrary client-supplied `X-Forwarded-For` values must never be trusted. The API validates the allow-list at startup and applies forwarded headers before request logging, authentication, and rate limiting.
 
 ## Scanner Cache Configuration

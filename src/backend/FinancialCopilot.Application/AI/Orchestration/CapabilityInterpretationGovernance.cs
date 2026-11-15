@@ -63,7 +63,8 @@ public static class CapabilityRoutingPrecedence
         // Feature 154 (V2 only): the interpreter marks governed report tables with evidence; V1 never adds it.
         var isGovernedReportTable = interpretation.Evidence.Any(item =>
             item.Category == "financial_statement_table" &&
-            item.Value == DeterministicCapabilityInterpreter.Feature154GovernedReportEvidence);
+            item.Value is DeterministicCapabilityInterpreter.Feature154GovernedReportEvidence or
+                DeterministicCapabilityInterpreter.Feature161GovernedReportEvidence);
         var isQuarterlyReportRequest = (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(text) || isGovernedReportTable) &&
                                        candidates.Any(candidate => candidate.CapabilityCode == "financial_statement_table");
         var hasProduct = candidates.Any(candidate => candidate.CapabilityCode == "product_revenue_mix");
@@ -334,10 +335,13 @@ public sealed class HybridCapabilityInterpreter(
     IQueryInterpretationProposalProvider proposalProvider,
     ISemanticRoutingLatencySink? latencySink = null,
     SemanticRoutingOptions? routingOptions = null,
-    Feature154RoutingScope? feature154 = null)
+    Feature154RoutingScope? feature154 = null,
+    Feature161CashFlowRoutingScope? feature161 = null)
 {
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
+    private readonly Feature161CashFlowRoutingScope _cashFlowScope = feature161 ?? new(false, Feature154RoutingScope.V2);
+    private bool _feature161 => _cashFlowScope.IsActive;
 
     public async Task<HybridInterpretationResult> InterpretAsync(
         string message,
@@ -350,7 +354,8 @@ public sealed class HybridCapabilityInterpreter(
         // (Feature 144; Feature 154 balance-sheet reports in V2 only).
         if (_feature154
                 ? FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(message) ||
-                  FinancialStatementTableIntentRules.LooksLikeBalanceSheetReportQuery(message)
+                  FinancialStatementTableIntentRules.LooksLikeBalanceSheetReportQuery(message) ||
+                  _feature161 && FinancialStatementTableIntentRules.LooksLikeCashFlowReportQuery(message)
                 : FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message))
         {
             var tableInterpretation = deterministicInterpreter.Interpret(message);

@@ -37,6 +37,25 @@ public sealed record AdminUserDirectoryItem(
     AdminOptionalSection<AdminUserCreditSummary> Credits,
     Guid? CustomerAccountId = null);
 
+public sealed record AdminSubscriptionUsersQuery(int PageSize = 20, string? Cursor = null);
+
+public sealed record AdminSubscriptionUsersPage(
+    IReadOnlyCollection<AdminSubscriptionUserItem> Items,
+    string? NextCursor,
+    bool HasMore,
+    DateTimeOffset AsOfUtc);
+
+public sealed record AdminSubscriptionUserItem(
+    Guid UserId,
+    Guid CustomerAccountId,
+    string? Email,
+    string? DisplayName,
+    bool IsEnabled,
+    bool IsLockedOut,
+    string PlanCode,
+    DateTimeOffset? EffectiveFromUtc,
+    DateTimeOffset? EffectiveToUtc);
+
 public sealed record AdminOptionalSection<T>(string Status, T? Data, string? Reason = null);
 
 public sealed record AdminUserSubscriptionSummary(
@@ -200,6 +219,12 @@ public interface IAdminUserQueries
         bool canReadSubscription,
         bool canReadCredits,
         bool canResolveBillingAccount,
+        CancellationToken cancellationToken);
+
+    Task<AdminSubscriptionUsersPage> GetSubscriptionUsersAsync(
+        Guid tenantId,
+        string planCode,
+        AdminSubscriptionUsersQuery query,
         CancellationToken cancellationToken);
 
     Task<AdminCustomer360View> GetCustomer360Async(

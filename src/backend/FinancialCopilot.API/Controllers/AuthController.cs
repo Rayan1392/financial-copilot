@@ -222,6 +222,55 @@ public sealed class AuthController(
     }
 
     [Authorize]
+    [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
+    [HttpPost("credentials/email/change")]
+    public async Task<IActionResult> RequestEmailChange(EmailChangeRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Forbid();
+        try
+        {
+            await identityService.RequestEmailChangeAsync(userId, request.Email!, cancellationToken);
+            return Accepted(new RegistrationAcceptedResponse(GenericEnrollmentMessage));
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return ProblemFor(exception);
+        }
+    }
+
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
+    [HttpPost("credentials/email/change/confirm")]
+    public async Task<IActionResult> ConfirmEmailChange(EmailChangeConfirmRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await identityService.ConfirmEmailChangeAsync(request.Token!, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return ProblemFor(exception);
+        }
+    }
+
+    [Authorize]
+    [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
+    [HttpPost("credentials/password/change")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Forbid();
+        try
+        {
+            await identityService.ChangePasswordAsync(userId, request.CurrentPassword!, request.NewPassword!, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return ProblemFor(exception);
+        }
+    }
+
+    [Authorize]
     [HttpPost("credentials/password")]
     public async Task<IActionResult> AddPassword(AddPasswordRequest request, CancellationToken cancellationToken)
     {

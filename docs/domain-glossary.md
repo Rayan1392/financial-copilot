@@ -34,6 +34,22 @@ The sector or industry classification of a company.
 
 A periodic company report published for 3, 6, 9, or 12 months. Used for income statement, balance sheet, cash flow, and derived ratios.
 
+### Operating Cash Flow (جریان خالص نقد عملیاتی)
+
+For Codal cash-flow statements, the reportable operating cash flow is derived as item 122 (cash provided by operating activities) minus item 121 (cash paid for operating activities). Item 128 is retained as a cross-check when present; it is not the source for the displayed operating total.
+
+### Free Cash Flow (جریان نقد آزاد)
+
+Cash flow remaining after eligible capital expenditure is deducted from operating cash flow. A report must identify the selected capital-expenditure lines and must not treat operating cash paid (item 121) as capital expenditure.
+
+### Codal Presentation Basis (مبنای ارائه کدال)
+
+The presentation basis identifies which Codal statement template, scope, currency scale, and line-item definitions apply. Banking and general-company statements use their registered templates; values are compared only when their scope and scale are compatible.
+
+### Foreign-Exchange Effect (اثر تغییرات نرخ ارز)
+
+The separately reported effect of exchange-rate changes on cash and cash equivalents. It is shown as a distinct reconciliation step and is not classified as operating, investing, or financing cash flow.
+
 ### Monthly Production and Sales Report
 
 A monthly report mostly relevant to production companies. Contains production volume, sales volume, sales amount, and product-level breakdowns.

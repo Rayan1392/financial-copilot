@@ -119,10 +119,13 @@ public sealed class ConversationDialogueGate(
     IEligibleSymbolResolver? eligibleSymbolResolver = null,
     SymbolSnapshotOptions? symbolSnapshotOptions = null,
     IConversationalCapabilityRegistry? capabilityRegistry = null,
-    IChatCapabilityAvailability? capabilityAvailability = null) : IConversationDialogueGate
+    IChatCapabilityAvailability? capabilityAvailability = null,
+    Feature161CashFlowRoutingScope? feature161 = null) : IConversationDialogueGate
 {
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
+    private readonly Feature161CashFlowRoutingScope _cashFlowScope = feature161 ?? new(false, Feature154RoutingScope.V2);
+    private bool _feature161 => _cashFlowScope.IsActive;
 
     public async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken)
     {
@@ -152,7 +155,12 @@ public sealed class ConversationDialogueGate(
              detectedCapability is null or "financial_statement_table" ||
              FinancialStatementTableCapabilityExecutor.ParseStatementTypeSlot(active!.FindSlot(QuerySlotType.StatementType)?.Value, out var activeReport) is not null &&
              activeReport == FinancialStatementTableCapabilityExecutor.Feature154ReportMarker &&
-             FinancialStatementTableIntentRules.LooksLikeBalanceSheetFollowUpCue(request.Message)))
+             FinancialStatementTableIntentRules.LooksLikeBalanceSheetFollowUpCue(request.Message) ||
+             FinancialStatementTableCapabilityExecutor.ParseStatementTypeSlot(active!.FindSlot(QuerySlotType.StatementType)?.Value, out var activeCashFlowReport) is not null &&
+             activeCashFlowReport == FinancialStatementTableCapabilityExecutor.Feature161ReportMarker && _feature161 &&
+             FinancialStatementTableIntentRules.ResolveV2StatementType(request.Message) is null &&
+             (FinancialStatementTableIntentRules.LooksLikeRepeatForCompany(request.Message) ||
+              FinancialStatementTableIntentRules.LooksLikeCashFlowFollowUpCue(request.Message))))
             detectedCapability = "financial_statement_table";
         var capability = detectedCapability ?? (active?.PendingAction is not null ? active.ActiveCapability : null);
         if (!string.IsNullOrWhiteSpace(request.SuggestedActionId) && request.SuggestedActionId.Length <= 160)
@@ -183,17 +191,19 @@ public sealed class ConversationDialogueGate(
             timeProvider.GetUtcNow()));
         var entityStart = Stopwatch.GetTimestamp();
         var entity = await entityResolver.ResolveFromInterpretationAsync(interpretation, cancellationToken);
-        if (capability == "financial_statement_table" &&
-            (_feature154
-                ? FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(request.Message)
-                : FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(request.Message)) &&
-            entity is not EntityResolutionResult.Resolved &&
-            (_feature154
-                ? FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(request.Message)
-                : FinancialStatementTableIntentRules.BuildQuarterlyQuery(request.Message)).CompanyQuery is { } companyHint)
+        var isCashFlowRequest = _feature161 && FinancialStatementTableIntentRules.LooksLikeCashFlowReportQuery(request.Message);
+        var isQuarterlyRequest = _feature154
+            ? FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(request.Message)
+            : FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(request.Message);
+        var companyHint = isCashFlowRequest
+            ? FinancialStatementTableIntentRules.BuildV2Query(request.Message, true).CompanyQuery
+            : (_feature154 ? FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(request.Message)
+                : FinancialStatementTableIntentRules.BuildQuarterlyQuery(request.Message)).CompanyQuery;
+        if (capability == "financial_statement_table" && (isQuarterlyRequest || isCashFlowRequest) &&
+            entity is not EntityResolutionResult.Resolved && !string.IsNullOrWhiteSpace(companyHint))
         {
             // A product mention can consume or truncate a ticker in semantic interpretation.
-            // Resolve the quarterly parser's company hint through the canonical catalog.
+            // Resolve the governed table parser's company hint through the canonical catalog.
             var quarterlyEntity = await entityResolver.ResolveMentionAsync(companyHint, cancellationToken);
             if (quarterlyEntity is EntityResolutionResult.Resolved or EntityResolutionResult.Ambiguous)
                 entity = quarterlyEntity;

@@ -14,6 +14,13 @@ public sealed record RevokeSessionRequest(string? RefreshToken);
 public sealed record EnrollEmailRequest([Required, MaxLength(320)] string? Email);
 public sealed record EmailEnrollmentConfirmRequest([Required, MaxLength(256)] string? Token);
 public sealed record AddPasswordRequest([Required] string? NewPassword);
+public sealed record ChangePasswordRequest([Required] string? CurrentPassword, [Required] string? NewPassword);
+public sealed record EmailChangeRequest([Required, EmailAddress, MaxLength(320)] string? Email);
+public sealed record EmailChangeConfirmRequest([Required, MaxLength(256)] string? Token);
+public sealed record OwnProfileNamesRequest([Required, MaxLength(100)] string FirstName, [Required, MaxLength(100)] string LastName);
+public sealed record OwnProfileMobileRequest([Required, MaxLength(32)] string Mobile);
+public sealed record OwnProfileMobileConfirmRequest([Required, MaxLength(10)] string Code);
+public sealed record OwnProfileAvatarUploadRequest([Required] IFormFile File);
 
 /// <summary>Account facts. <c>AccountAuthState</c> is one of A, B, C, D (Design §10).</summary>
 public sealed record AccountResponse(
@@ -45,7 +52,9 @@ public sealed record OwnProfileResponse(
     string? NationalIdMasked,
     string? MobileMasked,
     DateTimeOffset? ProfileSyncedAtUtc,
-    string? DisplayName);
+    string? DisplayName,
+    string? ContactMobileMasked,
+    bool AvatarAvailable);
 
 public sealed record ProfileRevealRequest(string? Field);
 

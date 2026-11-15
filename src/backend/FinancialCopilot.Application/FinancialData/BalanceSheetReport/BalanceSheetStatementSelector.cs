@@ -1,4 +1,5 @@
 using System.Globalization;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 
 namespace FinancialCopilot.Application.FinancialData.BalanceSheetReport;
 
@@ -59,20 +60,13 @@ public static class BalanceSheetStatementSelector
     /// <summary>Audited first, then restated, then the later publication date (PD-09).</summary>
     public static IReadOnlyList<BalanceSheetStatementHeader> RankedAt(
         IEnumerable<BalanceSheetStatementHeader> eligible, DateOnly periodEnd, string? periodType = null) =>
-        eligible.Where(item => item.PeriodEnd == periodEnd && (periodType is null || item.PeriodType == periodType))
-            .OrderByDescending(item => item.IsAudited)
-            .ThenByDescending(item => item.IsRepresented)
-            .ThenByDescending(item => item.PublishedAt.HasValue)
-            .ThenByDescending(item => item.PublishedAt)
-            .ToArray();
+        FinancialStatementVersionPolicy.Rank(
+            eligible.Where(item => item.PeriodEnd == periodEnd && (periodType is null || item.PeriodType == periodType)), Rank);
 
     /// <summary>The equally preferred versions at the top of a ranked list.</summary>
     public static IReadOnlyList<BalanceSheetStatementHeader> TopTieGroup(IReadOnlyList<BalanceSheetStatementHeader> ranked)
     {
-        if (ranked.Count == 0) return [];
-        var top = ranked[0];
-        return ranked.Where(item => item.IsAudited == top.IsAudited && item.IsRepresented == top.IsRepresented &&
-                                    item.PublishedAt == top.PublishedAt).ToArray();
+        return FinancialStatementVersionPolicy.TopTieGroup(ranked, Rank);
     }
 
     /// <summary>
@@ -83,19 +77,10 @@ public static class BalanceSheetStatementSelector
         IReadOnlyList<BalanceSheetStatementHeader> topGroup,
         IReadOnlyDictionary<Guid, IReadOnlyList<BalanceSheetItemObservation>> lineItems)
     {
-        if (topGroup.Count == 0) return new BalanceSheetVersionPick(null, null);
-        if (topGroup.Count > 1)
-        {
-            var first = Signature(lineItems.GetValueOrDefault(topGroup[0].StatementId) ?? []);
-            if (topGroup.Skip(1).Any(item => Signature(lineItems.GetValueOrDefault(item.StatementId) ?? []) != first))
-                return new BalanceSheetVersionPick(null, BalanceSheetOutcomes.ConflictingReportRevision);
-        }
-
-        var winner = topGroup
-            .OrderByDescending(item => item.ExternalStatementId, ExternalIdComparer.Instance)
-            .ThenByDescending(item => item.StatementId)
-            .First();
-        return new BalanceSheetVersionPick(winner, null);
+        var pick = FinancialStatementVersionPolicy.Pick(topGroup,
+            item => Signature(lineItems.GetValueOrDefault(item.StatementId) ?? []),
+            item => item.ExternalStatementId, item => item.StatementId);
+        return new BalanceSheetVersionPick(pick.Winner, pick.IsConflict ? BalanceSheetOutcomes.ConflictingReportRevision : null);
     }
 
     /// <summary>Up to five latest distinct dates on or before the anchor, oldest first (PD-17).</summary>
@@ -114,14 +99,6 @@ public static class BalanceSheetStatementSelector
             .Select(item => string.Create(CultureInfo.InvariantCulture, $"{item.SourceItemId}={item.Value?.ToString(CultureInfo.InvariantCulture) ?? "null"}")));
     }
 
-    private sealed class ExternalIdComparer : IComparer<string>
-    {
-        public static readonly ExternalIdComparer Instance = new();
-
-        public int Compare(string? x, string? y) =>
-            long.TryParse(x, NumberStyles.None, CultureInfo.InvariantCulture, out var left) &&
-            long.TryParse(y, NumberStyles.None, CultureInfo.InvariantCulture, out var right)
-                ? left.CompareTo(right)
-                : string.CompareOrdinal(x, y);
-    }
+    private static FinancialStatementVersionRank Rank(BalanceSheetStatementHeader item) =>
+        new(item.IsAudited, item.IsRepresented, item.PublishedAt);
 }

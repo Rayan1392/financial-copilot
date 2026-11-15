@@ -65,6 +65,14 @@ public sealed class UserProfileRow
     public string? NationalIdLast4 { get; set; }
     public string? MobileEncrypted { get; set; }
     public string? MobileLast4 { get; set; }
+    // User-edited SapioAI fields remain separate from the provider-synchronized values above.
+    public string? LocalFirstName { get; set; }
+    public string? LocalLastName { get; set; }
+    public string? ContactMobileEncrypted { get; set; }
+    public string? ContactMobileHash { get; set; }
+    public string? ContactMobileLast4 { get; set; }
+    public byte[]? AvatarBytes { get; set; }
+    public string? AvatarContentType { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
     public DateTimeOffset ProfileSyncedAtUtc { get; set; }

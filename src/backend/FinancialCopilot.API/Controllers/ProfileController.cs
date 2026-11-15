@@ -29,7 +29,7 @@ public sealed class ProfileController(OwnProfileUseCase profiles) : ControllerBa
         var view = await profiles.GetAsync(userId, cancellationToken);
         if (view is null)
         {
-            return Ok(new OwnProfileResponse(null, null, null, null, null, null));
+            return Ok(new OwnProfileResponse(null, null, null, null, null, null, null, false));
         }
 
         return Ok(new OwnProfileResponse(
@@ -38,7 +38,94 @@ public sealed class ProfileController(OwnProfileUseCase profiles) : ControllerBa
             view.NationalIdMasked,
             view.MobileMasked,
             view.ProfileSyncedAtUtc,
-            view.DisplayName));
+            view.DisplayName,
+            view.ContactMobileMasked,
+            view.AvatarAvailable));
+    }
+
+    [HttpPut]
+    public async Task<IActionResult> UpdateNames(OwnProfileNamesRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryReadUserId(out var userId)) return Forbid();
+        try
+        {
+            await profiles.UpdateNamesAsync(userId, request.FirstName, request.LastName, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnProfileException exception)
+        {
+            return ProfileProblem(exception);
+        }
+    }
+
+    [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
+    [HttpPost("mobile/request")]
+    public async Task<IActionResult> RequestMobileCode(OwnProfileMobileRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryReadUserId(out var userId)) return Forbid();
+        try
+        {
+            await profiles.RequestMobileCodeAsync(userId, request.Mobile, cancellationToken);
+            return Accepted();
+        }
+        catch (OwnProfileException exception)
+        {
+            return ProfileProblem(exception);
+        }
+    }
+
+    [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
+    [HttpPost("mobile/confirm")]
+    public async Task<IActionResult> ConfirmMobileCode(OwnProfileMobileConfirmRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryReadUserId(out var userId)) return Forbid();
+        try
+        {
+            await profiles.ConfirmMobileCodeAsync(userId, request.Code, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnProfileException exception)
+        {
+            return ProfileProblem(exception);
+        }
+    }
+
+    [HttpPut("avatar")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadAvatar([FromForm] OwnProfileAvatarUploadRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryReadUserId(out var userId)) return Forbid();
+        if (request.File.Length is <= 0 or > 5 * 1024 * 1024)
+            return ValidationProblem(detail: "The image must be between 1 byte and 5 MiB.");
+        await using var stream = new MemoryStream();
+        await request.File.CopyToAsync(stream, cancellationToken);
+        try
+        {
+            await profiles.SaveAvatarAsync(userId, stream.ToArray(), cancellationToken);
+            return NoContent();
+        }
+        catch (OwnProfileException exception)
+        {
+            return ProfileProblem(exception);
+        }
+    }
+
+    [HttpGet("avatar")]
+    public async Task<IActionResult> GetAvatar(CancellationToken cancellationToken)
+    {
+        if (!TryReadUserId(out var userId)) return Forbid();
+        Response.Headers["Cache-Control"] = "no-store";
+        var avatar = await profiles.GetAvatarAsync(userId, cancellationToken);
+        return avatar is null ? NotFound() : File(avatar.Content, avatar.ContentType);
+    }
+
+    [HttpDelete("avatar")]
+    public async Task<IActionResult> RemoveAvatar(CancellationToken cancellationToken)
+    {
+        if (!TryReadUserId(out var userId)) return Forbid();
+        await profiles.RemoveAvatarAsync(userId, cancellationToken);
+        return NoContent();
     }
 
     [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
@@ -75,4 +162,7 @@ public sealed class ProfileController(OwnProfileUseCase profiles) : ControllerBa
 
     private bool TryReadUserId(out Guid userId) =>
         Guid.TryParse(User.FindFirstValue("sub"), out userId);
+
+    private ObjectResult ProfileProblem(OwnProfileException exception) =>
+        Problem(type: $"https://financialcopilot/errors/{exception.ErrorCode}", title: exception.Message, statusCode: exception.StatusCode);
 }

@@ -244,6 +244,8 @@ export type OwnProfile = {
   nationalIdMasked: string | null;
   mobileMasked: string | null;
   profileSyncedAtUtc: string | null;
+  contactMobileMasked: string | null;
+  avatarAvailable: boolean;
 };
 
 export type ProfileRevealField = "nationalId" | "mobile";
@@ -258,15 +260,35 @@ export async function getAccountSummary(): Promise<AccountSummary> {
 }
 
 export async function requestEmailEnrollment(email: string): Promise<{ message: string }> {
-  return authorizedRequest<{ message: string }>("POST", "/api/auth/v1/credentials/email", { email });
+  return authorizedRequest<{ message: string }>("POST", "/api/auth/v1/credentials/email", {
+    email,
+  });
 }
 
 export async function confirmEmailEnrollment(token: string): Promise<void> {
   await authorizedRequest<void>("POST", "/api/auth/v1/credentials/email/confirm", { token });
 }
 
+export async function requestEmailChange(email: string): Promise<void> {
+  await authorizedRequest<void>("POST", "/api/auth/v1/credentials/email/change", { email });
+}
+
+export async function confirmEmailChange(token: string): Promise<void> {
+  await authJsonRequest<void>("/api/auth/v1/credentials/email/change/confirm", { token });
+}
+
 export async function setAccountPassword(newPassword: string): Promise<void> {
   await authorizedRequest<void>("POST", "/api/auth/v1/credentials/password", { newPassword });
+}
+
+export async function changeAccountPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await authorizedRequest<void>("POST", "/api/auth/v1/credentials/password/change", {
+    currentPassword,
+    newPassword,
+  });
 }
 
 export async function getOwnProfile(): Promise<OwnProfile> {
@@ -274,15 +296,58 @@ export async function getOwnProfile(): Promise<OwnProfile> {
 }
 
 /** Returns one unmasked TahlilApp field. The caller must keep it in memory only and never log or persist it. */
-export async function revealOwnProfileField(field: ProfileRevealField): Promise<ProfileRevealResult> {
+export async function revealOwnProfileField(
+  field: ProfileRevealField,
+): Promise<ProfileRevealResult> {
   return authorizedRequest<ProfileRevealResult>("POST", "/api/auth/v1/profile/reveal", { field });
+}
+
+export async function updateOwnProfile(firstName: string, lastName: string): Promise<void> {
+  await authorizedRequest<void>("PUT", "/api/auth/v1/profile", { firstName, lastName });
+}
+
+export async function requestOwnMobileCode(mobile: string): Promise<void> {
+  await authorizedRequest<void>("POST", "/api/auth/v1/profile/mobile/request", { mobile });
+}
+
+export async function confirmOwnMobileCode(code: string): Promise<void> {
+  await authorizedRequest<void>("POST", "/api/auth/v1/profile/mobile/confirm", { code });
+}
+
+export async function uploadOwnAvatar(file: File): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  await authorizedRequest<void>("PUT", "/api/auth/v1/profile/avatar", form);
+}
+
+export async function removeOwnAvatar(): Promise<void> {
+  await authorizedRequest<void>("DELETE", "/api/auth/v1/profile/avatar");
+}
+
+export async function getOwnAvatarObjectUrl(): Promise<string | null> {
+  const token = await getAccessToken();
+  if (!token) throw new FinancialCopilotAuthError("Sign-in required.", 401);
+  const response = await fetch(apiUrl("/api/auth/v1/profile/avatar"), {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}`, Accept: "image/jpeg" },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok)
+    throw new FinancialCopilotAuthError("Could not load profile photo.", response.status);
+  return URL.createObjectURL(await response.blob());
 }
 
 /**
  * Bearer-authorized JSON request. Uses the same access-token path as the rest of this module
  * (refresh when the token is missing or about to expire) and reports failures as FinancialCopilotAuthError.
  */
-async function authorizedRequest<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+async function authorizedRequest<T>(
+  method: "GET" | "POST" | "PUT" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<T> {
   const token = await getAccessToken();
   if (!token) throw new FinancialCopilotAuthError("Sign-in required.", 401);
 
@@ -291,14 +356,15 @@ async function authorizedRequest<T>(method: "GET" | "POST", path: string, body?:
     Authorization: `Bearer ${token}`,
     "X-Correlation-Id": crypto.randomUUID(),
   };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const isMultipart = typeof FormData !== "undefined" && body instanceof FormData;
+  if (body !== undefined && !isMultipart) headers["Content-Type"] = "application/json";
 
   const response = await fetch(apiUrl(path), {
     method,
     credentials: "include",
     cache: "no-store",
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isMultipart ? body : JSON.stringify(body),
   });
   if (!response.ok) {
     const problem = await response.json().catch(() => null);

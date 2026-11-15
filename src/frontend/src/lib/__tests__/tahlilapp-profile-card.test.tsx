@@ -18,6 +18,8 @@ const emptyProfile: OwnProfile = {
   nationalIdMasked: null,
   mobileMasked: null,
   profileSyncedAtUtc: null,
+  contactMobileMasked: null,
+  avatarAvailable: false,
 };
 
 async function renderedName(profile: OwnProfile) {

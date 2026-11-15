@@ -2,18 +2,25 @@ namespace FinancialCopilot.Application.FinancialData.CashFlowReport;
 
 public static class CashFlowReportContract
 {
-    public const string Version = "161.1";
+    public const string Version = "161.2";
     public const string ProviderName = "NoavaranCurrentApi";
     public const int HeaderWindow = 48;
     public const int MaxCashFlowStatements = 12;
+    public const int MaxCashFlowSourceLineItems = 4096;
     public const int MaxIncomeStatements = 2;
+}
+
+public sealed class CashFlowReportOptions
+{
+    public const string SectionName = "CashFlowReport";
+    public bool Enabled { get; set; }
 }
 
 public sealed record CashFlowReportRequest(
     string CompanyQuery, string ProviderName = CashFlowReportContract.ProviderName, string View = "default",
     string Focus = "report", string? MetricId = null, string? AnalysisTopic = null,
     int? RequestedPeriodMonths = null, int? RequestedFiscalYear = null, int? PeriodCount = null,
-    DateOnly? RequestedDate = null, bool PreviousReport = false);
+    DateOnly? RequestedDate = null, bool PreviousReport = false, string? UnsupportedVariantFilter = null);
 
 public sealed record CashFlowReportCompany(string? Symbol, string? Name, string ProviderName, string? ExternalCompanyId);
 public sealed record CashFlowReportStatement(Guid StatementId, string ExternalStatementId, DateOnly PeriodEnd,
@@ -30,7 +37,20 @@ public sealed record CashFlowReportChanges(string BaseColumnId, string CompareCo
 public sealed record CashFlowReportKpi(string MetricId, string Label, string ColumnId, decimal? Value, string Unit,
     string State, string? Reason, string Formula, IReadOnlyList<CashFlowMetricComponent> Components);
 public sealed record CashFlowReportCheck(string CheckId, string ColumnId, string State, decimal? Expected, decimal? Actual, decimal? Difference);
-public sealed record CashFlowReportVerification(string Status, IReadOnlyList<CashFlowReportCheck> Checks);
+public sealed record CashFlowReportValidationDimension(string Status, decimal? Expected, decimal? Actual,
+    decimal? Difference, IReadOnlyList<string> CheckIds);
+public sealed record CashFlowReportUnclassifiedItem(int SourceItemId, string? Label, decimal? Value);
+public sealed record CashFlowReportDetailCoverage(string ColumnId, string SectionId, string Status,
+    decimal? ReportedSubtotal, decimal? VerifiedDetailTotal, decimal? Difference, int VerifiedDetailCount,
+    int UnclassifiedItemCount, IReadOnlyList<CashFlowReportUnclassifiedItem> UnclassifiedItems,
+    bool SourceReadComplete, IReadOnlyList<Guid> StatementIds);
+public sealed record CashFlowReportMetadata(string ViewLabel, string BasisLabel, string? JalaliPeriodEnd,
+    int? FiscalYear, bool? IsAudited, bool? IsRepresented, string? JalaliPublishedAt, string ProviderName, string Unit);
+public sealed record CashFlowAllLineItemsReadResult(
+    IReadOnlyDictionary<Guid, IReadOnlyList<CashFlowItemObservation>> Items, bool IsComplete, int ObservedLineCount);
+public sealed record CashFlowReportVerification(string Status, IReadOnlyList<CashFlowReportCheck> Checks,
+    CashFlowReportValidationDimension? MainTotals = null, CashFlowReportValidationDimension? CashBalance = null,
+    IReadOnlyList<CashFlowReportDetailCoverage>? DetailCoverage = null);
 public sealed record CashFlowReportWarning(string Code, string Severity, string? ColumnId, string Message);
 
 public sealed record CashFlowReportResult(
@@ -40,7 +60,7 @@ public sealed record CashFlowReportResult(
     Guid? AnchorStatementId, IReadOnlyList<CashFlowReportColumn> Columns, IReadOnlyList<CashFlowReportSection> Sections,
     CashFlowReportChanges? Changes, IReadOnlyList<CashFlowReportKpi> Kpis, CashFlowWaterfall? Waterfall,
     CashFlowReportVerification Verification, IReadOnlyList<CashFlowReportWarning> Warnings, IReadOnlyList<string> Notices,
-    CashFlowAnalysis? Analysis);
+    CashFlowAnalysis? Analysis, CashFlowReportMetadata? Metadata = null);
 
 public sealed record CashFlowHeaderSet(IReadOnlyList<CashFlowStatementHeader> Statements, IReadOnlyList<CashFlowFiscalEvidence> FiscalEvidence);
 public sealed record CashFlowIncomeStatementObservation(CashFlowStatementHeader Header, IReadOnlyList<CashFlowItemObservation> Items);
@@ -53,6 +73,12 @@ public interface ICashFlowStatementReader
         IReadOnlyCollection<DateOnly> dates, CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<CashFlowItemObservation>>> ReadLineItemsAsync(string providerName,
         IReadOnlyCollection<Guid> statementIds, IReadOnlyCollection<int> sourceItemIds, CancellationToken cancellationToken = default);
+    async Task<CashFlowAllLineItemsReadResult> ReadAllLineItemsAsync(string providerName,
+        IReadOnlyCollection<Guid> statementIds, CancellationToken cancellationToken = default)
+    {
+        var known = await ReadLineItemsAsync(providerName, statementIds, CashFlowLineRegistry.ReadableSourceItemIds, cancellationToken);
+        return new(known, false, known.Values.Sum(items => items.Count));
+    }
     Task<IReadOnlyList<CashFlowIncomeStatementObservation>> ReadIncomeStatementsAsync(string providerName, string externalCompanyId,
         IReadOnlyCollection<CashFlowStatementHeader> periods, CancellationToken cancellationToken = default);
     Task<bool> ConsolidatedExistsAsync(string providerName, string externalCompanyId, CancellationToken cancellationToken = default);

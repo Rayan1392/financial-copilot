@@ -41,14 +41,45 @@ public sealed class CashFlowReport161WaterfallAndFactsTests
         var metrics = CashFlowMetricsCalculator.Calculate(CashFlowLineRegistry.GeneralTemplate, values,
             CashFlowReconciliation.Verify(values), new(10_000_000, -1000, 143));
         var facts = CashFlowAnalysisFacts.Build("earnings_quality", "anchor", CashFlowLineRegistry.GeneralTemplate, metrics);
-        Assert.Equal("جریان خالص نقد عملیاتی: ۶٬۹۱۸٬۸۹۰ میلیون ریال.", facts.Facts[0].Text);
-        Assert.Equal("سود خالص: (۱٬۰۰۰) میلیون ریال.", facts.Facts[1].Text);
+        Assert.StartsWith("جریان خالص نقد عملیاتی: ", facts.Facts[0].Text);
+        Assert.DoesNotContain("میلیون ریال", facts.Facts[0].Text);
+        Assert.Equal("سود خالص: (۱٬۰۰۰).", facts.Facts[1].Text);
         Assert.Contains("سود خالص غیرمثبت", facts.Facts[2].Text);
         foreach (var topic in new[] { "overview", "earnings_quality", "operating_generation", "cash_change_drivers", "financing_dependence", "financing_structure" })
         {
             var rendered = string.Join(" ", CashFlowAnalysisFacts.Build(topic, "anchor", CashFlowLineRegistry.GeneralTemplate, metrics).Facts.Select(f => f.Text));
             foreach (var word in new[] { "قوی", "ضعیف", "مناسب", "نامناسب" }) Assert.DoesNotContain(word, rendered);
         }
+    }
+
+    [Fact]
+    public void ComparisonFactsRequireVerifiedAlignedMetricsAndCarryTheComparedPeriod()
+    {
+        var currentValues = General();
+        var priorValues = General();
+        priorValues[128] = Cell(5_000_000);
+        priorValues[122] = Cell(4_640_896);
+        priorValues[124] = Cell(13_665_960);
+        priorValues[125] = Cell(20_358_414);
+        var currentMetrics = CashFlowMetricsCalculator.Calculate(CashFlowLineRegistry.GeneralTemplate, currentValues,
+            CashFlowReconciliation.Verify(currentValues));
+        var priorMetrics = CashFlowMetricsCalculator.Calculate(CashFlowLineRegistry.GeneralTemplate, priorValues,
+            CashFlowReconciliation.Verify(priorValues));
+
+        var facts = CashFlowAnalysisFacts.Build("overview", "current_q", CashFlowLineRegistry.GeneralTemplate,
+            currentMetrics, previousQuarter: new(priorMetrics, "prior_q", "فصل قبل"));
+
+        var comparison = Assert.Single(facts.Facts, fact => fact.FactId == "operating_cash_flow_previous_quarter");
+        Assert.Contains("فصل قبل", comparison.Text);
+        Assert.Contains("افزایش داشته است", comparison.Text);
+        Assert.Equal(["prior_q"], comparison.RelatedColumnIds);
+
+        currentValues[124] = Cell(currentValues[124].Value!.Value + 1m);
+        var unverified = CashFlowMetricsCalculator.Calculate(CashFlowLineRegistry.GeneralTemplate, currentValues,
+            CashFlowReconciliation.Verify(currentValues));
+        var unverifiedFacts = CashFlowAnalysisFacts.Build("overview", "current_q", CashFlowLineRegistry.GeneralTemplate,
+            unverified, previousQuarter: new(priorMetrics, "prior_q", "فصل قبل"));
+        Assert.DoesNotContain(unverifiedFacts.Facts, fact => fact.FactId == "operating_cash_flow_previous_quarter");
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
+using FinancialCopilot.Application.FinancialData.CashFlowReport;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
@@ -418,7 +419,8 @@ public sealed record FinancialStatementTableHttpResponse(
     IReadOnlyList<string> Warnings,
     DateTimeOffset GeneratedAtUtc,
     QuarterlyFinancialReportTableResult? QuarterlyResult = null,
-    BalanceSheetReportResult? BalanceSheetReport = null);
+    BalanceSheetReportResult? BalanceSheetReport = null,
+    CashFlowReportResult? CashFlowReport = null);
 
 public sealed record FinancialStatementTableSourceHttpResponse(
     Guid StatementId,

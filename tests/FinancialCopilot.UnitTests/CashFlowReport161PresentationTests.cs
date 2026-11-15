@@ -23,14 +23,14 @@ public sealed class CashFlowReport161PresentationTests
     public void MissingTotalsNeverUseNewOrDerivedFallbacks()
     {
         var items = Valid();
-        items.Remove(128);
+        items.Remove(122);
         Assert.Equal(CashFlowPresentationPolicy.OperatingTotalMissing, CashFlowPresentationPolicy.Classify(items).Outcome);
-        items[128] = [0m];
+        items[122] = [6_559_786m];
         items[123] = [null];
         items[127] = [9_025_064m];
         Assert.Equal(CashFlowPresentationPolicy.CodalTotalsMissing, CashFlowPresentationPolicy.Classify(items).Outcome);
         items[123] = [0m];
-        items.Remove(122);
+        items.Remove(128);
         Assert.Equal(CashFlowPresentationPolicy.Available, CashFlowPresentationPolicy.Classify(items).Outcome);
     }
 

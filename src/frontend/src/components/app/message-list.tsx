@@ -20,6 +20,7 @@ import {
 } from "@/components/app/quarterly-financial-table";
 import { BalanceSheetReport } from "@/components/app/balance-sheet-report/balance-sheet-report";
 import { isRenderableBalanceSheet } from "@/components/app/balance-sheet-report/balance-sheet-report-model";
+import { CashFlowReport } from "@/components/app/cash-flow-report/cash-flow-report";
 import { FinancialStatementAnalysisCard } from "@/components/app/financial-statement-analysis";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
@@ -177,6 +178,7 @@ function AssistantBlock({
   )
     ? block.financialStatementTableResult!.balanceSheetReport!
     : null;
+  const typedCashFlow = block.financialStatementTableResult?.cashFlowReport ?? null;
   // Feature 156: the card replaces its text rendering on screen (the text stays for Telegram and history).
   const symbolSnapshot = block.symbolSnapshotResult ?? null;
   const financialStatementAnalysis = block.financialStatementAnalysisResult;
@@ -228,11 +230,13 @@ function AssistantBlock({
           hasDailyTradesSource ||
           financialStatementAnalysis ||
           typedBalanceSheet ||
+          typedCashFlow ||
           symbolSnapshot) && (
           <div className="space-y-1">
             {displayMessage.length > 0 &&
               !typedQuarterlyTable &&
               !typedBalanceSheet &&
+              !typedCashFlow &&
               !symbolSnapshot && (
                 <MarkdownMessage
                   content={displayMessage}
@@ -241,6 +245,7 @@ function AssistantBlock({
               )}
             {typedQuarterlyTable && <QuarterlyFinancialTable model={typedQuarterlyTable} />}
             {typedBalanceSheet && <BalanceSheetReport result={typedBalanceSheet} />}
+            {typedCashFlow && <CashFlowReport result={typedCashFlow} />}
             {symbolSnapshot && (
               <SymbolSnapshotCard
                 data={symbolSnapshot}

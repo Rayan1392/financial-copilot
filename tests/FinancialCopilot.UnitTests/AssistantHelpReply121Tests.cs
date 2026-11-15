@@ -297,6 +297,20 @@ public sealed class AssistantHelpReply121Tests
     }
 
     [Fact]
+    public void CashFlowHelpSample_IsVisibleOnlyWhenFeature161RoutingIsActive()
+    {
+        var enabled = new AssistantHelpReplyComposer(Registry,
+            new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin),
+            new Feature161CashFlowRoutingScope(true, Feature154RoutingScope.V2)).Compose("fa");
+        Assert.Contains(enabled.Actions, action => action.Id == "assistant_help:cash_flow_statement");
+
+        var disabled = new AssistantHelpReplyComposer(Registry,
+            new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin),
+            new Feature161CashFlowRoutingScope(false, Feature154RoutingScope.V2)).Compose("fa");
+        Assert.DoesNotContain(disabled.Actions, action => action.Id == "assistant_help:cash_flow_statement");
+    }
+
+    [Fact]
     public void Composer_InCyclicalWavesMode_KeepsOnlyAvailableSamples()
     {
         var reply = Composer(FinancialDataChatProvider.CyclicalWaves).Compose("fa");

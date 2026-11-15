@@ -18,12 +18,15 @@ public sealed record CashFlowLineDefinition(
         _ => Label
     };
 
+    public bool AppliesTo(string template) => Industry == "all" ||
+        Industry == "general" && template == CashFlowLineRegistry.GeneralTemplate ||
+        Industry == "bank" && template == CashFlowLineRegistry.BankingTemplate;
+
     public bool VerifiedFor(string template) => Verification == CashFlowVerification.Both ||
         Verification == CashFlowVerification.Bank && template == CashFlowLineRegistry.BankingTemplate;
 
     public bool CanDisplay(string template) => (template is CashFlowLineRegistry.GeneralTemplate or CashFlowLineRegistry.BankingTemplate) && VerifiedFor(template) &&
-        (Industry == "all" || Industry == "general" && template == CashFlowLineRegistry.GeneralTemplate ||
-         Industry == "bank" && template == CashFlowLineRegistry.BankingTemplate) &&
+        AppliesTo(template) &&
         Visibility is "detail" or "of-which" or "subtotal";
 }
 
@@ -35,6 +38,7 @@ public static class CashFlowLineRegistry
     public const string GeneralTemplate = "GeneralCashFlow";
     public const string BankingTemplate = "BankingCashFlow";
     public const int OperatingTotal = 128;
+    public const int CodalBeforeFinancing = 122;
     public const int InvestingTotal = 121;
     public const int BeforeFinancingCrossCheck = 122;
     public const int FinancingTotal = 123;
@@ -50,7 +54,7 @@ public static class CashFlowLineRegistry
 
     public static IReadOnlyList<CashFlowLineDefinition> Lines { get; } =
     [
-        new(128, "جریان وجه نقد عملیاتی - جدید", CashFlowSection.Operating, "primary-total", "subtotal", "all", CashFlowVerification.Both, "operating_cash_flow"),
+        new(128, "جریان وجه نقد عملیاتی - جدید", CashFlowSection.None, "cross-check", "provenance", "all", CashFlowVerification.Both, null),
         new(9, "مالیات بر درآمد پرداختی", CashFlowSection.Operating, "detail", "of-which", "all", CashFlowVerification.Proposed, null),
         new(121, "جریان وجه نقد سرمایه گذاری - کدال", CashFlowSection.Investing, "primary-total", "subtotal", "all", CashFlowVerification.Both, "investing_cash_flow"),
         new(10, "وجوه پرداختی بابت خرید دارایی‌های ثابت مشهود", CashFlowSection.Investing, "detail", "detail", "all", CashFlowVerification.Both, "capex"),
@@ -75,7 +79,7 @@ public static class CashFlowLineRegistry
         new(95, "وام نقدی پرداختی به سایر اشخاص", CashFlowSection.Investing, "detail", "detail", "general", CashFlowVerification.Proposed, null),
         new(96, "وصول (اقساط / اصل) وام نقدی پرداختی به سایر اشخاص", CashFlowSection.Investing, "detail", "detail", "general", CashFlowVerification.Proposed, null),
         new(13, "وجوه پرداختی جهت خرید سایر دارایی‌ها و موجودی", CashFlowSection.Investing, "detail", "provenance", "all", CashFlowVerification.Proposed, null),
-        new(122, "جریان وجه نقد قبل از فعالیت های تامین مالی - کدال", CashFlowSection.None, "cross-check", "provenance", "all", CashFlowVerification.Both, null),
+        new(122, "جریان وجه نقد قبل از فعالیت های تامین مالی - کدال", CashFlowSection.None, "codal-subtotal", "provenance", "all", CashFlowVerification.Both, null),
         new(123, "جریان وجه نقد تامین مالی - کدال", CashFlowSection.Financing, "primary-total", "subtotal", "all", CashFlowVerification.Both, "financing_cash_flow"),
         new(23, "دریافت تسهیلات مالی", CashFlowSection.Financing, "detail", "detail", "all", CashFlowVerification.Both, "net_debt_cash_flow"),
         new(24, "بازپرداخت اصل تسهیلات مالی دریافتی", CashFlowSection.Financing, "detail", "detail", "all", CashFlowVerification.Both, "net_debt_cash_flow"),
@@ -128,9 +132,24 @@ public static class CashFlowLineRegistry
 
     public static IReadOnlyList<CashFlowDerivedLineDefinition> ResidualLines { get; } =
     [
-        new("investing_residual", "سایر اقلام سرمایه‌گذاری (مابه‌التفاوت)", CashFlowSection.Investing, "residual"),
-        new("financing_residual", "سایر اقلام تأمین مالی (مابه‌التفاوت)", CashFlowSection.Financing, "residual")
+        new("investing_residual", "اقلام تفصیلی تخصیص‌نیافتهٔ سرمایه‌گذاری", CashFlowSection.Investing, "residual"),
+        new("financing_residual", "اقلام تفصیلی تخصیص‌نیافتهٔ تأمین مالی", CashFlowSection.Financing, "residual")
     ];
+
+    public static string ReportLabel(CashFlowLineDefinition line, IReadOnlyList<CashFlowPeriodColumn> columns)
+    {
+        var independentQuarters = columns.Count > 0 && columns.All(x => x.Kind == "standalone_quarter");
+        var annual = columns.Count > 0 && columns.All(x => x.PeriodMonths == 12 && x.Kind == "fiscal_year");
+        return line.SourceItemId switch
+        {
+            OpeningCash when independentQuarters => "مانده وجه نقد و معادل‌های نقد در آغاز فصل",
+            ClosingCash when independentQuarters => "مانده وجه نقد و معادل‌های نقد در پایان فصل",
+            OpeningCash => "مانده وجه نقد و معادل‌های نقد در آغاز سال مالی",
+            ClosingCash when annual => "مانده وجه نقد و معادل‌های نقد در پایان سال مالی",
+            ClosingCash => "مانده وجه نقد و معادل‌های نقد در پایان دوره",
+            _ => line.ReportLabel
+        };
+    }
 
     public static IReadOnlyList<CashFlowLineDefinition> Displayable(string template) =>
         Lines.Where(line => line.CanDisplay(template)).ToArray();

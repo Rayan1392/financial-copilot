@@ -10,7 +10,8 @@ public interface ICapabilityInterpreter
 public sealed class DeterministicCapabilityInterpreter(
     IConversationalCapabilityRegistry registry,
     IQueryInterpretationTelemetrySink? telemetrySink = null,
-    Feature154RoutingScope? feature154 = null) : ICapabilityInterpreter
+    Feature154RoutingScope? feature154 = null,
+    Feature161CashFlowRoutingScope? feature161 = null) : ICapabilityInterpreter
 {
     // Feature 154 (V2 only): possessive forms and comparison cues are never company hints (R-26).
     private static readonly HashSet<string> Feature154NonEntityWords = new(StringComparer.OrdinalIgnoreCase)
@@ -19,9 +20,12 @@ public sealed class DeterministicCapabilityInterpreter(
     };
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
+    private readonly Feature161CashFlowRoutingScope _cashFlowScope = feature161 ?? new(false, Feature154RoutingScope.V2);
+    private bool _feature161 => _cashFlowScope.IsActive;
 
     /// <summary>Evidence value marking a V2 governed report table (Feature 144 quarterly or Feature 154 balance sheet).</summary>
     public const string Feature154GovernedReportEvidence = "feature154-v2-governed-report";
+    public const string Feature161GovernedReportEvidence = "feature161-v2-governed-report";
 
     private static readonly HashSet<string> FinancialAndPeriodEntityExclusions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -111,6 +115,14 @@ public sealed class DeterministicCapabilityInterpreter(
             ? FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(original)
             : FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(original);
         var balanceSheetReport = _feature154 && FinancialStatementTableIntentRules.LooksLikeBalanceSheetReportQuery(original);
+        var cashFlowReport = _feature161 ? FinancialStatementTableIntentRules.ResolveCashFlowRequest(original)
+            : new FinancialStatementTableIntentRules.CashFlowRequestCue(false, null, null);
+        var isCashFlowReport = cashFlowReport.Use && cashFlowReport.Request is not null;
+        if (isCashFlowReport)
+        {
+            scores["financial_statement_table"] = Math.Max(scores.GetValueOrDefault("financial_statement_table"), 0.99m);
+            evidence.Add(new InterpretationEvidence("financial_statement_table", "cash-flow-report", QueryValueProvenance.UserExplicit));
+        }
         if (balanceSheetReport)
         {
             scores["financial_statement_table"] = Math.Max(scores.GetValueOrDefault("financial_statement_table"), 0.99m);
@@ -130,15 +142,19 @@ public sealed class DeterministicCapabilityInterpreter(
         var entities = ExtractEntities(original, normalized).ToList();
         if (_feature154)
             entities.RemoveAll(entity => Feature154NonEntityWords.Contains(entity.Text));
-        if (_feature154 && (quarterlyReport || balanceSheetReport))
+        if (_feature154 && (quarterlyReport || balanceSheetReport || isCashFlowReport))
         {
             // V2-only marker read by CapabilityRoutingPrecedence: a governed report table outranks the
             // «بررسی» analysis preference (PD-27). V1 never adds it.
             evidence.Add(new InterpretationEvidence("financial_statement_table", Feature154GovernedReportEvidence, QueryValueProvenance.UserExplicit));
+            if (isCashFlowReport)
+                evidence.Add(new InterpretationEvidence("financial_statement_table", Feature161GovernedReportEvidence, QueryValueProvenance.UserExplicit));
             // Same company hint as the deterministic table path, so both V2 paths resolve the same company; a
             // possessive follow-up has none and takes the company from conversation state.
-            var tableCompany = balanceSheetReport
-                ? FinancialStatementTableIntentRules.BuildV2Query(original).CompanyQuery
+            var tableCompany = isCashFlowReport
+                ? cashFlowReport.Request!.CompanyQuery
+                : balanceSheetReport
+                ? FinancialStatementTableIntentRules.BuildV2Query(original, _feature161).CompanyQuery
                 : FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(original).CompanyQuery;
             entities = string.IsNullOrWhiteSpace(tableCompany)
                 ? []

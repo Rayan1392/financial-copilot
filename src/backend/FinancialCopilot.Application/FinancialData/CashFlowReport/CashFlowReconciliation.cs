@@ -17,7 +17,7 @@ public static class CashFlowReconciliation
             warnings.Add("duplicate_line_item");
         CashFlowCell Get(int item) => values.TryGetValue(item, out var cell) ? cell :
             new(null, "not_reported", null, new([], [], [item]));
-        var operating = Get(128);
+        var operatingCrossCheck = Get(128);
         var investing = Get(121);
         var beforeFinancing = Get(122);
         var financing = Get(123);
@@ -26,7 +26,9 @@ public static class CashFlowReconciliation
         var fx = Get(35);
         var closing = Get(125);
         var checks = new List<CashFlowCheck>();
-        checks.Add(Check("R1", Sum(operating.Value, investing.Value, financing.Value), change.Value));
+        var operating = beforeFinancing.Value is not null && investing.Value is not null
+            ? beforeFinancing.Value.Value - investing.Value.Value : (decimal?)null;
+        checks.Add(Check("R1", Sum(operating, investing.Value, financing.Value), change.Value));
 
         var beforeFx = Sum(opening.Value, change.Value);
         var resolvedFx = fx;
@@ -52,7 +54,7 @@ public static class CashFlowReconciliation
             r2 = Check("R2", beforeFx, closing.Value);
         }
         checks.Add(r2);
-        var v3 = Check("V3", Sum(operating.Value, investing.Value), beforeFinancing.Value);
+        var v3 = Check("V3", Sum(operatingCrossCheck.Value, investing.Value), beforeFinancing.Value);
         checks.Add(v3);
         if (v3.State == "failed") warnings.Add("ocf_codal_subtotal_mismatch");
 

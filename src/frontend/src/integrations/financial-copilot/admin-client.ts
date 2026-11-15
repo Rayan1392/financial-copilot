@@ -50,6 +50,27 @@ export type AdminUserDirectoryPage = {
   hasMore: boolean;
   asOfUtc: string;
 };
+export type AdminSubscriptionUsersQuery = {
+  pageSize?: number;
+  cursor?: string | null;
+};
+export type AdminSubscriptionUserItem = {
+  userId: string;
+  customerAccountId: string;
+  email: string | null;
+  displayName: string | null;
+  isEnabled: boolean;
+  isLockedOut: boolean;
+  planCode: string;
+  effectiveFromUtc: string | null;
+  effectiveToUtc: string | null;
+};
+export type AdminSubscriptionUsersPage = {
+  items: AdminSubscriptionUserItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  asOfUtc: string;
+};
 /** One non-empty combination of analytics dimensions and its user count (no per-user data). */
 export type AdminUserAnalyticsCell = {
   acquisitionSource: string;
@@ -382,6 +403,15 @@ const json = (method: string, body?: unknown): RequestInit => ({
 
 export const adminApi = {
   userAnalytics: () => financialCopilotApi<AdminUserAnalyticsCube>("/api/v1/admin/users/analytics"),
+  subscriptionUsers: (planCode: string, query: AdminSubscriptionUsersQuery = {}) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+    }
+    return financialCopilotApi<AdminSubscriptionUsersPage>(
+      `/api/v1/admin/users/subscriptions/${encodeURIComponent(planCode)}?${params}`,
+    );
+  },
   users: (search = "") =>
     financialCopilotApi<AdminUser[]>(
       `/api/v1/admin/users?search=${encodeURIComponent(search)}&limit=50`,

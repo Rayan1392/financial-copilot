@@ -2,7 +2,7 @@
 
 Status: read-only discovery, 2026-11-14, at `develop` HEAD `4cd4b77` (v1.12.3). No code, configuration, test, migration or existing spec was changed. **No database was queried.** The supplied فلوله and وبملت amounts are treated as fixtures, not as verified Development data. Line numbers are as of that commit.
 
-> **Gate A (2026-11-14):** the owner chose item 128 («جریان وجه نقد عملیاتی - جدید») as operating cash flow instead of the derivation `122 − 121` discussed below (design-proposal.md D-03). The findings below are kept as recorded during discovery.
+> **Historical Gate A amendment (superseded by the owner's clarification on 2026-11-14):** the initial design treated item 128 as the operating cash-flow source. The current decision is item 122 minus item 121, with item 128 as a cross-check. Repository findings below remain discovery evidence, not the current accounting rule.
 
 This file records **repository findings** (R-xx) and **evidence gaps** (E-xx). The proposed design is in [design-proposal.md](design-proposal.md). Each finding is marked **Verified** (read in code or specs) or **Inference** (reasoned from code, not executed).
 

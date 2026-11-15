@@ -10,7 +10,8 @@ public interface IAssistantHelpReplyComposer
 /// <summary>The single owner of the assistant help text, its sample questions and their suggested actions.</summary>
 public sealed class AssistantHelpReplyComposer(
     IConversationalCapabilityRegistry registry,
-    IChatCapabilityAvailability? availability = null) : IAssistantHelpReplyComposer
+    IChatCapabilityAvailability? availability = null,
+    Feature161CashFlowRoutingScope? cashFlowScope = null) : IAssistantHelpReplyComposer
 {
     public const string ExampleSymbol = "کگل";
 
@@ -20,7 +21,8 @@ public sealed class AssistantHelpReplyComposer(
     private const string IntroductionEn =
         "Hello! I am Sapio, your market assistant. I can show monthly sales, quarterly reports, balance sheets and product sales mix for listed companies. For example, ask:";
 
-    private sealed record Sample(string Id, string Capability, string LabelFa, string LabelEn, string MessageFa, string MessageEn);
+    private sealed record Sample(string Id, string Capability, string LabelFa, string LabelEn, string MessageFa, string MessageEn,
+        bool RequiresFeature161 = false);
 
     private static readonly IReadOnlyList<Sample> Samples =
     [
@@ -30,6 +32,8 @@ public sealed class AssistantHelpReplyComposer(
             $"گزارش فصلی {ExampleSymbol} را نشان بده", $"show {ExampleSymbol} quarterly income statement"),
         new("assistant_help:balance_sheet", "financial_statement_table", "ترازنامه", "Balance sheet",
             $"ترازنامه {ExampleSymbol} را نشان بده", $"show {ExampleSymbol} balance sheet"),
+        new("assistant_help:cash_flow_statement", "financial_statement_table", "\u0635\u0648\u0631\u062a \u062c\u0631\u06cc\u0627\u0646 \u0648\u062c\u0648\u0647 \u0646\u0642\u062f", "Cash flow statement",
+            $"\u062c\u0631\u06cc\u0627\u0646 \u0648\u062c\u0648\u0647 \u0646\u0642\u062f {ExampleSymbol}", $"cash flow statement for {ExampleSymbol}", RequiresFeature161: true),
         new("assistant_help:product_mix", "product_revenue_mix", "ترکیب فروش محصولات", "Product sales mix",
             $"ترکیب فروش محصولات {ExampleSymbol}", $"product revenue mix for {ExampleSymbol}")
     ];
@@ -55,6 +59,7 @@ public sealed class AssistantHelpReplyComposer(
     }
 
     private bool IsAvailable(Sample sample) =>
+        (!sample.RequiresFeature161 || cashFlowScope?.IsActive == true) &&
         registry.Find(sample.Capability) is { Enabled: true } definition &&
         availability?.Evaluate(definition.ExecutionRoute).IsAvailable != false;
 }

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
+using FinancialCopilot.Application.FinancialData.CashFlowReport;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -455,7 +456,9 @@ internal sealed class FinancialStatementTableQueryUseCase(
     IFinancialStatementTableRenderer renderer,
     IOptions<NadpcoApiProviderOptions> providerOptions,
     TimeProvider timeProvider,
-    IBalanceSheetReportQueryUseCase balanceSheetReportUseCase) : IFinancialStatementTableQueryUseCase
+    IBalanceSheetReportQueryUseCase balanceSheetReportUseCase,
+    ICashFlowReportQueryUseCase? cashFlowReportUseCase = null,
+    IOptions<CashFlowReportOptions>? cashFlowReportOptions = null) : IFinancialStatementTableQueryUseCase
 {
     public async Task<FinancialStatementTableResult?> ExecuteAsync(
         FinancialStatementTableQuery query,
@@ -484,6 +487,16 @@ internal sealed class FinancialStatementTableQueryUseCase(
                 query.UnsupportedVariantFilter), ct);
             return new FinancialStatementTableResult(null, [], [], [],
                 BalanceSheetReportTextRenderer.Render(report), timeProvider.GetUtcNow(), BalanceSheetReport: report);
+        }
+
+        if (query.CashFlowReportRequest is { } cashFlowRequest && query.StatementType == FinancialStatementType.CashFlow &&
+            cashFlowReportOptions?.Value.Enabled == true && cashFlowReportUseCase is not null)
+        {
+            var report = await cashFlowReportUseCase.ExecuteAsync(cashFlowRequest with
+                { CompanyQuery = query.CompanyQuery, ProviderName = providerOptions.Value.ProviderName,
+                    UnsupportedVariantFilter = query.UnsupportedVariantFilter }, ct);
+            return new FinancialStatementTableResult(null, [], [], [], CashFlowReportTextRenderer.Render(report),
+                timeProvider.GetUtcNow(), CashFlowReport: report);
         }
 
         var company = await companyResolver.ResolveBySymbolAsync(query.CompanyQuery, ct);

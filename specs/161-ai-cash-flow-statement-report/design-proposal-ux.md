@@ -103,16 +103,14 @@ Recharts `ComposedChart` as Feature 144: grouped bars for operating `#0f766e`, i
 | Column | Header | Width |
 |---|---|---|
 | 1 | «شرح» | flexible, min 260 px |
-| 2 | «شش‌ماهه منتهی به ۱۴۰۵/۰۶/۳۱» + badges | 150 px |
-| 3 | «دوره مشابه سال قبل» + its period end + badges | 150 px |
-| 4 | «تغییر» (amount) | 130 px |
-| 5 | «درصد تغییر» (only when base > 0, otherwise «—» with tooltip reason) | 90 px |
+| 2–6 | Five dynamically selected independent quarters, oldest to newest; Persian quarter/year label and a `ytd_difference` marker when derived | 140 px each |
+| 7 | «درصد تغییر نسبت به فصل قبل» for the latest quarter (only when the preceding value is positive; otherwise «—» with a reason tooltip) | 110 px |
 
-Column 3–5 are hidden when the comparison column is unavailable; a single-line notice states why («صورت جریان وجوه نقد دوره مشابه سال قبل موجود نیست»).
+The period columns are independent quarters calculated from comparable cumulative statements. If a period or predecessor is missing or its presentation differs, that cell is «—» with its reason; the other available quarters remain visible. The change uses the latest two quarter cells, always calculated by the backend.
 
 ### 6.2 Quarterly / annual columns
 
-«شرح» + one column per quarter («فصل ۲ ۱۴۰۵» with «۳ ماهه مستقل» sub-label and a `ytd_difference` info icon) or per fiscal year («سال مالی ۱۴۰۴»), newest at the right edge after the label column (RTL). Up to 8 columns; at 768–1099 px columns beyond 5 move into a horizontally scrollable region **inside** the table only, with the label column sticky (Feature 144 mobile pattern).
+«شرح» + one column per quarter («فصل ۲ ۱۴۰۵» with «۳ ماهه مستقل» sub-label and a `ytd_difference` info icon) or per fiscal year («سال مالی ۱۴۰۴»). The default report shows five quarters; explicit quarterly view offers up to 8 columns. At 768–1099 px columns beyond 5 move into a horizontally scrollable region **inside** the table only, with the label column sticky (Feature 144 mobile pattern).
 
 ### 6.3 Rows and styles
 

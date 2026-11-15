@@ -19,10 +19,13 @@ public interface ISemanticQueryFrameEnricher
         DateTimeOffset now);
 }
 
-public sealed class SemanticQueryFrameEnricher(Feature154RoutingScope? feature154 = null) : ISemanticQueryFrameEnricher
+public sealed class SemanticQueryFrameEnricher(Feature154RoutingScope? feature154 = null,
+    Feature161CashFlowRoutingScope? feature161 = null) : ISemanticQueryFrameEnricher
 {
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
+    private readonly Feature161CashFlowRoutingScope _cashFlowScope = feature161 ?? new(false, Feature154RoutingScope.V2);
+    private bool _feature161 => _cashFlowScope.IsActive;
 
     public IReadOnlyCollection<ResolvedQuerySlot> Enrich(
         string capabilityCode,
@@ -41,8 +44,8 @@ public sealed class SemanticQueryFrameEnricher(Feature154RoutingScope? feature15
                 break;
             case "financial_statement_table" when _feature154:
                 AddStatementTable(enriched, capabilityCode,
-                    FinancialStatementTableIntentRules.BuildV2Query(interpretation.OriginalText));
-                AddReportMarker(enriched, interpretation.OriginalText);
+                    FinancialStatementTableIntentRules.BuildV2Query(interpretation.OriginalText, _feature161));
+                AddReportMarker(enriched, interpretation.OriginalText, _feature161);
                 break;
             case "financial_statement_table":
                 AddStatementTable(enriched, capabilityCode,
@@ -166,14 +169,17 @@ public sealed class SemanticQueryFrameEnricher(Feature154RoutingScope? feature15
     /// slot, so a follow-up without its own alias repeats it (Feature 120 carries the slot). A follow-up without any
     /// statement alias adds no statementType slot and keeps the carried one.
     /// </summary>
-    private static void AddReportMarker(IDictionary<QuerySlotType, ResolvedQuerySlot> slots, string message)
+    private static void AddReportMarker(IDictionary<QuerySlotType, ResolvedQuerySlot> slots, string message, bool cashFlowEnabled)
     {
         var quarterly = FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(message);
         if (quarterly && !slots.ContainsKey(QuerySlotType.StatementType))
             Add(slots, "financial_statement_table", QuerySlotType.StatementType, nameof(FinancialStatementType.IncomeStatement));
         if (!slots.TryGetValue(QuerySlotType.StatementType, out var slot) || string.IsNullOrWhiteSpace(slot.Value)) return;
         // Feature 083 turns write the plain statement type, which replaces (and so clears) a carried marker.
-        var marker = quarterly
+        var cashFlow = cashFlowEnabled && FinancialStatementTableIntentRules.ResolveCashFlowRequest(message).Use;
+        var marker = cashFlow
+            ? FinancialStatementTableCapabilityExecutor.Feature161ReportMarker
+            : quarterly
             ? FinancialStatementTableCapabilityExecutor.Feature144ReportMarker
             : FinancialStatementTableIntentRules.LooksLikeBalanceSheetReportQuery(message)
                 ? FinancialStatementTableCapabilityExecutor.Feature154ReportMarker

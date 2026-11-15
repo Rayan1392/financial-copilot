@@ -61,6 +61,7 @@ public sealed class RelatedFollowUpActionFactory(IConversationalCapabilityRegist
 /// <summary>Related follow-up texts shared by the new providers (Persian, like the existing follow-up services).</summary>
 public static class RelatedFollowUpTexts
 {
+    public static string CashFlowStatement(string symbol) => $"\u062c\u0631\u06cc\u0627\u0646 \u0648\u062c\u0648\u0647 \u0646\u0642\u062f {symbol}";
     public static string QuarterlyReport(string symbol) => $"گزارش فصلی {symbol}";
     public static string MonthlySalesTrend(string symbol) => $"روند فروش ماهانه {symbol} را نشان بده";
     public static string BalanceSheet(string symbol) => $"ترازنامه {symbol}";
@@ -86,6 +87,7 @@ public sealed class BalanceSheetReportFollowUpProvider(RelatedFollowUpActionFact
         var symbol = report.Company.Symbol.Trim();
         var candidates = new List<(string Code, string Message)>
         {
+            ("financial_statement_table", RelatedFollowUpTexts.CashFlowStatement(symbol)),
             ("financial_statement_table", RelatedFollowUpTexts.QuarterlyReport(symbol)),
             ("monthly_activity_trend", RelatedFollowUpTexts.MonthlySalesTrend(symbol))
         };
@@ -122,6 +124,7 @@ public sealed class SingleSymbolFollowUpProvider(
         var justRun = JustRun(context);
         var candidates = new List<(RelatedKind Kind, string Code, string Message)>
         {
+            (RelatedKind.CashFlowStatement, "financial_statement_table", RelatedFollowUpTexts.CashFlowStatement(symbol)),
             (RelatedKind.QuarterlyReport, "financial_statement_table", RelatedFollowUpTexts.QuarterlyReport(symbol)),
             (RelatedKind.MonthlySalesTrend, "monthly_activity_trend", RelatedFollowUpTexts.MonthlySalesTrend(symbol)),
             (RelatedKind.BalanceSheet, "financial_statement_table", RelatedFollowUpTexts.BalanceSheet(symbol))
@@ -138,7 +141,7 @@ public sealed class SingleSymbolFollowUpProvider(
         return Task.FromResult(actions);
     }
 
-    private enum RelatedKind { None, QuarterlyReport, MonthlySalesTrend, BalanceSheet, ComprehensiveAnalysis }
+    private enum RelatedKind { None, QuarterlyReport, MonthlySalesTrend, BalanceSheet, CashFlowStatement, ComprehensiveAnalysis }
 
     /// <summary>One company only: a question about several companies gets no single-symbol follow-ups.</summary>
     private static string? Symbol(FollowUpSuggestionContext context)
@@ -161,9 +164,11 @@ public sealed class SingleSymbolFollowUpProvider(
         if (capability == "monthly_activity_trend" || context.Intent == DetectedIntent.MonthlyActivityTrend)
             return RelatedKind.MonthlySalesTrend;
         if (capability == "financial_statement_table" || context.Intent == DetectedIntent.FinancialStatementTableLookup)
+        {
+            if (context.FinancialStatementTable?.CashFlowReport is not null) return RelatedKind.CashFlowStatement;
             return context.FinancialStatementTable is { } table && (table.BalanceSheetReport is not null || table.BalanceSheetRows.Count > 0)
-                ? RelatedKind.BalanceSheet
-                : RelatedKind.QuarterlyReport;
+                ? RelatedKind.BalanceSheet : RelatedKind.QuarterlyReport;
+        }
         return RelatedKind.None;
     }
 }

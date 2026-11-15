@@ -59,6 +59,18 @@ column; until then, downstream consumers should treat balance-sheet rows as snap
 
 ## Cash flow
 
-The `CashFlow` enum value is reserved and the schema accepts it, but no normalizer writes
-cash-flow rows in Phase 1. Adding cash-flow item mapping to `CodalDbStatementItemMaps` (and the
-corresponding line-item upsert in `CodalDbFinancialStatementNormalizer`) is a deferred follow-up.
+Feature 161 reads normalized cash-flow observations without changing the stored source values.
+For Codal presentation, displayed operating cash flow is derived per period as item 122 minus
+item 121. Item 128 is an independent cross-check where reported; it must not replace that
+calculation. The report preserves each source item and records the source IDs used by derived
+values.
+
+Cash-flow statements are selected by company, statement scope, registered template, reporting
+period, and currency scale. Cumulative 3/6/9/12-month observations are differenced to produce
+independent quarters only when the fiscal-period sequence is supported. Balance-sheet rows
+remain point-in-time values and are never differenced.
+
+The Codal reconciliation uses `(122 - 121) + 121 + 123 = 124`. A separately reported foreign-
+exchange effect is shown as its own reconciliation step and is not included in operating,
+investing, or financing cash flow. Missing, zero, and not-reported cells remain distinct in the
+typed report payload.

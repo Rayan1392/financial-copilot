@@ -23,7 +23,7 @@ XL (delivered in the gated phases of [tasks.md](tasks.md))
 
 ## References
 
-- `specs/161-ai-cash-flow-statement-report/design-proposal.md` (approved at Gate A on 2026-11-14, with the owner's amendment: operating cash flow = item 128)
+- `specs/161-ai-cash-flow-statement-report/design-proposal.md` (Gate A approved 2026-11-14; latest owner clarification makes items 122 and 121 authoritative for operating cash flow)
 - [design-proposal-mapping-matrix.md](design-proposal-mapping-matrix.md) — item roles, sections, metrics (single source for the line registry)
 - [design-proposal-routing-matrix.md](design-proposal-routing-matrix.md) — routing rows 1–55 and follow-ups U1–U7
 - [design-proposal-ux.md](design-proposal-ux.md) — layout, waterfall, states, AC-U01…AC-U08
@@ -50,8 +50,8 @@ Cash flows are the third primary statement after the quarterly income statement 
 
 ## Scope
 
-- Default report: latest standalone cash flow statement (year-to-date) plus the same stage of the previous fiscal year.
-- Explicit period («شش‌ماهه ۱۴۰۵», «سالانه ۱۴۰۴», a period-end date); quarterly view (standalone quarters from cumulative statements, default 4, max 8); annual view (default 3, max 5).
+- Default report: five latest independent quarters, selected dynamically from available standalone cumulative cash flow statements.
+- Explicit period («شش‌ماهه ۱۴۰۵», «سالانه ۱۴۰۴», a period-end date); quarterly view (standalone quarters from cumulative statements, default 5, max 8); annual view (default 3, max 5).
 - Metric focus, analysis focus (deterministic facts, no verdict words) and the follow-ups in routing matrix §5.
 - General and Banking templates, selected only by `QuarterlyFinancialReports:BankingIndustryGroupId`.
 - Reconciliation checks, verification status, warnings, per-cell provenance.
@@ -61,16 +61,16 @@ Cash flows are the third primary statement after the quarterly income statement 
 ## Out Of Scope
 
 - Consolidated (تلفیقی) cash flows; legacy five-section presentations; fallback to items 126/127 or legacy totals (OQ-074 (a)).
-- Deriving operating cash flow from `122 − 121` when item 128 is missing (OQ-087, proposal (a); open).
+- Legacy or newer classification fallbacks; item 128 is cross-validation only and cannot replace the Codal-derived operating cash flow.
 - Two-company comparison in one answer (guided response only, OQ-080 (a)); verdict words (OQ-079 (a)).
 - Changing the existing item-1 `OPERATING_CASH_FLOW` metric (OQ-081 (a) → separate change after evidence).
 - Bank regulatory liquidity metrics, PDF export, migrations, provider calls, catalog writes, V1, Feature 141, Feature 081 internals.
 
 ## Functional Requirements
 
-1. **Totals.** Operating = item **128** («جریان وجه نقد عملیاتی - جدید»); investing = item **121** (Codal); financing = item **123** (Codal); net change 124; opening 33; FX 35; closing 125. Items 1, 58–63, 106–113, 126, 127 are never used for values.
-2. **Presentation policy.** `120 ≠ 0` → `unsupported_presentation`; 121 or 123 not reported → `codal_totals_missing`; 128 not reported → `operating_total_missing` (no derivation, OQ-087).
-3. **Reconciliation.** R1 `128 + 121 + 123 = 124` and R2 `33 + 124 + FX = 125` are mandatory and exact (OQ-086 (a)). V3 `128 + 121 = 122` is checked when 122 is reported; a mismatch is a warning (`ocf_codal_subtotal_mismatch`). FX rules FX-1…FX-4 (design §4.4); 124 is never adjusted. Opening continuity C1 and quarterly C2 as in design §4.3.
+1. **Totals.** Operating = item **122 − item 121**; investing = item **121** (Codal); financing = item **123** (Codal); net change 124; opening 33; FX 35; closing 125. Item 128 is a cross-check only. Items 1, 58–63, 106–113, 126, 127 are never used as values.
+2. **Presentation policy.** `120 ≠ 0` → `unsupported_presentation`; 121 or 123 not reported → `codal_totals_missing`; 122 not reported → `operating_total_missing`.
+3. **Reconciliation.** R1 `(122 − 121) + 121 + 123 = 124` and R2 `33 + 124 + FX = 125` are mandatory and exact (OQ-086 (a)). V3 `128 + 121 = 122` is an optional cross-check; mismatch warns (`ocf_codal_subtotal_mismatch`) and marks dependent metrics unverified. FX rules FX-1…FX-4 (design §4.4); 124 is never adjusted. Opening continuity C1 and quarterly C2 as in design §4.3.
 4. **Failure display.** A failed mandatory check shows the published figures with an error banner, the difference and no verified badge (OQ-075 (a)).
 5. **Detail rows.** Only items whose section is verified are shown; each section shows a residual row «سایر اقلام … (مابه‌التفاوت)» when it is not 0 (OQ-077 (a)).
 6. **Metrics** per mapping matrix §5: CapEx = gross purchases of items 10, 48, 46; FCF = OCF − CapEx, never OCF + investing (OQ-076 (a)); bank template shows no FCF, CapEx coverage, cash conversion, OCF/revenue or net-debt indicator.
@@ -111,11 +111,11 @@ Exact inputs and values are in [design-proposal-draft-plan.md §4–§6](design-
 
 **US-1 Full report**
 - [ ] AC-R01: the anchor is the latest eligible standalone statement; the comparison column is the same stage of the previous fiscal year or a typed unavailable reason.
-- [ ] AC-R02: sections Operating / Investing / Financing / Reconciliation; subtotals equal items 128, 121, 123; reconciliation shows 124, 33, FX, 125.
+- [ ] AC-R02: sections Operating / Investing / Financing / Reconciliation; operating subtotal is item 122 minus item 121; investing/financing subtotals equal 121/123; reconciliation shows 124, 33, FX, 125.
 - [ ] AC-R03: for فلوله (255, 1405/06/31) the report shows OCF 6,918,890; investing (359,104); financing 9,025,064; net change 15,584,850; opening 6,692,454; FX ۰; closing 22,277,304; V3 6,559,786 = item 122; status `verified`.
 - [ ] AC-R04: no value from items 1, 58–63, 106–113, 126, 127 appears in any row.
 - [ ] AC-R05: header shows company, ticker, period label, Jalali period end, audited badge, «جداگانه», publication date, «میلیون ریال», source.
-- [ ] AC-R06: 128 not reported → `operating_total_missing`; 121 or 123 not reported → `codal_totals_missing`; 120 ≠ 0 → `unsupported_presentation` (S-5, S-6b, S-6c).
+- [ ] AC-R06: 122 not reported → `operating_total_missing`; 121 or 123 not reported → `codal_totals_missing`; item 128 may be absent without blocking the Codal-derived operating value; 120 ≠ 0 → `unsupported_presentation` (S-5, S-6b, S-6c).
 
 **US-2 Bank report**
 - [ ] AC-B01: template `BankingCashFlow` only via GroupId; no ticker or company-id condition exists (architecture test).
@@ -136,6 +136,7 @@ Exact inputs and values are in [design-proposal-draft-plan.md §4–§6](design-
 - [ ] AC-P01: Qn = YTD(3n) − YTD(3n−3) within one fiscal year; Q4 = 12M − 9M; missing predecessor → unavailable cell with reason (S-8 values).
 - [ ] AC-P02: balances are never differenced.
 - [ ] AC-P03: «شش‌ماهه ۱۴۰۵» selects months 6, fiscal-year label 1405; a miss lists the nearest periods (S-14).
+- [ ] AC-P04: default table contains the latest five independent quarters when available and its percentage change compares the newest quarter with its immediately preceding quarter.
 
 **US-6 Integrity**
 - [ ] AC-V01: R1 and R2 exact; a failure shows the error banner, the difference and no verified badge (S-1, S-7).
@@ -155,5 +156,5 @@ Exact inputs and values are in [design-proposal-draft-plan.md §4–§6](design-
 ## Assumptions
 
 - The فلوله and وبملت figures are fixtures supplied with the brief; no database has been queried yet (T01/T20).
-- Item 128 is reported on the three-section statements that Feature 161 must show; T01 measures its coverage and how often `128 + 121 = 122` holds (E-03). If coverage is poor, OQ-087 is revisited.
+- Item 128 is an optional cross-check; absence never changes the Codal-derived value `122 − 121`. A mismatch warns and marks dependent metrics unverified.
 - The bank GroupId configured in each environment is correct (E-10).

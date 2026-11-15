@@ -7,7 +7,7 @@ import {
 } from "@/integrations/financial-copilot/admin-client";
 
 vi.mock("@/integrations/financial-copilot/admin-client", () => ({
-  adminApi: { userAnalytics: vi.fn() },
+  adminApi: { userAnalytics: vi.fn(), subscriptionUsers: vi.fn() },
 }));
 
 const cube: AdminUserAnalyticsCube = {
@@ -81,6 +81,64 @@ describe("UserAnalyticsPanel", () => {
     expect(
       screen.getByRole("button", { name: "حذف فیلتر منبع جذب: تحلیل‌اپ" }),
     ).toBeInTheDocument();
+  });
+
+  it("opens a paginated user list for the selected plan", async () => {
+    vi.mocked(adminApi.subscriptionUsers)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            userId: "user-1",
+            customerAccountId: "account-1",
+            email: "plus@example.test",
+            displayName: "Plus User",
+            isEnabled: true,
+            isLockedOut: false,
+            planCode: "Plus",
+            effectiveFromUtc: "2026-10-01T08:00:00Z",
+            effectiveToUtc: null,
+          },
+        ],
+        nextCursor: "next-plus-page",
+        hasMore: true,
+        asOfUtc: "2026-11-09T08:00:00Z",
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            userId: "user-2",
+            customerAccountId: "account-2",
+            email: "plus-two@example.test",
+            displayName: "Second Plus User",
+            isEnabled: false,
+            isLockedOut: false,
+            planCode: "Plus",
+            effectiveFromUtc: null,
+            effectiveToUtc: null,
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        asOfUtc: "2026-11-09T08:00:00Z",
+      });
+
+    render(<UserAnalyticsPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: /Plus.*مشاهدهٔ فهرست/ }));
+
+    expect(await screen.findByText("plus@example.test")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "تاریخ فعال‌سازی" })).toBeInTheDocument();
+    expect(adminApi.subscriptionUsers).toHaveBeenNthCalledWith(1, "Plus", {
+      pageSize: 20,
+      cursor: null,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "صفحهٔ بعد" }));
+    expect(await screen.findByText("plus-two@example.test")).toBeInTheDocument();
+    expect(screen.getByText("نامشخص")).toBeInTheDocument();
+    expect(adminApi.subscriptionUsers).toHaveBeenNthCalledWith(2, "Plus", {
+      pageSize: 20,
+      cursor: "next-plus-page",
+    });
   });
 
   it("explains a missing subscription permission instead of showing plans", async () => {

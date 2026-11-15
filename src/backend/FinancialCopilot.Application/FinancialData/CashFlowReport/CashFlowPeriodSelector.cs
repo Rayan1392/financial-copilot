@@ -161,7 +161,7 @@ public static class CashFlowPeriodSelector
                 return new("available", selectedAnchor,
                     [new("standalone_quarter", anchorSlot.Year, anchorSlot.Months, selectedAnchor.PeriodEnd, selectedAnchor, null,
                         "unavailable", "fiscal_boundary_mismatch", anchorSlot.Start)], [], windowTruncated);
-            var count = Math.Clamp(request.PeriodCount ?? 4, 1, 8);
+            var count = Math.Clamp(request.PeriodCount ?? 5, 1, 8);
             var grid = slots.Where(x => x.Start is not null).Select(x => x.Start!.Value).Distinct()
                 .SelectMany(start => new[] { 3, 6, 9, 12 }.Select(months => (Start: start, Months: months, End: FiscalCalendarPolicy.JalaliEndAfterMonths(start, months))))
                 .Where(x => x.End <= selectedAnchor.PeriodEnd).OrderByDescending(x => x.End).Take(count).OrderBy(x => x.End).ToArray();

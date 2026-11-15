@@ -62,6 +62,17 @@ public static class CashFlowStatementBuilder
             return Combine(current.Value.Value - previous.Value.Value, "available", null, current, previous, "current_ytd - previous_ytd");
         }
 
+        CashFlowCell DerivedOperating(CashFlowPeriodColumn column)
+        {
+            var beforeFinancing = Value(column, CashFlowLineRegistry.CodalBeforeFinancing);
+            var investing = Value(column, CashFlowLineRegistry.InvestingTotal);
+            if (beforeFinancing.State == "ambiguous" || investing.State == "ambiguous")
+                return Combine(null, "ambiguous", "duplicate_line_item", beforeFinancing, investing, "122 - 121");
+            if (beforeFinancing.Value is null || investing.Value is null)
+                return Combine(null, "unavailable", beforeFinancing.Reason ?? investing.Reason ?? "operating_total_missing", beforeFinancing, investing, "122 - 121");
+            return Combine(beforeFinancing.Value.Value - investing.Value.Value, "available", null, beforeFinancing, investing, "122 - 121");
+        }
+
         var builtColumns = columns.Select(column => new CashFlowBuiltColumn(column,
             CashFlowLineRegistry.ReadableSourceItemIds.ToDictionary(id => id, id => Value(column, id)))).ToArray();
         var rows = CashFlowLineRegistry.Displayable(template)
@@ -70,10 +81,15 @@ public static class CashFlowStatementBuilder
             .Where(definition => definition.SourceItemId == CashFlowLineRegistry.FxEffect && template == CashFlowLineRegistry.BankingTemplate ||
                 builtColumns.Any(column => column.Values[definition.SourceItemId].Value.HasValue || column.Values[definition.SourceItemId].State == "ambiguous"))
             .Select(definition => new CashFlowBuiltRow(
-            $"item_{definition.SourceItemId}", definition.ReportLabel, definition.Section,
+            $"item_{definition.SourceItemId}", CashFlowLineRegistry.ReportLabel(definition, columns), definition.Section,
             definition.SourceItemId is CashFlowLineRegistry.OpeningCash or CashFlowLineRegistry.ClosingCash ? "balance" :
                 definition.Visibility == "of-which" ? "of_which" : definition.Visibility,
             [definition.SourceItemId], builtColumns.Select(column => column.Values[definition.SourceItemId]).ToArray())).ToList();
+
+        var operatingCells = builtColumns.Select(column => DerivedOperating(column.Period)).ToArray();
+        var operatingDefinition = CashFlowLineRegistry.Find(CashFlowLineRegistry.OperatingTotal)!;
+        rows.Add(new CashFlowBuiltRow($"item_{CashFlowLineRegistry.OperatingTotal}", operatingDefinition.ReportLabel,
+            CashFlowSection.Operating, "subtotal", [CashFlowLineRegistry.CodalBeforeFinancing, CashFlowLineRegistry.InvestingTotal], operatingCells));
 
         foreach (var residual in CashFlowLineRegistry.ResidualLines)
         {

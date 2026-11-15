@@ -17,7 +17,7 @@ public sealed class CashFlowReport161BuilderTests
     public void FixtureA_ResidualAndProvenanceUseOnlyVisibleVerifiedDetails()
     {
         var header = Header(6);
-        var items = Items((128, 6_918_890), (121, -359_104), (123, 9_025_064), (124, 15_584_850),
+        var items = Items((128, 6_918_890), (122, 6_559_786), (121, -359_104), (123, 9_025_064), (124, 15_584_850),
             (33, 6_692_454), (35, 0), (125, 22_277_304), (10, -359_535), (14, 300), (3, 131),
             (23, 24_635_600), (24, -13_908_702), (5, -1_457_520), (6, -244_314), (1, 999));
         var result = CashFlowStatementBuilder.Build(CashFlowLineRegistry.GeneralTemplate, [Column(header)],
@@ -44,12 +44,13 @@ public sealed class CashFlowReport161BuilderTests
         var q2 = Header(6);
         var items = new Dictionary<Guid, IReadOnlyList<CashFlowItemObservation>>
         {
-            [q1.StatementId] = Items((128, 400), (121, -100), (123, 50), (124, 350), (35, 0), (33, 1000), (125, 1350)),
-            [q2.StatementId] = Items((128, 750), (121, -250), (123, 150), (124, 650), (35, 20), (33, 1000), (125, 1670), (120, 0))
+            [q1.StatementId] = Items((128, 400), (122, 300), (121, -100), (123, 50), (124, 350), (35, 0), (33, 1000), (125, 1350)),
+            [q2.StatementId] = Items((128, 750), (122, 500), (121, -250), (123, 150), (124, 650), (35, 20), (33, 1000), (125, 1670), (120, 0))
         };
         var result = CashFlowStatementBuilder.Build(CashFlowLineRegistry.GeneralTemplate, [Column(q2, q1, "standalone_quarter")], items);
         var values = Assert.Single(result.Columns).Values;
         Assert.Equal(350m, values[128].Value);
+        Assert.Equal(350m, Assert.Single(result.Rows, row => row.RowId == "item_128").Cells[0].Value);
         Assert.Equal(-150m, values[121].Value);
         Assert.Equal(100m, values[123].Value);
         Assert.Equal(300m, values[124].Value);
@@ -68,11 +69,12 @@ public sealed class CashFlowReport161BuilderTests
         var header = Header(6);
         var result = CashFlowStatementBuilder.Build(CashFlowLineRegistry.GeneralTemplate,
             [Column(header, kind: "standalone_quarter", reason: "missing_predecessor")],
-            new Dictionary<Guid, IReadOnlyList<CashFlowItemObservation>> { [header.StatementId] = Items((125, 1670), (128, 750)) });
+            new Dictionary<Guid, IReadOnlyList<CashFlowItemObservation>> { [header.StatementId] = Items((125, 1670), (121, -250), (122, 500), (128, 750)) });
         var values = Assert.Single(result.Columns).Values;
         Assert.Equal(1670m, values[125].Value);
-        Assert.Equal("missing_predecessor", values[128].Reason);
-        Assert.Null(values[128].Value);
+        var operating = Assert.Single(result.Rows, row => row.RowId == "item_128").Cells[0];
+        Assert.Equal("missing_predecessor", operating.Reason);
+        Assert.Null(operating.Value);
     }
 
     [Fact]
@@ -94,15 +96,16 @@ public sealed class CashFlowReport161BuilderTests
             Header(6) with { PeriodType = "TwelveMonths", PeriodEnd = new(2027, 3, 20) } };
         var items = new Dictionary<Guid, IReadOnlyList<CashFlowItemObservation>>
         {
-            [headers[0].StatementId] = Items((128, 400), (121, -100), (123, 50), (124, 350), (35, 0), (33, 1000), (125, 1350)),
-            [headers[1].StatementId] = Items((128, 750), (121, -250), (123, 150), (124, 650), (35, 20), (33, 1000), (125, 1670)),
-            [headers[2].StatementId] = Items((128, 1000), (121, -400), (123, 100), (124, 700), (35, 20), (33, 1000), (125, 1720)),
-            [headers[3].StatementId] = Items((128, 1400), (121, -500), (123, -200), (124, 700), (35, 30), (33, 1000), (125, 1730))
+            [headers[0].StatementId] = Items((128, 400), (122, 300), (121, -100), (123, 50), (124, 350), (35, 0), (33, 1000), (125, 1350)),
+            [headers[1].StatementId] = Items((128, 750), (122, 500), (121, -250), (123, 150), (124, 650), (35, 20), (33, 1000), (125, 1670)),
+            [headers[2].StatementId] = Items((128, 1000), (122, 600), (121, -400), (123, 100), (124, 700), (35, 20), (33, 1000), (125, 1720)),
+            [headers[3].StatementId] = Items((128, 1400), (122, 900), (121, -500), (123, -200), (124, 700), (35, 30), (33, 1000), (125, 1730))
         };
         var columns = headers.Select((header, index) => new CashFlowPeriodColumn("standalone_quarter", 1405, (index + 1) * 3,
             header.PeriodEnd, header, index == 0 ? null : headers[index - 1], "available", null, new DateOnly(2026, 3, 21))).ToArray();
         var result = CashFlowStatementBuilder.Build(CashFlowLineRegistry.GeneralTemplate, columns, items);
         Assert.Equal([400m, 350m, 250m, 400m], result.Columns.Select(c => c.Values[128].Value));
+        Assert.Equal([400m, 350m, 250m, 400m], result.Rows.Single(row => row.RowId == "item_128").Cells.Select(cell => cell.Value));
         Assert.Equal([-100m, -150m, -150m, -100m], result.Columns.Select(c => c.Values[121].Value));
         Assert.Equal([50m, 100m, -50m, -300m], result.Columns.Select(c => c.Values[123].Value));
         Assert.Equal([350m, 300m, 50m, 0m], result.Columns.Select(c => c.Values[124].Value));

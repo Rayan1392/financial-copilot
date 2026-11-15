@@ -1,5 +1,7 @@
 using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
+using FinancialCopilot.Application.FinancialData.CashFlowReport;
 using FinancialCopilot.Domain.Financial.Entities;
+using System.Text.Json.Serialization;
 
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
@@ -25,7 +27,9 @@ public sealed record FinancialStatementTableQuery(
     string BalanceSheetView = BalanceSheetViews.Default,
     string? BaselineKind = null,
     IReadOnlyList<DateOnly>? ComparisonDates = null,
-    string? UnsupportedVariantFilter = null);
+    string? UnsupportedVariantFilter = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    CashFlowReportRequest? CashFlowReportRequest = null);
 
 public sealed record FinancialStatementTableSelection(
     string ExternalCompanyId,
@@ -82,7 +86,8 @@ public sealed record FinancialStatementTableResult(
     string? RenderedAnswer,
     DateTimeOffset GeneratedAtUtc,
     QuarterlyFinancialReportTableResult? QuarterlyResult = null,
-    BalanceSheetReportResult? BalanceSheetReport = null);
+    BalanceSheetReportResult? BalanceSheetReport = null,
+    CashFlowReportResult? CashFlowReport = null);
 
 public interface IFinancialStatementTableRepository
 {

@@ -30,9 +30,9 @@ public sealed class CashFlowReport161RegistryTests
     [Fact]
     public void TotalsCrossCheckAndProposedItems_HaveApprovedRolesAndVisibility()
     {
-        Assert.Equal("primary-total", CashFlowLineRegistry.Find(128)!.Role);
-        Assert.Equal(CashFlowSection.Operating, CashFlowLineRegistry.Find(128)!.Section);
-        Assert.Equal("cross-check", CashFlowLineRegistry.Find(122)!.Role);
+        Assert.Equal("cross-check", CashFlowLineRegistry.Find(128)!.Role);
+        Assert.Equal(CashFlowSection.None, CashFlowLineRegistry.Find(128)!.Section);
+        Assert.Equal("codal-subtotal", CashFlowLineRegistry.Find(122)!.Role);
         Assert.Equal("presentation-marker", CashFlowLineRegistry.Find(120)!.Role);
         Assert.Equal("capex", CashFlowLineRegistry.Find(10)!.MetricComponent);
         Assert.Null(CashFlowLineRegistry.Find(130)!.MetricComponent);
@@ -44,6 +44,25 @@ public sealed class CashFlowReport161RegistryTests
         }
         Assert.False(CashFlowLineRegistry.Find(4)!.CanDisplay(CashFlowLineRegistry.GeneralTemplate));
         Assert.True(CashFlowLineRegistry.Find(4)!.CanDisplay(CashFlowLineRegistry.BankingTemplate));
+    }
+
+    [Fact]
+    public void BalanceLabelsMatchIndependentQuarterInterimAndAnnualPeriods()
+    {
+        var opening = CashFlowLineRegistry.Find(CashFlowLineRegistry.OpeningCash)!;
+        var closing = CashFlowLineRegistry.Find(CashFlowLineRegistry.ClosingCash)!;
+        var quarter = new CashFlowPeriodColumn("standalone_quarter", 1405, 6, new DateOnly(2026, 9, 22),
+            null, null, "available", null, new DateOnly(2026, 3, 21));
+        var interim = new CashFlowPeriodColumn("anchor", 1405, 6, new DateOnly(2026, 9, 22),
+            null, null, "available", null, new DateOnly(2026, 3, 21));
+        var annual = new CashFlowPeriodColumn("fiscal_year", 1405, 12, new DateOnly(2027, 3, 20),
+            null, null, "available", null, new DateOnly(2026, 3, 21));
+
+        Assert.Equal("مانده وجه نقد و معادل‌های نقد در آغاز فصل", CashFlowLineRegistry.ReportLabel(opening, [quarter]));
+        Assert.Equal("مانده وجه نقد و معادل‌های نقد در پایان فصل", CashFlowLineRegistry.ReportLabel(closing, [quarter]));
+        Assert.Equal("مانده وجه نقد و معادل‌های نقد در آغاز سال مالی", CashFlowLineRegistry.ReportLabel(opening, [interim]));
+        Assert.Equal("مانده وجه نقد و معادل‌های نقد در پایان دوره", CashFlowLineRegistry.ReportLabel(closing, [interim]));
+        Assert.Equal("مانده وجه نقد و معادل‌های نقد در پایان سال مالی", CashFlowLineRegistry.ReportLabel(closing, [annual]));
     }
 
     [Fact]

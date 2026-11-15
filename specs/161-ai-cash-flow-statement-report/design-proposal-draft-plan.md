@@ -4,7 +4,7 @@ Status: Gate A: Approved by the owner on 2026-11-14 — test data for the plan i
 
 The task list, phases, test strategy and definition of done that were drafted here before Gate A now live in [tasks.md](tasks.md). This file keeps the synthetic cases and exact expected results that the tasks and the acceptance criteria in [user-story.md](user-story.md) refer to. Section numbers are kept so existing links stay valid.
 
-Operating cash flow is **item 128** (owner decision at Gate A, 2026-11-14). Item 122 is used only for check V3 (`128 + 121 = 122`).
+Codal operating cash flow is **item 122 minus item 121** (owner clarification on 2026-11-14). Item 128 is an optional V3 cross-check (`128 + 121 = 122`).
 
 ## 4. Synthetic cases
 
@@ -15,11 +15,11 @@ Operating cash flow is **item 128** (owner decision at Gate A, 2026-11-14). Item
 | S-3 | 35 not reported, 125 = 22,277,404 | FX-4 `fx_missing_reconciliation_gap` 100; `failed` |
 | S-4 | 35 not reported | FX-2 `inferred_zero`; R2 passed; status `verified` |
 | S-5 | 120 = 500 | column `unsupported_presentation`; anchor → outcome `unsupported_presentation` |
-| S-6 | 122 not reported | V3 `not_evaluated`; R1/R2 pass; status `verified`; report unchanged |
-| S-6b | 128 not reported | column `operating_total_missing`; anchor → outcome `operating_total_missing` (OQ-087 (a): no derivation from 122 − 121) |
+| S-6 | 128 not reported | V3 `not_evaluated`; R1/R2 pass; status `verified`; report unchanged |
+| S-6b | 122 not reported | column `operating_total_missing`; anchor → outcome `operating_total_missing` |
 | S-6c | 123 not reported | `codal_totals_missing` (OQ-074 (a): no fallback to 127) |
-| S-7 | 128 = 6,918,891 | OCF shown 6,918,891; R1 failed (6,918,891 − 359,104 + 9,025,064 = 15,584,851 vs 124 = 15,584,850, difference 1); V3 mismatch (6,559,787 vs 122 = 6,559,786); status `failed` |
-| S-15 | 122 = 6,559,787 (only 122 changed) | V3 mismatch, warning `ocf_codal_subtotal_mismatch`; R1/R2 pass; status `verified_with_warnings`; OCF 6,918,890 |
+| S-7 | 128 = 6,918,891 | Derived OCF remains 6,918,890; R1/R2 pass; V3 mismatch (6,559,787 vs 122 = 6,559,786); warning `ocf_codal_subtotal_mismatch`; status `verified_with_warnings` |
+| S-15 | 122 = 6,559,787 (only 122 changed) | Derived OCF is 6,918,891; V3 passes; R1 fails by 1; status `failed` |
 | S-8 | Quarterly FY 1405, §5.3 | Q values in §5.3 |
 | S-9 | IS 143 = −1,000 | cash conversion `non_positive_net_profit` |
 | S-10 | 10 = 0 / 10 not reported | coverage `zero_capex` / capex `capex_component_missing` |
@@ -54,7 +54,7 @@ A consolidated statement at the same date is ignored; with only consolidated sta
 | Q3 | 250 | −150 | −50 | 50 | 0 | 1,670 | 1,720 |
 | Q4 | 400 | −100 | −300 | 0 | 10 | 1,720 | 1,730 |
 
-Operating is differenced from item 128; `128 + 121 = 122` holds in every YTD row. Every quarter satisfies O + I + F = net change and opening + net change + FX = closing. Removing the 6M statement makes Q2 and Q3 `missing_predecessor`; closing cash for Q3 still shows 1,720 (balance, never differenced).
+Operating is derived per quarter as `122 − 121`; because `128 + 121 = 122` holds in every YTD row, the derived operating values equal the reported item 128 values in this fixture. Every quarter satisfies O + I + F = net change and opening + net change + FX = closing. Removing the 6M statement makes Q2 and Q3 `missing_predecessor`; closing cash for Q3 still shows 1,720 (balance, never differenced).
 
 ## 6. Expected results for the supplied datasets
 
@@ -64,7 +64,7 @@ Amounts in million IRR; computed with exact integers (discovery §3). They are f
 
 | Item | Expected |
 |---|---:|
-| Operating cash flow (item 128) | **6,918,890** |
+| Operating cash flow (item 122 − item 121; item 128 cross-check) | **6,918,890** |
 | V3: 128 + 121 = 122 | 6,918,890 − 359,104 = 6,559,786 = item 122 ✔ |
 | Investing (121) | **−359,104** |
 | Financing (123) | **9,025,064** |
@@ -90,7 +90,7 @@ Amounts in million IRR; computed with exact integers (discovery §3). They are f
 
 | Item | Expected |
 |---|---:|
-| Operating cash flow (item 128) | **386,206,543** |
+| Operating cash flow (item 122 − item 121; item 128 cross-check) | **386,206,543** |
 | V3: 128 + 121 = 122 | 386,206,543 − 43,767,594 = 342,438,949 = item 122 ✔ |
 | Investing (121) | **−43,767,594** |
 | Financing (123) | **−141,868,091** |

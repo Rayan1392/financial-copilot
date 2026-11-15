@@ -11,9 +11,9 @@ Status: Gate A: Approved by the owner on 2026-11-14
 | Depends On | 154-ai-balance-sheet-report (patterns, `FiscalCalendarPolicy`, bank GroupId rule), 144-quarterly-financial-reports-table (ranking and YTD-differencing rules), 117, 120, 121 |
 | References | [discovery.md](discovery.md); [mapping matrix](design-proposal-mapping-matrix.md); [routing matrix](design-proposal-routing-matrix.md); [UX specification](design-proposal-ux.md); [draft plan and tests](design-proposal-draft-plan.md); `docs/domain-glossary.md`; `docs/financial-statement-model.md`; `specs/POLICY-V1-FREEZE.md`; `specs/154-ai-balance-sheet-report/design.md` |
 
-> **Gate A record (2026-11-14).** The owner approved this design with one amendment: «جریان وجه نقد عملیاتی - جدید = 121 استفاده کن، بقیه موارد مورد قبول است». Read as: operating cash flow is **item 128** («جریان وجه نقد عملیاتی - جدید»), shown together with the Codal investing total **item 121** and the Codal financing total 123. This replaces the derivation `122 − 121` (former D-03 recommendation); item 122 becomes a consistency check. All other recommendations (D-01…D-18) and the agent's proposals for OQ-074…OQ-086 are accepted. One new decision arising from the amendment is OQ-087 (item 128 not reported). The finalized specification is [user-story.md](user-story.md); the plan awaiting Gate B is [tasks.md](tasks.md).
+> **Gate A record (2026-11-14; amended by the owner on 2026-11-14).** The initial Gate A amendment treated item 128 as the operating cash-flow source. The owner's latest clarification supersedes that amendment: Codal operating cash flow is derived as item 122 minus item 121; item 128 is a cross-check only. The finalized specification is [user-story.md](user-story.md); Gate B approval is recorded in [tasks.md](tasks.md).
 
-This is the Gate A proposal. It contains the requested specification (Deliverable A), technical plan (B), mapping matrix (D), routing matrix (E) and UX specification (F). The task breakdown (C) is a **draft** in [design-proposal-draft-plan.md](design-proposal-draft-plan.md); per `specs/FEATURE_DEVELOPMENT_WORKFLOW.md` it becomes `user-story.md` and `tasks.md` only after Gate A, and implementation needs Gate B. **Nothing is implemented. No database was queried; the فلوله and وبملت figures are fixtures, not verified Development data.**
+This document preserves the Gate A design decisions and their later owner clarification. Gate B is approved and implementation is tracked in [tasks.md](tasks.md). The current local implementation and evidence status is recorded in [ImplementationReport.md](ImplementationReport.md). **The فلوله and وبملت figures remain fixtures, not verified Development data.**
 
 ---
 
@@ -49,9 +49,9 @@ No new capability ID: the existing `financial_statement_table` capability gains 
 
 ### 2.3 In scope (v1, subject to Gate A)
 
-- Default report: latest standalone cash flow statement (year-to-date), with the same stage of the previous fiscal year as the comparison column.
+- Default report: five latest standalone independent quarters, selected dynamically from persisted cumulative reports.
 - Explicit period: «شش‌ماهه ۱۴۰۵», «سالانه ۱۴۰۴», a Jalali/ISO period-end date.
-- Quarterly view (standalone quarters derived from cumulative statements; default 4, max 8) and annual view (12-month statements; default 3, max 5).
+- Quarterly view (standalone quarters derived from cumulative statements; default 5, max 8) and annual view (12-month statements; default 3, max 5).
 - Metric focus (single figure + KPI card + the full report one tap away, no second query).
 - Analysis focus: deterministic fact sentences for earnings quality, operating cash generation, financing dependence, cause of the cash change, financing structure.
 - General and Banking templates selected by `QuarterlyFinancialReports:BankingIndustryGroupId`.
@@ -62,7 +62,7 @@ No new capability ID: the existing `financial_statement_table` capability gains 
 ### 2.4 Out of scope (v1)
 
 - Consolidated (تلفیقی) cash flows — standalone only, as in Features 144/154; a consolidated statement only triggers a suggestion (OQ-084).
-- Legacy five-section presentations (`unsupported_presentation`), fallback to the «- جدید» investing/financing totals 126/127 or legacy totals (OQ-074), and deriving operating cash flow from `122 − 121` when item 128 is missing (OQ-087).
+- Legacy five-section presentations (`unsupported_presentation`), fallback to the «- جدید» investing/financing totals 126/127 or legacy totals (OQ-074). Item 128 may be absent; missing item 122 or 121 prevents deriving the operating total.
 - Two-company comparisons in one answer — v1 returns a guided response with one suggested action per company (OQ-080).
 - Qualitative verdicts («پشتوانه نقدی قوی/ضعیف») — facts only, until the owner approves thresholds (OQ-079).
 - Regulatory bank liquidity metrics (LCR, NSFR, deposit movements) — not in the data.
@@ -77,12 +77,12 @@ Each decision has a recommendation; the alternatives are recorded so the owner c
 | ID | Decision | Recommendation | Alternatives | Evidence |
 |---|---|---|---|---|
 | D-01 | Capability shape | Extend `financial_statement_table` with `UseCashFlowReport` + a typed `CashFlowRequestCue` (kind: report/metric/analysis, view, period). The conceptual intents CASH_FLOW_REPORT / METRIC / ANALYSIS / COMPARISON map to `kind` + `view`. | New capability IDs (more registry, prompt and governance churn; Feature 154 avoided it) | R-12, R-14 |
-| D-02 | Presentation basis | Per statement: required totals are 128 (operating, D-03), 121 (investing, Codal) and 123 (financing, Codal); 124/125/33 for verification; 122 for the subtotal check. If 121 or 123 is missing → `codal_totals_missing` for that column; 128 missing → see D-03. «- جدید» fallback disabled until E-03 is closed and the owner enables it. Legacy never used. | (b) enable the 126/127/128 fallback now with a visible «مبنای ارائه: جدید» badge; (c) legacy totals | R-06, R-08, **OQ-074** |
-| D-03 | Operating cash flow | **Approved with amendment:** `OCF = item 128` («جریان وجه نقد عملیاتی - جدید»), only on three-section statements (`120` absent or 0). Check V3: `128 + 121 = 122` when 122 is reported; different → warning `ocf_codal_subtotal_mismatch`, 128 stands, status cannot be `verified`. 128 not reported → `operating_total_missing` for that column, no derivation (OQ-087, proposal (a)). `120 ≠ 0` → `unsupported_presentation`. | Derive `122 − 121` (original recommendation, replaced by the owner) | R-08, §3 fixtures, owner Gate A |
+| D-02 | Presentation basis | Per statement: required totals are 122 (Codal before-financing subtotal), 121 (Codal investing) and 123 (Codal financing); 124/125/33 for verification; 128 for cross-validation only. If 121 or 123 is missing → `codal_totals_missing`; 122 missing → `operating_total_missing`. «- جدید» fallback disabled. Legacy never used. | Enable new presentation fallbacks; legacy totals | R-06, R-08, **OQ-074**; owner clarification 2026-11-14 |
+| D-03 | Operating cash flow | `OCF = item 122 - item 121` on three-section statements (`120` absent or 0). Item 128 is a cross-check only: `128 + 121 = 122` when 128 is reported; a mismatch adds `ocf_codal_subtotal_mismatch` and marks dependent metrics unverified without replacing the Codal-derived value. `122` not reported → `operating_total_missing`. `120 ≠ 0` → `unsupported_presentation`. | Item 128 as authoritative operating total | R-08, §3 fixtures, latest owner request 2026-11-14 |
 | D-04 | FX treatment | Rules FX-1…FX-4 (§4.4): FX is added only through item 35 and only in R2; 124 is never adjusted; an absent 35 counts as 0 only when R2 closes without it. | Always treat absent 35 as 0 (could hide an R2 break) | R-10, E-07 |
 | D-05 | Reconciliation failures | Show the report with an error banner and status `failed`; never show the verified badge; metrics depending on a failed total are marked `unverified`. Exact equality, no tolerance. | (b) withhold the whole report; (c) ±1 million IRR tolerance | **OQ-075**, **OQ-086** |
 | D-06 | Version and scope selection | Standalone only (`IsComposing = false`), `AssumedScale = MillionRials`, Feature 144/154 ranking (audited ↓, represented ↓, publishedAt ↓, externalStatementId ↓, id ↓); same-rank peers that differ on any mapped item → `conflicting_report_revision` for that column (anchor → report outcome). Extract the ranking into one shared `FinancialStatementVersionPolicy` used by Features 154 and 161 (behavior-preserving; Feature 154 tests guard it). Feature 144 is not touched. | Copy the ranking a third time (R-17) | R-16, R-17, **OQ-084** |
-| D-07 | Views and default comparison | Default = anchor YTD + same stage of the previous fiscal year (same `PeriodType`, previous fiscal year by `FiscalCalendarPolicy`). Quarterly = standalone quarters by YTD differencing. Annual = 12-month statements. | Default = previous report (mixes YTD lengths, not comparable for flows) | R-16 |
+| D-07 | Views and default comparison | Default = latest five independent quarters, dynamically selected by `FiscalCalendarPolicy`; quarterly flows are adjacent YTD differences and balance items use reported closing balances. The change column compares the latest quarter to its immediately preceding quarter. Quarterly view offers up to eight periods; annual = 12-month statements. An explicit requested period may retain the same-stage YTD comparison. | Default = YTD + same stage previous year | R-16; latest owner request 2026-11-14 |
 | D-08 | Detail rows | Only *verified* items (S, or P after evidence) appear as detail rows. Each section shows a residual row «سایر اقلام … (مابه‌التفاوت)» = subtotal − Σ displayed details, when ≠ 0. Operating shows tax paid as an «از جمله» row only. | Caption «اقلام منتخب» without residual (Feature 154 style) | R-05, R-11, **OQ-077** |
 | D-09 | Metrics | Definitions in the [mapping matrix §5](design-proposal-mapping-matrix.md#5-derived-rows-and-metrics-single-owner-cashflowmetricscalculator). CapEx = gross purchases of PP&E, intangibles and productive biological assets (10, 48, 46); FCF = OCF − CapEx; never OCF + investing. | Net CapEx (minus disposals 14, 83, 47); include 130 | **OQ-076** |
 | D-10 | Industry handling | Template by GroupId only (Feature 144/154 rule). Bank template: no FCF, CapEx coverage, cash conversion or OCF/revenue; FX always shown; facilities rows keep the Codal title with a note; fixed explanatory notice. Applicability lives in one `CashFlowIndustryPolicy`. | Ticker lists (forbidden) | R-15, **OQ-085** |
@@ -95,6 +95,10 @@ Each decision has a recommendation; the alternatives are recorded so the owner c
 | D-17 | Persistence | No migration, no schema, no catalog write, no cache. | — | R-04, R-05 |
 | D-18 | Export | PNG only, through the shared canvas brand header/footer. | Add PDF (new pipeline; out of scope) | R-26 |
 
+### Owner clarification — Codal operating cash flow
+
+The owner's current feature request supersedes the earlier D-03 amendment that made item 128 authoritative. Item 122 (Codal cash flow before financing) and item 121 (Codal investing cash flow) are the authoritative inputs: `operating cash flow = item 122 - item 121`. Item 128 is a cross-check only and is never used as the displayed or metric source. R1 is evaluated as `(122 - 121) + 121 + 123 = 124`; the item 128 cross-check is `128 + 121 = 122` when item 128 is reported. A failed cross-check adds a warning and marks dependent metrics unverified; it does not replace the Codal-derived value.
+
 ## 4. Accounting rules (single owners in the Application layer)
 
 ### 4.1 Presentation selection — `CashFlowPresentationPolicy`
@@ -103,8 +107,8 @@ Each decision has a recommendation; the alternatives are recorded so the owner c
 for each selected statement s:
   if value(120) is reported and ≠ 0                     → column state unsupported_presentation
   else if s has any of {121,123} not reported           → column state codal_totals_missing   (OQ-074 (a): no fallback)
-  else if 128 not reported                              → column state operating_total_missing (OQ-087)
-  else                                                  → presentationBasis = codal (operating total = 128)
+  else if 122 not reported                              → column state operating_total_missing (OQ-087)
+  else                                                  → presentationBasis = codal (operating total = 122 - 121)
 consolidated-only items {22,136..139} present on standalone → warning consolidated_item_on_standalone
 legacy {1,58..63} and aggregates {106..113}             → never read for values (1 only as provenance)
 126, 127 («- جدید» investing/financing)                 → never read for values
@@ -120,9 +124,9 @@ legacy {1,58..63} and aggregates {106..113}             → never read for value
 
 | Check | Formula | Mandatory | On failure |
 |---|---|---|---|
-| R1 | `128 + 121 + 123 = 124` | yes | status `failed`, banner, difference shown |
+| R1 | `(122 - 121) + 121 + 123 = 124` | yes | status `failed`, banner, difference shown |
 | R2 | `33 + 124 + FX = 125`, FX per §4.4 | yes | status `failed`, banner |
-| V3 | `128 + 121 = 122` | when 122 reported | warning `ocf_codal_subtotal_mismatch`; max status `verified_with_warnings` |
+| V3 | `128 + 121 = 122` | when 128 reported | warning `ocf_codal_subtotal_mismatch`; max status `verified_with_warnings` |
 | D-INV | `121 − Σ displayed investing details` | no | residual row; info when ≠ 0 |
 | D-FIN | `123 − Σ displayed financing details` | no | residual row; info when ≠ 0 |
 | C1 | opening continuity: `33(FY n) = 125(12M of FY n−1)` when both selected | no | warning `opening_balance_discontinuity` (restatement likely) |
@@ -172,7 +176,7 @@ Verified existing components are marked **(existing)**; everything else is propo
 | Layer | Component | Responsibility |
 |---|---|---|
 | Application policy | `CashFlowLineRegistry` (new) | Single owner of templates, sections, row order, labels, item roles, verification status, exclusions, metric components (the mapping matrix in code) |
-| Application policy | `CashFlowPresentationPolicy` (new) | §4.1 (operating total = item 128) |
+| Application policy | `CashFlowPresentationPolicy` (new) | §4.1 (Codal operating total = item 122 − item 121) |
 | Application policy | `FinancialStatementVersionPolicy` (new, extracted) | Ranking and same-rank conflict rule, shared by Features 154 and 161 |
 | Application policy | `FiscalCalendarPolicy` **(existing)** | Fiscal starts, labels, Jalali month arithmetic |
 | Application policy | `CashFlowPeriodSelector` (new) | Eligibility, fiscal slots, anchor, comparison column, quarterly/annual columns |
@@ -289,9 +293,9 @@ New folder `src/frontend/src/components/app/cash-flow-report/` mirroring Feature
 These become `user-story.md` after Gate A. Exact fixture values are in [draft plan §6](design-proposal-draft-plan.md#6-expected-results-for-the-supplied-datasets).
 
 **US-1 Full report.** As an investor, I want «صورت جریان وجوه نقد فلوله» to show the latest standalone cash flow statement on the Codal classification, so that I can see where cash came from and went.
-- AC-R01: the anchor is the latest eligible standalone statement; the comparison column is the same stage of the previous fiscal year or a typed unavailable reason.
-- AC-R02: sections Operating/Investing/Financing/Reconciliation; subtotals equal 128, 121, 123; reconciliation shows 124, 33, FX, 125.
-- AC-R03: for فلوله the report shows OCF 6,918,890; investing (359,104); financing 9,025,064; net change 15,584,850; opening 6,692,454; FX ۰; closing 22,277,304; status `verified` (V3: 6,918,890 − 359,104 = 6,559,786 = item 122).
+- AC-R01: the anchor is the latest eligible standalone statement; default view shows the five latest independent quarters or typed unavailable cells where reliable predecessors are missing.
+- AC-R02: sections Operating/Investing/Financing/Reconciliation; operating subtotal equals 122 − 121; investing/financing equal 121/123; reconciliation shows 124, 33, FX, 125.
+- AC-R03: for فلوله the report shows OCF 6,918,890; investing (359,104); financing 9,025,064; net change 15,584,850; opening 6,692,454; FX ۰; closing 22,277,304; status `verified` (Codal: 6,559,786 − (−359,104) = 6,918,890; item 128 cross-checks the value).
 - AC-R04: no value from items 1, 58–63, 106–113, 126, 127 appears in any row.
 - AC-R05: header shows company, ticker, period label, period end (Jalali), audited badge, «جداگانه», publication date, «میلیون ریال», source.
 

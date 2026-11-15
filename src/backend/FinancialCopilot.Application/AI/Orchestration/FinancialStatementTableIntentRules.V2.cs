@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
+using FinancialCopilot.Application.FinancialData.CashFlowReport;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.Entities;
 
@@ -99,14 +100,143 @@ public static partial class FinancialStatementTableIntentRules
                LooksLikeQuarterlyReportTableQuery(WithoutReviewCue(canonical));
     }
 
-    public static bool LooksLikeV2FinancialStatementTableQuery(string? query) =>
+    public static bool LooksLikeV2FinancialStatementTableQuery(string? query, bool cashFlowEnabled = false) =>
         !string.IsNullOrWhiteSpace(query) &&
-        (LooksLikeFinancialStatementTableQuery(CanonicalizeV2(query)) || LooksLikeBalanceSheetReportQuery(query));
+        (LooksLikeFinancialStatementTableQuery(CanonicalizeV2(query)) || LooksLikeBalanceSheetReportQuery(query) ||
+         cashFlowEnabled && LooksLikeCashFlowReportQuery(query));
 
     /// <summary>PD-27 review cue: «بررسی» opens the report; every other analysis cue keeps the analysis route.</summary>
     private static readonly string[] PlainReviewCues = ["بررسی کنید", "بررسی کن", "بررسی"];
 
     private static readonly string[] AnalysisCuesOtherThanReview = ["تحلیل", "ارزیابی", "analyze", "analyse", "analysis", "review"];
+
+    private static readonly string[] CashFlowReportAliases =
+    [
+        "صورت جریان وجوه نقد", "صورت جریان وجه نقد", "صورت جریان‌های نقدی", "صورت جریان های نقدی",
+        "صورت جریان نقد", "صورت جریان نقدی", "گزارش جریان نقدی", "گزارش جریان وجه نقد", "جریان وجوه نقد", "جریان وجه نقد",
+        "گردش وجه نقد", "جریان نقد", "جریان نقدی", "cash flow statement", "cash-flow statement", "cash flow report", "cash flows", "cash flow"
+    ];
+    private static readonly (string Metric, string[] Cues)[] CashFlowMetricCues =
+    [
+        ("operating_cash_flow", ["جریان نقد عملیاتی", "خالص جریان نقد عملیاتی", "operating cash flow"]),
+        ("investing_cash_flow", ["جریان نقد سرمایه گذاری", "جریان نقد سرمایه‌گذاری", "investing cash flow"]),
+        ("financing_cash_flow", ["جریان نقد تامین مالی", "جریان نقد تأمین مالی", "financing cash flow"]),
+        ("closing_cash", ["مانده وجه نقد", "مانده نقد پایان دوره", "closing cash", "cash balance"]),
+        ("opening_cash", ["مانده وجه نقد اول دوره", "مانده وجه نقد ابتدای دوره", "opening cash"]),
+        ("fx_effect", ["اثر نرخ ارز", "تاثیر نرخ ارز", "تأثیر نرخ ارز", "fx effect"]),
+        ("facilities_received", ["تسهیلات دریافتی", "وام دریافتی", "facilities received"]),
+        ("facilities_repaid", ["بازپرداخت تسهیلات", "بازپرداخت وام", "facilities repaid"]),
+        ("dividends_paid", ["سود سهام پرداختی", "سود تقسیمی پرداختی", "dividends paid"]),
+        ("capex", ["مخارج سرمایه‌ای", "مخارج سرمایه ای", "هزینه سرمایه‌ای", "capex"]),
+        ("free_cash_flow", ["جریان نقد آزاد", "free cash flow"]),
+        ("cash_conversion", ["تبدیل سود به نقد", "نسبت تبدیل سود به نقد", "cash conversion"]),
+        ("net_debt_cash_flow", ["جریان نقد خالص بدهی", "خالص جریان نقد استقراض", "net debt cash flow"]),
+        ("interest_paid", ["سود پرداختی تسهیلات", "هزینه مالی پرداختی", "interest paid"]),
+        ("capital_transactions", ["افزایش سرمایه نقدی", "معاملات سرمایه", "capital transactions"]),
+        ("treasury_net", ["خالص معاملات سهام خزانه", "سهام خزانه", "treasury shares"]),
+        ("total_change_in_cash", ["تغییر کل موجودی نقد", "خالص افزایش وجه نقد", "net change in cash"])
+    ];
+    private static readonly string[] CashFlowAnalysisCues =
+        ["کیفیت سود", "پشتوانه نقدی", "تولید نقد", "تولید وجه نقد", "دلایل تغییر نقد", "علت افزایش موجودی نقد", "وابستگی به تسهیلات", "ساختار تامین مالی", "ساختار تأمین مالی", "cash flow analysis", "cash generation"];
+    private static readonly string[] CashFlowFullTableCues = ["جدول کامل", "همه اقلام", "تمام اقلام", "all items", "full table"];
+    private static readonly string[] CashFlowVariantCues = ["تلفیقی", "تلفیق", "consolidated"];
+    private static readonly string[] CashFlowQuarterCues = ["فصل به فصل", "فصلی", "فصلانه", "quarterly", "quarters", "quarter"];
+    private static readonly string[] CashFlowAnnualCues = ["سالانه", "گزارش سال", "annual", "yearly"];
+    private static readonly string[] CashFlowTrendCues = ["روند", "trend"];
+    private static readonly string[] CashFlowPreviousCues = ["\u062f\u0648\u0631\u0647 \u0642\u0628\u0644", "\u062f\u0648\u0631\u0647 \u0642\u0628\u0644\u0634", "\u06af\u0632\u0627\u0631\u0634 \u0642\u0628\u0644", "\u06af\u0632\u0627\u0631\u0634 \u0642\u0628\u0644\u0634", "\u0642\u0628\u0644\u06cc", "previous report", "previous period"];
+    private static readonly string[] CashFlowFollowUpCues = ["\u0647\u0645\u06cc\u0646 \u06af\u0632\u0627\u0631\u0634", "\u0645\u0642\u0627\u06cc\u0633\u0647 \u06a9\u0646", "\u062f\u0648\u0631\u0647 \u0642\u0628\u0644", "\u062f\u0648\u0631\u0647 \u0642\u0628\u0644\u0634", "\u06af\u0632\u0627\u0631\u0634 \u0642\u0628\u0644", "\u06af\u0632\u0627\u0631\u0634 \u0642\u0628\u0644\u0634", "\u0628\u0627 \u0633\u0648\u062f \u062e\u0627\u0644\u0635", "\u0628\u0627 \u0633\u0648\u062f \u062e\u0627\u0644\u0635\u0634", "\u0648\u0636\u0639\u06cc\u062a \u062a\u0627\u0645\u06cc\u0646 \u0645\u0627\u0644\u06cc", "\u0648\u0636\u0639\u06cc\u062a \u062a\u0623\u0645\u06cc\u0646 \u0645\u0627\u0644\u06cc"];
+
+    public sealed record CashFlowRequestCue(bool Use, CashFlowReportRequest? Request, string? UnsupportedVariantFilter);
+
+    public static bool LooksLikeCashFlowReportQuery(string? userMessage) => ResolveCashFlowRequest(userMessage).Use;
+
+    public static CashFlowRequestCue ResolveCashFlowRequest(string? userMessage)
+    {
+        if (string.IsNullOrWhiteSpace(userMessage)) return new(false, null, null);
+        var normalized = NormalizeText(userMessage);
+        if (!ContainsWholePhrase(normalized, CashFlowReportAliases)) return new(false, null, null);
+        if (ContainsWholePhrase(normalized, CashFlowFullTableCues)) return new(false, null, null);
+        var dates = ResolveDates(normalized);
+        var variant = ContainsWholePhrase(normalized, CashFlowVariantCues) ? "unsupported_consolidated_variant" : null;
+        if (variant is not null && dates.Count == 0) return new(false, null, null);
+
+        var metric = CashFlowMetricCues.FirstOrDefault(item => ContainsWholePhrase(normalized, item.Cues)).Metric;
+        var analysisTopic = ResolveCashFlowAnalysisTopic(normalized);
+        var hasAnalysis = analysisTopic is not null || ContainsWholePhrase(normalized, CashFlowAnalysisCues) ||
+                          ContainsWholePhrase(normalized, AnalysisCuesOtherThanReview) && !IsPlainReviewRequest(normalized);
+        var focus = hasAnalysis
+            ? "analysis" : metric is not null ? "metric" : "report";
+        var view = ContainsWholePhrase(normalized, CashFlowAnnualCues) ? "annual"
+            : ContainsWholePhrase(normalized, CashFlowQuarterCues) || ContainsWholePhrase(normalized, CashFlowTrendCues) ? "quarterly" : "default";
+        var period = ResolveCashFlowPeriod(normalized);
+        var request = new CashFlowReportRequest(ExtractCashFlowCompanyHint(normalized), View: view, Focus: focus,
+            MetricId: metric, AnalysisTopic: analysisTopic ?? (focus == "analysis" ? "overview" : null),
+            RequestedPeriodMonths: period.Months, RequestedFiscalYear: period.FiscalYear,
+            PeriodCount: ResolveCashFlowPeriodCount(normalized, view), RequestedDate: dates.FirstOrDefault() is var date && dates.Count == 1 ? date : null,
+            PreviousReport: ContainsWholePhrase(normalized, CashFlowPreviousCues));
+        return new(true, request, variant);
+    }
+
+    public static CashFlowRequestCue ResolveCashFlowFollowUp(string? userMessage)
+    {
+        if (string.IsNullOrWhiteSpace(userMessage) || ContainsWholePhrase(NormalizeText(userMessage), CashFlowReportAliases))
+            return new(false, null, null);
+        var normalized = NormalizeText(userMessage);
+        if (!ContainsWholePhrase(normalized, CashFlowFollowUpCues)) return new(false, null, null);
+        var analysisTopic = normalized.Contains("سود خالص", StringComparison.Ordinal) ? "earnings_quality"
+            : normalized.Contains("تامین مالی", StringComparison.Ordinal) || normalized.Contains("تأمین مالی", StringComparison.Ordinal)
+                ? "financing_structure" : null;
+        return new(true, new CashFlowReportRequest(ExtractCashFlowCompanyHint(normalized), Focus: analysisTopic is null ? "report" : "analysis",
+            AnalysisTopic: analysisTopic, PreviousReport: ContainsWholePhrase(normalized, CashFlowPreviousCues)), null);
+    }
+
+    public static bool LooksLikeCashFlowFollowUpCue(string? userMessage) => ResolveCashFlowFollowUp(userMessage).Use;
+
+    private static string? ResolveCashFlowAnalysisTopic(string normalized) =>
+        normalized.Contains("کیفیت سود", StringComparison.Ordinal) || normalized.Contains("پشتوانه نقدی", StringComparison.Ordinal) ? "earnings_quality"
+        : normalized.Contains("تولید نقد", StringComparison.Ordinal) || normalized.Contains("تولید وجه نقد", StringComparison.Ordinal) ? "operating_generation"
+        : normalized.Contains("دلایل تغییر نقد", StringComparison.Ordinal) || normalized.Contains("علت افزایش موجودی نقد", StringComparison.Ordinal) ? "cash_change_drivers"
+        : normalized.Contains("وابستگی به تسهیلات", StringComparison.Ordinal) ? "financing_dependence"
+        : normalized.Contains("ساختار تامین مالی", StringComparison.Ordinal) || normalized.Contains("ساختار تأمین مالی", StringComparison.Ordinal) ? "financing_structure"
+        : null;
+
+    private static (int? Months, int? FiscalYear) ResolveCashFlowPeriod(string normalized)
+    {
+        var matches = Regex.Matches(normalized, @"(?<!\d)(?<year>13\d{2}|14\d{2})(?!\d)");
+        var year = matches.Count == 0 ? (int?)null : int.Parse(matches[^1].Groups["year"].Value, CultureInfo.InvariantCulture);
+        var months = normalized.Contains("سه ماهه", StringComparison.Ordinal) || normalized.Contains("3 ماهه", StringComparison.Ordinal) ? 3
+            : normalized.Contains("شش ماهه", StringComparison.Ordinal) || normalized.Contains("\u0634\u0634 \u0645\u0627\u0647\u0647", StringComparison.Ordinal) || normalized.Contains("6 ماهه", StringComparison.Ordinal) ? 6
+            : normalized.Contains("نه ماهه", StringComparison.Ordinal) || normalized.Contains("9 ماهه", StringComparison.Ordinal) ? 9
+            : normalized.Contains("دوازده ماهه", StringComparison.Ordinal) || normalized.Contains("سالانه", StringComparison.Ordinal) || normalized.Contains("12 ماهه", StringComparison.Ordinal) ? 12
+            : (int?)null;
+        return (months, year);
+    }
+
+    private static int? ResolveCashFlowPeriodCount(string normalized, string view)
+    {
+        var match = Regex.Match(normalized, @"(?<!\d)(?<count>[1-9])\s*(?:سال|years?)\s*(?:اخیر|آخر|last)?");
+        if (view == "quarterly" && match.Success)
+            return Math.Clamp(int.Parse(match.Groups["count"].Value, CultureInfo.InvariantCulture) * 4, 1, 8);
+        var quarters = Regex.Match(normalized, @"(?<!\d)(?<count>\d{1,2})\s*(?:فصل|quarter|quarters)");
+        return view == "quarterly" ? Math.Clamp(quarters.Success ? int.Parse(quarters.Groups["count"].Value, CultureInfo.InvariantCulture) : 4, 1, 8) : null;
+    }
+
+    private static string ExtractCashFlowCompanyHint(string normalized)
+    {
+        var result = normalized;
+        foreach (var phrase in CashFlowReportAliases.Concat(CashFlowMetricCues.SelectMany(item => item.Cues))
+                     .Concat(CashFlowAnalysisCues).Concat(CashFlowFullTableCues).Concat(CashFlowVariantCues)
+                     .Concat(CashFlowQuarterCues).Concat(CashFlowAnnualCues).Concat(CashFlowTrendCues)
+                     .Concat(CashFlowPreviousCues).Concat(CashFlowFollowUpCues).Concat(AnalysisCuesOtherThanReview)
+                     .Concat(["گزارش", "نماد", "سهم", "را", "برای", "در", "از", "با", "کن", "بده", "نشان", "نمایش", "چقدر", "است", "بود", "آخرین", "اخیر", "سال", "ماه", "ماهه", "تومان", "ریال", "عملیاتی", "سرمایه‌گذاری", "سرمایه گذاری", "تأمین مالی", "تامین مالی", "آزاد", "نرخ", "ارز", "نقد", "cash", "flow", "statement", "report", "the", "of", "for"]))
+            result = RemoveWholePhrase(result, NormalizeText(phrase));
+        result = Regex.Replace(result, @"(?<!\d)(13\d{2}|14\d{2})[/-]\d{1,2}(?:[/-]\d{1,2})?(?!\d)|20\d{2}-\d{2}-\d{2}|\b\d+\b", " ");
+        return CleanV2CompanyHint(Regex.Replace(result, @"\s+", " ").Trim()) ?? string.Empty;
+    }
+
+    private static bool ContainsWholePhrase(string value, IEnumerable<string> phrases) =>
+        phrases.Any(phrase => Regex.IsMatch(value, $"(?<![\\p{{L}}\\p{{N}}]){Regex.Escape(NormalizeText(phrase)).Replace("\\ ", "\\s+")}(?![\\p{{L}}\\p{{N}}])",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant));
 
     /// <summary>
     /// True when the request asks to «بررسی» exactly one statement and carries no other analysis cue (PD-27). A
@@ -134,11 +264,20 @@ public static partial class FinancialStatementTableIntentRules
     /// V2 statement-table request for the deterministic branch and the interpreter: the shared request over the
     /// canonical text, plus the Feature 154 balance-sheet form when Feature 154 serves the request.
     /// </summary>
-    public static FinancialStatementTableQuery BuildV2Query(string userMessage)
+    public static FinancialStatementTableQuery BuildV2Query(string userMessage, bool cashFlowEnabled = false)
     {
         var canonical = CanonicalizeV2(userMessage);
         var query = BuildQuery(canonical) with { UserMessage = userMessage };
         query = query with { CompanyQuery = CleanV2CompanyHint(query.CompanyQuery) };
+        var cashFlow = cashFlowEnabled ? ResolveCashFlowRequest(userMessage) : new CashFlowRequestCue(false, null, null);
+        if (cashFlow.Use && cashFlow.Request is { } cashFlowRequest)
+            return query with
+            {
+                StatementType = FinancialStatementType.CashFlow,
+                CompanyQuery = cashFlowRequest.CompanyQuery,
+                CashFlowReportRequest = cashFlowRequest,
+                UnsupportedVariantFilter = cashFlow.UnsupportedVariantFilter
+            };
         var balanceSheet = ResolveBalanceSheetRequest(userMessage);
         if (!balanceSheet.Use || query.StatementType != FinancialStatementType.BalanceSheet)
             return query;

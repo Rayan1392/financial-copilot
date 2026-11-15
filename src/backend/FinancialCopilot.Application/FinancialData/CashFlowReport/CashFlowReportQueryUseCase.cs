@@ -50,6 +50,8 @@ public sealed class CashFlowReportQueryUseCase(
 
         if (request.ProviderName != CashFlowReportContract.ProviderName)
             return Unavailable("provider_unavailable", "unsupported_provider", "صورت جریان وجوه نقد از این منبع در دسترس نیست.");
+        if (request.UnsupportedVariantFilter is not null)
+            return Unavailable("unsupported_request", "unsupported_date_with_variant");
         if (request.View is not ("default" or "annual" or "quarterly") || request.Focus is not ("report" or "metric" or "analysis") ||
             request.RequestedPeriodMonths is not (null or 3 or 6 or 9 or 12) || request.RequestedFiscalYear is <= 0)
             return Unavailable("unsupported_request", "unsupported_view_or_focus", "این شکل گزارش پشتیبانی نمی‌شود.");
@@ -79,30 +81,32 @@ public sealed class CashFlowReportQueryUseCase(
         var oldest = headers.Count == 0 ? (DateOnly?)null : headers.Min(x => x.PeriodEnd);
         if (truncated && oldest is { } boundary) headers.RemoveAll(x => x.PeriodEnd == boundary);
         bool Outside(DateOnly date) => truncated && oldest is { } earliest && date <= earliest && headers.All(x => x.PeriodEnd != date);
-        if (truncated && headers.Count == 0 && oldest is { } onlyDate)
-            headers.AddRange(await Read(() => reader.ReadHeadersAtDatesAsync(request.ProviderName, resolved.ExternalCompanyId, [onlyDate], ct)));
-        if (request.RequestedDate is { } explicitDate && Outside(explicitDate))
-            headers.AddRange(await Read(() => reader.ReadHeadersAtDatesAsync(request.ProviderName, resolved.ExternalCompanyId, [explicitDate], ct)));
-
-        var periodRequest = new CashFlowPeriodRequest(request.View, request.RequestedPeriodMonths, request.RequestedFiscalYear,
-            request.PeriodCount, request.RequestedDate, request.PreviousReport);
-        CashFlowPeriodSelection Preliminary() => CashFlowPeriodSelector.Select(headers,
-            headers.DistinctBy(x => x.StatementId).ToDictionary(x => x.StatementId, _ => (IReadOnlyList<CashFlowItemObservation>)[]), periodRequest, truncated, headerSet.FiscalEvidence);
-        var preliminary = Preliminary();
-        if (preliminary.Outcome == "no_statement_for_period" && request.RequestedPeriodMonths is { } requestedMonths &&
-            request.RequestedFiscalYear is { } requestedYear)
+        var initialExactDates = new HashSet<DateOnly>();
+        if (truncated && headers.Count == 0 && oldest is { } onlyDate) initialExactDates.Add(onlyDate);
+        if (request.RequestedDate is { } explicitDate && Outside(explicitDate)) initialExactDates.Add(explicitDate);
+        if (request.RequestedPeriodMonths is { } requestedMonths && request.RequestedFiscalYear is { } requestedYear)
         {
-            var target = headerSet.FiscalEvidence.Select(x => FiscalCalendarPolicy.TryParseJalaliDate(x.JalaliFiscalYearEnd, out var end)
+            var fiscalTargetDates = headerSet.FiscalEvidence.Select(x => FiscalCalendarPolicy.TryParseJalaliDate(x.JalaliFiscalYearEnd, out var end)
                     ? (DateOnly?)end : null)
                 .Where(end => end.HasValue && FiscalCalendarPolicy.FiscalYearLabel(FiscalCalendarPolicy.FiscalStartFromYearEnd(end.Value)) == requestedYear)
                 .Select(end => FiscalCalendarPolicy.JalaliEndAfterMonths(FiscalCalendarPolicy.FiscalStartFromYearEnd(end!.Value), requestedMonths))
-                .Where(Outside).Distinct().ToArray();
-            if (target.Length > 0)
-            {
-                headers.AddRange(await Read(() => reader.ReadHeadersAtDatesAsync(request.ProviderName, resolved.ExternalCompanyId, target, ct)));
-                preliminary = Preliminary();
-            }
+                .Where(Outside);
+            initialExactDates.UnionWith(fiscalTargetDates);
         }
+        if (initialExactDates.Count > 0)
+            headers.AddRange(await Read(() => reader.ReadHeadersAtDatesAsync(request.ProviderName, resolved.ExternalCompanyId, initialExactDates.ToArray(), ct)));
+
+        var periodRequest = new CashFlowPeriodRequest(request.View, request.RequestedPeriodMonths, request.RequestedFiscalYear,
+            request.PeriodCount, request.RequestedDate, request.PreviousReport);
+        var defaultFiveQuarterView = request.View == "default" && request.Focus == "report" &&
+            request.RequestedPeriodMonths is null && request.RequestedDate is null && request.PeriodCount is null;
+        var effectivePeriodRequest = defaultFiveQuarterView
+            ? periodRequest with { View = "quarterly", PeriodCount = 5 }
+            : periodRequest;
+        CashFlowPeriodSelection Preliminary() => CashFlowPeriodSelector.Select(headers,
+            headers.DistinctBy(x => x.StatementId).ToDictionary(x => x.StatementId, _ => (IReadOnlyList<CashFlowItemObservation>)[]), effectivePeriodRequest, truncated, headerSet.FiscalEvidence);
+        var preliminary = Preliminary();
+        if (initialExactDates.Count > 0) preliminary = Preliminary();
         if (preliminary.Outcome == "no_standalone_cash_flow")
         {
             var consolidated = await Read(() => reader.ConsolidatedExistsAsync(request.ProviderName, resolved.ExternalCompanyId, ct));
@@ -143,7 +147,10 @@ public sealed class CashFlowReportQueryUseCase(
         onStatementsRead(readIds.Count);
         var lines = readIds.ToDictionary(id => id, id => (IReadOnlyList<CashFlowItemObservation>)(read.GetValueOrDefault(id) ?? [])
             .Where(item => !CashFlowLineRegistry.ExcludedValueItems.Contains(item.SourceItemId)).ToArray());
-        var selected = CashFlowPeriodSelector.Select(headers, lines, periodRequest, truncated, headerSet.FiscalEvidence);
+        var detailRead = await Read(() => reader.ReadAllLineItemsAsync(request.ProviderName, readIds.ToArray(), ct));
+        var allItems = detailRead.Items.ToDictionary(pair => pair.Key, pair =>
+            (IReadOnlyList<CashFlowItemObservation>)pair.Value.Where(item => !CashFlowLineRegistry.ExcludedValueItems.Contains(item.SourceItemId)).ToArray());
+        var selected = CashFlowPeriodSelector.Select(headers, lines, effectivePeriodRequest, truncated, headerSet.FiscalEvidence);
         if (selected.Outcome != "available" || selected.Anchor is null)
             return Unavailable(selected.Outcome, selected.Outcome, "انتخاب نسخه صورت مالی ممکن نشد.", template, nearest: selected.NearestPeriods);
 
@@ -168,17 +175,19 @@ public sealed class CashFlowReportQueryUseCase(
         }).ToArray();
 
         var built = CashFlowStatementBuilder.Build(template, safeColumns, lines);
-        var income = template == CashFlowLineRegistry.GeneralTemplate && request.View == "default"
+        var income = template == CashFlowLineRegistry.GeneralTemplate && request.View == "default" && !defaultFiveQuarterView
             ? await Read(() => reader.ReadIncomeStatementsAsync(request.ProviderName, resolved.ExternalCompanyId,
                 safeColumns.Where(x => x.Statement is not null).Select(x => x.Statement!).DistinctBy(x => x.StatementId).Take(2).ToArray(), ct))
             : [];
         onStatementsRead(income.Count);
-        return BuildResult(request, company, template, now, selected.Anchor, built, lines, income, anchorPresentation.Warnings, truncated);
+        return BuildResult(request, company, template, now, selected.Anchor, built, lines, allItems,
+            detailRead.IsComplete, income, anchorPresentation.Warnings, truncated);
     }
 
     private static CashFlowReportResult BuildResult(CashFlowReportRequest request, CashFlowReportCompany company, string template,
         DateTimeOffset now, CashFlowStatementHeader anchor, CashFlowBuiltStatement built,
         IReadOnlyDictionary<Guid, IReadOnlyList<CashFlowItemObservation>> lines,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CashFlowItemObservation>> allItems, bool detailReadComplete,
         IReadOnlyList<CashFlowIncomeStatementObservation> income, IReadOnlyList<string> anchorWarnings, bool truncated)
     {
         var columns = built.Columns.Select((column, index) =>
@@ -221,14 +230,17 @@ public sealed class CashFlowReportQueryUseCase(
                 period.Statement?.StatementId == anchor.StatementId ? observedWarnings.Concat(anchorWarnings).Distinct().ToArray() : observedWarnings,
                 quarterPair ? Raw(period.Statement, 33) : null);
         }).ToArray();
+        var detailCoverage = CashFlowDetailCoverageCalculator.Calculate(template, built.Columns, allItems, detailReadComplete);
         var metrics = built.Columns.Select((column, index) => CashFlowMetricsCalculator.Calculate(template, column.Values,
             verifications[index], SelectIncome(column.Period.Statement, income), column.Period.Kind != "standalone_quarter")).ToArray();
         var rows = built.Rows.Select(row => new
         {
             row.Section,
             Row = new CashFlowReportRow(row.RowId, row.Label, row.Kind, row.SourceItemIds,
-                template == CashFlowLineRegistry.BankingTemplate && row.SourceItemIds.Count == 1 && row.SourceItemIds[0] is 23 or 24
-                    ? "طبق طبقه‌بندی کدال در فعالیت‌های تأمین مالی؛ به معنای تغییر سپرده‌ها نیست" : null,
+                row.Kind == "residual"
+                    ? "محاسبه: جمع گزارش‌شدهٔ کدال منهای ریزاقلام تأییدشدهٔ قابل‌نمایش؛ این مبلغ قلم مستقل منبع نیست و در پوشش ریزاقلام منظور نمی‌شود."
+                    : template == CashFlowLineRegistry.BankingTemplate && row.SourceItemIds.Count == 1 && row.SourceItemIds[0] is 23 or 24
+                        ? "طبق طبقه‌بندی کدال در فعالیت‌های تأمین مالی؛ به‌معنای تغییر سپرده‌ها نیست" : null,
                 columns.Select((column, index) => (column.ColumnId, Cell: row.SourceItemIds.Count == 1 && row.SourceItemIds[0] == 35
                     ? verifications[index].ResolvedFx : row.Cells[index])).ToDictionary(x => x.ColumnId, x => x.Cell))
         }).ToArray();
@@ -236,18 +248,26 @@ public sealed class CashFlowReportQueryUseCase(
             .Select(section => new CashFlowReportSection(SectionKey(section), SectionLabel(section), rows.Where(row => row.Section == section).Select(row => row.Row).ToArray())).ToArray();
 
         CashFlowReportChanges? changes = null;
-        if (request.View == "default" && columns.Length >= 2 && columns[1].State == "available")
+        var quarterlyColumns = columns.All(column => column.Kind == "standalone_quarter");
+        var comparisonAvailable = columns.Length >= 2 && (quarterlyColumns
+            ? columns[^1].State == "available" && columns[^2].State == "available"
+            : columns[1].State == "available");
+        if (request.View == "default" && comparisonAvailable)
         {
+            var currentIndex = quarterlyColumns ? columns.Length - 1 : 0;
+            var baselineIndex = quarterlyColumns ? columns.Length - 2 : 1;
+            var currentColumn = columns[currentIndex];
+            var baselineColumn = columns[baselineIndex];
             var comparisons = rows.ToDictionary(x => x.Row.RowId, x =>
             {
-                var current = x.Row.Cells[columns[0].ColumnId]; var baseline = x.Row.Cells[columns[1].ColumnId];
+                var current = x.Row.Cells[currentColumn.ColumnId]; var baseline = x.Row.Cells[baselineColumn.ColumnId];
                 if (current.Value is null || baseline.Value is null)
                     return new CashFlowReportChange(null, null, "unavailable", "component_unavailable");
                 var amount = current.Value.Value - baseline.Value.Value;
                 return new CashFlowReportChange(amount, baseline.Value > 0m ? amount / baseline.Value * 100m : null, "available",
                     baseline.Value == 0m ? "zero_baseline" : baseline.Value < 0m ? "negative_baseline" : null);
             });
-            changes = new(columns[1].ColumnId, columns[0].ColumnId, comparisons);
+            changes = new(baselineColumn.ColumnId, currentColumn.ColumnId, comparisons);
         }
 
         var warnings = new List<CashFlowReportWarning>();
@@ -259,15 +279,42 @@ public sealed class CashFlowReportQueryUseCase(
             warnings.AddRange(rows.Where(x => x.Row.Kind == "residual" && x.Row.Cells[columns[i].ColumnId].Value is not null and not 0m)
                 .Select(x => new CashFlowReportWarning("section_residual", "info", columns[i].ColumnId, "بخشی از مبلغ در ردیف سایر اقلام نمایش داده شده است.")));
         }
-        var kpis = metrics.SelectMany((items, i) => items.Select(item => new CashFlowReportKpi(item.MetricId, MetricLabel(item.MetricId),
+        var kpis = metrics.SelectMany((items, i) => items.Select(item => new CashFlowReportKpi(item.MetricId, MetricLabel(item.MetricId, built.Columns[i].Period),
             columns[i].ColumnId, item.Value, item.Unit, item.State, item.Reason, item.Formula, item.Components))).ToArray();
         var anchorIndex = Array.FindIndex(built.Columns.ToArray(), x => x.Period.Statement?.StatementId == anchor.StatementId);
         if (anchorIndex < 0) anchorIndex = 0;
         var anchorVerification = verifications[anchorIndex];
         var waterfall = request.View == "default" ? CashFlowWaterfallBuilder.Build(template, built.Columns[anchorIndex].Values, anchorVerification, columns[anchorIndex].ColumnId) : null;
+        var anchorPeriod = built.Columns[anchorIndex].Period;
+        CashFlowAnalysisComparison? ComparisonAt(int index) => index < 0 ? null
+            : new(metrics[index], columns[index].ColumnId, columns[index].Label);
+        var previousQuarterIndex = -1;
+        var priorYearIndex = -1;
+        if (anchorPeriod.Kind == "standalone_quarter" && anchorPeriod.FiscalYear is { } anchorYear)
+        {
+            var previousQuarter = anchorPeriod.PeriodMonths == 3
+                ? built.Columns.Select((column, index) => (column, index)).Where(x => x.column.Period.Kind == "standalone_quarter" &&
+                    x.column.Period.FiscalYear == anchorYear - 1 && x.column.Period.PeriodMonths == 12 && x.column.Period.PeriodEnd < anchorPeriod.PeriodEnd)
+                : built.Columns.Select((column, index) => (column, index)).Where(x => x.column.Period.Kind == "standalone_quarter" &&
+                    x.column.Period.FiscalYear == anchorYear && x.column.Period.PeriodMonths == anchorPeriod.PeriodMonths - 3 &&
+                    x.column.Period.PeriodEnd < anchorPeriod.PeriodEnd);
+            previousQuarterIndex = previousQuarter.OrderByDescending(x => x.column.Period.PeriodEnd).Select(x => x.index).FirstOrDefault(-1);
+            priorYearIndex = built.Columns.Select((column, index) => (column, index)).Where(x => x.column.Period.Kind == "standalone_quarter" &&
+                    x.column.Period.FiscalYear == anchorYear - 1 && x.column.Period.PeriodMonths == anchorPeriod.PeriodMonths)
+                .Select(x => x.index).FirstOrDefault(-1);
+        }
+        else if (anchorPeriod.FiscalYear is { } annualYear)
+        {
+            priorYearIndex = built.Columns.Select((column, index) => (column, index)).Where(x => x.column.Period.FiscalYear == annualYear - 1 &&
+                    x.column.Period.PeriodMonths == anchorPeriod.PeriodMonths)
+                .Select(x => x.index).FirstOrDefault(-1);
+        }
+        if (priorYearIndex < 0 && request.View == "default" && columns.Length > 1 && columns[1].Kind == "same_stage_previous_year")
+            priorYearIndex = 1;
         var analysis = request.Focus == "analysis" ? CashFlowAnalysisFacts.Build(request.AnalysisTopic ?? "overview", columns[anchorIndex].ColumnId,
             template, metrics[anchorIndex], metrics.Length > 1 && request.View == "default" ? metrics[1] : null,
-            request.View == "quarterly" ? metrics.SelectMany(x => x).ToArray() : null) : null;
+            request.View == "quarterly" ? metrics.SelectMany(x => x).ToArray() : null,
+            ComparisonAt(previousQuarterIndex), ComparisonAt(priorYearIndex)) : null;
         var statements = built.Columns.SelectMany(x => new[] { x.Period.Statement, x.Period.Predecessor }).Append(anchor)
             .Where(x => x is not null).Cast<CashFlowStatementHeader>().DistinctBy(x => x.StatementId).ToDictionary(x => x.StatementId,
                 x => new CashFlowReportStatement(x.StatementId, x.ExternalStatementId, x.PeriodEnd, FiscalCalendarPolicy.ToJalali(x.PeriodEnd),
@@ -277,9 +324,40 @@ public sealed class CashFlowReportQueryUseCase(
         if (template == CashFlowLineRegistry.BankingTemplate)
             notices.Add("در بانک‌ها جریان نقد عملیاتی عمدتاً از تغییر سپرده‌ها و تسهیلات اعطایی ناشی می‌شود و با سود خالص یا جریان نقد آزاد شرکت‌های تولیدی قابل مقایسه نیست. این صورت، شاخص‌های نقدینگی نظارتی بانک را نشان نمی‌دهد.");
         if (truncated) notices.Add("پنجره صورت‌های مالی موجود محدود است؛ برخی دوره‌های قدیمی‌تر ممکن است نمایش داده نشوند.");
+        var mainTotals = ToValidationDimension(anchorVerification.Checks, "R1");
+        var cashBalance = ToValidationDimension(anchorVerification.Checks, "R2", "C1", "C2");
+        var reportMetadata = new CashFlowReportMetadata(
+            request.View == "annual" ? "سالانه" : request.View == "quarterly" || columns.All(x => x.Kind == "standalone_quarter")
+                ? "فصل‌های مستقل" : "دورهٔ تجمعی و دورهٔ مشابه سال قبل",
+            anchor.IsComposing ? "تلفیقی" : "غیرتلفیقی",
+            columns[anchorIndex].JalaliPeriodEnd,
+            columns[anchorIndex].FiscalYear,
+            anchor.IsAudited,
+            anchor.IsRepresented,
+            anchor.JalaliPublishedAt,
+            request.ProviderName == CashFlowReportContract.ProviderName ? "نوآوران امین" : request.ProviderName,
+            "میلیون ریال");
         return new(CashFlowReportContract.Version, now, "available", null, null, [], false, template, company, request, statements,
             anchor.StatementId, columns, sections, changes, kpis, waterfall,
-            new(anchorVerification.Status, checks), warnings, notices, analysis);
+            new(anchorVerification.Status, checks, mainTotals, cashBalance, detailCoverage), warnings, notices, analysis, reportMetadata);
+    }
+
+    private static CashFlowReportValidationDimension ToValidationDimension(IReadOnlyList<CashFlowCheck> checks,
+        string primaryCheckId, params string[] relatedCheckIds)
+    {
+        var primary = checks.FirstOrDefault(check => check.CheckId == primaryCheckId);
+        var selected = new List<CashFlowCheck>();
+        if (primary is not null) selected.Add(primary);
+        foreach (var checkId in relatedCheckIds)
+        {
+            var related = checks.FirstOrDefault(check => check.CheckId == checkId);
+            if (related is not null && (related.Expected is not null || related.Actual is not null)) selected.Add(related);
+        }
+        var status = selected.Any(check => check.State == "failed") ? "failed"
+            : primary is null || primary.State != "passed" || selected.Any(check => check.State == "not_evaluated")
+                ? "unverified" : "verified";
+        return new(status, primary?.Expected, primary?.Actual, primary?.Difference,
+            selected.Select(check => check.CheckId).ToArray());
     }
 
     private static CashFlowIncomeStatementValues? SelectIncome(CashFlowStatementHeader? period,
@@ -308,15 +386,21 @@ public sealed class CashFlowReportQueryUseCase(
         CashFlowSection.Operating => "فعالیت‌های عملیاتی", CashFlowSection.Investing => "فعالیت‌های سرمایه‌گذاری",
         CashFlowSection.Financing => "فعالیت‌های تأمین مالی", _ => "تطبیق موجودی نقد"
     };
-    private static string MetricLabel(string id) => id switch
+    private static string MetricLabel(string id, CashFlowPeriodColumn period) => id switch
     {
         "operating_cash_flow" => "جریان خالص نقد عملیاتی", "investing_cash_flow" => "جریان نقد سرمایه‌گذاری",
         "financing_cash_flow" => "جریان نقد تأمین مالی", "net_change" => "خالص افزایش (کاهش) در وجه نقد",
-        "opening_cash" => "مانده وجه نقد در آغاز دوره", "closing_cash" => "مانده وجه نقد در پایان دوره", "fx_effect" => "اثر تغییرات نرخ ارز",
+        "opening_cash" => period.Kind == "standalone_quarter" ? "مانده وجه نقد و معادل‌های نقد در آغاز فصل" : "مانده وجه نقد و معادل‌های نقد در آغاز سال مالی",
+        "closing_cash" => period.Kind == "standalone_quarter" ? "مانده وجه نقد و معادل‌های نقد در پایان فصل" :
+            period.Kind == "fiscal_year" ? "مانده وجه نقد و معادل‌های نقد در پایان سال مالی" : "مانده وجه نقد و معادل‌های نقد در پایان دوره",
+        "fx_effect" => "اثر تغییرات نرخ ارز",
         "facilities_received" => "تسهیلات دریافتی", "facilities_repaid" => "بازپرداخت اصل تسهیلات", "dividends_paid" => "سود سهام پرداختی",
         "cash_before_fx" => "مانده نقد قبل از اثر نرخ ارز", "total_change_in_cash" => "تغییر کل موجودی نقد",
         "interest_paid" => "سود پرداختی بابت تأمین مالی", "capital_transactions" => "وجوه حاصل از افزایش سرمایه",
-        "treasury_net" => "خالص معاملات سهام خزانه", "capex" => "مخارج سرمایه‌ای نقدی", "free_cash_flow" => "جریان نقد آزاد",
+        "treasury_net" => "خالص معاملات سهام خزانه", "capex" => "مخارج سرمایه‌ای جامع", "free_cash_flow" => "جریان نقد آزاد جامع",
+        "ppe_capex" => "مخارج سرمایه‌ای تأییدشدهٔ دارایی ثابت مشهود",
+        "ppe_capex_coverage" => "پوشش مخارج دارایی ثابت مشهود",
+        "simplified_free_cash_flow" => "جریان نقد آزاد ساده‌شده",
         "capex_coverage" => "پوشش مخارج سرمایه‌ای", "net_debt_cash_flow" => "خالص جریان نقد استقراض",
         "cash_conversion" => "نسبت تبدیل سود به نقد", "ocf_to_revenue" => "نسبت جریان نقد عملیاتی به فروش",
         "fx_share_of_cash_change" => "سهم اثر نرخ ارز از تغییر موجودی نقد", _ => id

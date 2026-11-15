@@ -71,16 +71,19 @@ public sealed class CashFlowReport161ReconciliationTests
     [Fact]
     public void S6_S7_S15_CrossCheckIsOptionalAndMismatchNeverReplacesOperatingValue()
     {
-        var values = FixtureA(); values.Remove(122);
+        var values = FixtureA(); values.Remove(128);
         var absent = CashFlowReconciliation.Verify(values);
         Assert.Equal("verified", absent.Status);
         Assert.Equal("not_evaluated", Check(absent, "V3").State);
         values[122] = Cell(6_559_786m); values[128] = Cell(6_918_891m);
-        var wrongOperating = CashFlowReconciliation.Verify(values);
-        Assert.Equal("failed", wrongOperating.Status);
-        Assert.Equal(-1m, Check(wrongOperating, "V3").Difference);
+        var wrongCrossCheck = CashFlowReconciliation.Verify(values);
+        Assert.Equal("verified_with_warnings", wrongCrossCheck.Status);
+        Assert.Equal(-1m, Check(wrongCrossCheck, "V3").Difference);
         values[128] = Cell(6_918_890m); values[122] = Cell(6_559_787m);
-        var warning = CashFlowReconciliation.Verify(values);
+        var failedCodalTotal = CashFlowReconciliation.Verify(values);
+        Assert.Equal("failed", failedCodalTotal.Status);
+        Assert.Equal("failed", Check(failedCodalTotal, "R1").State);
+        var warning = wrongCrossCheck;
         Assert.Equal("verified_with_warnings", warning.Status);
         Assert.Contains("ocf_codal_subtotal_mismatch", warning.Warnings);
     }

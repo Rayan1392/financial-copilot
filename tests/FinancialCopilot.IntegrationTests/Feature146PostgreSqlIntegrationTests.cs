@@ -174,6 +174,123 @@ public sealed class Feature146PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
     }
 
     [SkippableFact]
+    public async Task Subscription_users_are_tenant_scoped_active_and_keyset_paginated_consistently_with_analytics()
+    {
+        await using var database = await fixture.CreateBillingDatabaseAsync();
+        await using (var migrationContext = database.CreateAuthContext())
+            await migrationContext.Database.MigrateAsync();
+
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var sameActivation = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero).AddDays(-10);
+        var activeUsers = new[]
+        {
+            NewUser("plus-one@example.test"),
+            NewUser("plus-two@example.test"),
+            NewUser("plus-unknown-date@example.test"),
+            NewUser("plus-unknown-date-two@example.test")
+        };
+        var expiredUser = NewUser("plus-expired@example.test");
+        var futureUser = NewUser("plus-future@example.test");
+        var otherTenantUser = NewUser("plus-other-tenant@example.test");
+        var nonMemberUser = NewUser("plus-non-member@example.test");
+
+        await using (var auth = database.CreateAuthContext())
+        {
+            auth.Tenants.AddRange(
+                new TenantRow { Id = tenantId, Name = "Subscription tenant" },
+                new TenantRow { Id = otherTenantId, Name = "Other subscription tenant" });
+            AddMember(auth, tenantId, activeUsers[0], UserOperationalMetadataCodes.Native, now.AddDays(-30), null);
+            AddMember(auth, tenantId, activeUsers[1], UserOperationalMetadataCodes.Native, now.AddDays(-30), null);
+            AddMember(auth, tenantId, activeUsers[2], UserOperationalMetadataCodes.Native, now.AddDays(-30), null);
+            AddMember(auth, tenantId, expiredUser, UserOperationalMetadataCodes.Native, now.AddDays(-30), null);
+            AddMember(auth, tenantId, futureUser, UserOperationalMetadataCodes.Native, now.AddDays(-30), null);
+            AddMember(auth, otherTenantId, otherTenantUser, UserOperationalMetadataCodes.Native, now.AddDays(-30), null);
+            auth.Users.Add(nonMemberUser);
+            await auth.SaveChangesAsync();
+        }
+
+        await using (var billing = database.CreateBillingContext())
+        {
+            billing.CustomerAccounts.AddRange(
+                activeUsers.Select((user, index) => new CustomerAccountRow
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    UserId = user.Id,
+                    AccountType = "user",
+                    BillingMode = "wallet",
+                    SubscriptionPlanCode = "Plus",
+                    SubscriptionEffectiveFrom = index >= 2 ? null : sameActivation
+                })
+                .Append(new CustomerAccountRow
+                {
+                    Id = Guid.NewGuid(), TenantId = tenantId, UserId = expiredUser.Id,
+                    AccountType = "user", BillingMode = "wallet", SubscriptionPlanCode = "Plus",
+                    SubscriptionEffectiveFrom = now.AddDays(-20), SubscriptionEffectiveTo = now.AddMinutes(-1)
+                })
+                .Append(new CustomerAccountRow
+                {
+                    Id = Guid.NewGuid(), TenantId = tenantId, UserId = futureUser.Id,
+                    AccountType = "user", BillingMode = "wallet", SubscriptionPlanCode = "Plus",
+                    SubscriptionEffectiveFrom = now.AddMinutes(10)
+                })
+                .Append(new CustomerAccountRow
+                {
+                    Id = Guid.NewGuid(), TenantId = otherTenantId, UserId = otherTenantUser.Id,
+                    AccountType = "user", BillingMode = "wallet", SubscriptionPlanCode = "Plus",
+                    SubscriptionEffectiveFrom = sameActivation
+                })
+                .Append(new CustomerAccountRow
+                {
+                    Id = Guid.NewGuid(), TenantId = tenantId, UserId = nonMemberUser.Id,
+                    AccountType = "user", BillingMode = "wallet", SubscriptionPlanCode = "Plus",
+                    SubscriptionEffectiveFrom = sameActivation
+                }));
+            await billing.SaveChangesAsync();
+        }
+
+        await using var queryAuth = database.CreateAuthContext();
+        await using var queryBilling = database.CreateBillingContext();
+        var queries = CreateQueries(queryAuth, queryBilling);
+        var page = await queries.GetSubscriptionUsersAsync(
+            tenantId, "Plus", new AdminSubscriptionUsersQuery(PageSize: 1), CancellationToken.None);
+        Assert.Single(page.Items);
+        Assert.NotNull(page.NextCursor);
+        Assert.True(page.HasMore);
+
+        var allItems = page.Items.ToList();
+        var cursor = page.NextCursor;
+        while (cursor is not null)
+        {
+            var nextPage = await queries.GetSubscriptionUsersAsync(
+                tenantId, "Plus", new AdminSubscriptionUsersQuery(PageSize: 1, Cursor: cursor), CancellationToken.None);
+            allItems.AddRange(nextPage.Items);
+            cursor = nextPage.NextCursor;
+        }
+
+        Assert.Equal(4, allItems.Count);
+        Assert.Equal(4, allItems.Select(item => item.UserId).Distinct().Count());
+        Assert.Equal(activeUsers.Select(user => user.Id).OrderBy(id => id), allItems.Select(item => item.UserId).OrderBy(id => id));
+        Assert.Contains(allItems, item => item.EffectiveFromUtc is null);
+        Assert.All(allItems, item => Assert.Equal("Plus", item.PlanCode));
+        Assert.All(allItems.Where(item => item.EffectiveFromUtc is not null), item => Assert.Equal(sameActivation, item.EffectiveFromUtc));
+
+        var analytics = await queries.GetAnalyticsAsync(tenantId, true, CancellationToken.None);
+        Assert.Equal(4, analytics.Cells.Where(cell => cell.Plan == "Plus").Sum(cell => cell.Users));
+
+        var otherTenantPage = await queries.GetSubscriptionUsersAsync(
+            otherTenantId, "Plus", new AdminSubscriptionUsersQuery(PageSize: 10), CancellationToken.None);
+        Assert.Equal(new[] { otherTenantUser.Id }, otherTenantPage.Items.Select(item => item.UserId));
+
+        await Assert.ThrowsAsync<AdminManagementException>(() => queries.GetSubscriptionUsersAsync(
+            tenantId, "Pro", new AdminSubscriptionUsersQuery(PageSize: 1, Cursor: page.NextCursor), CancellationToken.None));
+        await Assert.ThrowsAsync<AdminManagementException>(() => queries.GetSubscriptionUsersAsync(
+            tenantId, "not-a-plan", new AdminSubscriptionUsersQuery(), CancellationToken.None));
+    }
+
+    [SkippableFact]
     public async Task Customer360_applies_section_permissions_tenant_isolation_and_active_refresh_session_rules()
     {
         await using var database = await fixture.CreateBillingDatabaseAsync();

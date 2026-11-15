@@ -18,30 +18,36 @@ public sealed class CashFlowReport161MetricsTests
     private static CashFlowMetric Metric(IReadOnlyList<CashFlowMetric> metrics, string id) => Assert.Single(metrics, item => item.MetricId == id);
 
     [Fact]
-    public void FixtureA_ComputesFcfFromCapexNotFromNetInvesting()
+    public void FixtureA_ReportsPpeOnlyFcfAndWithholdsUnverifiedComprehensiveCapex()
     {
         var values = General();
         var metrics = Calculate(values);
-        Assert.Equal(359_535m, Metric(metrics, "capex").Value);
-        Assert.Equal(6_559_355m, Metric(metrics, "free_cash_flow").Value);
-        Assert.Equal(6_918_890m / 359_535m, Metric(metrics, "capex_coverage").Value);
+        Assert.Equal(359_535m, Metric(metrics, "ppe_capex").Value);
+        Assert.Equal(6_559_355m, Metric(metrics, "simplified_free_cash_flow").Value);
+        Assert.Equal(6_918_890m / 359_535m, Metric(metrics, "ppe_capex_coverage").Value);
+        Assert.Null(Metric(metrics, "capex").Value);
+        Assert.Equal("capex_mapping_unverified", Metric(metrics, "capex").Reason);
+        Assert.Null(Metric(metrics, "free_cash_flow").Value);
+        Assert.Equal("capex_mapping_unverified", Metric(metrics, "free_cash_flow").Reason);
         Assert.Equal(10_726_898m, Metric(metrics, "net_debt_cash_flow").Value);
-        Assert.DoesNotContain(Metric(metrics, "free_cash_flow").Components, x => x.SourceItemId == 121);
-        Assert.DoesNotContain(Metric(metrics, "capex").Components, x => x.SourceItemId is 13 or 130);
+        Assert.Contains(Metric(metrics, "simplified_free_cash_flow").Components, x => x.SourceItemId == 122);
+        Assert.DoesNotContain(Metric(metrics, "ppe_capex").Components, x => x.SourceItemId is 13 or 130);
+        Assert.Contains(Metric(metrics, "capex").Components, x => x.SourceItemId == 46 && x.State == "mapping_unverified");
         Assert.Equal(-244_314m, Metric(metrics, "dividends_paid").Value);
     }
 
     [Fact]
-    public void CapexUsesApprovedGrossComponentsAndRequiresItemTen()
+    public void CapexDoesNotCountUnverifiedComponentsAndRequiresPpePaymentForSimplifiedValue()
     {
         var values = General(); values[48] = Cell(-20); values[46] = Cell(-30); values[130] = Cell(-1000);
         var metrics = Calculate(values);
-        Assert.Equal(359_585m, Metric(metrics, "capex").Value);
+        Assert.Equal("capex_mapping_unverified", Metric(metrics, "capex").Reason);
+        Assert.Equal(359_535m, Metric(metrics, "ppe_capex").Value);
         values[10] = Cell(0);
         values[48] = Cell(null); values[46] = Cell(null);
-        Assert.Equal("zero_capex", Metric(Calculate(values), "capex_coverage").Reason);
+        Assert.Equal("zero_capex", Metric(Calculate(values), "ppe_capex_coverage").Reason);
         values.Remove(10);
-        Assert.Equal("capex_component_missing", Metric(Calculate(values), "capex").Reason);
+        Assert.Equal("capex_component_missing", Metric(Calculate(values), "ppe_capex").Reason);
     }
 
     [Fact]
@@ -51,6 +57,8 @@ public sealed class CashFlowReport161MetricsTests
         var netDebt = Metric(Calculate(values), "net_debt_cash_flow");
         Assert.Equal(10_726_898m, netDebt.Value);
         Assert.Equal([23, 24], netDebt.Components.Select(x => x.SourceItemId));
+        values.Remove(24);
+        Assert.Null(Metric(Calculate(values), "net_debt_cash_flow").Value);
     }
 
     [Fact]
@@ -87,7 +95,7 @@ public sealed class CashFlowReport161MetricsTests
     {
         var values = General(); values[124] = Cell(15_584_973m);
         var metrics = Calculate(values);
-        Assert.Equal("unverified", Metric(metrics, "free_cash_flow").State);
+        Assert.Equal("unverified", Metric(metrics, "simplified_free_cash_flow").State);
         Assert.Equal("available", Metric(metrics, "dividends_paid").State);
     }
 
@@ -99,16 +107,15 @@ public sealed class CashFlowReport161MetricsTests
         values[21] = Cell(15); values[131] = Cell(5);
         values[117] = Cell(-30); values[119] = Cell(10);
         var metrics = Calculate(values);
-        Assert.Equal(-1_457_580m, Metric(metrics, "interest_paid").Value);
-        Assert.Equal(20m, Metric(metrics, "capital_transactions").Value);
-        Assert.Equal(-20m, Metric(metrics, "treasury_net").Value);
+        Assert.Equal(-1_457_520m, Metric(metrics, "interest_paid").Value);
+        Assert.DoesNotContain(metrics, item => item.MetricId is "capital_transactions" or "treasury_net");
         Assert.Equal(22_277_304m, Metric(metrics, "cash_before_fx").Value);
         Assert.Equal(15_584_850m, Metric(metrics, "total_change_in_cash").Value);
         Assert.Equal(24_635_600m, Metric(metrics, "facilities_received").Value);
         Assert.Equal(-13_908_702m, Metric(metrics, "facilities_repaid").Value);
-        values[128] = Cell(0m);
-        Assert.Equal("non_positive_operating_cash_flow", Metric(Calculate(values), "capex_coverage").Reason);
-        values[48] = Cell(null, "ambiguous");
-        Assert.Equal("component_unavailable", Metric(Calculate(values), "capex").Reason);
+        values[122] = Cell(-359_104m);
+        Assert.Equal("non_positive_operating_cash_flow", Metric(Calculate(values), "ppe_capex_coverage").Reason);
+        values[10] = Cell(null, "ambiguous");
+        Assert.Equal("component_unavailable", Metric(Calculate(values), "ppe_capex").Reason);
     }
 }

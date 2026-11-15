@@ -17,7 +17,7 @@ public sealed record CashFlowObservedValue(CashFlowValueState State, decimal? Va
 
 public sealed record CashFlowPresentationSelection(string Outcome, IReadOnlyList<string> Warnings);
 
-/// <summary>Classifies the stored presentation without deriving or substituting published totals.</summary>
+/// <summary>Requires Codal totals and derives operating cash flow from Codal's before-financing subtotal.</summary>
 public static class CashFlowPresentationPolicy
 {
     public const string Available = "available";
@@ -44,7 +44,7 @@ public static class CashFlowPresentationPolicy
         bool Missing(int id) => CashFlowObservedValue.From(observations.GetValueOrDefault(id)).State == CashFlowValueState.NotReported;
         if (Missing(CashFlowLineRegistry.InvestingTotal) || Missing(CashFlowLineRegistry.FinancingTotal))
             return new(CodalTotalsMissing, warnings);
-        if (Missing(CashFlowLineRegistry.OperatingTotal)) return new(OperatingTotalMissing, warnings);
+        if (Missing(CashFlowLineRegistry.CodalBeforeFinancing)) return new(OperatingTotalMissing, warnings);
         return new(Available, warnings);
     }
 }

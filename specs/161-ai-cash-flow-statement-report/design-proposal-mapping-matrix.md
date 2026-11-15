@@ -1,6 +1,6 @@
 # Feature 161 — Financial Mapping Matrix (Deliverable D)
 
-Status: Gate A: Approved by the owner on 2026-11-14 (amended: operating cash flow = item 128)
+Status: Gate A: Approved by the owner on 2026-11-14 (owner clarification 2026-11-14 supersedes the item 128 amendment; operating cash flow = item 122 − item 121)
 
 Part of [design-proposal.md](design-proposal.md). Evidence ids (E-xx) and findings (R-xx) are in [discovery.md](discovery.md).
 
@@ -23,7 +23,7 @@ Provider `NoavaranCurrentApi`, `StatementType = CashFlow`. Titles are copied fro
 
 | SourceItemId | Source title | Section | Codal classification | Calculation role | Visibility | Industry | Verification |
 |---:|---|---|---|---|---|---|---|
-| 122 | جریان وجه نقد قبل از فعالیت های تامین مالی - کدال | — | Codal total | `cross-check` (V3: `128 + 121 = 122`) | provenance | all | S-both |
+| 122 | جریان وجه نقد قبل از فعالیت های تامین مالی - کدال | — | Codal total | `derivation-input` for OCF; R1 input | provenance | all | S-both |
 | 121 | جریان وجه نقد سرمایه گذاری - کدال | Investing | Codal total | `primary-total`; R1 input | subtotal, kpi | all | S-both |
 | 123 | جریان وجه نقد تامین مالی - کدال | Financing | Codal total | `primary-total`; R1 input | subtotal, kpi | all | S-both |
 | 124 | خالص افزایش (کاهش) در وجه نقد - کدال | Reconciliation | Codal total (excludes FX, R-10) | `primary-total`; R1 target; R2 input | subtotal, kpi | all | S-both |
@@ -31,7 +31,7 @@ Provider `NoavaranCurrentApi`, `StatementType = CashFlow`. Titles are copied fro
 | 33 | مانده وجه نقد در آغاز سال | Reconciliation | Shared; balance at fiscal-year start | `reconciliation-input` (R2); waterfall start | detail | all | S-both |
 | 35 | تاثیر تغییرات نرخ ارز | Reconciliation | Shared; separate from 124 | `reconciliation-input` (R2) under rules FX-1…FX-4 | detail (always shown for bank; shown for general when present and ≠ 0) | all | S-both |
 | 120 | جریان وجه نقد بازده سرمایه گذاریها و سود پرداختی بابت تامین مالی - کدال | — | Codal label of the **legacy** five-section layout | `presentation-marker`: ≠ 0 → `unsupported_presentation` | hidden | all | P (E-04) |
-| 128 | جریان وجه نقد عملیاتی - جدید | Operating | Operating total (owner decision, Gate A 2026-11-14) | `primary-total`; R1 input | subtotal, kpi | all | S-both (`128 + 121 = 122` in both samples) |
+| 128 | جریان وجه نقد عملیاتی - جدید | — | New-version cross-check only | `cross-check` (V3: `128 + 121 = 122`) | provenance | all | S-both (`128 + 121 = 122` in both samples) |
 | 126 | جریان وجه نقد سرمایه گذاری - جدید | Investing | New presentation | `fallback-candidate` | provenance | all | P (E-03) |
 | 127 | جریان وجه نقد تامین مالی - جدید | Financing | New presentation | `fallback-candidate` | provenance | all | P (E-03) |
 | 1 | جریان وجه نقد عملیاتی | — | Legacy (MetricCode `OPERATING_CASH_FLOW`, R-07) | `cross-check` candidate for "cash from operations before tax" only | provenance | all | P (E-05) |
@@ -47,7 +47,7 @@ Provider `NoavaranCurrentApi`, `StatementType = CashFlow`. Titles are copied fro
 
 | SourceItemId | Source title | Section | Codal classification | Calculation role | Visibility | Industry | Verification |
 |---:|---|---|---|---|---|---|---|
-| — | ~~Derived operating total `122 − 121`~~ | — | Replaced at Gate A by item 128 | none | — | — | — |
+| — | Derived operating total `122 − 121` | Operating | Codal-derived authoritative total | `primary-total`; R1 input; KPI | subtotal, kpi | all | S-both |
 | 9 | مالیات بر درآمد پرداختی | Operating | Revised Standard No. 2: operating | `detail` | of-which | all | P (E-05) |
 
 No other operating component exists in the catalog. The report does **not** show «نقد حاصل از عملیات» (OCF − tax) until E-05 verifies that tax sits inside the Codal operating total; it is then a derived row cross-checked against item 1.
@@ -108,7 +108,7 @@ No other operating component exists in the catalog. The report does **not** show
 
 | Id | Persian label | Definition (signed million IRR) | Applicability | Null / denominator rules |
 |---|---|---|---|---|
-| `operating_cash_flow` | جریان خالص نقد عملیاتی | item `128` | all | 128 not reported → unavailable (`operating_total_missing`, OQ-087); checked against `122 − 121` (rule V3) |
+| `operating_cash_flow` | جریان خالص نقد عملیاتی | item `122 - 121` | all | Either Codal input missing → unavailable (`operating_total_missing`, OQ-087); item 128 is only cross-checked against the Codal subtotal |
 | `cash_before_fx` | مانده نقد قبل از اثر نرخ ارز | `33 + 124` | all | Waterfall subtotal only |
 | `total_change_in_cash` | تغییر کل موجودی نقد | `124 + 35` (equals `125 − 33` when R2 holds) | all | Uses the FX value resolved by FX-1…FX-4 |
 | `capex` | مخارج سرمایه‌ای نقدی | `−(10 + 48 + 46)`; absent component contributes 0 and is listed as "not reported"; **10 must be reported** (value or explicit 0) | general | 10 not reported → unavailable (`capex_component_missing`). 130 and 13 excluded (OQ-076) |

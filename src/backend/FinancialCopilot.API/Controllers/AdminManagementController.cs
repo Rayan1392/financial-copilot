@@ -50,6 +50,15 @@ public sealed class AdminManagementController(
         return await userQueries.GetDirectoryAsync(Actor.TenantId, query, canReadSubscription, canReadCredits, canResolveBillingAccount, cancellationToken);
     }
 
+    [HttpGet("users/subscriptions/{planCode}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    [Authorize(Policy = AuthorizationPolicies.AdminSubscriptionsRead)]
+    public Task<AdminSubscriptionUsersPage> GetSubscriptionUsers(
+        string planCode,
+        [FromQuery] AdminSubscriptionUsersQuery query,
+        CancellationToken cancellationToken) =>
+        userQueries.GetSubscriptionUsersAsync(Actor.TenantId, planCode, query, cancellationToken);
+
     [HttpGet("users/{userId:guid}/customer-360")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
     public async Task<AdminCustomer360View> GetCustomer360(Guid userId, CancellationToken cancellationToken)

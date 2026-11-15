@@ -224,6 +224,113 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         return new AdminUserDirectoryPage(items, nextCursor, hasMore, asOfUtc);
     }
 
+    public async Task<AdminSubscriptionUsersPage> GetSubscriptionUsersAsync(
+        Guid tenantId,
+        string planCode,
+        AdminSubscriptionUsersQuery query,
+        CancellationToken cancellationToken)
+    {
+        ValidatePageSize(query.PageSize);
+        var normalizedPlanCode = planCode.Trim();
+        if (normalizedPlanCode.Length == 0 || normalizedPlanCode.Length > 64 ||
+            !await billing.SubscriptionPlans.AsNoTracking().AnyAsync(
+                plan => plan.Code == normalizedPlanCode,
+                cancellationToken))
+        {
+            throw Invalid("Plan code is invalid or unavailable.");
+        }
+
+        const string sort = "effectiveFromUtc-desc,customerAccountId-asc";
+        var filterHash = HashFilters(new { PlanCode = normalizedPlanCode });
+        var cursor = ReadCursor(query.Cursor, "subscription-users", tenantId, Guid.Empty, query.PageSize, sort, filterHash);
+        var asOfUtc = cursor?.AsOfUtc ?? timeProvider.GetUtcNow().ToUniversalTime();
+        var hasCursor = cursor is not null;
+        var cursorEffectiveFromUtc = cursor?.EffectiveFromUtc;
+        var cursorHasEffectiveFrom = cursorEffectiveFromUtc is not null;
+        var lastCustomerAccountId = cursor?.LastItemId ?? Guid.Empty;
+
+        await using var transaction = IsPostgres(billing)
+            ? await billing.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (transaction is not null)
+        {
+            await billing.Database.ExecuteSqlRawAsync("SET LOCAL statement_timeout = '5s'", cancellationToken);
+        }
+
+        FormattableString sql = $"""
+            SELECT
+                a."Id" AS "CustomerAccountId",
+                u."Id" AS "UserId",
+                u."Email" AS "Email",
+                p."DisplayName" AS "DisplayName",
+                p."FirstName" AS "FirstName",
+                p."LastName" AS "LastName",
+                u."IsEnabled" AS "IsEnabled",
+                u."LockoutEnd" AS "LockoutEnd",
+                a."SubscriptionPlanCode" AS "PlanCode",
+                a."SubscriptionEffectiveFrom" AS "EffectiveFromUtc",
+                a."SubscriptionEffectiveTo" AS "EffectiveToUtc"
+            FROM billing_customer_accounts AS a
+            INNER JOIN auth_user_tenants AS membership
+                ON membership."TenantId" = a."TenantId" AND membership."UserId" = a."UserId"
+            INNER JOIN auth_users AS u ON u."Id" = a."UserId"
+            LEFT JOIN auth_user_profiles AS p ON p."UserId" = u."Id"
+            WHERE a."TenantId" = {tenantId}
+                AND a."SubscriptionPlanCode" = {normalizedPlanCode}
+                AND a."UserId" IS NOT NULL
+                AND (a."SubscriptionEffectiveFrom" IS NULL OR a."SubscriptionEffectiveFrom" <= {asOfUtc})
+                AND (a."SubscriptionEffectiveTo" IS NULL OR a."SubscriptionEffectiveTo" > {asOfUtc})
+                AND (
+                    NOT {hasCursor}
+                    OR (
+                        NOT {cursorHasEffectiveFrom}
+                        AND a."SubscriptionEffectiveFrom" IS NULL
+                        AND a."Id" > {lastCustomerAccountId}
+                    )
+                    OR (
+                        {cursorHasEffectiveFrom}
+                        AND (
+                            a."SubscriptionEffectiveFrom" IS NULL
+                            OR a."SubscriptionEffectiveFrom" < CAST({cursorEffectiveFromUtc} AS timestamp with time zone)
+                            OR (a."SubscriptionEffectiveFrom" = CAST({cursorEffectiveFromUtc} AS timestamp with time zone) AND a."Id" > {lastCustomerAccountId})
+                        )
+                    )
+                )
+            ORDER BY (a."SubscriptionEffectiveFrom" IS NULL), a."SubscriptionEffectiveFrom" DESC, a."Id" ASC
+            LIMIT {query.PageSize + 1}
+            """;
+
+        var rows = await billing.Database.SqlQuery<SubscriptionUserSqlRow>(sql).ToArrayAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        var hasMore = rows.Length > query.PageSize;
+        var pageRows = rows.Take(query.PageSize).ToArray();
+        var items = pageRows.Select(row => new AdminSubscriptionUserItem(
+            row.UserId,
+            row.CustomerAccountId,
+            row.Email,
+            ResolveDisplayName(row.DisplayName, row.FirstName, row.LastName),
+            row.IsEnabled,
+            IsLocked(row.LockoutEnd, asOfUtc),
+            row.PlanCode,
+            row.EffectiveFromUtc,
+            row.EffectiveToUtc)).ToArray();
+
+        string? nextCursor = null;
+        if (hasMore && pageRows.Length > 0)
+        {
+            var last = pageRows[^1];
+            nextCursor = WriteCursor(new CursorPayload(
+                1, "subscription-users", tenantId, Guid.Empty, query.PageSize, sort, filterHash,
+                asOfUtc, null, last.CustomerAccountId, null, null, last.EffectiveFromUtc));
+        }
+
+        return new AdminSubscriptionUsersPage(items, nextCursor, hasMore, asOfUtc);
+    }
+
     public async Task<AdminUserAnalyticsCube> GetAnalyticsAsync(
         Guid tenantId,
         bool canReadSubscription,
@@ -1215,8 +1322,24 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         DateTimeOffset? RegisteredAtUtc,
         Guid? LastItemId,
         DateTimeOffset? OccurredAtUtc,
-        string? RecordType)
+        string? RecordType,
+        DateTimeOffset? EffectiveFromUtc = null)
     {
         public Guid LastUserId => LastItemId ?? Guid.Empty;
+    }
+
+    private sealed class SubscriptionUserSqlRow
+    {
+        public Guid CustomerAccountId { get; set; }
+        public Guid UserId { get; set; }
+        public string? Email { get; set; }
+        public string? DisplayName { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public bool IsEnabled { get; set; }
+        public DateTimeOffset? LockoutEnd { get; set; }
+        public string PlanCode { get; set; } = string.Empty;
+        public DateTimeOffset? EffectiveFromUtc { get; set; }
+        public DateTimeOffset? EffectiveToUtc { get; set; }
     }
 }

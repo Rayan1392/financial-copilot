@@ -48,6 +48,29 @@ public sealed class AdminManagementEndpointTests : IClassFixture<AdminManagement
     }
 
     [Fact]
+    public async Task SubscriptionUsers_RequiresBothReadPermissions_AndValidPlan()
+    {
+        await _factory.ResetAsync();
+
+        using var usersOnly = UserClient(FinancialCopilotPermissions.AdminUsersRead);
+        using var usersOnlyResponse = await usersOnly.GetAsync("/api/v1/admin/users/subscriptions/Free");
+
+        using var subscriptionsOnly = UserClient(FinancialCopilotPermissions.AdminSubscriptionsRead);
+        using var subscriptionsOnlyResponse = await subscriptionsOnly.GetAsync("/api/v1/admin/users/subscriptions/Free");
+
+        using var authorized = UserClient(
+            FinancialCopilotPermissions.AdminUsersRead,
+            FinancialCopilotPermissions.AdminSubscriptionsRead);
+        using var invalidPlanResponse = await authorized.GetAsync("/api/v1/admin/users/subscriptions/not-a-plan");
+        using var invalidPlanJson = await ReadJsonAsync(invalidPlanResponse);
+
+        Assert.Equal(HttpStatusCode.Forbidden, usersOnlyResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, subscriptionsOnlyResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidPlanResponse.StatusCode);
+        Assert.Equal("https://financialcopilot/errors/validation-failed", invalidPlanJson.RootElement.GetProperty("type").GetString());
+    }
+
+    [Fact]
     public async Task CustomerChatHistory_PagesTurnsAndAuditsFullContentReads()
     {
         await _factory.ResetAsync();

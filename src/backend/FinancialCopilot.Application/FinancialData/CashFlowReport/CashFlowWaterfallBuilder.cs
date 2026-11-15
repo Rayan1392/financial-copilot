@@ -9,7 +9,8 @@ public static class CashFlowWaterfallBuilder
         string columnId = "anchor")
     {
         decimal? Value(int id) => id == 35 ? verification.ResolvedFx.Value : values.GetValueOrDefault(id)?.Value;
-        var opening = Value(33); var operating = Value(128); var investing = Value(121); var financing = Value(123);
+        var opening = Value(33); var investing = Value(121); var beforeFinancing = Value(122); var financing = Value(123);
+        var operating = beforeFinancing is not null && investing is not null ? beforeFinancing - investing : null;
         var change = Value(124); var fx = Value(35); var closing = Value(125);
         if (opening is null || operating is null || investing is null || financing is null || change is null || fx is null || closing is null) return null;
 

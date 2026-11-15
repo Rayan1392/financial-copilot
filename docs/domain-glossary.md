@@ -10,6 +10,14 @@ A user-visible AI chat session that contains Messages and may invoke different b
 
 A user or assistant entry persisted within a Conversation. A user Message is submitted through the AI facade and the assistant Message stores the resulting Explainable Answer.
 
+### Active Report
+
+The newest supported financial report (quarterly income statement, balance sheet or company monthly sales report) answered in a Conversation, while no later turn has moved the Conversation to another topic. It is derived from persisted assistant messages; its data stays in the assistant message that showed it (Feature 162).
+
+### Report Discussion
+
+Answering a question about the Active Report from that report's own facts and deterministic calculations, in the same Conversation, with one bounded model call. Not to be confused with follow-up suggestions (the suggested-action chips under an answer). A Report Discussion turn that needs other data hands the turn back to normal routing (Feature 162).
+
 ### AI Query Orchestrator
 
 The Application-layer coordinator behind `POST /api/ai/v1/query`. It performs Intent Detection, Tool Routing, use-case execution, Usage Accounting, and Conversation persistence.

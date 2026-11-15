@@ -995,6 +995,16 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<FinancialCopilotAgentFactory>(sp =>
                 new FinancialCopilotAgentFactory(sp.GetService<ILoggerFactory>()));
             services.AddScoped<FinancialCopilotAgentWorkflowRunner>();
+            // Feature 162 Report Discussion: V2 only, off unless ReportDiscussion:Enabled is true.
+            services.AddOptions<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionOptions>()
+                .BindConfiguration(FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionOptions.SectionName)
+                .Validate(options => { options.Validate(); return true; })
+                .ValidateOnStart();
+            services.AddSingleton(provider => provider
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionOptions>>().Value);
+            services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionMessageReader, ReportDiscussionMessageReader>();
+            services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionModel, FinancialCopilot.Application.AI.ReportDiscussion.LlmReportDiscussionModel>();
+            services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionHandler>();
             services.AddScoped<FinancialCopilotWorkflowDefinition>();
             services.AddScoped<IAiQueryOrchestrationService,
                 MicrosoftAgentFrameworkAiQueryOrchestrationService>();

@@ -49,7 +49,8 @@ internal sealed class MessagePersistenceFunction(
         MonthlyProductTrendResult? monthlyProductTrendResult = null,
         SymbolSnapshotResult? symbolSnapshotResult = null,
         IReadOnlyCollection<SuggestedAction>? deterministicSuggestedActions = null,
-        bool deterministicSuggestionsApplied = false)
+        bool deterministicSuggestionsApplied = false,
+        FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? reportDiscussion = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -126,7 +127,8 @@ internal sealed class MessagePersistenceFunction(
                         : request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
                     SemanticRegistryVersion: intent == DetectedIntent.MonthlyProductComparison
                         ? 1
-                        : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
+                        : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion,
+                    ReportDiscussion: reportDiscussion)),
             createConversation,
             cancellationToken);
         return persisted with { SuggestedActions = suggestions };

@@ -27,7 +27,9 @@ public enum DetectedIntent
     Clarification,
     Unknown,
     // Persisted as an integer: new members go last.
-    SymbolSnapshot
+    SymbolSnapshot,
+    // Feature 162: a turn answered by Report Discussion from the conversation's active report.
+    ReportDiscussion
 }
 
 public sealed record IntentDetectionInput(
@@ -68,7 +70,10 @@ public sealed record AiQueryRequest(
     ValidatedQueryFrame? SemanticShadowFrame = null,
     string? SuggestedActionId = null,
     string? SemanticRoutingDisposition = null,
-    Guid? BillingOperationId = null);
+    Guid? BillingOperationId = null,
+    // Feature 162: set when Report Discussion handed this turn to the normal route; persisted with the answer.
+    // Server-derived, so it is excluded from the request fingerprint.
+    FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? ReportDiscussionHandBack = null);
 
 public static class AiQueryRequestFingerprint
 {

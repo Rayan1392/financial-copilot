@@ -18,3 +18,6 @@ Ideas and deferred work that are not yet a spec.
 - Feature 153 change `mobile-ui-refresh`: move the legal disclaimer off the composer once OQ-073 is answered.
 - Frontend: make `npm run lint` usable on Windows. With `core.autocrlf=true` the working tree is CRLF and Prettier reports about 33,000 line-ending errors, which hides real findings (measured 2026-11-12). Options: `endOfLine: "auto"` in `.prettierrc`, or `eol=lf` for `src/frontend` in `.gitattributes`.
 - Feature 153 change `mobile-ui-refresh`: real-device pass on iOS Safari and Android Chrome (only headless Chromium was used).
+- Feature 162: rolling conversation summary for Report Discussion (deferred by Gate A decision D6); add only if long discussions lose continuity with the 6-message window.
+- Feature 162: cash-flow family (Feature 161 payload, 2 credits per answered turn, `CashFlowMetricsCalculator` outputs) once Feature 161 meets its definition of done (Gate B dependency option (a)).
+- Feature 162: calibrate `ReportDiscussion:CharsPerToken` from provider-reported input tokens after the first live runs.

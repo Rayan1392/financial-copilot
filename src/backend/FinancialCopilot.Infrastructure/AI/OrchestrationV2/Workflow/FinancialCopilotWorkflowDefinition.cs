@@ -5,6 +5,7 @@ using System.Runtime.ExceptionServices;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.Evaluation;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Insights;
@@ -77,7 +78,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     ISemanticRoutingDiagnosticSink? routingDiagnosticSink = null,
     Feature141ChatQueryService? feature141ChatQueryService = null,
     IChatCapabilityAvailability? capabilityAvailability = null,
-    CyclicalWavesV2GaugeQueryService? cyclicalWavesGaugeQueryService = null)
+    CyclicalWavesV2GaugeQueryService? cyclicalWavesGaugeQueryService = null,
+    // Feature 162: answers questions about the conversation's active report before the dialogue gate.
+    ReportDiscussionHandler? reportDiscussionHandler = null)
 {
     // Feature 148: which provider answers Chat. The registered financial source (Feature 141) reads
     // NoavaranAmin data, so it never answers in CyclicalWaves mode.
@@ -278,15 +281,61 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var reservation = await billingFunctions.TryReserveAsync(request, ct);
         try
         {
+            // Feature 162: a question about the conversation's active report is answered without the dialogue gate;
+            // a hand-back runs the gate and the normal route exactly as before, carrying the marker to persistence.
+            var discussion = await TryReportDiscussionAsync(request, conversationId, createConversation, ct);
+            if (discussion.Kind == ReportDiscussionTurnKind.Reply)
+            {
+                return new WorkflowStartMessage(
+                    request, conversationId, createConversation, timeProvider.GetUtcNow(), reservation, discussion);
+            }
+
             var prepared = await dialogueGate.PrepareAsync(request, conversationId, ct);
+            var preparedRequest = discussion.Kind == ReportDiscussionTurnKind.HandBack
+                ? prepared.Request with { ReportDiscussionHandBack = discussion.Marker }
+                : prepared.Request;
             return new WorkflowStartMessage(
-                prepared.Request, conversationId, createConversation, timeProvider.GetUtcNow(), reservation);
+                preparedRequest, conversationId, createConversation, timeProvider.GetUtcNow(), reservation);
         }
         catch
         {
             if (reservation is not null)
                 await billingFunctions.FinalizeAsync(reservation, "ProviderFailed", false, CancellationToken.None);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Feature 162 entry point. Report Discussion must never break the normal route: an unexpected failure is logged
+    /// and the turn continues exactly as before. Only identifiers and counts are logged, never report values or text.
+    /// </summary>
+    private async Task<ReportDiscussionTurn> TryReportDiscussionAsync(
+        AiQueryRequest request, Guid conversationId, bool createConversation, CancellationToken ct)
+    {
+        if (reportDiscussionHandler is null) return ReportDiscussionTurn.NotApplicableBecause("not_registered");
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            var turn = await reportDiscussionHandler.TryHandleAsync(request, conversationId, createConversation, ct);
+            var diagnostics = turn.Diagnostics;
+            if (turn.Kind != ReportDiscussionTurnKind.NotApplicable || diagnostics?.Reason is not ("disabled" or "new_conversation" or "not_registered"))
+            {
+                logger.LogInformation(
+                    "Report discussion evaluated. Kind={Kind} ReportFamily={ReportFamily} Disposition={Disposition} Reason={Reason} " +
+                    "EstimatedInputTokens={EstimatedInputTokens} FactCount={FactCount} NumbersChecked={NumbersChecked} " +
+                    "UngroundedNumbers={UngroundedNumbers} ElapsedMs={ElapsedMs} CorrelationId={CorrelationId}",
+                    turn.Kind, diagnostics?.ReportFamily, diagnostics?.Disposition, diagnostics?.Reason,
+                    diagnostics?.EstimatedInputTokens, diagnostics?.FactCount, diagnostics?.NumbersChecked,
+                    diagnostics?.UngroundedNumbers, Stopwatch.GetElapsedTime(started).TotalMilliseconds, request.CorrelationId);
+            }
+            return turn;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogWarning(
+                "Report discussion failed; continuing with normal routing. FailureType={FailureType} CorrelationId={CorrelationId}",
+                exception.GetType().Name, request.CorrelationId);
+            return ReportDiscussionTurn.NotApplicableBecause("handler_failed");
         }
     }
 
@@ -299,11 +348,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.Request.TenantId, msg.Request.ActorId, msg.Request.UserId,
             msg.ConversationId, msg.Request.CorrelationId, ct);
 
-        var enrichedMessage = BuildEnrichedMessage(msg.Request.Message, memoryContext);
+        // Feature 162: a Report Discussion reply is already composed; the agent prompt enrichment is not needed.
+        var enrichedMessage = msg.ReportDiscussion is null
+            ? BuildEnrichedMessage(msg.Request.Message, memoryContext)
+            : msg.Request.Message;
 
         return new MemoryRetrievedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation,
-            msg.Now, memoryContext, enrichedMessage, msg.Reservation);
+            msg.Now, memoryContext, enrichedMessage, msg.Reservation, msg.ReportDiscussion);
     }
 
     private async ValueTask<BillingReservedMessage> ExecuteBillingReservationStepAsync(
@@ -319,7 +371,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         return new BillingReservedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation,
-            msg.Now, msg.MemoryContext, msg.EnrichedMessage, reservation);
+            msg.Now, msg.MemoryContext, msg.EnrichedMessage, reservation, msg.ReportDiscussion);
     }
 
     private async ValueTask<AgentExecutedMessage> ExecuteAgentStepAsync(
@@ -327,6 +379,28 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step3.AgentExecution");
         var request = msg.Request;
+
+        // Feature 162: the Report Discussion reply was composed before the dialogue gate. Settle the turn once with its
+        // status (an answer is charged; every non-answer is zero-charge) and skip the agent and capability routes.
+        if (msg.ReportDiscussion is { Kind: ReportDiscussionTurnKind.Reply } discussion)
+        {
+            UsageAccountingResult? discussionUsage = null;
+            if (msg.Reservation is not null)
+                discussionUsage = await billingFunctions.FinalizeAsync(msg.Reservation, discussion.BillingCompletionStatus, false,
+                    CancellationToken.None, executionRoute: ReportDiscussionExecutionRoute.Code);
+            stepActivity?.SetTag("workflow.intent", "ReportDiscussion");
+            stepActivity?.SetTag("report_discussion.disposition", discussion.Marker?.Disposition);
+            stepActivity?.SetTag("report_discussion.family", discussion.Marker?.ReportFamily);
+            return new AgentExecutedMessage(
+                request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation, discussion.Text ?? string.Empty,
+                null, null, null, null, null, null, null, null,
+                discussion.BillingCompletionStatus, false, null, discussionUsage,
+                SemanticOutcome: discussion.Outcome,
+                SemanticOutcomeReasonCode: discussion.ReasonCode,
+                SemanticReplyLanguage: "fa",
+                ReportDiscussion: discussion);
+        }
         logger.LogInformation(
             "Chat routing disposition observed. SelectedRoute={SelectedRoute} Capability={Capability} Disposition={Disposition} CorrelationId={CorrelationId}",
             request.SemanticFrame is not null ? "semantic_capability"
@@ -1314,6 +1388,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
+        if (msg.ReportDiscussion is { Kind: ReportDiscussionTurnKind.Reply } discussion)
+            return ComputeReportDiscussionResult(msg, discussion, stepActivity);
+
         var isMonthlyProductComparison = msg.Request.SemanticFrame is null &&
             MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
         var isMonthlyProductTrend = msg.Request.SemanticFrame is null &&
@@ -1474,6 +1551,34 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             SuggestedActions: deterministicActions,
             DeterministicSuggestionsApplied: deterministicApplied,
             SymbolSnapshotResult: msg.SymbolSnapshotResult);
+    }
+
+    /// <summary>
+    /// Feature 162: the discussion reply is already grounded (numeric check) and in Persian, so no lexical intent
+    /// detection, prose grounding or suggestion chips apply. Outcome telemetry still records the turn.
+    /// </summary>
+    private ResultsComputedMessage ComputeReportDiscussionResult(
+        AgentExecutedMessage msg, ReportDiscussionTurn discussion, Activity? stepActivity)
+    {
+        var outcome = new DialogueOutcomeResult(discussion.Outcome, discussion.ReasonCode, "fa", null, false);
+        outcomeTelemetry.Record(msg.Request, outcome,
+            msg.Request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", msg.Now);
+        stepActivity?.SetTag("workflow.detected_intent", nameof(DetectedIntent.ReportDiscussion));
+        stepActivity?.SetTag("workflow.outcome", discussion.Outcome.ToString());
+        stepActivity?.SetTag("workflow.outcome_reason", discussion.ReasonCode);
+        return new ResultsComputedMessage(
+            msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+            msg.MemoryContext, msg.Reservation,
+            msg.AgentResponseText, null, null, null, null, null, null, null, null,
+            msg.CompletionStatus, false, null,
+            DetectedIntent.ReportDiscussion, false, null,
+            null, null, msg.AgentResponseText, msg.Usage,
+            Outcome: discussion.Outcome,
+            OutcomeReasonCode: discussion.ReasonCode,
+            ReplyLanguage: "fa",
+            SuggestedActions: Array.Empty<SuggestedAction>(),
+            DeterministicSuggestionsApplied: true,
+            ReportDiscussion: discussion);
     }
 
     private void RecordRoutingDiagnostic(
@@ -1733,8 +1838,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (msg.Outcome != DialogueOutcome.Answered && msg.Outcome != DialogueOutcome.PartialAnswer)
             responseTextAnswer = msg.GroundedAnswer;
 
-        await dialogueGate.RecordOutcomeAsync(
-            msg.Request, msg.ConversationId, msg.ClarificationRequired, msg.OutcomeReasonCode, ct);
+        // Feature 162: a discussion reply is the text itself. It is not a capability task, so the conversation task
+        // state is left as it was (the dialogue gate did not run for this turn).
+        var isReportDiscussion = msg.ReportDiscussion is { Kind: ReportDiscussionTurnKind.Reply };
+        if (isReportDiscussion)
+            responseTextAnswer = msg.AgentResponseText;
+        else
+            await dialogueGate.RecordOutcomeAsync(
+                msg.Request, msg.ConversationId, msg.ClarificationRequired, msg.OutcomeReasonCode, ct);
 
         var persistedExchange = await persistenceFunction.PersistAsync(
             msg.ConversationId, msg.Request,
@@ -1762,7 +1873,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              disclosureListingResult: msg.DisclosureListingResult,
              psVisualizationResult: msg.PsVisualizationResult,
              deterministicSuggestedActions: msg.SuggestedActions,
-             deterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied);
+             deterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied,
+             reportDiscussion: isReportDiscussion ? msg.ReportDiscussion!.Marker : msg.Request.ReportDiscussionHandBack);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 

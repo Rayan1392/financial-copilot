@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.Memory;
@@ -17,7 +18,9 @@ internal sealed record WorkflowStartMessage(
     Guid ConversationId,
     bool CreateConversation,
     DateTimeOffset Now,
-    BillingReservationHandle? Reservation = null);
+    BillingReservationHandle? Reservation = null,
+    // Feature 162: a Report Discussion reply decided before the dialogue gate; null for every other turn.
+    ReportDiscussionTurn? ReportDiscussion = null);
 
 internal sealed record MemoryRetrievedMessage(
     AiQueryRequest Request,
@@ -26,7 +29,8 @@ internal sealed record MemoryRetrievedMessage(
     DateTimeOffset Now,
     AuthorizedMemoryContext MemoryContext,
     string EnrichedMessage,
-    BillingReservationHandle? Reservation = null);
+    BillingReservationHandle? Reservation = null,
+    ReportDiscussionTurn? ReportDiscussion = null);
 
 internal sealed record BillingReservedMessage(
     AiQueryRequest Request,
@@ -35,7 +39,8 @@ internal sealed record BillingReservedMessage(
     DateTimeOffset Now,
     AuthorizedMemoryContext MemoryContext,
     string EnrichedMessage,
-    BillingReservationHandle? Reservation);
+    BillingReservationHandle? Reservation,
+    ReportDiscussionTurn? ReportDiscussion = null);
 
 internal sealed record AgentExecutedMessage(
     AiQueryRequest Request,
@@ -66,7 +71,8 @@ internal sealed record AgentExecutedMessage(
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
      MonthlyProductTrendResult? MonthlyProductTrendResult = null,
      ValidatedQueryFrame? ExecutedFrame = null,
-     SymbolSnapshotResult? SymbolSnapshotResult = null);
+     SymbolSnapshotResult? SymbolSnapshotResult = null,
+     ReportDiscussionTurn? ReportDiscussion = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -105,7 +111,8 @@ internal sealed record ResultsComputedMessage(
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
     bool DeterministicSuggestionsApplied = false,
-    SymbolSnapshotResult? SymbolSnapshotResult = null);
+    SymbolSnapshotResult? SymbolSnapshotResult = null,
+    ReportDiscussionTurn? ReportDiscussion = null);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,

@@ -65,7 +65,9 @@ public sealed record AssistantMessagePayload(
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
-    SymbolSnapshotResult? SymbolSnapshotResult = null);
+    SymbolSnapshotResult? SymbolSnapshotResult = null,
+    // Feature 162: set on turns Report Discussion answered or handed back; null on every other turn and on old payloads.
+    FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? ReportDiscussion = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

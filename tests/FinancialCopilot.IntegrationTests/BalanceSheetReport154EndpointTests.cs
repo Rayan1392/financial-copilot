@@ -137,7 +137,7 @@ public sealed class BalanceSheetReport154EndpointTests : IClassFixture<BalanceSh
     }
 }
 
-public sealed class BalanceSheetReport154ApiFactory : AiFacadeApiFactory
+public class BalanceSheetReport154ApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"feature154-{Guid.NewGuid():N}";
     private bool _seeded;

@@ -10,9 +10,17 @@
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-15
+
+این نسخه مدیریت پروفایل را به وب و موبایل اضافه می‌کند و دستیار از سامانهٔ هوش مصنوعی تازه‌تری برای تولید پاسخ استفاده می‌کند.
+
 ### Added
 
-- کاربران می‌توانند از وب و موبایل نام، ایمیل، رمز عبور، شمارهٔ تماس تأییدشده و عکس پروفایل خود را مدیریت کنند.
+- کاربران می‌توانند از وب و موبایل نام، ایمیل، گذرواژه، شمارهٔ تماس تأییدشده و عکس پروفایل خود را مدیریت کنند.
+
+### Changed
+
+- دستیار برای تولید پاسخ از سامانهٔ هوش مصنوعی تازه‌تری استفاده می‌کند.
 
 ## [1.12.3] - 2026-11-13
 
@@ -311,7 +319,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.3...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.13.0...develop
+[1.13.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.3...v1.13.0
 [1.12.3]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.2...v1.12.3
 [1.12.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.0...v1.12.1

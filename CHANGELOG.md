@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-11-16
+
+این نسخه خطای پاسخ به پرسش‌های تحلیلی دربارهٔ گزارش نمایش‌داده‌شده در گفتگو را برطرف می‌کند.
+
+### Fixed
+
+- پرسش‌های تحلیلی دربارهٔ گزارشی که در گفتگو نمایش داده شده است (مثلاً «جمع کل دارایی‌ها را تحلیل کن» پس از نمایش ترازنامه) دیگر به جای پاسخ با پیام «موقتاً در دسترس نیست» یا پیام تطبیق‌نشدن اعداد تمام نمی‌شوند.
+
 ## [1.13.0] - 2026-11-15
 
 این نسخه مدیریت پروفایل را به وب و موبایل اضافه می‌کند و دستیار از سامانهٔ هوش مصنوعی تازه‌تری برای تولید پاسخ استفاده می‌کند.
@@ -319,7 +327,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.13.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.13.1...develop
+[1.13.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.3...v1.13.0
 [1.12.3]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.2...v1.12.3
 [1.12.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.12.1...v1.12.2

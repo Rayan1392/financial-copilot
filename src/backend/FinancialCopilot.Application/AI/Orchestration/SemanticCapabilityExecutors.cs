@@ -722,8 +722,11 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
                 DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
         // Feature 159 (FR7): no analysis for the symbol is a no-data answer, free, even when context metrics exist;
-        // the payload still carries the metrics and the "no analysis found" card.
-        if (!hasAnalysis && !analysisAttempt.Failed) return NoData(frame, payload);
+        // the payload still carries the metrics and the "no analysis found" card. Change «analysis-recency-window»: only
+        // recent analyses are searched, so the reason says so and the Feature 163 fallback may answer instead.
+        if (!hasAnalysis && !analysisAttempt.Failed)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
+                DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent, payload);
         return hasAnalysis && hasMetrics
             ? Success(frame, payload)
             : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Partial,

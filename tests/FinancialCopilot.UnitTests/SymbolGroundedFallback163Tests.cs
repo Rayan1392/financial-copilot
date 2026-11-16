@@ -36,7 +36,7 @@ public sealed class SymbolGroundedFallback163Tests
     [InlineData(DialogueOutcome.TemporarilyUnavailable)]
     [InlineData(DialogueOutcome.Failed)]
     public void OtherOutcomes_AreNotEligible(DialogueOutcome outcome) =>
-        Assert.Equal("outcome_not_unsupported", SymbolGroundedFallbackEligibility.IneligibleReason(Turn(outcome), Enabled));
+        Assert.Equal("outcome_not_replaceable", SymbolGroundedFallbackEligibility.IneligibleReason(Turn(outcome), Enabled));
 
     [Theory] // AC-5 (OQ-091): valuation and investment advice use the fallback; other fixed availability replies stay.
     [InlineData(UnavailableTopicCatalog.ValuationReasonCode, true)]

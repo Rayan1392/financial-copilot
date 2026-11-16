@@ -216,7 +216,7 @@ public sealed class Feature150UnavailableTopicMappedAnalysisE2ETests : IClassFix
     {
         var root = await Feature148Chat.AskAsync(_factory, "تحلیل تکنیکال فملی");
 
-        Assert.StartsWith("برای نماد فملی تحلیلی در تحلیل‌اپ پیدا نشد.", Feature148Chat.Text(root));
+        Assert.StartsWith("برای نماد فملی تحلیل تازه‌ای در ۳۰ روز اخیر در تحلیل‌اپ پیدا نشد.", Feature148Chat.Text(root));
         Assert.Equal(0m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
     }
 
@@ -276,7 +276,7 @@ public sealed class Feature150UnavailableTopicMappedAnalysisE2ETests : IClassFix
 
     // BUG-020 F1: every analysis reply is the Persian card only (found or not), never the lookup's English summary.
     [Theory]
-    [InlineData("تحلیل جامع فملی", "برای نماد فملی تحلیلی در تحلیل‌اپ پیدا نشد.")]
+    [InlineData("تحلیل جامع فملی", "برای نماد فملی تحلیل تازه‌ای در ۳۰ روز اخیر در تحلیل‌اپ پیدا نشد.")]
     [InlineData("تحلیل جامع فولاد", "### فولاد- گزارش عملکرد شهریور ۱۴۰۵")]
     public async Task AnalysisReply_StartsWithTheCard_WithoutEnglishText(string question, string start)
     {

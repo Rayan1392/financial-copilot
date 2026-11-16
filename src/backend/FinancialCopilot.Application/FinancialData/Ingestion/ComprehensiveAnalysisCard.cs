@@ -23,6 +23,14 @@ public sealed class ComprehensiveAnalysisPresentationOptions
     /// <summary>Texts shorter than this (after removing a repeated title) get no preview at all.</summary>
     public int TeaserMinimumSourceCharacters { get; set; } = 150;
 
+    public const int DefaultMaxAgeDays = 30;
+
+    /// <summary>
+    /// Change «analysis-recency-window» (owner, 2026-11-16): a TahlilApp analysis is valid only this many days after it
+    /// was published; an older one is never shown (<see cref="RecentComprehensiveAnalysisQueryUseCase"/>).
+    /// </summary>
+    public int MaxAgeDays { get; set; } = DefaultMaxAgeDays;
+
     public bool IsValid(out string? error)
     {
         error = !(Uri.TryCreate(TahlilAppAnalysesUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps)
@@ -33,7 +41,9 @@ public sealed class ComprehensiveAnalysisPresentationOptions
                     ? "ComprehensiveAnalysis:TeaserMaxCharacters must be between 20 and 1000."
                     : TeaserMinimumSourceCharacters is < 0 or > 2_000
                         ? "ComprehensiveAnalysis:TeaserMinimumSourceCharacters must be between 0 and 2000."
-                        : null;
+                        : MaxAgeDays is < 1 or > 365
+                            ? "ComprehensiveAnalysis:MaxAgeDays must be between 1 and 365."
+                            : null;
         return error is null;
     }
 }
@@ -157,10 +167,11 @@ public static class ComprehensiveAnalysisCardComposer
         IReadOnlyList<string> requestedSymbols,
         string analysesUrl,
         IReadOnlyList<string>? technicalAnalysisNotFoundSymbols = null,
-        bool fullText = false) =>
+        bool fullText = false,
+        int? recentWindowDays = null) =>
         WithTechnicalNotFoundLine(technicalAnalysisNotFoundSymbols,
             Compose(items, requestedSymbols, title => $"### {title}", text => $"[{text}]({analysesUrl})", "\n\n",
-                fullText, fullText ? AsMarkdownParagraphs : null, null), "\n\n");
+                fullText, fullText ? AsMarkdownParagraphs : null, null, recentWindowDays), "\n\n");
 
     /// <summary>Plain text for Telegram: one part per line and the bare URL, which Telegram links.</summary>
     /// <param name="maxLength">
@@ -173,10 +184,12 @@ public static class ComprehensiveAnalysisCardComposer
         string analysesUrl,
         IReadOnlyList<string>? technicalAnalysisNotFoundSymbols = null,
         bool fullText = false,
-        int? maxLength = null)
+        int? maxLength = null,
+        int? recentWindowDays = null)
     {
         string Card(int? textLimit) => WithTechnicalNotFoundLine(technicalAnalysisNotFoundSymbols,
-            Compose(items, requestedSymbols, title => title, text => $"{text}: {analysesUrl}", "\n", fullText, null, textLimit),
+            Compose(items, requestedSymbols, title => title, text => $"{text}: {analysesUrl}", "\n", fullText, null, textLimit,
+                recentWindowDays),
             "\n");
 
         var card = Card(null);
@@ -204,13 +217,21 @@ public static class ComprehensiveAnalysisCardComposer
         return names.Count == 0 ? card : TechnicalAnalysisNotFoundSentence(names) + separator + card;
     }
 
-    public static string NoResultSentence(IReadOnlyList<string> requestedSymbols)
+    /// <param name="recentWindowDays">
+    /// Change «analysis-recency-window»: set when only recent analyses were searched; the sentence then says so
+    /// (owner-approved text, OQ-099).
+    /// </param>
+    public static string NoResultSentence(IReadOnlyList<string> requestedSymbols, int? recentWindowDays = null)
     {
         var symbols = requestedSymbols.Where(symbol => !string.IsNullOrWhiteSpace(symbol)).Select(symbol => symbol.Trim()).ToList();
-        return symbols.Count == 0
-            ? "تحلیلی در تحلیل‌اپ پیدا نشد."
-            : $"برای نماد {string.Join("، ", symbols)} تحلیلی در تحلیل‌اپ پیدا نشد.";
+        var subject = symbols.Count == 0 ? string.Empty : $"برای نماد {string.Join("، ", symbols)} ";
+        return recentWindowDays is { } days
+            ? $"{subject}تحلیل تازه‌ای در {PersianDigits(days)} روز اخیر در تحلیل‌اپ پیدا نشد."
+            : $"{subject}تحلیلی در تحلیل‌اپ پیدا نشد.";
     }
+
+    private static string PersianDigits(int value) =>
+        string.Concat(value.ToString(System.Globalization.CultureInfo.InvariantCulture).Select(digit => (char)('۰' + (digit - '0'))));
 
     private static string Compose(
         IReadOnlyList<ComprehensiveAnalysisSummaryItem> items,
@@ -220,13 +241,14 @@ public static class ComprehensiveAnalysisCardComposer
         string partSeparator,
         bool fullText = false,
         Func<string, string>? textLayout = null,
-        int? textLimit = null)
+        int? textLimit = null,
+        int? recentWindowDays = null)
     {
         // The items arrive newest first; only the latest analysis is shown.
         var latest = items.Count > 0 ? items[0] : null;
         if (latest is null)
         {
-            return NoResultSentence(requestedSymbols) + "\n\n" + linkLine(AllAnalysesLinkTextFa);
+            return NoResultSentence(requestedSymbols, recentWindowDays) + "\n\n" + linkLine(AllAnalysesLinkTextFa);
         }
 
         var parts = new List<string> { titleLine(latest.Title.Trim()) };

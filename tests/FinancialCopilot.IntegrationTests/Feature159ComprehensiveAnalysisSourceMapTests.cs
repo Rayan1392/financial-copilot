@@ -56,7 +56,7 @@ public sealed class Feature159ComprehensiveAnalysisSourceMapTests : IClassFixtur
         // The turn stays the analysis capability: the registered financial source (Feature 141) did not answer.
         Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
         var text = Feature148Chat.Text(root);
-        Assert.Contains("برای نماد فملی تحلیلی در تحلیل‌اپ پیدا نشد.", text);
+        Assert.Contains("برای نماد فملی تحلیل تازه‌ای در ۳۰ روز اخیر در تحلیل‌اپ پیدا نشد.", text);
         Assert.EndsWith(AllAnalysesLink, text.TrimEnd());
         Assert.Equal(0m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
         AssertOnlyAnalysisTablesFromV2();

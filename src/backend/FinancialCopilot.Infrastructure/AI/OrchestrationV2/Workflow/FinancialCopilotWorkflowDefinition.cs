@@ -1637,7 +1637,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     private async Task<(SymbolGroundedFallbackResult Result, UsageAccountingResult? Usage)> TrySymbolGroundedFallbackAsync(
         AgentExecutedMessage msg, DialogueOutcomeResult outcome, CancellationToken ct)
     {
-        if (symbolGroundedFallbackHandler is null || outcome.Outcome != DialogueOutcome.Unsupported)
+        if (symbolGroundedFallbackHandler is null ||
+            !SymbolGroundedFallbackEligibility.MayReplace(outcome.Outcome, outcome.ReasonCode))
             return (SymbolGroundedFallbackResult.UnchangedBecause("not_applicable"), null);
 
         var request = msg.Request;

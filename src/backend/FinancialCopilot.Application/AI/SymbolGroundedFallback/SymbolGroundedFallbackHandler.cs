@@ -10,11 +10,20 @@ namespace FinancialCopilot.Application.AI.SymbolGroundedFallback;
 /// </summary>
 public static class SymbolGroundedFallbackEligibility
 {
+    /// <summary>
+    /// The outcomes the fallback may replace: every <see cref="DialogueOutcome.Unsupported"/>, and the one no-data answer
+    /// the owner sent to it — no recent TahlilApp analysis (change «analysis-recency-window», 2026-11-16). Every other
+    /// no-data answer keeps its message (OQ-092).
+    /// </summary>
+    public static bool MayReplace(DialogueOutcome outcome, string reasonCode) =>
+        outcome == DialogueOutcome.Unsupported ||
+        outcome == DialogueOutcome.NoData && reasonCode == DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent;
+
     /// <summary>Null when the turn is eligible; otherwise the reason it is not.</summary>
     public static string? IneligibleReason(SymbolGroundedFallbackRequest turn, SymbolGroundedFallbackOptions options)
     {
         if (!options.Enabled) return "disabled";
-        if (turn.Outcome != DialogueOutcome.Unsupported) return "outcome_not_unsupported";
+        if (!MayReplace(turn.Outcome, turn.ReasonCode)) return "outcome_not_replaceable";
         if (turn.ReportDiscussionApplied) return "report_discussion_turn";
         if (!string.Equals(turn.ReplyLanguage, "fa", StringComparison.OrdinalIgnoreCase)) return "reply_language_not_persian";
         var request = turn.Request;

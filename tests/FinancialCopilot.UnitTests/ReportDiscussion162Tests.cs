@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Application.Conversations;
@@ -261,6 +262,32 @@ public sealed class ReportDiscussion162Tests
         Assert.False(NumericGroundingValidator.Validate(answer, QuarterlyData(), "سود چقدر بود؟").Passed);
     }
 
+    // BUG-031: inline evidence ids above 12 were read as numbers and rejected the whole answer.
+    [Theory]
+    [InlineData("فروش فصل ۲ سال مالی ۱۴۰۴ برابر ۱٬۰۰۰ میلیون ریال بود (F45).")]
+    [InlineData("فروش ۱٬۰۰۰ میلیون ریال بود [F۴۵، C14].")]
+    [InlineData("Revenue was 1,000 million rials (F27, C130).")]
+    public void Grounding_IgnoresInlineEvidenceIds(string answer)
+    {
+        var result = NumericGroundingValidator.Validate(answer, QuarterlyData(), "فروش را تحلیل کن");
+        Assert.True(result.Passed, $"{result.UngroundedCount} of {result.NumbersChecked} ungrounded");
+    }
+
+    [Fact]
+    public void Grounding_StillRejectsAnUngroundedNumberNextToEvidenceIds()
+    {
+        Assert.False(NumericGroundingValidator.Validate("فروش ۱٬۲۳۴ میلیون ریال بود (F45).", QuarterlyData(), "فروش را تحلیل کن").Passed);
+    }
+
+    [Fact]
+    public void SystemPrompt_KeepsAnalysisAnswersGroundedAndShort()
+    {
+        var prompt = ReportDiscussionContextBuilder.SystemPrompt;
+        Assert.Contains("describe it in words without writing a number", prompt, StringComparison.Ordinal);
+        Assert.Contains("Never write evidence ids (F1, C2) in the answer text", prompt, StringComparison.Ordinal);
+        Assert.Contains("within about 250 words", prompt, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Grounding_AllowsNumbersFromTheQuestion()
     {
@@ -471,6 +498,26 @@ public sealed class ReportDiscussion162Tests
         Assert.Throws<ReportDiscussionModelUnavailableException>(() => LlmReportDiscussionModel.Parse(json));
     }
 
+    // BUG-031: the failure reason carries the provider code so truncation is visible in the logs.
+    [Fact]
+    public async Task ModelFailure_ReasonCarriesStatusAndProviderCode()
+    {
+        var model = new LlmReportDiscussionModel(new ThrowingExecutionService(new AiModelProviderException(
+            AiExecutionStatus.InvalidStructuredOutput, "ModelOutputTruncated", "truncated")), new ReportDiscussionOptions());
+        var prompt = new ReportDiscussionPrompt(ReportDiscussionContextBuilder.SystemPrompt, "<report></report>", QuarterlyData(), 10);
+
+        var exception = await Assert.ThrowsAsync<ReportDiscussionModelUnavailableException>(() =>
+            model.AnswerAsync(prompt, Tenant, "corr-bug-031", CancellationToken.None));
+
+        Assert.Equal("InvalidStructuredOutput:ModelOutputTruncated", exception.Reason);
+    }
+
+    private sealed class ThrowingExecutionService(Exception exception) : IAiModelExecutionService
+    {
+        public Task<AiModelResult> ExecuteAsync(AiModelSelectionRequest selection, AiModelRequest request, CancellationToken cancellationToken) =>
+            Task.FromException<AiModelResult>(exception);
+    }
+
     [Fact]
     public void Payload_OldJsonDeserializesAndMarkerRoundTrips()
     {
@@ -490,6 +537,8 @@ public sealed class ReportDiscussion162Tests
         var options = new ReportDiscussionOptions();
         options.Validate();
         Assert.False(options.Enabled);
+        Assert.Equal(1600, options.MaxOutputTokens); // BUG-031
+        Assert.Equal(30, options.ModelTimeoutSeconds);
         Assert.Throws<InvalidOperationException>(() => new ReportDiscussionOptions { InputTokenTarget = 7000 }.Validate());
     }
 }

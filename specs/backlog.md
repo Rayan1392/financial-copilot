@@ -21,3 +21,5 @@ Ideas and deferred work that are not yet a spec.
 - Feature 162: rolling conversation summary for Report Discussion (deferred by Gate A decision D6); add only if long discussions lose continuity with the 6-message window.
 - Feature 162: cash-flow family (Feature 161 payload, 2 credits per answered turn, `CashFlowMetricsCalculator` outputs) once Feature 161 meets its definition of done (Gate B dependency option (a)).
 - Feature 162: calibrate `ReportDiscussion:CharsPerToken` from provider-reported input tokens after the first live runs.
+- Feature 162 (from BUG-031): add balance-sheet calculations for analysis questions — each row's share of total assets per period and absolute changes between periods — so answers can quote them and pass grounding. Design change: larger prompt, new computed data; needs owner Gate A.
+- Feature 162 (from BUG-031): per-call reasoning-effort setting in the OpenAI transport (`AiModelRequest` has none) if `gpt-6-luna` reasoning tokens keep eating the Report Discussion output budget. Affects every workload; needs its own design.

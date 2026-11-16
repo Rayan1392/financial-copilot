@@ -64,7 +64,8 @@ public sealed class LlmReportDiscussionModel(
         }
         catch (AiModelProviderException exception)
         {
-            throw new ReportDiscussionModelUnavailableException(exception.Status.ToString(), exception);
+            // Status alone hid truncation among other structured-output failures (BUG-031); codes carry no report data.
+            throw new ReportDiscussionModelUnavailableException($"{exception.Status}:{exception.Code}", exception);
         }
 
         return Parse(result.StructuredJson ?? result.Text);

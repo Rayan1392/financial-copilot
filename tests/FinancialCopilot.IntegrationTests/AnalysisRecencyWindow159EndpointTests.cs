@@ -93,6 +93,29 @@ public sealed class AnalysisRecencyWindow159EndpointTests : IClassFixture<Analys
         Assert.Equal(0m, Credits(answer));
     }
 
+    [Fact] // Feature 163 without a semantic company slot (fixed investment-advice refusal): the word «وبملت» is resolved
+           // by its symbol although the company row has no ticker.
+    public async Task UnsupportedQuestion_CompanyWithoutTicker_IsStillAnsweredByTheFallback()
+    {
+        _factory.Fallback.Reply = prompt => new SymbolGroundedFallbackModelReply(
+            SymbolGroundedFallbackDisposition.NotAnswerable, "", "", []);
+
+        var answer = await Post("وبملت ارزش خرید دارد؟");
+
+        Assert.Equal("وبملت", _factory.Fallback.Prompts.Single().Data.CompanySymbol);
+        Assert.EndsWith("می‌توانم صورت سود و زیان وبملت را تحلیل کنم.", Text(answer), StringComparison.Ordinal);
+    }
+
+    [Theory] // FR-2: two companies, or none, never reach the model.
+    [InlineData("وبملت یا شگل ارزش خرید دارد؟")]
+    [InlineData("این سهم ارزش خرید دارد؟")]
+    public async Task NotExactlyOneCompany_DoesNotCallTheFallbackModel(string question)
+    {
+        await Post(question);
+
+        Assert.Equal(0, _factory.Fallback.Calls);
+    }
+
     [Fact] // D1: a recent analysis is still the answer; the fallback is not involved.
     public async Task RecentAnalysis_IsStillShown()
     {
@@ -136,6 +159,9 @@ public sealed class AnalysisRecencyWindow159ApiFactory : BalanceSheetReport154Ap
             using var scope = Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
             var now = DateTimeOffset.UtcNow;
+            // Production shape: Noavaran company rows carry no ticker (all 4835 local rows, 2026-11-16), so the Feature 163
+            // company resolution must not depend on it.
+            foreach (var company in db.Companies) company.Ticker = null;
             db.CyclicalWavesV2Analyses.AddRange(
                 Analysis(159101, OldTitle, now.AddDays(-400)),
                 Analysis(159102, RecentTitle, now.AddDays(-1)));

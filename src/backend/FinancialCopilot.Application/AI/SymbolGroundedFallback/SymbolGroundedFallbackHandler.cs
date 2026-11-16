@@ -63,7 +63,7 @@ public sealed class SymbolGroundedFallbackHandler(
             return SymbolGroundedFallbackResult.UnchangedBecause(ineligible);
 
         var question = turn.Request.OriginalUserMessage ?? turn.Request.Message;
-        if (await ResolveSingleCompanyAsync(question, cancellationToken) is not { } company)
+        if (await ResolveSingleCompanyAsync(turn.Request, question, cancellationToken) is not { } company)
             return SymbolGroundedFallbackResult.UnchangedBecause("no_single_company");
 
         var symbol = company.DisplaySymbol.Trim();
@@ -119,25 +119,46 @@ public sealed class SymbolGroundedFallbackHandler(
             table! with { RenderedAnswer = null }, symbol, diagnostics);
     }
 
-    /// <summary>
-    /// Exactly one company named by its ticker (FR-2). The resolver reports the first ticker in the text, so the
-    /// text is resolved again without that ticker: a second, different company means the question is about several.
-    /// </summary>
-    private async Task<CanonicalQueryEntity?> ResolveSingleCompanyAsync(string question, CancellationToken cancellationToken)
-    {
-        if (await entityResolver.ResolveExactTickerFromTextAsync(question, cancellationToken)
-            is not EntityResolutionResult.Resolved first)
-            return null;
+    /// <summary>Upper bound of words checked one by one, so a long message cannot cause many catalogue reads.</summary>
+    private const int MaximumWordsResolved = 12;
 
-        var ticker = QueryNormalization.Normalize(first.Entity.DisplaySymbol);
-        var rest = string.Join(' ', QueryNormalization.Normalize(question)
+    /// <summary>
+    /// Exactly one company (FR-2): the company the routed capability already resolved for this turn (the same identity
+    /// its own answer used), together with every word of the question resolved by the catalogue's exact identity rules
+    /// (symbol, name, approved alias; never a fuzzy or "contains" match). One company means the question is about it;
+    /// two mean several companies (a frame holds only the first one); a word that matches several companies exactly is
+    /// unsafe. Not by the ticker column: Noavaran rows carry no ticker (owner report «سهم چدن», 2026-11-16).
+    /// </summary>
+    private async Task<CanonicalQueryEntity?> ResolveSingleCompanyAsync(
+        AiQueryRequest request, string question, CancellationToken cancellationToken)
+    {
+        var found = (request.SemanticFrame?.Slots ?? [])
+            .Where(slot => slot.Type == QuerySlotType.CompanyOrSymbol &&
+                           slot.ValidationState == QuerySlotValidationState.Valid && slot.CanonicalEntity is not null)
+            .Select(slot => slot.CanonicalEntity!)
+            .DistinctBy(entity => entity.CanonicalId)
+            .ToDictionary(entity => entity.CanonicalId);
+        if (found.Count > 1) return null;
+
+        var words = QueryNormalization.Normalize(question)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(token => !string.Equals(token, ticker, StringComparison.Ordinal)));
-        return await entityResolver.ResolveExactTickerFromTextAsync(rest, cancellationToken) switch
+            .Where(word => word.Length >= 2 && !QueryNormalization.IsPresentationWord(word))
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaximumWordsResolved);
+        foreach (var word in words)
         {
-            EntityResolutionResult.Resolved other when other.Entity.CanonicalId != first.Entity.CanonicalId => null,
-            EntityResolutionResult.Ambiguous => null,
-            _ => first.Entity
-        };
+            switch (await entityResolver.ResolveMentionAsync(word, cancellationToken))
+            {
+                case EntityResolutionResult.Resolved resolved when EntityResolutionMatchKinds.IsExact(resolved.Evidence.MatchKind):
+                    found[resolved.Entity.CanonicalId] = resolved.Entity;
+                    break;
+                case EntityResolutionResult.Ambiguous ambiguous when ambiguous.Candidates.Any(candidate =>
+                    EntityResolutionMatchKinds.IsExact(candidate.MatchKind)):
+                    return null;
+            }
+            if (found.Count > 1) return null;
+        }
+
+        return found.Count == 1 ? found.Values.Single() : null;
     }
 }

@@ -73,7 +73,8 @@ internal sealed record ComprehensiveAnalysisToolResult
         UnresolvedSymbols,
         AnalysesUrl,
         QueryResponse?.TechnicalAnalysisNotFoundSymbols,
-        QueryResponse?.FullTextIncluded == true);
+        QueryResponse?.FullTextIncluded == true,
+        QueryResponse?.RecentWindowDays);
 
     public static ComprehensiveAnalysisToolResult Success(ComprehensiveAnalysisQueryResponse response, string analysesUrl) =>
         new() { Succeeded = true, QueryResponse = response, UnresolvedSymbols = response.UnresolvedSymbols, AnalysesUrl = analysesUrl };

@@ -434,9 +434,12 @@ public sealed class V2ComprehensiveAnalysisSemanticPrimaryStaleEvidenceTests
         Assert.Equal("66000000-0000-0000-0000-000000000007", invocation.Frame.Slots
             .Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).CanonicalEntity!.CanonicalId.ToString());
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
-        // Feature 148: v2 retrieval has no hidden 30-day window; the older article is returned with its own date.
-        var item = Assert.Single(root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray());
-        Assert.Equal(66001, item.GetProperty("analysisId").GetInt64());
+        // Feature 159 change «analysis-recency-window» (owner, 2026-11-16): an analysis older than 30 days is never shown;
+        // the free no-data card says only recent analyses were searched.
+        Assert.Empty(root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray());
+        Assert.Equal("NoData", root.GetProperty("outcome").GetString());
+        Assert.Contains("تحلیل تازه‌ای در ۳۰ روز اخیر در تحلیل‌اپ پیدا نشد.", root.GetProperty("textAnswer").GetString());
+        Assert.DoesNotContain("تحلیل بنیادی فولاد مبارکه", root.GetProperty("textAnswer").GetString());
     }
 }
 

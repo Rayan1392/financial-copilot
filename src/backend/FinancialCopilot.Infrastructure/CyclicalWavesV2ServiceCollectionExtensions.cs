@@ -47,7 +47,7 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
         services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(financialData.ChatProvider, capabilitySources));
         services.AddOptions<ComprehensiveAnalysisPresentationOptions>()
             .BindConfiguration(ComprehensiveAnalysisPresentationOptions.SectionName)
-            .Validate(options => options.IsValid(out _), "ComprehensiveAnalysis settings are invalid: TahlilAppAnalysesUrl must be absolute https, TeaserPercent 1-50, TeaserMaxCharacters 20-1000, TeaserMinimumSourceCharacters 0-2000.")
+            .Validate(options => options.IsValid(out _), "ComprehensiveAnalysis settings are invalid: TahlilAppAnalysesUrl must be absolute https, TeaserPercent 1-50, TeaserMaxCharacters 20-1000, TeaserMinimumSourceCharacters 0-2000, MaxAgeDays 1-365.")
             .ValidateOnStart();
 
         AddLegacyRetirement(services);
@@ -83,7 +83,26 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
 
         // The legacy published-analysis detector reads only retired tables; historical insight events stay.
         RemoveImplementation<IInsightDetector, ComprehensiveAnalysisPublishedDetector>(services);
+        DecorateWithRecencyWindow(services);
         return services;
+    }
+
+    /// <summary>
+    /// Change «analysis-recency-window»: whichever analysis use case the provider selection chose, every caller (semantic
+    /// executor, agent tools, Telegram, V1) reads it through the recent-window rule.
+    /// </summary>
+    private static void DecorateWithRecencyWindow(IServiceCollection services)
+    {
+        var selected = services.LastOrDefault(descriptor => descriptor.ServiceType == typeof(IComprehensiveAnalysisQueryUseCase));
+        if (selected?.ImplementationType is not { } innerType)
+            throw new InvalidOperationException("The comprehensive analysis use case must be registered by type before the recency window is applied.");
+        // The selected implementation stays registered as itself, so composition stays inspectable.
+        services.TryAdd(ServiceDescriptor.Scoped(innerType, innerType));
+        services.Replace(ServiceDescriptor.Scoped<IComprehensiveAnalysisQueryUseCase>(provider =>
+            new RecentComprehensiveAnalysisQueryUseCase(
+                (IComprehensiveAnalysisQueryUseCase)provider.GetRequiredService(innerType),
+                provider.GetRequiredService<IOptions<ComprehensiveAnalysisPresentationOptions>>().Value,
+                provider.GetService<TimeProvider>() ?? TimeProvider.System)));
     }
 
     private static void AddLegacyRetirement(IServiceCollection services)

@@ -23,3 +23,6 @@ Ideas and deferred work that are not yet a spec.
 - Feature 162: calibrate `ReportDiscussion:CharsPerToken` from provider-reported input tokens after the first live runs.
 - Feature 162 (from BUG-031): add balance-sheet calculations for analysis questions — each row's share of total assets per period and absolute changes between periods — so answers can quote them and pass grounding. Design change: larger prompt, new computed data; needs owner Gate A.
 - Feature 162 (from BUG-031): per-call reasoning-effort setting in the OpenAI transport (`AiModelRequest` has none) if `gpt-6-luna` reasoning tokens keep eating the Report Discussion output budget. Affects every workload; needs its own design.
+- Feature 163: balance sheet and cash flow as additional grounding data for the symbol-grounded fallback (out of scope in v1).
+- Feature 163 / 155: the unanswered-question report (`specs/155-admin-unanswered-question-demand-report/queries.sql`) reads only `Outcome`; add `FallbackOf` so questions answered by the fallback stay visible as unmet capability demand.
+- Feature 163: resolve a company named by its full name or an alias (v1 resolves exact tickers only, like the existing exact-ticker resolver).

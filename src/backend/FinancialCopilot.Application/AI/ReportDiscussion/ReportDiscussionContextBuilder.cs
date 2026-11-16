@@ -85,6 +85,15 @@ public sealed class ReportDiscussionContextBuilder(ReportDiscussionOptions optio
 
     private static string RenderUserContent(ReportDataSet data, string history, string question)
     {
+        var builder = new StringBuilder(RenderReport(data));
+        if (history.Length > 0) builder.Append("<recent_messages>\n").Append(history).Append("\n</recent_messages>\n");
+        builder.Append("<question>\n").Append(question).Append("\n</question>");
+        return builder.ToString();
+    }
+
+    /// <summary>The delimited report block, shared with the Feature 163 fallback prompt so both render data the same way.</summary>
+    public static string RenderReport(ReportDataSet data)
+    {
         var builder = new StringBuilder();
         builder.Append("<report>\n");
         builder.Append("company: ").Append(data.CompanySymbol);
@@ -108,8 +117,6 @@ public sealed class ReportDiscussionContextBuilder(ReportDiscussionOptions optio
                 .Append(" | ").Append(string.Join(',', calculation.OperandEvidenceIds)).Append('\n');
         }
         builder.Append("</calculations>\n</report>\n");
-        if (history.Length > 0) builder.Append("<recent_messages>\n").Append(history).Append("\n</recent_messages>\n");
-        builder.Append("<question>\n").Append(question).Append("\n</question>");
         return builder.ToString();
     }
 

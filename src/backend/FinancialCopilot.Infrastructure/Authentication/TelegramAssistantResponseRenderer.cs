@@ -714,7 +714,7 @@ public sealed class TelegramAssistantResponseRenderer(
         // Change «max-plan-full-analysis-text»: a whole-text card is cut to one Telegram message (link kept).
         builder.AppendLine(ComprehensiveAnalysisCardComposer.ComposePlainText(
             analysis.Items.Take(3).ToList(), analysis.UnresolvedSymbols, analysesUrl, analysis.TechnicalAnalysisNotFoundSymbols,
-            analysis.FullTextIncluded, TelegramMessageLimit));
+            analysis.FullTextIncluded, TelegramMessageLimit, analysis.RecentWindowDays));
     }
 
     private static void AppendConfidence(StringBuilder builder, AiQueryResponse response)

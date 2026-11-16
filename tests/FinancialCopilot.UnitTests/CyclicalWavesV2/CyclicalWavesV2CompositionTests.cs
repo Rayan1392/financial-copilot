@@ -74,7 +74,7 @@ public sealed class CyclicalWavesV2CompositionTests
 
         Assert.Equal(typeof(SwitchableMonthlyActivitySymbolMetricLookupService), Last<ISymbolMetricLookupService>(services).ImplementationType);
         Assert.Equal(typeof(EfCoreScannerExecutionService), Last<IScannerExecutionService>(services).ImplementationType);
-        Assert.Equal(typeof(UnavailableComprehensiveAnalysisQueryUseCase), Last<IComprehensiveAnalysisQueryUseCase>(services).ImplementationType);
+        Assert.Equal(typeof(UnavailableComprehensiveAnalysisQueryUseCase), AnalysisUseCase(services));
         Assert.NotEqual(typeof(CyclicalWavesV2QuarterlyIncomeStatementUseCase), Last<IQuarterlyFinancialReportsQueryUseCase>(services).ImplementationType);
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(CyclicalWavesV2GaugeQueryService));
         Assert.Equal(typeof(FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters.CanonicalQueryEntityResolver), Last<ICanonicalQueryEntityResolver>(services).ImplementationType);
@@ -87,7 +87,7 @@ public sealed class CyclicalWavesV2CompositionTests
 
         Assert.Equal(typeof(CyclicalWavesV2SymbolMetricLookupService), Last<ISymbolMetricLookupService>(services).ImplementationType);
         Assert.Equal(typeof(CyclicalWavesV2ScannerExecutionService), Last<IScannerExecutionService>(services).ImplementationType);
-        Assert.Equal(typeof(CyclicalWavesV2ComprehensiveAnalysisQuery), Last<IComprehensiveAnalysisQueryUseCase>(services).ImplementationType);
+        Assert.Equal(typeof(CyclicalWavesV2ComprehensiveAnalysisQuery), AnalysisUseCase(services));
         Assert.Equal(typeof(CyclicalWavesV2QuarterlyIncomeStatementUseCase), Last<IQuarterlyFinancialReportsQueryUseCase>(services).ImplementationType);
         Assert.Equal(typeof(CyclicalWavesV2FinancialStatementTableQueryUseCase), Last<IFinancialStatementTableQueryUseCase>(services).ImplementationType);
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(CyclicalWavesV2GaugeQueryService));
@@ -122,7 +122,7 @@ public sealed class CyclicalWavesV2CompositionTests
         var unmapped = Compose("NoavaranAmin");
         var mapped = Compose("NoavaranAmin", ("FinancialData:CapabilitySources:comprehensive_analysis", "CyclicalWaves"));
 
-        Assert.Equal(typeof(CyclicalWavesV2ComprehensiveAnalysisQuery), Last<IComprehensiveAnalysisQueryUseCase>(mapped).ImplementationType);
+        Assert.Equal(typeof(CyclicalWavesV2ComprehensiveAnalysisQuery), AnalysisUseCase(mapped));
         Assert.Equal(typeof(SwitchableMonthlyActivitySymbolMetricLookupService), Last<ISymbolMetricLookupService>(mapped).ImplementationType);
         Assert.Equal(typeof(EfCoreScannerExecutionService), Last<IScannerExecutionService>(mapped).ImplementationType);
         Assert.DoesNotContain(mapped, descriptor => descriptor.ServiceType == typeof(CyclicalWavesV2GaugeQueryService));
@@ -161,7 +161,7 @@ public sealed class CyclicalWavesV2CompositionTests
     {
         var services = Compose("NoavaranAmin", ("FinancialData:CapabilitySources:comprehensive_analysis", value));
 
-        Assert.Equal(typeof(UnavailableComprehensiveAnalysisQueryUseCase), Last<IComprehensiveAnalysisQueryUseCase>(services).ImplementationType);
+        Assert.Equal(typeof(UnavailableComprehensiveAnalysisQueryUseCase), AnalysisUseCase(services));
     }
 
     [Theory]
@@ -195,6 +195,17 @@ public sealed class CyclicalWavesV2CompositionTests
 
         Assert.Equal("https://tahlilapp.com/app/analysis",
             provider.GetRequiredService<IOptions<ComprehensiveAnalysisPresentationOptions>>().Value.TahlilAppAnalysesUrl);
+    }
+
+    /// <summary>
+    /// Change «analysis-recency-window»: the interface is always the recent-window decorator; the provider selection is the
+    /// concrete implementation it wraps, registered as itself.
+    /// </summary>
+    private static Type AnalysisUseCase(IServiceCollection services)
+    {
+        Assert.NotNull(Last<IComprehensiveAnalysisQueryUseCase>(services).ImplementationFactory);
+        return services.Last(descriptor => descriptor.ServiceType != typeof(IComprehensiveAnalysisQueryUseCase) &&
+                                           typeof(IComprehensiveAnalysisQueryUseCase).IsAssignableFrom(descriptor.ServiceType)).ServiceType;
     }
 
     private static ServiceDescriptor Last<T>(IServiceCollection services) => services.Last(descriptor => descriptor.ServiceType == typeof(T));

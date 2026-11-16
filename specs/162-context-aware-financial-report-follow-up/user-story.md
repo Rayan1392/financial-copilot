@@ -54,8 +54,9 @@ Today every message is re-classified, so a natural question like «چرا حاش
 - Active report derivation from persisted assistant payloads (D6); no new table, no migration.
 - One model call per discussion turn returning answer + disposition (D3); hand-back to normal V2 routing for `NeedsDifferentData` / `OutsideReport`.
 - Deterministic calculations (D5) and a post-answer numeric grounding check.
-- Pricing (D2): 2 credits cash-flow, 1 credit other families, 0 for non-answers and hand-backs.
+- Pricing (D2): 2 credits for every answered report family, 0 for non-answers; hand-backs are billed only by the normal route. Pricing update: `changes/price-all-report-discussions-at-two-credits/`.
 - V2 only, behind `ReportDiscussion:Enabled` (default `false`).
+- Interpretation suggestion first under a shown quarterly income statement, balance sheet or monthly sales trend, at most 5 suggestions per answer (change [`report-interpretation-suggestion`](changes/report-interpretation-suggestion/design-proposal.md), 2026-11-16).
 
 ## Out Of Scope
 
@@ -80,7 +81,7 @@ Today every message is re-classified, so a natural question like «چرا حاش
    - `MissingInReport` → deterministic Persian message naming what is missing and inviting a new report request; 0 credits; context stays active.
    - `NeedsDifferentData` → hand back: `ConversationDialogueGate` and the normal V2 route run exactly as today; a resulting supported report becomes the new active report.
    - `OutsideReport` → hand back as above; the persisted answer of that turn deactivates the context.
-9. **Billing.** Hold raised to 2 credits before the model call when the active report is a cash-flow report; if the wallet cannot cover it, the existing insufficient-credit response is returned without a model call. Answered cash-flow turn = 2 credits; answered other families = 1 credit; `MissingInReport`, narrow-request, grounding failure, provider failure, timeout = 0; a hand-back turn is charged only by the normal route that answers it (the discussion call's cost is absorbed and logged).
+9. **Billing.** Hold raised to 2 credits before the model call when the active report is supported; if the wallet cannot cover it, the existing insufficient-credit response is returned without a model call. Every answered report-discussion family = 2 credits; `MissingInReport`, narrow-request, grounding failure, provider failure, timeout = 0; a hand-back turn is charged only by the normal route that answers it (the discussion call's cost is absorbed and logged).
 10. **Missing source.** If the referenced payload cannot be loaded or deserialized, Report Discussion is not entered and the turn runs the normal route (no answer from memory).
 11. **Persistence.** The answer is persisted by the existing `PersistExchangeAsync` with `TextAnswer` and a new optional `ReportDiscussion` payload field `{ SourceAssistantMessageId, ReportFamily, Disposition }`. No new table; old payloads deserialize unchanged.
 12. **Observability.** Execution route `report_discussion`; tags: disposition, report family, input/output tokens, latency, grounding result, hand-back; usage facts via the existing accumulator. Unanswered-question reporting (155) sees `MissingInReport` as a no-data outcome with reason code `report_discussion_missing_in_report`.
@@ -123,7 +124,7 @@ None. The existing assistant text renderer shows the answer in RTL.
 - [ ] AC-4 Different data: «ترازنامه فولاد» or another symbol in the same conversation hands back; the normal route answers; no previous-company facts appear in that request; a returned supported report becomes active.
 - [ ] AC-5 Outside report: an unrelated question hands back, the normal route answers, and the next message does not enter Report Discussion.
 - [ ] AC-6 Pending clarification: when `ConversationTaskState` has a pending clarification, the message goes to the existing gate even if a report is active.
-- [ ] AC-7 Pricing: answered cash-flow turn = 2 credits; answered income/balance/monthly turn = 1 credit; `MissingInReport`, narrow, grounding failure, provider failure, timeout = 0; hand-back turn charged only by the normal route; wallet with 1 credit on a cash-flow discussion gets the insufficient-credit response without a model call.
+- [ ] AC-7 Pricing: every answered report discussion = 2 credits; `MissingInReport`, narrow, grounding failure, provider failure, timeout = 0; hand-back turn charged only by the normal route; wallet with 1 credit on a report discussion gets the insufficient-credit response without a model call. See `changes/price-all-report-discussions-at-two-credits/`.
 - [ ] AC-8 Restart: after API restart the active report is derived from PostgreSQL payloads and discussion works.
 - [ ] AC-9 Budget: built input ≤ configured target and output cap passed; oversize slice yields the narrow message.
 - [ ] AC-10 Isolation: another tenant/actor cannot reach the conversation or its report data.

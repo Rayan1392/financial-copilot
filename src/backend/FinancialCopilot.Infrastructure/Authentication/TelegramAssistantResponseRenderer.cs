@@ -557,7 +557,7 @@ public sealed class TelegramAssistantResponseRenderer(
         builder.AppendLine();
         builder.AppendLine(response.ReplyLanguage == "fa" ? "پیشنهادها:" : "Suggestions:");
         var index = 1;
-        foreach (var action in response.SuggestedActions.Take(4))
+        foreach (var action in response.SuggestedActions.Take(FollowUpSuggestionPipeline.MaximumPresentedActions))
             builder.AppendLine($"{index++}. {action.LocalizedLabel} — {action.Message}");
     }
 

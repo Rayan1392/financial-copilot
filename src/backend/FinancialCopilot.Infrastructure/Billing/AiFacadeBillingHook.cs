@@ -193,10 +193,26 @@ public sealed class AiFacadeBillingHook(
         if (!EnforcesUsageBasedCredits(handle.OperationCode))
             return handle;
 
-        return await EnsureReservedCapacityAsync(
+        return await EnsureReservedCapacityCoreAsync(
             handle,
             creditOptions.MaximumCreditsPerQuestion,
             cancellationToken);
+    }
+
+    public Task<BillingReservationHandle> EnsureReservedCapacityAsync(
+        BillingReservationHandle handle,
+        decimal requiredCredits,
+        CancellationToken cancellationToken)
+    {
+        if (requiredCredits <= 0)
+            throw new ArgumentOutOfRangeException(nameof(requiredCredits), "Required credits must be positive.");
+        if (string.Equals(handle.QuotaMode, "Unlimited", StringComparison.Ordinal))
+            return Task.FromResult(handle);
+
+        var capacity = EnforcesUsageBasedCredits(handle.OperationCode)
+            ? creditOptions.MaximumCreditsPerQuestion
+            : requiredCredits;
+        return EnsureReservedCapacityCoreAsync(handle, capacity, cancellationToken);
     }
 
     public async Task<BillingReservationHandle> EnsureCurrentUsageCapacityAsync(
@@ -217,10 +233,10 @@ public sealed class AiFacadeBillingHook(
         if (proposed.Credits <= handle.ReservedCredits)
             return handle;
 
-        return await EnsureReservedCapacityAsync(handle, proposed.Credits, cancellationToken);
+        return await EnsureReservedCapacityCoreAsync(handle, proposed.Credits, cancellationToken);
     }
 
-    private async Task<BillingReservationHandle> EnsureReservedCapacityAsync(
+    private async Task<BillingReservationHandle> EnsureReservedCapacityCoreAsync(
         BillingReservationHandle handle,
         decimal requiredCredits,
         CancellationToken cancellationToken)
@@ -291,7 +307,7 @@ public sealed class AiFacadeBillingHook(
                 charge = ApplyUsageBasedCredits(handle, request.CompletionStatus, charge, calls, request.ExecutionRoute);
                 if (creditOptions.Mode == UsageBasedBillingMode.Enforced && charge.CreditsCharged > handle.ReservedCredits)
                 {
-                    handle = await EnsureReservedCapacityAsync(handle, charge.CreditsCharged, cancellationToken);
+                    handle = await EnsureReservedCapacityCoreAsync(handle, charge.CreditsCharged, cancellationToken);
                 }
             }
             catch (Exception exception) when (shadowMode && exception is not OperationCanceledException)

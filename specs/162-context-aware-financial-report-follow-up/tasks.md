@@ -47,7 +47,7 @@ Paths: backend relative to `src/backend/`, tests relative to `tests/`. Requireme
 
 - [x] T11 `PrepareStartMessageAsync`: after ownership check and reservation, call the handler for existing conversations only; on a non-hand-back result put it on `WorkflowStartMessage` and skip `dialogueGate.PrepareAsync`; on hand-back run the gate exactly as today. Exceptions in the handler → logged, hand back (the discussion path must never break the normal route).
 - [x] T12 Step 1 skips memory enrichment and step 3 returns the precomputed result as an early branch (pattern of the P/S gauge branch) with `TextAnswer`, `ReportDiscussion` marker, `Outcome`/reason code, execution route `report_discussion`; steps 4–7 unchanged.
-- [~] T13 Billing (D2): before the model call, raise the hold to 2 credits for the cash-flow family (reuse `EnsureReservedCapacityAsync`/hook; add a targeted-capacity overload only if the existing call cannot express 2 credits); insufficient credit → existing insufficient-credit response, no model call. Finalization statuses: `ReportDiscussionAnswered` (1×), `ReportDiscussionAnsweredCashFlow` (multiplier 2.0 in `DefaultPricingPolicy.CompletionMultipliers`), zero-credit cases use existing zero statuses (`NoData`, `ProviderFailed`, `TimedOutBeforeExecution`). Hand-back: discussion cost absorbed, turn finalized by the normal route only. Operation code stays `AiQuery.Scanner`, so plan entitlements and seeds are unchanged (no migration). Note in code comment: if usage-based billing moves to `Enforced` for this operation, it replaces fixed credits (existing behavior).
+- [~] T13 Billing (D2): before the model call, raise the hold to 2 credits for every supported report family; insufficient credit → existing insufficient-credit response, no model call. Every answered discussion uses `ReportDiscussionAnswered` (2×); zero-credit cases use existing zero statuses (`NoData`, `ProviderFailed`, `TimedOutBeforeExecution`). Hand-back: discussion cost absorbed, turn finalized by the normal route only. Operation code stays `AiQuery.Scanner`, so plan entitlements and seeds are unchanged (no migration). In Enforced usage-based mode, the measured charge replaces the fixed charge. See `changes/price-all-report-discussions-at-two-credits/`.
 - [x] T14 DI and config: register in `ServiceCollectionExtensions` (V2 only); `ReportDiscussion` section in `appsettings.json` (Enabled=false) and `appsettings.Development.json` (Enabled=false; enabled locally only for verification). Telemetry tags per FR-12; no report values or answer text in logs.
 
 ### 4. Verification and docs
@@ -61,7 +61,6 @@ Paths: backend relative to `src/backend/`, tests relative to `tests/`. Requireme
 
 ## Implementation Notes (2026-11-15)
 
-- `[~]` T04 / T13: income statement, balance sheet and monthly sales are done; the cash-flow extractor and the 2-credit `ReportDiscussionAnsweredCashFlow` status wait for Feature 161 (Gate B option (a)). Answered turns use the existing `Completed` status (1 credit); zero-credit turns use `NoData` / `ProviderFailed`. No pricing-policy change was needed for the 1-credit families.
 - T05: margins, share of revenue, YoY growth and current/debt ratios are computed in `ReportDataSetBuilder`; QoQ changes, gross margin, the equity ratio and monthly percentages are copied from the report, which already computes them deterministically. The quarterly banking template contributes its rows and QoQ changes; revenue-based margins apply to the general template only.
 - T08: implemented as a role-sized port `IReportDiscussionMessageReader` (Infrastructure `ReportDiscussionMessageReader`) instead of a new `IMessageRepository` member, so existing repository fakes stay unchanged; same bound and owner scope.
 - T09: `LlmReportDiscussionModel` lives in Application next to the other `IAiModelExecutionService` users (no Infrastructure adapter was needed).
@@ -69,6 +68,10 @@ Paths: backend relative to `src/backend/`, tests relative to `tests/`. Requireme
 - T15: endpoint scenarios cover AC-1, 2, 3, 4, 5, 7 (1-credit and 0-credit paths), 10, 12 and 14. AC-6, AC-9 and AC-13 are covered by unit tests. AC-8 holds by construction (the active report is read from PostgreSQL payloads, no in-memory state). AC-11: billing is idempotent through the existing reservation and ledger keys; a retried request re-runs the turn and persists it again, which is the existing behaviour of every route (not changed here). AC-15 is unit-tested only (no monthly fixture in the endpoint factory). AC-16 waits for Feature 161.
 - T18: live local check not run yet (needs Development stack, disposable PostgreSQL and a real model key).
 - T19: architecture, glossary, specs index and backlog updated. The CHANGELOG line is held back until the flag is enabled anywhere, because with `ReportDiscussion:Enabled=false` nothing is user-visible.
+
+## Implementation Notes (2026-11-16)
+
+- `[~]` T04 / T13: income statement, balance sheet and monthly sales Report Discussion use the shared two-credit `ReportDiscussionAnswered` status. The cash-flow discussion extractor remains deferred until Feature 161 meets its definition of done; when supported, it uses the same answered status. Zero-credit turns use `NoData` / `ProviderFailed`. Focused billing verification remains pending.
 
 ## Tests
 

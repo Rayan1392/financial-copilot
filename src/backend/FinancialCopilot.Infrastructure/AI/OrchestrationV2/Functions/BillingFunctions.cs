@@ -29,6 +29,12 @@ internal sealed class BillingFunctions(IBillingFacadeHook billingHook)
         CancellationToken cancellationToken) =>
         billingHook.EnsureReservedCapacityAsync(handle, cancellationToken);
 
+    internal Task<BillingReservationHandle> EnsureReservedCapacityAsync(
+        BillingReservationHandle handle,
+        decimal requiredCredits,
+        CancellationToken cancellationToken) =>
+        billingHook.EnsureReservedCapacityAsync(handle, requiredCredits, cancellationToken);
+
     internal Task<BillingReservationHandle> EnsureCurrentUsageCapacityAsync(
         BillingReservationHandle handle,
         CancellationToken cancellationToken) =>

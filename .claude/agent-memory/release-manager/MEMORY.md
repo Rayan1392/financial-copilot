@@ -2,17 +2,19 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
-## Current state (2026-11-12, ~09:00 +0330)
+## Current state (2026-11-16)
 
-- Latest released version: **1.11.0**, annotated tag `v1.11.0` (tag object `d7a9c92`) on prod merge commit
-  `34e0b32` ("Merge develop into prod for v1.11.0"; parents: prod `3908963`, develop release commit `d8dedcf`).
-  Tag pushed by the owner 2026-11-12 ~08:51 +0330. Deploy run 43160802312 succeeded in 8m12s (all steps green).
-  `/releases` returned 200 and shows 1.11.0 as «نسخهٔ جاری».
-- 1.11.0 announces answers from stored financial statements and monthly reports (code shipped earlier behind the
-  `Feature141:Enabled` flag; prod turns it on through the server `.env`, compose default is false) plus BUG-023.
-  No migrations. No Telegram gateway changes.
-- Previous release: 1.10.0 (`v1.10.0` on `7b69391`, run 43054189283 success).
-- Base for "commits since last release": `v1.11.0`.
+- Latest released version: **1.13.1** (PATCH, Fixed only), annotated tag `v1.13.1` (tag object `fbb04ff`) on prod
+  merge commit `71c0614` ("Merge develop into prod for v1.13.1"; parents prod `1f4ab9e`, develop release commit
+  `44a9c71`). Deploy run 43802887944 succeeded in 9m23s. `/releases` HTTP 200; served bundle contains 1.13.1.
+- 1.13.1 ships BUG-031 (`d8ff5f9`): Report Discussion analysis follow-ups no longer end in zero-credit fallbacks.
+  The feature sits behind `ReportDiscussion:Enabled` (default off; prod could enable it via server `.env`, which
+  reaches the API through env_file). Live end-to-end check T6 for BUG-031 was still pending at release.
+- Previous released version: 1.13.0 (`v1.13.0` on `1f4ab9ef`, run 43747994724 success).
+- Base for "commits since last release": `v1.13.1`.
+- 2026-11-16: main worktree had develop checked out, no worktree had prod; the prod merge was made with
+  `git merge-tree --write-tree` + `git commit-tree` + `git update-ref` (clean). This MEMORY.md was identical on
+  prod and develop at that time; it was left uncommitted (not part of the release commit).
 - Owner runs git from Windows PowerShell 5.1: give one command per line, no `&&`, no unset `$VARS` in paths.
 - prod carries owner commit `1e68bd6` ("a": this MEMORY.md + deleted `.deepcode/settings.json` and a `.roo` skill)
   that develop lacks; it stays on prod only. This file therefore differs between prod and develop; committing
@@ -42,6 +44,8 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.13.1 | 2026-11-16 | 71c0614 | run 43802887944 success | Report Discussion analysis follow-ups no longer fail (BUG-031; feature flag-gated) |
+| 1.13.0 | 2026-11-15 | 1f4ab9ef | run 43747994724 success | self-service profile editing on web and mobile; assistant response system update |
 | 1.11.0 | 2026-11-12 | 34e0b32 | run 43160802312 success | answers from financial statements (one income-statement item, multi-company comparison) and monthly product reports, safe refusal; desktop shows the question while its answer is prepared (BUG-023) |
 | 1.10.0 | 2026-11-11 | 7b69391 | run 43054189283 success | follow-up suggestion boxes on balance sheet and other single-symbol answers; «تحلیل X» takes the comprehensive-analysis route |
 | 1.9.0 | 2026-11-11 | 8465aa9 | run 43041307287 success | full TahlilApp analysis text for Max; technical-analysis route; unavailable valuation topics refused without charge; price-unit and "Found metric data" fixes |

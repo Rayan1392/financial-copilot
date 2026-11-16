@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.ReportDiscussion;
+using FinancialCopilot.Application.AI.SymbolGroundedFallback;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.Memory;
@@ -112,7 +113,13 @@ internal sealed record ResultsComputedMessage(
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
     bool DeterministicSuggestionsApplied = false,
     SymbolSnapshotResult? SymbolSnapshotResult = null,
-    ReportDiscussionTurn? ReportDiscussion = null);
+    ReportDiscussionTurn? ReportDiscussion = null,
+    SymbolGroundedFallbackAnswer? SymbolGroundedFallback = null);
+
+/// <summary>Feature 163: what an answered symbol-grounded fallback adds to the persisted turn.</summary>
+internal sealed record SymbolGroundedFallbackAnswer(
+    FinancialStatementTableResult GroundingReport,
+    FallbackOrigin Origin);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,

@@ -21,7 +21,8 @@ public static class ReportDataSetBuilder
 
     public static ReportDataSet? Build(ActiveReport report) => report.Family switch
     {
-        ReportFamily.QuarterlyIncomeStatement => report.Payload.FinancialStatementTableResult?.QuarterlyResult is { } quarterly
+        // Feature 163: a hidden grounding report is discussed exactly like a shown quarterly report.
+        ReportFamily.QuarterlyIncomeStatement => (report.Payload.FinancialStatementTableResult ?? report.Payload.GroundingReport)?.QuarterlyResult is { } quarterly
             ? Quarterly(report, quarterly)
             : null,
         ReportFamily.BalanceSheet => report.Payload.FinancialStatementTableResult?.BalanceSheetReport is { } balance
@@ -53,7 +54,16 @@ public static class ReportDataSetBuilder
         _ => "گزارش"
     };
 
-    private static ReportDataSet Quarterly(ActiveReport report, QuarterlyFinancialReportTableResult table)
+    /// <summary>Feature 163: the same projection for a quarterly table that is not (yet) a conversation's active report.</summary>
+    public static ReportDataSet? BuildQuarterly(FinancialStatementTableResult? table) =>
+        ActiveReportResolver.Discussable(table, null) is { Family: ReportFamily.QuarterlyIncomeStatement } source
+            ? Quarterly(source, table!.QuarterlyResult!)
+            : null;
+
+    private static ReportDataSet Quarterly(ActiveReport report, QuarterlyFinancialReportTableResult table) =>
+        Quarterly(new DiscussableReport(report.Family, report.CompanySymbol, report.CompanyName, report.ProviderName), table);
+
+    private static ReportDataSet Quarterly(DiscussableReport report, QuarterlyFinancialReportTableResult table)
     {
         var ids = new EvidenceIds();
         var periods = table.PeriodsNewestFirst;

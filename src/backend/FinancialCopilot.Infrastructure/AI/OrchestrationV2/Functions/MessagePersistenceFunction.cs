@@ -50,7 +50,10 @@ internal sealed class MessagePersistenceFunction(
         SymbolSnapshotResult? symbolSnapshotResult = null,
         IReadOnlyCollection<SuggestedAction>? deterministicSuggestedActions = null,
         bool deterministicSuggestionsApplied = false,
-        FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? reportDiscussion = null)
+        FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? reportDiscussion = null,
+        // Feature 163: the hidden report a fallback answer was written from, and the non-answer it replaced.
+        FinancialStatementTableResult? groundingReport = null,
+        FinancialCopilot.Application.AI.SymbolGroundedFallback.FallbackOrigin? fallbackOf = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -128,7 +131,9 @@ internal sealed class MessagePersistenceFunction(
                     SemanticRegistryVersion: intent == DetectedIntent.MonthlyProductComparison
                         ? 1
                         : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion,
-                    ReportDiscussion: reportDiscussion)),
+                    ReportDiscussion: reportDiscussion,
+                    GroundingReport: groundingReport,
+                    FallbackOf: fallbackOf)),
             createConversation,
             cancellationToken);
         return persisted with { SuggestedActions = suggestions };

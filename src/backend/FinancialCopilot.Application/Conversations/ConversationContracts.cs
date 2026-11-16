@@ -67,7 +67,12 @@ public sealed record AssistantMessagePayload(
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
     SymbolSnapshotResult? SymbolSnapshotResult = null,
     // Feature 162: set on turns Report Discussion answered or handed back; null on every other turn and on old payloads.
-    FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? ReportDiscussion = null);
+    FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? ReportDiscussion = null,
+    // Feature 163: the quarterly income statement a symbol-grounded fallback answer was written from. It was never
+    // shown to the user and no client renders it; Report Discussion reads it as the conversation's active report.
+    FinancialStatementTableResult? GroundingReport = null,
+    // Feature 163: the non-answer the fallback replaced, so unmet demand stays measurable (Feature 155).
+    FinancialCopilot.Application.AI.SymbolGroundedFallback.FallbackOrigin? FallbackOf = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

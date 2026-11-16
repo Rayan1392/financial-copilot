@@ -32,7 +32,8 @@ public static class ActiveReportResolver
     public static ActiveReport? TryDescribe(Guid assistantMessageId, AssistantMessagePayload payload)
     {
         if (payload.Outcome is not (DialogueOutcome.Answered or DialogueOutcome.PartialAnswer)) return null;
-        return Discussable(payload.FinancialStatementTableResult, payload.MonthlyActivityTrendResult) is { } source
+        // Feature 163: a symbol-grounded fallback answer stores the income statement it used without showing it.
+        return Discussable(payload.FinancialStatementTableResult ?? payload.GroundingReport, payload.MonthlyActivityTrendResult) is { } source
             ? new ActiveReport(assistantMessageId, source.Family, source.CompanySymbol, source.CompanyName, source.ProviderName, payload)
             : null;
     }

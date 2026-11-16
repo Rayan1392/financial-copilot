@@ -531,9 +531,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 deferSettlementForFallback: true,
                 ct);
             logger.LogInformation(
-                "Chat semantic route completed. Route={Route} Capability={Capability} Status={Status} ReasonCode={ReasonCode} PayloadType={PayloadType}",
+                "Chat semantic route completed. Route={Route} Capability={Capability} Status={Status} ReasonCode={ReasonCode} PayloadType={PayloadType} Warnings={Warnings}",
                 "semantic_capability", semanticFrame.CapabilityCode, semantic.Execution.Status,
-                semantic.Execution.ReasonCode, semantic.Execution.Payload?.GetType().Name ?? "none");
+                semantic.Execution.ReasonCode, semantic.Execution.Payload?.GetType().Name ?? "none",
+                string.Join(',', semantic.Execution.Warnings ?? []));
             switch (semantic.Execution.Payload)
             {
                 case SemanticScannerPayload scanner:

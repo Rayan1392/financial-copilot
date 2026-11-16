@@ -713,20 +713,22 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
             CardCounter.Add(1, new KeyValuePair<string, object?>("text", analysis.FullTextIncluded ? "full" : "preview"));
         var hasMetrics = lookup.Rows.Count > 0;
         var warnings = new List<string>();
-        if (analysisAttempt.Failed) warnings.Add("analysis_posts_unavailable");
+        if (analysisAttempt.Failed) warnings.AddRange(["analysis_posts_unavailable", "analysis_posts_failed"]);
         else if (!hasAnalysis) warnings.Add("analysis_posts_unavailable");
-        if (lookupAttempt.Failed) warnings.Add("live_metrics_unavailable");
+        if (lookupAttempt.Failed) warnings.AddRange(["live_metrics_unavailable", "live_metrics_failed"]);
         else if (!hasMetrics) warnings.Add("live_metrics_unavailable");
 
-        if ((analysisAttempt.Failed && !hasMetrics) || (lookupAttempt.Failed && !hasAnalysis))
-            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
-                DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
-        // Feature 159 (FR7): no analysis for the symbol is a no-data answer, free, even when context metrics exist;
-        // the payload still carries the metrics and the "no analysis found" card. Change «analysis-recency-window»: only
-        // recent analyses are searched, so the reason says so and the Feature 163 fallback may answer instead.
+        // Feature 159 (FR7): no analysis for the symbol is a no-data answer, free, whatever happened to the context
+        // metrics; the payload still carries them and the "no analysis found" card. Change «analysis-recency-window»: only
+        // recent analyses are searched, so the reason says so and the Feature 163 fallback may answer instead. Checked
+        // before the failure rule: the context metrics are shown only beside an analysis, so their failure must not turn
+        // "no recent analysis" into "temporarily unavailable" (owner report 2026-11-16, «سهم چدن را بررسی کن»).
         if (!hasAnalysis && !analysisAttempt.Failed)
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
-                DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent, payload);
+                DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent, payload, warnings);
+        if (analysisAttempt.Failed && !hasMetrics)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
+                DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
         return hasAnalysis && hasMetrics
             ? Success(frame, payload)
             : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Partial,

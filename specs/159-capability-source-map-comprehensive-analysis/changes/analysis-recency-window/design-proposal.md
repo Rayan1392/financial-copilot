@@ -58,6 +58,15 @@ Alternative rejected: filter inside each provider query (two implementations, th
 - [~] T6 Tests: decorator, option range, sentence, eligibility (`AnalysisRecencyWindow159Tests`); endpoint `AnalysisRecencyWindow159EndpointTests` (old only → 163 answer, 2 credits, `FallbackOf` reason; fallback failure → free corrected card; recent analysis still shown). Updated the tests that pinned the old behaviour (stale-analysis evidence, 159 and 150 no-analysis texts, composition, 163 reason string). **Not done: a dedicated endpoint test for the BUG-020 technical-analysis retry inside the window** (the retry reuses the same decorated use case).
 - [x] T7 Full suite compared with develop `762c9cf`: unit 32 failed / 3708, integration 194 failed / 1119, architecture 1 failed / 19 — every failing test also fails on develop. Docs and `CHANGELOG.md` updated.
 
+## 4a. Defect found by the owner after merge (2026-11-16)
+
+«سهم چدن را بررسی کن» answered «این قابلیت موقتاً در دسترس نیست». The context-metric lookup failed for چدن; before this
+change the old analysis hid it (Partial), after it the empty analysis plus the failed lookup became `TemporarilyUnavailable`,
+which neither shows the card nor reaches 163. Fixed: an empty analysis result is the no-recent-analysis `NoData` whatever
+the lookup did; only a failed analysis query without metrics is `TemporarilyUnavailable`. Warnings `analysis_posts_failed`
+and `live_metrics_failed` are now logged with the semantic route result. Regression test in `SemanticRouteExecutorTests`.
+Why the lookup fails for چدن is not investigated here.
+
 ## 5. Open questions
 
 - OQ-098: "no analysis at all" (not only "too old") also goes to 163? Proposal: yes.

@@ -182,6 +182,19 @@ public sealed class SemanticRouteExecutorTests
         Assert.NotEmpty(payload.Lookup.Rows);
     }
 
+    [Fact] // Change «analysis-recency-window»: a failed context lookup must not hide "no recent analysis" (owner report «سهم چدن»).
+    public async Task ComprehensiveAnalysisExecutor_NoAnalysisAndFailedMetrics_IsStillTheNoRecentAnalysisNoData()
+    {
+        var executor = new ComprehensiveAnalysisCapabilityExecutor(
+            new AnalysisUseCase(hasRows: false), new ThrowingLookupService(), TimeProvider.System);
+
+        var result = await executor.ExecuteAsync(Frame("comprehensive_analysis", Symbol("چدن")), Context(), default);
+
+        Assert.Equal(CapabilityExecutionStatus.NoData, result.Status);
+        Assert.Equal(DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent, result.ReasonCode);
+        Assert.Contains("live_metrics_failed", result.Warnings!);
+    }
+
     [Fact]
     public async Task ComprehensiveAnalysisExecutor_PreservesDatabaseReportsWhenLiveMetricsFail()
     {

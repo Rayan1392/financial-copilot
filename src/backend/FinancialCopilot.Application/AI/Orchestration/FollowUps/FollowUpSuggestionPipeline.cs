@@ -51,8 +51,18 @@ public interface IFollowUpSuggestionPipeline
 /// Chain of Responsibility: the first provider (by <see cref="IFollowUpSuggestionProvider.Order"/>) that can handle the
 /// answer returns its follow-ups; when none can, the caller falls back to <see cref="ICapabilityGuidanceService"/>.
 /// </summary>
-public sealed class FollowUpSuggestionPipeline(IEnumerable<IFollowUpSuggestionProvider> providers) : IFollowUpSuggestionPipeline
+/// <remarks>
+/// Feature 162 change «report-interpretation-suggestion» (owner, 2026-11-16): when the owning provider's answer holds a
+/// report Report Discussion can discuss, the interpretation suggestion is put first and the list is capped at
+/// <see cref="MaximumPresentedActions"/>. Answers no provider owns are unchanged.
+/// </remarks>
+public sealed class FollowUpSuggestionPipeline(
+    IEnumerable<IFollowUpSuggestionProvider> providers,
+    ReportInterpretationFollowUp? reportInterpretation = null) : IFollowUpSuggestionPipeline
 {
+    /// <summary>The most follow-ups one answer presents, on the web and in Telegram (owner, 2026-11-16).</summary>
+    public const int MaximumPresentedActions = 5;
+
     private readonly IReadOnlyList<IFollowUpSuggestionProvider> _providers = providers.OrderBy(provider => provider.Order).ToArray();
 
     public IReadOnlyList<IFollowUpSuggestionProvider> Providers => _providers;
@@ -63,9 +73,19 @@ public sealed class FollowUpSuggestionPipeline(IEnumerable<IFollowUpSuggestionPr
         foreach (var provider in _providers)
         {
             if (provider.CanHandle(context))
-                return new FollowUpSuggestionResult(await provider.BuildAsync(context, cancellationToken), true);
+                return new FollowUpSuggestionResult(WithInterpretationFirst(context, await provider.BuildAsync(context, cancellationToken)), true);
         }
 
         return FollowUpSuggestionResult.NotApplied;
+    }
+
+    private IReadOnlyCollection<SuggestedAction> WithInterpretationFirst(
+        FollowUpSuggestionContext context, IReadOnlyCollection<SuggestedAction> actions)
+    {
+        if (reportInterpretation?.TryCreate(context) is not { } interpretation) return actions;
+        return actions.Where(action => !string.Equals(action.Id, interpretation.Id, StringComparison.Ordinal))
+            .Prepend(interpretation)
+            .Take(MaximumPresentedActions)
+            .ToArray();
     }
 }

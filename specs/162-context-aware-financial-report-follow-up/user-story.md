@@ -56,6 +56,7 @@ Today every message is re-classified, so a natural question like «چرا حاش
 - Deterministic calculations (D5) and a post-answer numeric grounding check.
 - Pricing (D2): 2 credits cash-flow, 1 credit other families, 0 for non-answers and hand-backs.
 - V2 only, behind `ReportDiscussion:Enabled` (default `false`).
+- Interpretation suggestion first under a shown quarterly income statement, balance sheet or monthly sales trend, at most 5 suggestions per answer (change [`report-interpretation-suggestion`](changes/report-interpretation-suggestion/design-proposal.md), 2026-11-16).
 
 ## Out Of Scope
 

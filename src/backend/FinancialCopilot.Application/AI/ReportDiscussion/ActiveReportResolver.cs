@@ -32,29 +32,31 @@ public static class ActiveReportResolver
     public static ActiveReport? TryDescribe(Guid assistantMessageId, AssistantMessagePayload payload)
     {
         if (payload.Outcome is not (DialogueOutcome.Answered or DialogueOutcome.PartialAnswer)) return null;
+        return Discussable(payload.FinancialStatementTableResult, payload.MonthlyActivityTrendResult) is { } source
+            ? new ActiveReport(assistantMessageId, source.Family, source.CompanySymbol, source.CompanyName, source.ProviderName, payload)
+            : null;
+    }
 
-        if (payload.FinancialStatementTableResult?.BalanceSheetReport is { } balance &&
+    /// <summary>
+    /// The one definition of a report Report Discussion can discuss (D1), shared by the active-report derivation and
+    /// the interpretation follow-up suggestion so both always agree.
+    /// </summary>
+    public static DiscussableReport? Discussable(FinancialStatementTableResult? table, MonthlyActivityTrendResponse? monthly)
+    {
+        if (table?.BalanceSheetReport is { } balance &&
             balance.Outcome == BalanceSheetOutcomes.Available && balance.Snapshots.Count > 0)
-        {
-            return new ActiveReport(assistantMessageId, ReportFamily.BalanceSheet,
-                balance.Company.Symbol, balance.Company.Name, balance.Company.ProviderName, payload);
-        }
+            return new DiscussableReport(ReportFamily.BalanceSheet, balance.Company.Symbol, balance.Company.Name, balance.Company.ProviderName);
 
-        if (payload.FinancialStatementTableResult?.QuarterlyResult is { } quarterly &&
+        if (table?.QuarterlyResult is { } quarterly &&
             quarterly.Outcome is QuarterlyFinancialReportOutcome.SuccessfulTable or QuarterlyFinancialReportOutcome.PartialTable &&
             quarterly.Rows.Count > 0 && quarterly.PeriodsNewestFirst.Count > 0)
-        {
-            return new ActiveReport(assistantMessageId, ReportFamily.QuarterlyIncomeStatement,
-                quarterly.CompanySymbol, quarterly.CompanyName, quarterly.ProviderName, payload);
-        }
+            return new DiscussableReport(ReportFamily.QuarterlyIncomeStatement, quarterly.CompanySymbol, quarterly.CompanyName, quarterly.ProviderName);
 
-        if (payload.MonthlyActivityTrendResult is { } monthly &&
-            (monthly.LatestMonthlySalesAmount is not null || monthly.ChartPoints.Count > 0))
-        {
-            return new ActiveReport(assistantMessageId, ReportFamily.MonthlySales,
-                monthly.CompanySymbol, monthly.CompanyName, monthly.SourceProviderName, payload);
-        }
+        if (monthly is not null && (monthly.LatestMonthlySalesAmount is not null || monthly.ChartPoints.Count > 0))
+            return new DiscussableReport(ReportFamily.MonthlySales, monthly.CompanySymbol, monthly.CompanyName, monthly.SourceProviderName);
 
         return null;
     }
 }
+
+public sealed record DiscussableReport(ReportFamily Family, string CompanySymbol, string? CompanyName, string ProviderName);

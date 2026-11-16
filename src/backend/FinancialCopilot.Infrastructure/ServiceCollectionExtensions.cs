@@ -1471,7 +1471,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFollowUpSuggestionProvider, FinancialStatementAnalysisFollowUpProvider>();
         services.AddScoped<IFollowUpSuggestionProvider, BalanceSheetReportFollowUpProvider>();
         services.AddScoped<IFollowUpSuggestionProvider, SingleSymbolFollowUpProvider>();
-        services.AddScoped<IFollowUpSuggestionPipeline, FollowUpSuggestionPipeline>();
+        // Feature 162 change «report-interpretation-suggestion»: the interpretation suggestion exists only while Report
+        // Discussion is on. IOptions resolves to the unbound default (Enabled = false) outside V2 mode.
+        services.AddScoped<IFollowUpSuggestionPipeline>(provider => new FollowUpSuggestionPipeline(
+            provider.GetServices<IFollowUpSuggestionProvider>(),
+            new ReportInterpretationFollowUp(provider
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionOptions>>()
+                .Value.Enabled)));
         // Spec 112 — provider-neutral feed over persisted monthly reports and financial statements.
         services.AddScoped<ICompanyDisclosureFeedRepository, CompanyDisclosureFeedRepository>();
         services.AddSingleton<CompanyDisclosureFeedCache>();

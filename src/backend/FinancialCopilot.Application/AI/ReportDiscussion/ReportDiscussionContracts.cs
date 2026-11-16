@@ -163,8 +163,9 @@ public sealed class ReportDiscussionOptions
     public int RecentMessages { get; set; } = 6;
     public int InputTokenTarget { get; set; } = 5000;
     public int RecentMessagesTokenCap { get; set; } = 1200;
-    public int MaxOutputTokens { get; set; } = 650;
-    public int ModelTimeoutSeconds { get; set; } = 20;
+    /// <summary>650 truncated Persian analysis answers inside the JSON envelope (BUG-031).</summary>
+    public int MaxOutputTokens { get; set; } = 1600;
+    public int ModelTimeoutSeconds { get; set; } = 30;
     /// <summary>Conservative characters-per-token estimate for mixed Persian text and digits; calibrate from usage logs.</summary>
     public decimal CharsPerToken { get; set; } = 2.5m;
 

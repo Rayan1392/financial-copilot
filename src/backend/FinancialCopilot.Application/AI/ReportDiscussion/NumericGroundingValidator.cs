@@ -17,6 +17,10 @@ public static partial class NumericGroundingValidator
     [GeneratedRegex(@"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?", RegexOptions.CultureInvariant)]
     private static partial Regex NumberPattern();
 
+    /// <summary>Evidence ids (F12, C3, F۴۵) cited inline are references, not numbers (BUG-031).</summary>
+    [GeneratedRegex(@"\b[FC][0-9۰-۹٠-٩]+\b", RegexOptions.CultureInvariant)]
+    private static partial Regex EvidenceIdPattern();
+
     public static NumericGroundingResult Validate(string answer, ReportDataSet data, string question)
     {
         var allowedExact = new HashSet<decimal>();
@@ -36,7 +40,7 @@ public static partial class NumericGroundingValidator
 
         var checkedCount = 0;
         var ungrounded = 0;
-        foreach (var number in Extract(answer))
+        foreach (var number in Extract(EvidenceIdPattern().Replace(answer, " ")))
         {
             checkedCount++;
             var magnitude = Math.Abs(number.Value);

@@ -1,8 +1,8 @@
 # Change: TahlilApp analyses only from the last 30 days (Feature 159)
 
 **Status: Gate A and Gate B approved by the owner on 2026-11-16; implemented the same day** (branch
-`fix/159-analysis-recency-window`). OQ-099 answered (a). OQ-098 not answered: implemented as proposed (D3, any "no
-analysis in the window" goes to 163); still open for the owner to reverse.
+`fix/159-analysis-recency-window`). OQ-099 answered (a). OQ-098 answered (a) by the owner the same day: any "no
+analysis in the window", including no analysis at all, goes to 163 (as implemented, D3).
 
 ## Feature Folder   `159-capability-source-map-comprehensive-analysis/changes/analysis-recency-window`
 ## Layers / Area    backend · AI, FinancialData

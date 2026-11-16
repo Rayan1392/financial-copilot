@@ -42,11 +42,15 @@ public sealed record ComprehensiveAnalysisSummaryItem(
 /// BUG-020: symbols asked for a technical analysis that has none; <see cref="Items"/> then holds their latest analysis.
 /// </param>
 /// <param name="FullTextIncluded">True when <see cref="Items"/> carry the whole text (entitled reader), not the preview.</param>
+/// <param name="RecentWindowDays">
+/// Change «analysis-recency-window»: the number of days the search was limited to; null when it was not limited.
+/// </param>
 public sealed record ComprehensiveAnalysisQueryResponse(
     IReadOnlyList<ComprehensiveAnalysisSummaryItem> Items,
     IReadOnlyList<string> UnresolvedSymbols,
     IReadOnlyList<string>? TechnicalAnalysisNotFoundSymbols = null,
-    bool FullTextIncluded = false)
+    bool FullTextIncluded = false,
+    int? RecentWindowDays = null)
 {
     public bool HasResults => Items.Count > 0;
 }

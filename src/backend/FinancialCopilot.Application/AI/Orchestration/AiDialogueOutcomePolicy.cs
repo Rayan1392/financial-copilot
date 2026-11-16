@@ -22,6 +22,11 @@ public static class DialogueOutcomeReasonCodes
     public const string RequiredInputMissing = "required_input_missing";
     public const string EntityAmbiguous = "entity_ambiguous";
     public const string EntityNotFound = "entity_not_found";
+    /// <summary>
+    /// Change «analysis-recency-window» (Feature 159): no TahlilApp analysis of the symbol was published in the recent
+    /// window. A no-data answer that the Feature 163 fallback may answer from the income statement.
+    /// </summary>
+    public const string ComprehensiveAnalysisNotRecent = "comprehensive_analysis_not_recent";
     public const string SupportedButNoRows = "supported_but_no_rows";
     public const string DataStaleOrIneligible = "data_stale_or_ineligible";
     public const string PartialEvidence = "partial_evidence";

@@ -14,6 +14,14 @@ A user or assistant entry persisted within a Conversation. A user Message is sub
 
 The newest supported financial report (quarterly income statement, balance sheet or company monthly sales report) answered in a Conversation, while no later turn has moved the Conversation to another topic. It is derived from persisted assistant messages; its data stays in the assistant message that showed it (Feature 162).
 
+### Symbol-Grounded Fallback
+
+Answering a question that names one company and that no capability answers, from that company's quarterly income statement, with one bounded model call (Feature 163). The statement is not shown to the user.
+
+### Grounding Report
+
+The quarterly income statement a Symbol-Grounded Fallback answer was written from. It is stored hidden with the answer and is the Active Report for later Report Discussion turns.
+
 ### Report Discussion
 
 Answering a question about the Active Report from that report's own facts and deterministic calculations, in the same Conversation, with one bounded model call. Not to be confused with follow-up suggestions (the suggested-action chips under an answer). A Report Discussion turn that needs other data hands the turn back to normal routing (Feature 162).

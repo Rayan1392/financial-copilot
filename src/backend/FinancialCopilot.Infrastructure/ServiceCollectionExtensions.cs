@@ -1009,6 +1009,17 @@ public static class ServiceCollectionExtensions
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionMessageReader, ReportDiscussionMessageReader>();
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionModel, FinancialCopilot.Application.AI.ReportDiscussion.LlmReportDiscussionModel>();
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionHandler>();
+            // Feature 163 Symbol-Grounded Fallback: V2 only, off unless SymbolGroundedFallback:Enabled is true.
+            services.AddOptions<FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackOptions>()
+                .BindConfiguration(FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackOptions.SectionName)
+                .Validate(options => { options.Validate(); return true; })
+                .ValidateOnStart();
+            services.AddSingleton(provider => provider
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackOptions>>().Value);
+            services.AddSingleton(new FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackOffers(
+                configuration.GetValue<bool>($"{CashFlowReportOptions.SectionName}:Enabled")));
+            services.AddScoped<FinancialCopilot.Application.AI.SymbolGroundedFallback.ISymbolGroundedFallbackModel, FinancialCopilot.Application.AI.SymbolGroundedFallback.LlmSymbolGroundedFallbackModel>();
+            services.AddScoped<FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackHandler>();
             services.AddScoped<FinancialCopilotWorkflowDefinition>();
             services.AddScoped<IAiQueryOrchestrationService,
                 MicrosoftAgentFrameworkAiQueryOrchestrationService>();

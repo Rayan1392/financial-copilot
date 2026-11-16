@@ -397,7 +397,7 @@ public sealed class ReportDiscussion162Tests
 
         Assert.Equal(ReportDiscussionTurnKind.Reply, turn.Kind);
         Assert.Equal(DialogueOutcome.Answered, turn.Outcome);
-        Assert.Equal("Completed", turn.BillingCompletionStatus);
+        Assert.Equal(ReportDiscussionBillingPolicy.AnsweredCompletionStatus, turn.BillingCompletionStatus); // 2 credits (change price-all-report-discussions-at-two-credits)
         Assert.Equal("Answered", turn.Marker!.Disposition);
         Assert.Equal("QuarterlyIncomeStatement", turn.Marker.ReportFamily);
         Assert.Equal(1, model.Calls);

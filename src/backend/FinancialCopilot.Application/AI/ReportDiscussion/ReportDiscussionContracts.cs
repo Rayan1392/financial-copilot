@@ -154,6 +154,12 @@ public static class ReportDiscussionExecutionRoute
     public const string Code = "report_discussion";
 }
 
+public static class ReportDiscussionBillingPolicy
+{
+    public const string AnsweredCompletionStatus = "ReportDiscussionAnswered";
+    public const decimal AnsweredCredits = 2m;
+}
+
 public sealed class ReportDiscussionOptions
 {
     public const string SectionName = "ReportDiscussion";

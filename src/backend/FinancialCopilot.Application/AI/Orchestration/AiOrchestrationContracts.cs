@@ -237,6 +237,13 @@ public interface IBillingFacadeHook
         BillingReservationHandle handle,
         CancellationToken cancellationToken) => Task.FromResult(handle);
 
+    // Reserves a fixed minimum amount before a path whose price is outcome-based.
+    // Implementations that do not support targeted holds retain their existing behavior.
+    Task<BillingReservationHandle> EnsureReservedCapacityAsync(
+        BillingReservationHandle handle,
+        decimal requiredCredits,
+        CancellationToken cancellationToken) => EnsureReservedCapacityAsync(handle, cancellationToken);
+
     Task<BillingReservationHandle> EnsureCurrentUsageCapacityAsync(
         BillingReservationHandle handle,
         CancellationToken cancellationToken) => Task.FromResult(handle);

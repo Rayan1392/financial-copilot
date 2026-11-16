@@ -82,7 +82,7 @@ public sealed class ReportDiscussion162EndpointTests : IClassFixture<ReportDiscu
         Assert.Equal("ReportDiscussion", Intent(answer));
         Assert.Equal("Answered", Outcome(answer));
         Assert.StartsWith("نسبت بدهی", Text(answer), StringComparison.Ordinal);
-        Assert.Equal(1m, Credits(answer));
+        Assert.Equal(2m, Credits(answer)); // change price-all-report-discussions-at-two-credits
         Assert.Equal(1, _factory.Model.Calls);
         var prompt = _factory.Model.Prompts.Single();
         Assert.Equal(ReportFamily.BalanceSheet, prompt.Data.Family);
@@ -111,7 +111,7 @@ public sealed class ReportDiscussion162EndpointTests : IClassFixture<ReportDiscu
 
         Assert.Equal("ReportDiscussion", Intent(answer));
         Assert.Equal(ReportFamily.QuarterlyIncomeStatement, _factory.Model.Prompts.Single().Data.Family);
-        Assert.Equal(1m, Credits(answer));
+        Assert.Equal(2m, Credits(answer));
     }
 
     [Fact] // AC-3, AC-7: missing item is a zero-credit message and the report stays active.

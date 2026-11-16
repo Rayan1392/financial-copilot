@@ -19,7 +19,8 @@ public sealed class ReportDiscussionHandler(
         AiQueryRequest request,
         Guid conversationId,
         bool createConversation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<CancellationToken, Task>? ensureBillingCapacityBeforeModelCall = null)
     {
         if (!options.Enabled) return ReportDiscussionTurn.NotApplicableBecause("disabled");
         if (createConversation) return ReportDiscussionTurn.NotApplicableBecause("new_conversation");
@@ -50,6 +51,9 @@ public sealed class ReportDiscussionHandler(
                 ReportDiscussionReasonCodes.NarrowRequired, SemanticBillingCompletionStatus.NoData,
                 new ReportDiscussionDiagnostics(family, nameof(ReportDiscussionDisposition.NarrowRequired), 0, data.Facts.Count, 0, 0, null));
         }
+
+        if (ensureBillingCapacityBeforeModelCall is not null)
+            await ensureBillingCapacityBeforeModelCall(cancellationToken);
 
         ReportDiscussionModelReply reply;
         try
@@ -88,7 +92,7 @@ public sealed class ReportDiscussionHandler(
                         diagnostics with { Disposition = nameof(ReportDiscussionDisposition.Unverified) });
                 }
                 return Reply(report, ReportDiscussionDisposition.Answered, reply.Answer, DialogueOutcome.Answered,
-                    DialogueOutcomeReasonCodes.None, "Completed", diagnostics);
+                    DialogueOutcomeReasonCodes.None, ReportDiscussionBillingPolicy.AnsweredCompletionStatus, diagnostics);
             default:
                 return ReportDiscussionTurn.NotApplicableBecause("unexpected_disposition");
         }

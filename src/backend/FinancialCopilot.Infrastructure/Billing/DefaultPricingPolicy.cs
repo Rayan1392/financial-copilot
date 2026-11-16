@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Billing.Pricing;
 
 namespace FinancialCopilot.Infrastructure.Billing;
@@ -42,6 +43,7 @@ internal static class DefaultPricingPolicy
         },
         CompletionMultipliers: new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
         {
-            ["PartiallyCompleted"] = 0.5m
+            ["PartiallyCompleted"] = 0.5m,
+            [ReportDiscussionBillingPolicy.AnsweredCompletionStatus] = ReportDiscussionBillingPolicy.AnsweredCredits
         });
 }

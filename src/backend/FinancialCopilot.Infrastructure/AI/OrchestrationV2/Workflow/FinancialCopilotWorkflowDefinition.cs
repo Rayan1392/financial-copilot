@@ -283,7 +283,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         {
             // Feature 162: a question about the conversation's active report is answered without the dialogue gate;
             // a hand-back runs the gate and the normal route exactly as before, carrying the marker to persistence.
-            var discussion = await TryReportDiscussionAsync(request, conversationId, createConversation, ct);
+            var discussion = await TryReportDiscussionAsync(
+                request,
+                conversationId,
+                createConversation,
+                async cancellationToken =>
+                {
+                    if (reservation is not null)
+                    {
+                        reservation = await billingFunctions.EnsureReservedCapacityAsync(
+                            reservation, ReportDiscussionBillingPolicy.AnsweredCredits, cancellationToken);
+                    }
+                },
+                ct);
             if (discussion.Kind == ReportDiscussionTurnKind.Reply)
             {
                 return new WorkflowStartMessage(
@@ -296,6 +308,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 : prepared.Request;
             return new WorkflowStartMessage(
                 preparedRequest, conversationId, createConversation, timeProvider.GetUtcNow(), reservation);
+        }
+        catch (FinancialCopilot.Billing.InsufficientCreditException)
+        {
+            // The reservation upgrader releases the hold when the targeted two-credit preflight fails.
+            throw;
         }
         catch
         {
@@ -310,13 +327,18 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     /// and the turn continues exactly as before. Only identifiers and counts are logged, never report values or text.
     /// </summary>
     private async Task<ReportDiscussionTurn> TryReportDiscussionAsync(
-        AiQueryRequest request, Guid conversationId, bool createConversation, CancellationToken ct)
+        AiQueryRequest request,
+        Guid conversationId,
+        bool createConversation,
+        Func<CancellationToken, Task> ensureBillingCapacityBeforeModelCall,
+        CancellationToken ct)
     {
         if (reportDiscussionHandler is null) return ReportDiscussionTurn.NotApplicableBecause("not_registered");
         var started = Stopwatch.GetTimestamp();
         try
         {
-            var turn = await reportDiscussionHandler.TryHandleAsync(request, conversationId, createConversation, ct);
+            var turn = await reportDiscussionHandler.TryHandleAsync(
+                request, conversationId, createConversation, ct, ensureBillingCapacityBeforeModelCall);
             var diagnostics = turn.Diagnostics;
             if (turn.Kind != ReportDiscussionTurnKind.NotApplicable || diagnostics?.Reason is not ("disabled" or "new_conversation" or "not_registered"))
             {
@@ -329,6 +351,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     diagnostics?.UngroundedNumbers, Stopwatch.GetElapsedTime(started).TotalMilliseconds, request.CorrelationId);
             }
             return turn;
+        }
+        catch (FinancialCopilot.Billing.InsufficientCreditException)
+        {
+            throw;
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
         {

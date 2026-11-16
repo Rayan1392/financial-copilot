@@ -35,9 +35,9 @@ public sealed class OperationUsageChargeCalculator(IPricingPolicyProvider policy
             outcomeMultiplier = configuredMultiplier;
         }
 
-        if (outcomeMultiplier < 0 || outcomeMultiplier > 1)
+        if (outcomeMultiplier < 0)
         {
-            throw new InvalidOperationException("Completion multiplier must be between zero and one.");
+            throw new InvalidOperationException("Completion multiplier cannot be negative.");
         }
 
         return new UsageChargeResult(

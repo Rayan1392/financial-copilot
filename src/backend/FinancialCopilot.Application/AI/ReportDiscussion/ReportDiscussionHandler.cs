@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.Conversations;
 
 namespace FinancialCopilot.Application.AI.ReportDiscussion;
 
@@ -11,9 +12,14 @@ public sealed class ReportDiscussionHandler(
     IReportDiscussionMessageReader messageReader,
     IConversationTaskStateService taskStateService,
     IReportDiscussionModel model,
-    ReportDiscussionOptions options)
+    ReportDiscussionOptions options,
+    TimeProvider? timeProvider = null)
 {
+    /// <summary>Same lifetime as every other suggestion selection (ConversationTaskStateService).</summary>
+    private static readonly TimeSpan SuggestionLifetime = TimeSpan.FromMinutes(30);
+
     private readonly ReportDiscussionContextBuilder _contextBuilder = new(options);
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
 
     public async Task<ReportDiscussionTurn> TryHandleAsync(
         AiQueryRequest request,
@@ -25,9 +31,12 @@ public sealed class ReportDiscussionHandler(
         if (!options.Enabled) return ReportDiscussionTurn.NotApplicableBecause("disabled");
         if (createConversation) return ReportDiscussionTurn.NotApplicableBecause("new_conversation");
         // A suggestion chip or an insight/alert action is a structured request for specific data, not a question
-        // about the shown report; those keep their existing deterministic routes.
-        if (!string.IsNullOrWhiteSpace(request.SuggestedActionId) ||
-            request.Context?.InsightEventId is not null || request.Context?.AlertId is not null)
+        // about the shown report; those keep their existing deterministic routes. The one exception is the
+        // interpretation suggestion (DiscussReport), validated against the active report below.
+        var selectedSuggestion = request.SuggestedActionId;
+        if (request.Context?.InsightEventId is not null || request.Context?.AlertId is not null ||
+            !string.IsNullOrWhiteSpace(selectedSuggestion) &&
+            !selectedSuggestion.StartsWith(ReportInterpretationFollowUp.IdPrefix, StringComparison.Ordinal))
             return ReportDiscussionTurn.NotApplicableBecause("structured_action");
 
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
@@ -38,6 +47,8 @@ public sealed class ReportDiscussionHandler(
             conversationId, request.TenantId, request.ActorId, options.LookbackMessages, cancellationToken);
         if (ActiveReportResolver.Resolve(messages) is not { } report)
             return ReportDiscussionTurn.NotApplicableBecause("no_active_report");
+        if (!string.IsNullOrWhiteSpace(selectedSuggestion) && !IsInterpretationSuggestionOf(report, messages, request))
+            return ReportDiscussionTurn.NotApplicableBecause("structured_action");
         if (ReportDataSetBuilder.Build(report) is not { Facts.Count: > 0 } data)
             return ReportDiscussionTurn.NotApplicableBecause("report_without_facts");
 
@@ -96,6 +107,20 @@ public sealed class ReportDiscussionHandler(
             default:
                 return ReportDiscussionTurn.NotApplicableBecause("unexpected_disposition");
         }
+    }
+
+    /// <summary>
+    /// The selected suggestion is a <see cref="SuggestedActionKind.DiscussReport"/> stored on the active report's own
+    /// message, its text was sent unchanged, and it is not older than the suggestion lifetime.
+    /// </summary>
+    private bool IsInterpretationSuggestionOf(ActiveReport report, IReadOnlyList<MessageRecord> messages, AiQueryRequest request)
+    {
+        var action = report.Payload.SuggestedActions?.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, request.SuggestedActionId, StringComparison.Ordinal));
+        var source = messages.FirstOrDefault(message => message.MessageId == report.SourceAssistantMessageId);
+        return action is { Kind: SuggestedActionKind.DiscussReport } && source is not null &&
+               string.Equals(action.Message.Trim(), request.Message.Trim(), StringComparison.Ordinal) &&
+               _time.GetUtcNow() - source.CreatedAt <= SuggestionLifetime;
     }
 
     private static ReportDiscussionTurn Reply(ActiveReport report, ReportDiscussionDisposition disposition, string text,

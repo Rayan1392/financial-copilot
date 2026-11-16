@@ -378,13 +378,72 @@ public sealed class ReportDiscussion162Tests
         Func<ReportDiscussionPrompt, ReportDiscussionModelReply> reply,
         IReadOnlyList<MessageRecord>? messages = null,
         bool enabled = true,
-        ConversationTaskState? taskState = null)
+        ConversationTaskState? taskState = null,
+        TimeProvider? time = null)
     {
         var model = new FakeModel(reply);
         var handler = new ReportDiscussionHandler(
             new FakeReader(messages ?? History(Payload(Table(Quarterly())))),
-            new FakeTaskState(taskState), model, new ReportDiscussionOptions { Enabled = enabled });
+            new FakeTaskState(taskState), model, new ReportDiscussionOptions { Enabled = enabled }, time);
         return (handler, model);
+    }
+
+    // ── Interpretation suggestion (change «report-interpretation-suggestion», 2026-11-16) ──
+
+    private static readonly DateTimeOffset ShownAt = Now.AddMinutes(-10);
+
+    private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private static SuggestedAction Interpretation() => new ReportInterpretationFollowUp(true).TryCreate(
+        new FollowUpSuggestionContext(Request(), DetectedIntent.FinancialStatementTableLookup, DialogueOutcome.Answered, "fa",
+            FinancialStatementTable: Table(Quarterly())))!;
+
+    /// <summary>A conversation whose latest assistant message is the quarterly report with its suggestions.</summary>
+    private static List<MessageRecord> ReportWithSuggestions(params SuggestedAction[] actions) =>
+    [
+        new(Guid.NewGuid(), Conversation, MessageRole.User, "گزارش فصلی", null, ShownAt),
+        new(Guid.NewGuid(), Conversation, MessageRole.Assistant, "پاسخ", null, ShownAt,
+            Payload(Table(Quarterly())) with { SuggestedActions = actions })
+    ];
+
+    [Fact]
+    public async Task Handler_AnswersTheInterpretationSuggestionOfTheActiveReport()
+    {
+        var suggestion = Interpretation();
+        var (handler, model) = Handler(_ => Answer("فروش فصل ۲ سال مالی ۱۴۰۴ برابر ۱٬۰۰۰ میلیون ریال بود."),
+            messages: ReportWithSuggestions(suggestion), time: new FakeTimeProvider(Now));
+
+        var turn = await handler.TryHandleAsync(Request(suggestion.Message, suggestion.Id), Conversation, false, CancellationToken.None);
+
+        Assert.Equal(ReportDiscussionTurnKind.Reply, turn.Kind);
+        Assert.Equal(DialogueOutcome.Answered, turn.Outcome);
+        Assert.Equal(1, model.Calls);
+        Assert.Contains(suggestion.Message, model.LastPrompt!.UserContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Handler_InvalidInterpretationSelectionsStayStructured()
+    {
+        var suggestion = Interpretation();
+        var related = suggestion with { Kind = SuggestedActionKind.RunRelatedCapability };
+        var cases = new (IReadOnlyList<MessageRecord> Messages, AiQueryRequest Request, DateTimeOffset Now)[]
+        {
+            (ReportWithSuggestions(suggestion), Request("متن دیگر", suggestion.Id), Now),
+            (ReportWithSuggestions(suggestion), Request(suggestion.Message, suggestion.Id), ShownAt.AddMinutes(31)),
+            (ReportWithSuggestions(), Request(suggestion.Message, suggestion.Id), Now),
+            (ReportWithSuggestions(related), Request(suggestion.Message, suggestion.Id), Now),
+        };
+        foreach (var item in cases)
+        {
+            var (handler, model) = Handler(_ => Answer("x"), messages: item.Messages, time: new FakeTimeProvider(item.Now));
+            var turn = await handler.TryHandleAsync(item.Request, Conversation, false, CancellationToken.None);
+            Assert.Equal(ReportDiscussionTurnKind.NotApplicable, turn.Kind);
+            Assert.Equal("structured_action", turn.Diagnostics!.Reason);
+            Assert.Equal(0, model.Calls);
+        }
     }
 
     private static ReportDiscussionModelReply Answer(string text) => new(ReportDiscussionDisposition.Answered, text, ["C1"]);

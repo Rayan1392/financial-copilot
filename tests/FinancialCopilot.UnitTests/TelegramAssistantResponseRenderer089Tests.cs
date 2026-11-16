@@ -268,6 +268,24 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         Assert.Equal(1, message.Text.Split("تکمیل درخواست", StringSplitOptions.None).Length - 1);
     }
 
+    // Feature 162 change «report-interpretation-suggestion» (owner, 2026-11-16): up to five suggestions.
+    [Fact]
+    public void Suggested_actions_show_at_most_five()
+    {
+        var actions = Enumerable.Range(1, 6).Select(index => new SuggestedAction(
+            $"id-{index}", SuggestedActionKind.RunRelatedCapability, $"label{index}", $"message{index}",
+            "monthly_activity_trend", new Dictionary<string, string>(), "test", 1)).ToArray();
+        var response = new AiQueryResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.Clarification,
+            null, null, null, null, null, null, true, "پاسخ", null,
+            Outcome: DialogueOutcome.Answered, ReplyLanguage: "fa", SuggestedActions: actions);
+
+        var text = string.Join("\n", CreateRenderer().Render(response, "fa-IR").Select(message => message.Text)).Replace("\\", string.Empty);
+
+        Assert.Contains("message5", text);
+        Assert.DoesNotContain("message6", text);
+    }
+
     private static TelegramAssistantResponseRenderer CreateRenderer() =>
         new(
             new TelegramMonthlyTrendChartRenderer(),

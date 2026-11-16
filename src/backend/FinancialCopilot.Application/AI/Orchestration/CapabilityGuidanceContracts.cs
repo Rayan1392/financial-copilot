@@ -2,7 +2,8 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 
 using FinancialCopilot.Application.AI.Evaluation;
 
-public enum SuggestedActionKind { FillSlot, ChooseEntity, Retry, RunRelatedCapability, ShowCapabilityHelp, RephraseExample }
+/// <remarks><see cref="DiscussReport"/> (Feature 162): a question about the report just shown, answered by Report Discussion.</remarks>
+public enum SuggestedActionKind { FillSlot, ChooseEntity, Retry, RunRelatedCapability, ShowCapabilityHelp, RephraseExample, DiscussReport }
 
 public sealed record SuggestedAction(
     string Id,

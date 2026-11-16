@@ -29,6 +29,16 @@ Date: 2026-11-16. Branch `feature/163-symbol-grounded-fallback`, worktree `D:/wt
 
 - The reservation key is the billing operation id, so a reservation with a derived correlation id reached the turn's already settled reservation and the fallback never ran. The fallback now derives its own deterministic billing operation id.
 
+## Defect found by the owner (2026-11-16, after merge)
+
+«سهم چدن را بررسی کن» never reached the fallback model. The company was resolved with
+`ResolveExactTickerFromTextAsync`, which reads only `Companies.Ticker`; that column is empty for every Noavaran row
+(4835 of 4835 in the local database), so every turn ended `no_single_company`. The endpoint tests passed because
+their seed filled `Ticker` — the T01 assumption was never checked against real data. Fixed: the company the routed
+capability resolved for the turn, plus each word resolved with the catalogue's exact identity rules (symbol, name,
+approved alias); two companies, or a word matching several companies exactly, leave the turn unchanged. The
+recency-window endpoint tests now seed companies without a ticker.
+
 ## Deviations from the approved plan
 
 1. Insufficient credit: the turn is left unchanged instead of returning the insufficient-credit response (user-story FR-12).

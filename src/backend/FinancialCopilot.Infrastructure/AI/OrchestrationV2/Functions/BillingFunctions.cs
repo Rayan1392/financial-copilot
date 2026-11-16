@@ -4,8 +4,6 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
 
 internal sealed class BillingFunctions(IBillingFacadeHook billingHook)
 {
-    internal const string OperationCode = "AiQuery.Scanner";
-
     internal Task<BillingReservationHandle?> TryReserveAsync(
         AiQueryRequest request,
         CancellationToken cancellationToken,
@@ -15,7 +13,7 @@ internal sealed class BillingFunctions(IBillingFacadeHook billingHook)
                 request.CorrelationId,
                 request.TenantId,
                 request.ActorId,
-                OperationCode,
+                AiQueryBillingOperationSelector.Select(request.SemanticFrame?.CapabilityCode, request.Message),
                 request.UserId,
                 request.ApiClientId,
                 request.ExternalUserId,

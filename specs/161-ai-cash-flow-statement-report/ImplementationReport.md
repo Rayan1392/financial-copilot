@@ -39,7 +39,7 @@ This UI sign-off closes only the owner-approved frontend redesign tasks. It does
 - `CashFlowReport161PostgreSqlTests` compiled but skipped because `FINANCIAL_COPILOT_TEST_POSTGRES_CONNECTION_STRING` is not configured. The Development database was not used as an integration-test target.
 - The local Development API was rebuilt and restarted with Feature 161 enabled. Its `/health` endpoint returned HTTP 200 after startup; startup migrations completed without error. The production/default flag remains off.
 - The owner supplied a live-query response that returned the legacy all-line-items table, confirming the previous running service was not executing Feature 161. A new billed query was not issued after restart; live financial output checks for the requested sample set remain open.
-- V2 endpoint integration coverage for persistence/replay, billing, no-data outcomes, and provider-mode behavior is not implemented.
+- Cash-flow V2 endpoint coverage for typed persistence/replay, billing, no-data outcomes, provider name, and company isolation now exists in `CashFlowReport161EndpointTests` using a deterministic report-use-case fixture. Real database-backed endpoint evidence is still open under T11/T20.
 - Routing coverage does not yet exercise every matrix row and U1–U7 on both V2 paths; the direct V1 freeze assertions are focused, not a full route snapshot comparison.
 - Frontend fixtures include A, B, quarterly gaps, and a failed outcome, but not every API outcome. UI state coverage, bank-specific presentation assertions, and dedicated quarter cards remain incomplete.
 - The on-screen waterfall currently displays step values and bars from typed `from`/`to` data; export content includes the statement table and metadata, but is not yet a full UX-spec export for all KPIs, waterfall visuals, and every notice. The frontend appearance update has not yet been rerun through its automated browser sign-off.
@@ -79,4 +79,24 @@ The owner-approved enhancement in `changes/financial-accounting-analytics/` is i
 - The read-only Development review found no source statements for خودرو، فولاد, or وبملت; no live company values can be certified from this pass. Synthetic fixtures are not live financial evidence.
 - The isolated PostgreSQL integration test could not execute, and endpoint/persistence/billing/provider integration remains open. An independent peer review also remains open; see D03 and D06 in the enhancement task list.
 - Proposed and industry-limited source mappings remain unresolved and are not treated as verified. Operating detail coverage therefore remains explicitly insufficient where no approved detail mapping exists.
+
+## Financial query credit pricing enhancement — verification addendum (2026-11-16)
+
+The owner-approved pricing change in `changes/financial-query-credit-pricing/` is implemented locally.
+
+### Changes
+
+- V2 billing now selects `AiQuery.FinancialStatement` for cash-flow, income-statement, balance-sheet, and financial-statement period-analysis requests. When billing reserves before a semantic frame exists, the existing deterministic statement rules—including quarterly-report tables—select the same operation.
+- V2 monthly company and product sales trends use `AiQuery.MonthlySalesTrend`. Both operation codes cost exactly two credits in the existing default pricing policy; unrelated requests keep the existing scanner operation.
+- The existing no-data and other zero-charge statuses, completion multipliers, and V1 billing path are unchanged. No migration, runtime configuration, secret, release, or deployment change was made.
+
+### Verification
+
+- `CashFlowReport161`, selector, and new default-pricing unit cases: 100 passed. The pricing cases assert two credits for completed turns and zero for `NoData` on both new operation codes.
+- Focused V2 integration set: 14 passed. It includes the cash-flow report endpoint (typed persistence/replay, exact billing, no-data, provider name, and company isolation), cash-flow statement table, quarterly income statement, balance-sheet, period-analysis, monthly company/product trend charges, and Feature 161 route/V1 baselines. The completed statement and trend charge assertions confirm the expected operation code and exactly two credits; persisted-message replay keeps one ledger charge.
+- The focused V2 financial-statement table test `V2AiQuery_FullIncomeStatementTable_ReturnsStructuredTableWithoutToolLoop` still fails because the test response has no `source` value before the pricing assertion. A broader filter also found stale monthly-sales expected values (0.095 expected, 0.08975 actual) and several quarterly table cases with null result carriers; those failures occur before the new billing assertions. They are recorded as unresolved integration failures, not treated as passing evidence.
+- The required full command `dotnet test src/backend/FinancialCopilot.sln --configuration Release` exited nonzero. The architecture test's whole-file scan also matched statement rules used by a different executor; its scope was corrected to the migrated executors it is intended to guard, and the architecture project then passed 17/17. The unit run reported a CyclicalWaves fixture-manifest mismatch. Integration tests reported 199 failed, 676 passed, and 232 skipped, including unrelated endpoint failures and the monthly-sales mismatch above. The full solution was not rerun after the architecture-test correction, so Feature 161's overall Definition of Done remains open.
+- PostgreSQL and live Development checks were not rerun. The isolated PostgreSQL connection variable is unavailable in this environment; no billed live Development query was sent.
+
+This addendum closes the credit-pricing change only. Feature 161 remains partially implemented: its own V2 report persistence/provider endpoint coverage, full routing matrix, PostgreSQL verification, live-data acceptance checks, and other listed tasks remain open in `tasks.md`.
 - The working tree contains many unrelated pre-existing modifications and other feature folders. This enhancement remains uncommitted; only files listed under Feature 161 belong to this change.

@@ -80,7 +80,10 @@ public sealed class BalanceSheetReport154EndpointTests : IClassFixture<BalanceSh
         var replayed = replay.RootElement.GetProperty("messages").EnumerateArray().Last()
             .GetProperty("assistantContent").GetProperty("financialStatementTableResult").GetProperty("balanceSheetReport");
         Assert.Equal(report.GetRawText(), replayed.GetRawText());
-        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        var usageEntries = _factory.ReadUsageEntries().OrderBy(item => item.OccurredAt).ToArray();
+        Assert.Equal(usageBefore + 1, usageEntries.Length);
+        Assert.Equal("AiQuery.FinancialStatement", usageEntries[^1].OperationCode);
+        Assert.Equal(2m, usageEntries[^1].CreditsCharged);
         Assert.Equal(reservationsBefore + 1, _factory.ReadBillingReservations().Count);
     }
 
@@ -103,7 +106,10 @@ public sealed class BalanceSheetReport154EndpointTests : IClassFixture<BalanceSh
         Assert.Equal("available", previous.GetProperty("state").GetString());
         Assert.Equal(9_110_304_681m, previous.GetProperty("rowChanges").GetProperty("total_assets").GetProperty("amount").GetDecimal());
         Assert.Contains("گزارش قبلی (۱۴۰۵/۰۳/۳۱)", document.RootElement.GetProperty("textAnswer").GetString());
-        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        var usageEntries = _factory.ReadUsageEntries().OrderBy(item => item.OccurredAt).ToArray();
+        Assert.Equal(usageBefore + 1, usageEntries.Length);
+        Assert.Equal("AiQuery.FinancialStatement", usageEntries[^1].OperationCode);
+        Assert.Equal(2m, usageEntries[^1].CreditsCharged);
     }
 
     [Fact]

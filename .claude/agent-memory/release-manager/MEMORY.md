@@ -4,7 +4,19 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 ## Current state (2026-11-17)
 
-- Latest released version: **1.15.0** (MINOR: notable Changed), annotated tag `v1.15.0` (tag object `81a8814`) on
+- Latest released version: **1.15.1** (PATCH, Fixed only), annotated tag `v1.15.1` (tag object `d4f4fae`) on prod
+  merge commit `842fa37` ("Merge develop into prod for v1.15.1"; parents prod `738c926`, develop release commit
+  `3131c52`). Deploy run 44051050496 succeeded in 9m4s. `/releases` HTTP 200, newest heading 1.15.1.
+- 1.15.1 ships BUG-032 (`9431584`, merge `219d5a3`): «سهم X را تحلیل/بررسی کن» take the comprehensive-analysis
+  route; the agent-tool "not found" card keeps the 30-day sentence. No migrations. The 163 fallback behind it needs
+  `SymbolGroundedFallback__Enabled=true` in the server `.env`; on 2026-11-17 the owner's key was misspelled
+  («SymbloGroundedFallback»), so 163 was likely off in prod — not verified after the release.
+- 2026-11-17 (1.15.1): a worktree under the scratchpad failed (path too long), so the prod merge was built with
+  `git merge-tree --write-tree` + `git commit-tree` and pushed as `<sha>:refs/heads/prod`.
+- prod differs from develop in 4 non-app files (`docker-compose.override.yml`, its `.bak-20261103`,
+  `.deepcode/settings.json`, an `implementing-domain-driven-design/SKILL.md`); unchanged since at least 1.15.0.
+- Base for "commits since last release": `v1.15.1`.
+- Previous: 1.15.0 (MINOR: notable Changed), annotated tag `v1.15.0` (tag object `81a8814`) on
   prod merge commit `738c926` ("Merge develop into prod for v1.15.0"; parents prod `7070079`, develop release
   commit `dd1947b`). Deploy run 44018545211 succeeded in 8m23s. `/releases` HTTP 200 and its HTML contains 1.15.0.
 - 1.15.0 ships financial-query credit pricing (`e6c0d02`): answered financial-statement table/analysis and
@@ -14,7 +26,6 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 - 2026-11-17: the owner ran the worktree commands from PowerShell, where `$TMP` was empty; the worktree landed at
   `C:/prod-release` and its removal failed while the shell's cwd was inside it (empty folder left behind, git
   worktree metadata gone). Use an explicit absolute path when handing PowerShell commands to the owner.
-- Base for "commits since last release": `v1.15.0`.
 - Previous: 1.14.0 (MINOR: Added), annotated tag `v1.14.0` (tag object `565f990`) on prod
   merge commit `0e2838e` ("Merge develop into prod for v1.14.0"; parents prod `cd2ae25`, develop release commit
   `041fad9`). Deploy run 43882866503 succeeded in 9m8s. `/releases` HTTP 200 and its HTML contains 1.14.0.
@@ -62,6 +73,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.15.1 | 2026-11-17 | 842fa37 | run 44051050496 success | «سهم X را تحلیل/بررسی کن» take the analysis route (BUG-032) |
 | 1.15.0 | 2026-11-17 | 738c926 | run 44018545211 success | financial-statement and monthly sales-trend answers cost 2 credits |
 | 1.14.0 | 2026-11-16 | 0e2838e | run 43882866503 success | answers from the quarterly income statement for unanswered single-symbol questions (flag-gated); TahlilApp analyses only from the last 30 days; Report Discussion 2 credits + «… را تفسیر کن» suggestion |
 | 1.13.1 | 2026-11-16 | 71c0614 | run 43802887944 success | Report Discussion analysis follow-ups no longer fail (BUG-031; feature flag-gated) |

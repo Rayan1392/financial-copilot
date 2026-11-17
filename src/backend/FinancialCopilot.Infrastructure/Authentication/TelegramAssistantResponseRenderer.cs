@@ -153,7 +153,7 @@ public sealed class TelegramAssistantResponseRenderer(
             text = "پاسخ دستیار آماده شد، اما متن قابل نمایش برای تلگرام تولید نشد.";
         }
 
-        return Split(EscapeMarkdownV2(text));
+        return Split(EscapeMarkdownV2WithBold(text));
     }
 
     private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyProductComparison(MonthlyProductComparisonResponse result)
@@ -892,6 +892,41 @@ public sealed class TelegramAssistantResponseRenderer(
         }
 
         return parts;
+    }
+
+    /// <summary>
+    /// Feature 163 change «answer-readability»: the generic text path shows a balanced «**…**» on one line as Telegram bold
+    /// and a «- » list item as «• ». A line with an unbalanced marker is escaped as before, so a malformed answer can never
+    /// break the MarkdownV2 send.
+    /// </summary>
+    internal static string EscapeMarkdownV2WithBold(string value)
+    {
+        var lines = value.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var builder = new StringBuilder(value.Length + 16);
+        for (var index = 0; index < lines.Length; index++)
+        {
+            if (index > 0) builder.Append('\n');
+            var line = lines[index];
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("- ", StringComparison.Ordinal))
+                line = "• " + trimmed[2..];
+
+            var segments = line.Split("**");
+            if (segments.Length < 3 || segments.Length % 2 == 0)
+            {
+                builder.Append(EscapeMarkdownV2(line));
+                continue;
+            }
+
+            for (var segment = 0; segment < segments.Length; segment++)
+            {
+                var escaped = EscapeMarkdownV2(segments[segment]);
+                var bold = segment % 2 == 1 && segments[segment].Trim().Length > 0;
+                builder.Append(bold ? "*" + escaped + "*" : escaped);
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static string EscapeMarkdownV2(string value)

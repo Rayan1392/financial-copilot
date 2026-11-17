@@ -355,6 +355,9 @@ function createMarkdownComponents(
   isRtl: boolean,
 ): Components {
   const sharedTableCellClass = "px-3 py-2 text-[13px] align-top border-b border-hairline";
+  // Change «answer-readability» (OQ-102, all Markdown answers): Persian text in Vazirmatn needs a taller line than
+  // Latin text to keep paragraph breaks and list items visibly apart.
+  const prose = { leading: isRtl ? "leading-7" : "leading-relaxed" };
   const rankingTableLayoutClass = isMonthlySalesQualityRankingTable
     ? [
         "[&_thead_th:nth-child(1)]:text-center [&_thead_th:nth-child(1)]:whitespace-nowrap",
@@ -391,14 +394,16 @@ function createMarkdownComponents(
           className={
             isDisclaimer
               ? "text-xs text-muted-foreground leading-relaxed"
-              : "leading-relaxed text-pretty [unicode-bidi:plaintext]"
+              : `${prose.leading} text-pretty [unicode-bidi:plaintext]`
           }
         >
           {children}
         </p>
       );
     },
-    strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+    strong: ({ children }) => (
+      <strong className="font-semibold text-foreground tabular-nums">{children}</strong>
+    ),
     em: ({ children }) => <em>{children}</em>,
     pre: ({ children }) => (
       <pre
@@ -420,9 +425,18 @@ function createMarkdownComponents(
         </code>
       );
     },
-    ul: ({ children }) => <ul className="list-disc list-inside space-y-1">{children}</ul>,
-    ol: ({ children }) => <ol className="list-decimal list-inside space-y-1">{children}</ol>,
-    li: ({ children }) => <li className="leading-relaxed [unicode-bidi:plaintext]">{children}</li>,
+    // Outside markers with start padding: a wrapped line aligns with the item text, not under the bullet.
+    ul: ({ children }) => (
+      <ul className="list-disc list-outside ps-5 space-y-2 marker:text-emerald/70">{children}</ul>
+    ),
+    ol: ({ children }) => (
+      <ol className="list-decimal list-outside ps-6 space-y-2 marker:text-muted-foreground">
+        {children}
+      </ol>
+    ),
+    li: ({ children }) => (
+      <li className={`${prose.leading} ps-1 [unicode-bidi:plaintext]`}>{children}</li>
+    ),
     table: ({ children }) => (
       <div
         className="overflow-x-auto rounded-lg ring-1 ring-hairline my-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
@@ -502,7 +516,7 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
 
   return (
     <div
-      className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable || quarterlyTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
+      className={`text-foreground/90 leading-relaxed text-[15px] space-y-3 ${isMonthlySalesQualityRankingTable || quarterlyTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
       dir={isRtl ? "rtl" : direction}
     >
       {quarterlyTable ? (

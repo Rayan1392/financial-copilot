@@ -3,6 +3,51 @@ import { fireEvent, render, waitFor } from "@testing-library/react";
 import { MarkdownMessage } from "../markdown-message";
 
 describe("MarkdownMessage", () => {
+  // Change «answer-readability» (Feature 163 / 162, OQ-102): readable layout for grounded report answers.
+  describe("readable layout of a Persian grounded answer", () => {
+    const answer = [
+      "بر اساس صورت سود و زیان فصلی فولاد، **سودآوری بهتر شد.**",
+      "",
+      "- **فروش:** ۱٬۶۷۵٬۲۵۵٬۳۸۵ میلیون ریال؛ **رشد ۱۰۰٫۸ درصد**",
+      "- **سود خالص:** ۴۷۱٬۲۷۲٬۷۹۳ میلیون ریال",
+      "",
+      "این بررسی، ارزش‌گذاری یا توصیه سرمایه‌گذاری نیست.",
+    ].join("\n");
+
+    it("renders the takeaway, a two-item list and the closing paragraph as separate blocks", () => {
+      const { container } = render(<MarkdownMessage content={answer} direction="rtl" />);
+      const root = container.firstElementChild as HTMLElement;
+      expect(root.getAttribute("dir")).toBe("rtl");
+      expect(root.className).toContain("space-y-3");
+      expect(container.querySelectorAll("p")).toHaveLength(2);
+      expect(container.querySelectorAll("li")).toHaveLength(2);
+      expect(container.querySelector("li strong")?.textContent).toBe("فروش:");
+    });
+
+    it("uses a taller line for Persian text and keeps wrapped list lines aligned with the item text", () => {
+      const { container } = render(<MarkdownMessage content={answer} direction="rtl" />);
+      expect(container.querySelector("p")?.className).toContain("leading-7");
+      const list = container.querySelector("ul");
+      expect(list?.className).toContain("list-outside");
+      expect(list?.className).toContain("ps-5");
+      expect(list?.className).not.toContain("list-inside");
+      expect(container.querySelector("li")?.className).toContain("leading-7");
+    });
+
+    it("keeps digits of bold figures at a stable width", () => {
+      const { container } = render(<MarkdownMessage content={answer} direction="rtl" />);
+      expect(container.querySelector("strong")?.className).toContain("tabular-nums");
+    });
+
+    it("keeps the relaxed line height for left-to-right answers", () => {
+      const { container } = render(
+        <MarkdownMessage content={"Revenue grew.\n\n- one\n- two"} direction="ltr" />,
+      );
+      expect(container.querySelector("p")?.className).toContain("leading-relaxed");
+      expect(container.querySelector("li")?.className).toContain("leading-relaxed");
+    });
+  });
+
   it("renders bold text as <strong>", () => {
     const { container } = render(<MarkdownMessage content="**bold text**" />);
     const strong = container.querySelector("strong");

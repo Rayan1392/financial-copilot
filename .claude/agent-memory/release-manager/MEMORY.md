@@ -2,9 +2,20 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
-## Current state (2026-11-16)
+## Current state (2026-11-17)
 
-- Latest released version: **1.14.0** (MINOR: Added), annotated tag `v1.14.0` (tag object `565f990`) on prod
+- Latest released version: **1.15.0** (MINOR: notable Changed), annotated tag `v1.15.0` (tag object `81a8814`) on
+  prod merge commit `738c926` ("Merge develop into prod for v1.15.0"; parents prod `7070079`, develop release
+  commit `dd1947b`). Deploy run 44018545211 succeeded in 8m23s. `/releases` HTTP 200 and its HTML contains 1.15.0.
+- 1.15.0 ships financial-query credit pricing (`e6c0d02`): answered financial-statement table/analysis and
+  monthly sales/product trend turns cost 2 credits (were 1 via `AiQuery.Scanner`); NoData stays free. No
+  migrations. The owner had merged develop into prod (`7070079`) before the CHANGELOG commit, so the release
+  commit was merged into prod a second time before tagging.
+- 2026-11-17: the owner ran the worktree commands from PowerShell, where `$TMP` was empty; the worktree landed at
+  `C:/prod-release` and its removal failed while the shell's cwd was inside it (empty folder left behind, git
+  worktree metadata gone). Use an explicit absolute path when handing PowerShell commands to the owner.
+- Base for "commits since last release": `v1.15.0`.
+- Previous: 1.14.0 (MINOR: Added), annotated tag `v1.14.0` (tag object `565f990`) on prod
   merge commit `0e2838e` ("Merge develop into prod for v1.14.0"; parents prod `cd2ae25`, develop release commit
   `041fad9`). Deploy run 43882866503 succeeded in 9m8s. `/releases` HTTP 200 and its HTML contains 1.14.0.
 - 1.14.0 ships Feature 163 symbol-grounded fallback (+ fix `15f1e84`), the 30-day TahlilApp analysis window
@@ -15,7 +26,6 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 - Lesson 2026-11-16: check `git log v<last>..origin/prod` before a release; prod may carry untagged merges.
 - 2026-11-16 (1.14.0): the main worktree had the owner's uncommitted work, so the prod merge was done in a
   temporary worktree `D:/wt/release-prod` (removed afterwards). Only `CHANGELOG.md` was staged on develop.
-- Base for "commits since last release": `v1.14.0`.
 - Previous: 1.13.1 (PATCH, Fixed only), `v1.13.1` on `71c0614`, run 43802887944 success.
 - 1.13.1 ships BUG-031 (`d8ff5f9`): Report Discussion analysis follow-ups no longer end in zero-credit fallbacks.
   The feature sits behind `ReportDiscussion:Enabled` (default off; prod could enable it via server `.env`, which
@@ -52,6 +62,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.15.0 | 2026-11-17 | 738c926 | run 44018545211 success | financial-statement and monthly sales-trend answers cost 2 credits |
 | 1.14.0 | 2026-11-16 | 0e2838e | run 43882866503 success | answers from the quarterly income statement for unanswered single-symbol questions (flag-gated); TahlilApp analyses only from the last 30 days; Report Discussion 2 credits + «… را تفسیر کن» suggestion |
 | 1.13.1 | 2026-11-16 | 71c0614 | run 43802887944 success | Report Discussion analysis follow-ups no longer fail (BUG-031; feature flag-gated) |
 | 1.13.0 | 2026-11-15 | 1f4ab9ef | run 43747994724 success | self-service profile editing on web and mobile; assistant response system update |

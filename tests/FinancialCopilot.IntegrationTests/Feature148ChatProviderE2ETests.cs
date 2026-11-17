@@ -873,6 +873,9 @@ public sealed class Feature148ScriptedAiModelClient : IAiModelClient
             ToolCall: Tool("query_cyclicalwaves_gauges", "حداقل، میانگین و حداکثر قیمت تعادلی کچاد چقدر است؟")),
         // BUG-022: the model proposes another capability for «تحلیل X»; the dialogue gate must keep the analysis route.
         ["تحلیل فولاد"] = new(Proposal("symbol_metric_lookup", "فولاد", ["PE_TTM"]), LookupParse: LookupParse("فولاد", "P/E")),
+        // BUG-032: the same for the sentence forms «سهم X را تحلیل کن» and «سهم X را بررسی کن».
+        ["سهم فولاد را تحلیل کن"] = new(Proposal("symbol_metric_lookup", "فولاد", ["PE_TTM"]), LookupParse: LookupParse("فولاد", "P/E")),
+        ["سهم فولاد را بررسی کن"] = new(Proposal("symbol_metric_lookup", "فولاد", ["PE_TTM"]), LookupParse: LookupParse("فولاد", "P/E")),
         ["قیمت تعادلی فولاد چقدر است؟"] = new(Proposal("comprehensive_analysis", "فولاد"),
             ToolCall: Tool("query_cyclicalwaves_gauges", "قیمت تعادلی فولاد چقدر است؟")),
         ["کدام نمادها در وضعیت P/E زیر حداقل تاریخی قرار دارند؟"] = new(Proposal("comprehensive_analysis"),

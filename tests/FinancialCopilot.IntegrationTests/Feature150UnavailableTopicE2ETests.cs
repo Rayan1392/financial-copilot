@@ -266,6 +266,9 @@ public sealed class Feature150UnavailableTopicMappedAnalysisE2ETests : IClassFix
     [InlineData("تحلیل جامع فولاد")]
     [InlineData("تحلیل فولاد")]
     [InlineData("تحلیل بنیادی فولاد")]
+    // BUG-032: the scripted model proposes symbol_metric_lookup for these; the gate keeps the analysis route.
+    [InlineData("سهم فولاد را تحلیل کن")]
+    [InlineData("سهم فولاد را بررسی کن")]
     public async Task AnalysisQuestion_KeepsTheTahlilAppCard(string question)
     {
         var root = await Feature148Chat.AskAsync(_factory, question);

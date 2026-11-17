@@ -54,7 +54,7 @@ internal sealed class ComprehensiveAnalysisToolAdapter(
         var result = await useCase.ExecuteAsync(request, cancellationToken);
 
         return result.Items.Count == 0
-            ? ComprehensiveAnalysisToolResult.NotFound(result.UnresolvedSymbols, AnalysesUrl)
+            ? ComprehensiveAnalysisToolResult.NotFound(result.UnresolvedSymbols, AnalysesUrl, result.RecentWindowDays)
             : ComprehensiveAnalysisToolResult.Success(result, AnalysesUrl);
     }
 }
@@ -67,6 +67,12 @@ internal sealed record ComprehensiveAnalysisToolResult
     public string CompletionStatus { get; init; } = "Completed";
     public string AnalysesUrl { get; init; } = ComprehensiveAnalysisPresentationOptions.DefaultTahlilAppAnalysesUrl;
 
+    /// <summary>
+    /// BUG-032: the recency window searched, kept also when nothing was found (no <see cref="QueryResponse"/> then), so
+    /// the card says «تحلیل تازه‌ای در ۳۰ روز اخیر … پیدا نشد» on the agent-tool route too (OQ-099).
+    /// </summary>
+    public int? RecentWindowDays { get; init; }
+
     /// <summary>The Feature 159 card: titles and whole summaries, then the fixed TahlilApp link.</summary>
     public string AgentSummary => ComprehensiveAnalysisCardComposer.ComposeMarkdown(
         QueryResponse?.Items ?? [],
@@ -74,11 +80,16 @@ internal sealed record ComprehensiveAnalysisToolResult
         AnalysesUrl,
         QueryResponse?.TechnicalAnalysisNotFoundSymbols,
         QueryResponse?.FullTextIncluded == true,
-        QueryResponse?.RecentWindowDays);
+        QueryResponse?.RecentWindowDays ?? RecentWindowDays);
 
     public static ComprehensiveAnalysisToolResult Success(ComprehensiveAnalysisQueryResponse response, string analysesUrl) =>
-        new() { Succeeded = true, QueryResponse = response, UnresolvedSymbols = response.UnresolvedSymbols, AnalysesUrl = analysesUrl };
+        new()
+        {
+            Succeeded = true, QueryResponse = response, UnresolvedSymbols = response.UnresolvedSymbols, AnalysesUrl = analysesUrl,
+            RecentWindowDays = response.RecentWindowDays
+        };
 
-    public static ComprehensiveAnalysisToolResult NotFound(IReadOnlyList<string> unresolvedSymbols, string analysesUrl) =>
-        new() { Succeeded = false, UnresolvedSymbols = unresolvedSymbols, AnalysesUrl = analysesUrl };
+    public static ComprehensiveAnalysisToolResult NotFound(
+        IReadOnlyList<string> unresolvedSymbols, string analysesUrl, int? recentWindowDays = null) =>
+        new() { Succeeded = false, UnresolvedSymbols = unresolvedSymbols, AnalysesUrl = analysesUrl, RecentWindowDays = recentWindowDays };
 }

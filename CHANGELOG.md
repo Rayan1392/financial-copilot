@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-11-17
+
+این نسخه پاسخ پرسش‌هایی مانند «سهم فولاد را تحلیل کن» را با پاسخ «تحلیل فولاد» یکسان می‌کند.
+
 ### Fixed
 
 - پرسش‌هایی مانند «سهم فولاد را تحلیل کن» یا «سهم فولاد را بررسی کن» همان پاسخ «تحلیل فولاد» را می‌گیرند. اگر برای آن نماد تحلیل تازه‌ای در تحلیل‌اپ نباشد، پیام «تحلیل تازه‌ای در ۳۰ روز اخیر در تحلیل‌اپ پیدا نشد» نمایش داده می‌شود.
@@ -353,7 +357,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.1...develop
+[1.15.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.13.1...v1.14.0
 [1.13.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.13.0...v1.13.1

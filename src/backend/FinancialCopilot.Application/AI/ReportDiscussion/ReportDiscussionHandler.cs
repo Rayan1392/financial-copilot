@@ -93,16 +93,19 @@ public sealed class ReportDiscussionHandler(
                     ReportDiscussionMessages.MissingInReport(report), DialogueOutcome.NoData,
                     ReportDiscussionReasonCodes.MissingInReport, SemanticBillingCompletionStatus.NoData, diagnostics);
             case ReportDiscussionDisposition.Answered:
-                var grounding = NumericGroundingValidator.Validate(reply.Answer, prompt.Data, question);
+                // Change «answer-readability» (OQ-101): the layout safety net runs before grounding, so the stored text is
+                // the verified text.
+                var answer = GroundedAnswerLayout.Normalize(reply.Answer);
+                var grounding = NumericGroundingValidator.Validate(answer, prompt.Data, question);
                 diagnostics = diagnostics with { NumbersChecked = grounding.NumbersChecked, UngroundedNumbers = grounding.UngroundedCount };
-                if (reply.Answer.Length == 0 || !grounding.Passed)
+                if (answer.Length == 0 || !grounding.Passed)
                 {
                     return Reply(report, ReportDiscussionDisposition.Unverified,
                         ReportDiscussionMessages.Unverified(report), DialogueOutcome.NoData,
                         ReportDiscussionReasonCodes.Unverified, SemanticBillingCompletionStatus.NoData,
                         diagnostics with { Disposition = nameof(ReportDiscussionDisposition.Unverified) });
                 }
-                return Reply(report, ReportDiscussionDisposition.Answered, reply.Answer, DialogueOutcome.Answered,
+                return Reply(report, ReportDiscussionDisposition.Answered, answer, DialogueOutcome.Answered,
                     DialogueOutcomeReasonCodes.None, ReportDiscussionBillingPolicy.AnsweredCompletionStatus, diagnostics);
             default:
                 return ReportDiscussionTurn.NotApplicableBecause("unexpected_disposition");

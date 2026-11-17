@@ -285,7 +285,8 @@ public sealed class ReportDiscussion162Tests
         var prompt = ReportDiscussionContextBuilder.SystemPrompt;
         Assert.Contains("describe it in words without writing a number", prompt, StringComparison.Ordinal);
         Assert.Contains("Never write evidence ids (F1, C2) in the answer text", prompt, StringComparison.Ordinal);
-        Assert.Contains("within about 250 words", prompt, StringComparison.Ordinal);
+        // Change «answer-readability» (OQ-101): the shared layout lowers the limit from about 250 to about 180 words.
+        Assert.Contains("within about 180 words", prompt, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -108,7 +108,8 @@ public sealed class SymbolGroundedFallbackHandler(
         if (reply.Answer.Length == 0)
             return SymbolGroundedFallbackResult.UnchangedBecause("empty_answer", diagnostics);
         var closing = reply.ClosingOffer.Length > 0 ? reply.ClosingOffer : _promptBuilder.FixedClosingOffer(symbol);
-        var text = reply.Answer + "\n\n" + closing;
+        // Change «answer-readability»: the layout safety net runs before grounding, so the stored text is the verified text.
+        var text = GroundedAnswerLayout.Normalize(reply.Answer + "\n\n" + closing);
         var grounding = NumericGroundingValidator.Validate(text, prompt.Data, question);
         diagnostics = diagnostics with { NumbersChecked = grounding.NumbersChecked, UngroundedNumbers = grounding.UngroundedCount };
         if (!grounding.Passed)

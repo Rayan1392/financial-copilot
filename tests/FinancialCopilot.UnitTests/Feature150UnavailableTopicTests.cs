@@ -224,6 +224,12 @@ public sealed class Feature150UnavailableTopicTests
     [InlineData("تحلیل فولاد")]
     [InlineData("تحلیل جامع فولاد")]
     [InlineData("تحلیل اخابر")]
+    // BUG-032 (owner, 2026-11-17): sentence forms and «بررسی» take the same route.
+    [InlineData("سهم شکبیر را تحلیل کن")]
+    [InlineData("سهم شکبیر را بررسی کن")]
+    [InlineData("نماد فولاد را تحلیل کنید")]
+    [InlineData("شرکت فولاد را بررسی بکنید")]
+    [InlineData("بررسی فولاد")]
     public async Task Gate_AnalysisQuestions_GoToComprehensiveAnalysisWithoutTheModel(string message)
     {
         var run = await PrepareAsync(message, availability: MappedAnalysis());
@@ -235,9 +241,19 @@ public sealed class Feature150UnavailableTopicTests
         Assert.DoesNotContain(frame.Slots, slot => slot.Type == QuerySlotType.AnalysisTopic && slot.Value is not null);
     }
 
-    [Fact]
-    public async Task Gate_AnalysisQuestion_WhenTheRestIsNotACompany_KeepsTodaysRoute() =>
-        AssertTodayRoute(await PrepareAsync("تحلیل فروش فولاد", availability: MappedAnalysis(), resolver: ResolverKind.Missing));
+    [Theory]
+    [InlineData("تحلیل فروش فولاد")]
+    [InlineData("بررسی صورت سود و زیان فولاد")]
+    [InlineData("سهم فولاد و فملی را بررسی کن")]
+    public async Task Gate_AnalysisQuestion_WhenTheRestIsNotACompany_KeepsTodaysRoute(string message) =>
+        AssertTodayRoute(await PrepareAsync(message, availability: MappedAnalysis(), resolver: ResolverKind.Missing));
+
+    // BUG-032: a valuation or advice word still keeps C3 / OQ-072's route, also in the sentence and «بررسی» forms.
+    [Theory]
+    [InlineData("ارزش ذاتی سهم فولاد را بررسی کن")]
+    [InlineData("سهم فولاد را از نظر ارزش ذاتی تحلیل کن")]
+    public async Task Gate_SentenceAnalysisQuestionWithATopicWord_KeepsTodaysRoute(string message) =>
+        AssertTodayRoute(await PrepareAsync(message, availability: MappedAnalysis()));
 
     [Fact]
     public async Task Gate_AnalysisQuestion_WithoutComprehensiveAnalysis_KeepsTodaysRoute() =>
@@ -248,6 +264,12 @@ public sealed class Feature150UnavailableTopicTests
     [InlineData("تحلیل جامع فولاد", "فولاد")]
     [InlineData("تحلیل بنیادی مخابرات ایران", "مخابرات ایران")]
     [InlineData("تحلیل فروش فولاد", "فروش فولاد")]
+    [InlineData("سهم شکبیر را تحلیل کن", "شکبیر")]
+    [InlineData("سهم شكبير را بررسی کن", "شکبیر")]
+    [InlineData("نماد فولاد را تحلیل کنید", "فولاد")]
+    [InlineData("بررسی صورت سود و زیان فولاد", "صورت سود و زیان فولاد")]
+    [InlineData("سهم فولاد را بخر", null)]
+    [InlineData("سهم را بررسی کن", null)]
     [InlineData("فولاد", null)]
     [InlineData("تحلیل", null)]
     [InlineData("تحلیل جامع", null)]

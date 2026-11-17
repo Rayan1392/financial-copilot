@@ -94,8 +94,10 @@ public static class UnavailableTopicCatalog
 
     /// <summary>
     /// BUG-022: the company text of a message made only of analysis words («تحلیل», «تحلیل جامع», «تحلیل بنیادی», the
-    /// technical words, the plural «ها»/«های») and one company. Null when «تحلیل» is missing or nothing else remains.
-    /// Whether the rest is exactly one company is decided by the caller's entity resolution.
+    /// technical words, the plural «ها»/«های») and one company. BUG-032 (owner, 2026-11-17): «بررسی» is an analysis
+    /// word too, and the sentence words of «سهم X را تحلیل کن» / «نماد X را بررسی کنید» are removed as well.
+    /// Null when neither «تحلیل» nor «بررسی» is present or nothing else remains. Whether the rest is exactly one company
+    /// is decided by the caller's entity resolution, so a rest such as «فروش فولاد» keeps today's route.
     /// </summary>
     public static string? AnalysisRequestCompanyText(string? message)
     {
@@ -103,17 +105,21 @@ public static class UnavailableTopicCatalog
             return null;
 
         var words = QueryNormalization.Normalize(message).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (!words.Contains(AnalysisWord, StringComparer.Ordinal))
+        if (!words.Any(AnalysisTriggerWords.Contains))
             return null;
 
         var rest = words.Where(word => !AnalysisRequestWords.Contains(word)).ToArray();
         return rest.Length == 0 ? null : string.Join(' ', rest);
     }
 
-    private const string AnalysisWord = "تحلیل";
+    private static readonly HashSet<string> AnalysisTriggerWords = new(StringComparer.Ordinal) { "تحلیل", "بررسی" };
 
-    private static readonly HashSet<string> AnalysisRequestWords =
-        new(StringComparer.Ordinal) { AnalysisWord, "جامع", "بنیادی", "تکنیکال", "پیوت", "ها", "های" };
+    private static readonly HashSet<string> AnalysisRequestWords = new(StringComparer.Ordinal)
+    {
+        "تحلیل", "بررسی", "جامع", "بنیادی", "تکنیکال", "پیوت", "ها", "های",
+        // BUG-032: sentence words around the company («سهم X را تحلیل کن»).
+        "سهم", "نماد", "شرکت", "را", "کن", "بکن", "کنید", "بکنید"
+    };
 
     private static QueryInterpretation BuildComprehensiveAnalysisInterpretation(
         string message, string symbol, int registryVersion, string evidenceValue)

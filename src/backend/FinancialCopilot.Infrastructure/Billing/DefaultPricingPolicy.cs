@@ -15,6 +15,8 @@ internal static class DefaultPricingPolicy
         new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
         {
             ["AiQuery.Scanner"] = 1m,
+            ["AiQuery.FinancialStatement"] = 2m,
+            ["AiQuery.MonthlySalesTrend"] = 2m,
             ["AiQuery.StockAnalysis"] = 3m,
             ["AiQuery.CachedResponse"] = 0.2m,
             ["AiQuery.FinancialComparison"] = 3m,

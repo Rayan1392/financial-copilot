@@ -50,7 +50,7 @@ Phases 1 and 4 can run in parallel once T10 fixes the contract (the frontend wor
 ### Phase 2 — Infrastructure, API and text
 
 - [~] **T11 — `EfCoreCashFlowStatementReader`** (`FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/`): implemented with SQLite reader tests. PostgreSQL test compiles but was skipped because `FINANCIAL_COPILOT_TEST_POSTGRES_CONNECTION_STRING` is not configured; query-count and PostgreSQL assertions remain unverified.
-- [~] **T12 — Wiring, flag and carrier**: service registration, typed carrier, API mapping, and default-off option implemented. Unit wiring tests pass; endpoint persistence/replay integration is not yet covered.
+- [x] **T12 — Wiring, flag and carrier**: service registration, typed carrier, API mapping, and default-off option are implemented. Endpoint persistence/replay is covered by `CashFlowReport161EndpointTests` with a deterministic report-use-case fixture; PostgreSQL-backed and live-data verification remain under T11/T20.
 - [~] **T13 — `CashFlowReportTextRenderer`** (UX §11): implemented and covered by report text assertions and the 3,900-character bound; A/B metric-focus snapshot coverage remains open.
 
 ### Phase 3 — Routing and conversation (`FinancialCopilot.Application/AI/Orchestration/`)
@@ -76,7 +76,7 @@ Phases 1 and 4 can run in parallel once T10 fixes the contract (the frontend wor
 
 ### Phase 5 — Verification and documentation
 
-- [ ] **T19 — V2 endpoint integration** `CashFlowReport161EndpointTests.cs`: not implemented. Typed response is wired, but persist/replay, billing, NoData, provider-mode, and isolation assertions remain open.
+- [x] **T19 — V2 endpoint integration** `CashFlowReport161EndpointTests.cs`: typed response, persistence/replay, exact two-credit billing, zero-cost NoData, configured provider name, and different-company isolation are covered through the V2 endpoint and the real statement-table service with a deterministic report-use-case fixture. Real persisted-data behavior remains under T11/T20.
 - [~] **T20 — Live Development verification (read-only)**: Feature 161 is enabled in the local Development API and startup completed successfully after migrations. The six-company sample checks and evidence file remain open; no second billed query was issued.
 - [~] **T21 — Documentation**: glossary, financial statement model, and `specs/README.md` updated. CHANGELOG is deferred until this uncommitted feature lands on `develop`, per `release-manager.md`.
 - [x] **T22 — Implementation report** `ImplementationReport.md`: verified vs remaining, deviations, evidence links.
@@ -87,7 +87,7 @@ Phases 1 and 4 can run in parallel once T10 fixes the contract (the frontend wor
 - [x] Unit — periods: Esfand, non-Esfand, transitional; quarterly differencing, annual, requested and nearest periods covered by the targeted period suite.
 - [~] Unit — routing: focused rule/interpreter and flag-off/V1 checks pass; every routing-matrix row and U1–U7 are not yet covered.
 - [~] Unit — text renderer assertions and architecture checks exist; full A/B metric-focus snapshot coverage remains open.
-- [~] Integration — PostgreSQL test is present but skipped without its isolated connection string; endpoint payload/replay/billing and follow-ups U1–U7 remain open.
+- [~] Integration — endpoint payload/replay/billing for the cash-flow report is covered with a deterministic use-case fixture; the PostgreSQL test is skipped without its isolated connection string, live data remains open, and follow-ups U1–U7 remain open.
 - [~] Frontend (Vitest): 4 report tests and 9 message-list tests pass; browser at all six required widths, PNG desktop/mobile, and light/dark screenshots pass. Every outcome, bank layout, and export content assertions remain open.
 
 ## Definition Of Done

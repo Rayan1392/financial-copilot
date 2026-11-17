@@ -231,6 +231,33 @@ public sealed class BillingDomainTests
         Assert.Equal(expectedCredits, result.CreditsCharged);
     }
 
+    [Theory]
+    [InlineData("AiQuery.FinancialStatement")]
+    [InlineData("AiQuery.MonthlySalesTrend")]
+    public void RegisteredPricingPolicy_PricesFinancialQueriesAtTwoCreditsAndKeepsNoDataFree(string operationCode)
+    {
+        var calculator = new OperationUsageChargeCalculator(
+            new ConfiguredPricingPolicyProvider([DefaultPricingPolicy.Create()]));
+
+        var completed = calculator.Calculate(new UsageChargeRequest(
+            operationCode,
+            "v1",
+            Cached: false,
+            CompletionStatus: "Completed",
+            UsageUnits: [],
+            ProviderCosts: []));
+        var noData = calculator.Calculate(new UsageChargeRequest(
+            operationCode,
+            "v1",
+            Cached: false,
+            CompletionStatus: SemanticBillingCompletionStatus.NoData,
+            UsageUnits: [],
+            ProviderCosts: []));
+
+        Assert.Equal(2m, completed.CreditsCharged);
+        Assert.Equal(0m, noData.CreditsCharged);
+    }
+
     // Feature 121 change: the greeting and help reply is answered but free (OQ-017).
     [Fact]
     public void RegisteredPricingPolicy_InformationalReply_IsFree()

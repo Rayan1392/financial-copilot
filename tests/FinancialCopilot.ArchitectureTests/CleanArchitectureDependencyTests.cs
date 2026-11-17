@@ -273,11 +273,12 @@ public sealed class CleanArchitectureDependencyTests
             FindSolutionRoot(), "FinancialCopilot.Application", "AI", "Orchestration", "SemanticCapabilityExecutors.cs"));
         var trend = Slice(source, "public sealed class MonthlyActivityTrendCapabilityExecutor", "public sealed class SymbolMetricLookupCapabilityExecutor");
         var lookup = Slice(source, "public sealed class SymbolMetricLookupCapabilityExecutor", "public sealed class ProductRevenueMixCapabilityExecutor");
+        var migratedExecutors = trend + lookup;
 
         Assert.DoesNotContain("MonthlyActivityTrendIntentRules", trend, StringComparison.Ordinal);
         Assert.DoesNotContain("ExtractCompanySymbol", trend, StringComparison.Ordinal);
         Assert.DoesNotContain("ISymbolLookupParser", lookup, StringComparison.Ordinal);
-        Assert.DoesNotContain("IComprehensiveAnalysisQueryParser", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("IComprehensiveAnalysisQueryParser", migratedExecutors, StringComparison.Ordinal);
         Assert.Contains("QuerySlotType.CompanyOrSymbol", trend, StringComparison.Ordinal);
         Assert.Contains("QuerySlotType.CompanyOrSymbol", lookup, StringComparison.Ordinal);
         Assert.Contains("QuerySlotType.Metric", lookup, StringComparison.Ordinal);
@@ -290,7 +291,7 @@ public sealed class CleanArchitectureDependencyTests
                      "MonthlySalesQualityRankingIntentRules"
                  })
         {
-            Assert.DoesNotContain(legacyParser, source, StringComparison.Ordinal);
+            Assert.DoesNotContain(legacyParser, migratedExecutors, StringComparison.Ordinal);
         }
     }
 

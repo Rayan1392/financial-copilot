@@ -703,10 +703,12 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var billingOperationId = Guid.NewGuid();
+        var usageBefore = _factory.ReadUsageEntries().Count;
 
         using var response = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644" },
+            new { message = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644", idempotencyKey = billingOperationId },
             CancellationToken.None);
         using var document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -722,6 +724,12 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.Equal("Resolved", replayed.GetProperty("resolutionState").GetString());
         Assert.Equal("\u06af\u0646\u062f\u0644\u0647", replayed.GetProperty("productTitle").GetString());
         Assert.NotEmpty(replayed.GetProperty("points").EnumerateArray());
+
+        var charge = Assert.Single(_factory.ReadUsageEntries(),
+            entry => entry.IdempotencyKey == $"{billingOperationId:N}:charge");
+        Assert.Equal("AiQuery.MonthlySalesTrend", charge.OperationCode);
+        Assert.Equal(2m, charge.CreditsCharged);
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
     }
 
     [Fact]
@@ -1626,6 +1634,27 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         factory.EnsureSeeded();
     }
 
+    [Fact]
+    public async Task V2AiQuery_MonthlyActivityTrendChargesExactlyTwoCredits()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var billingOperationId = Guid.NewGuid();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "روند فروش ماهانه کهمدا", idempotencyKey = billingOperationId },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("monthly_activity_trend", document.RootElement.GetProperty("semanticCapabilityCode").GetString());
+        var charge = Assert.Single(_factory.ReadUsageEntries(),
+            entry => entry.IdempotencyKey == $"{billingOperationId:N}:charge");
+        Assert.Equal("AiQuery.MonthlySalesTrend", charge.OperationCode);
+        Assert.Equal(2m, charge.CreditsCharged);
+    }
+
     [Theory]
     [InlineData("روند فروش ماهانه کهمدا؟")]
     [InlineData("چارت فروش ماهانه کهمدا")]
@@ -1645,6 +1674,7 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var usageBefore = _factory.ReadUsageEntries().Count;
 
         using var response = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
@@ -1682,6 +1712,11 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.DoesNotContain("آخرین قیمت", textAnswer);
         Assert.DoesNotContain("DAILY_CHANGE_PCT", textAnswer);
 
+        var usageEntries = _factory.ReadUsageEntries().OrderBy(item => item.OccurredAt).ToArray();
+        Assert.Equal(usageBefore + 1, usageEntries.Length);
+        Assert.Equal("AiQuery.MonthlySalesTrend", usageEntries[^1].OperationCode);
+        Assert.Equal(2m, usageEntries[^1].CreditsCharged);
+
         var action = Assert.Single(root.GetProperty("suggestedActions").EnumerateArray());
         Assert.Equal("RunRelatedCapability", action.GetProperty("kind").GetString());
         Assert.Equal("monthly_product_trend", action.GetProperty("capabilityCode").GetString());
@@ -1690,6 +1725,7 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.Equal("کهمدا", action.GetProperty("presetSlots").GetProperty("company").GetString());
         Assert.Equal("آهن اسفنجی", action.GetProperty("presetSlots").GetProperty("product").GetString());
 
+        var followUpUsageBefore = _factory.ReadUsageEntries().Count;
         using var followUp = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
             new { message = action.GetProperty("message").GetString() },
@@ -1698,6 +1734,10 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.Equal(HttpStatusCode.OK, followUp.StatusCode);
         Assert.Equal("MonthlyProductTrend", followUpDocument.RootElement.GetProperty("intent").GetString());
         Assert.Equal("آهن اسفنجی", followUpDocument.RootElement.GetProperty("monthlyProductTrendResult").GetProperty("productTitle").GetString());
+        var followUpUsageEntries = _factory.ReadUsageEntries().OrderBy(item => item.OccurredAt).ToArray();
+        Assert.Equal(followUpUsageBefore + 1, followUpUsageEntries.Length);
+        Assert.Equal("AiQuery.MonthlySalesTrend", followUpUsageEntries[^1].OperationCode);
+        Assert.Equal(2m, followUpUsageEntries[^1].CreditsCharged);
     }
 
     [Theory]
@@ -1942,10 +1982,11 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var billingOperationId = Guid.NewGuid();
 
         using var response = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message },
+            new { message, idempotencyKey = billingOperationId },
             CancellationToken.None);
         using var document = await ReadJsonAsync(response);
 
@@ -1968,6 +2009,11 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
             Assert.Contains("تلفیقی", textAnswer);
         else
             Assert.DoesNotContain("تلفیقی", textAnswer);
+
+        var charge = Assert.Single(_factory.ReadUsageEntries(),
+            entry => entry.IdempotencyKey == $"{billingOperationId:N}:charge");
+        Assert.Equal("AiQuery.FinancialStatement", charge.OperationCode);
+        Assert.Equal(2m, charge.CreditsCharged);
     }
 
     [Fact]
@@ -2082,8 +2128,9 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
         var usageBefore = _factory.ReadUsageEntries().Count;
         var reservationsBefore = _factory.ReadBillingReservations().Count;
+        var billingOperationId = Guid.NewGuid();
         using var response = await client.PostAsJsonAsync("/api/ai/v1/query",
-            new { message = "گزارش فصلی وبملت" }, CancellationToken.None);
+            new { message = "گزارش فصلی وبملت", idempotencyKey = billingOperationId }, CancellationToken.None);
         using var document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
@@ -2108,6 +2155,10 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         Assert.Equal(quarterly.GetRawText(), replayedQuarterly.GetRawText());
         Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
         Assert.Equal(reservationsBefore + 1, _factory.ReadBillingReservations().Count);
+        var charge = Assert.Single(_factory.ReadUsageEntries(),
+            entry => entry.IdempotencyKey == $"{billingOperationId:N}:charge");
+        Assert.Equal("AiQuery.FinancialStatement", charge.OperationCode);
+        Assert.Equal(2m, charge.CreditsCharged);
     }
 
     [Theory]
@@ -2153,9 +2204,10 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var billingOperationId = Guid.NewGuid();
 
         using var response = await client.PostAsJsonAsync(
-            "/api/ai/v1/query", new { message = "جدول گزارشات فصلی نمادناموجود" }, CancellationToken.None);
+            "/api/ai/v1/query", new { message = "جدول گزارشات فصلی نمادناموجود", idempotencyKey = billingOperationId }, CancellationToken.None);
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -2167,6 +2219,8 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
             quarterly.GetProperty("companyResolutionStatus").GetInt32());
         Assert.Equal((int)QuarterlyFinancialReportOutcome.CompanyNotFound,
             quarterly.GetProperty("outcome").GetInt32());
+        Assert.DoesNotContain(_factory.ReadUsageEntries(),
+            entry => entry.IdempotencyKey == $"{billingOperationId:N}:charge");
     }
 
     [Fact]
@@ -2174,9 +2228,10 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var billingOperationId = Guid.NewGuid();
 
         using var response = await client.PostAsJsonAsync(
-            "/api/ai/v1/query", new { message = "جدول گزارش فصلی بدونگزارش" }, CancellationToken.None);
+            "/api/ai/v1/query", new { message = "جدول گزارش فصلی بدونگزارش", idempotencyKey = billingOperationId }, CancellationToken.None);
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -2188,6 +2243,8 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
             quarterly.GetProperty("companyResolutionStatus").GetInt32());
         Assert.Equal((int)QuarterlyFinancialReportOutcome.CompanyFoundNoPersistedReports,
             quarterly.GetProperty("outcome").GetInt32());
+        Assert.DoesNotContain(_factory.ReadUsageEntries(),
+            entry => entry.IdempotencyKey == $"{billingOperationId:N}:charge");
     }
 
     [Theory]

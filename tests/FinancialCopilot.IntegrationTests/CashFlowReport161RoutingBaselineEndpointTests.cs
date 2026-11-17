@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -111,6 +112,29 @@ public sealed class CashFlowReport161RoutingBaselineEndpointTests : IClassFixtur
         if (Environment.GetEnvironmentVariable("FEATURE161_WRITE_ROUTING_BASELINE") == "1") File.WriteAllText(path, actual);
         Assert.True(File.Exists(path));
         Assert.Equal(File.ReadAllText(path).Replace("\r\n", "\n"), actual.Replace("\r\n", "\n"));
+    }
+
+    [Fact]
+    public async Task CashFlowStatementTableQuery_ChargesExactlyTwoCredits()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var billingOperationId = Guid.NewGuid();
+        _factory.Table.Reset();
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "جریان وجه نقد فلوله", idempotencyKey = billingOperationId }, CancellationToken.None);
+        var raw = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(raw);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("FinancialStatementTableLookup", document.RootElement.GetProperty("intent").GetString());
+        Assert.Equal(FinancialCopilot.Domain.Financial.Entities.FinancialStatementType.CashFlow,
+            Assert.Single(_factory.Table.Queries).StatementType);
+        var charge = Assert.Single(_factory.ReadUsageEntries(),
+            entry => entry.IdempotencyKey == $"{billingOperationId:N}:charge");
+        Assert.Equal("AiQuery.FinancialStatement", charge.OperationCode);
+        Assert.Equal(2m, charge.CreditsCharged);
     }
 
     [Fact]

@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-11-17
+
+این نسخه پاسخ‌های تحلیلی بر اساس صورت‌های مالی را خواناتر نمایش می‌دهد.
+
 ### Changed
 
 - پاسخ‌هایی که بر اساس صورت سود و زیان یا گزارشِ نمایش‌داده‌شده در گفتگو داده می‌شوند، با یک جملهٔ نتیجهٔ برجسته و چند بند کوتاه نمایش داده می‌شوند و عددهای بزرگ جداکنندهٔ هزارگان دارند.
@@ -362,7 +366,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.16.0...develop
+[1.16.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.13.1...v1.14.0

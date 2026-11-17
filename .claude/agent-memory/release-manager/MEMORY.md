@@ -4,7 +4,16 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 ## Current state (2026-11-17)
 
-- Latest released version: **1.15.1** (PATCH, Fixed only), annotated tag `v1.15.1` (tag object `d4f4fae`) on prod
+- Latest released version: **1.16.0** (MINOR: notable Changed), annotated tag `v1.16.0` (tag object `d46ebc1`) on
+  prod merge commit `dfd4730` ("Merge develop into prod for v1.16.0"; parents prod `63161ec`, develop release commit
+  `71df9ed`). Deploy run 44158131482 succeeded in 9m30s. `/releases` HTTP 200, newest heading 1.16.0.
+- 1.16.0 ships Feature 163 change `answer-readability` (`3c696e6`, merge `7718f98`): shared answer layout rules for
+  the 163 and 162 prompts, `GroundedAnswerLayout.Normalize` (thousands separators), web typography for all Markdown
+  answers, Telegram bold in the API renderer (not the gateway host). No migrations. The real-model layout check (T7)
+  was still open at release. The owner had merged develop into prod (`63161ec`) before the CHANGELOG commit, so the
+  release commit was merged into prod a second time (merge-tree + commit-tree) before tagging.
+- Base for "commits since last release": `v1.16.0`.
+- Previous: 1.15.1 (PATCH, Fixed only), annotated tag `v1.15.1` (tag object `d4f4fae`) on prod
   merge commit `842fa37` ("Merge develop into prod for v1.15.1"; parents prod `738c926`, develop release commit
   `3131c52`). Deploy run 44051050496 succeeded in 9m4s. `/releases` HTTP 200, newest heading 1.15.1.
 - 1.15.1 ships BUG-032 (`9431584`, merge `219d5a3`): «سهم X را تحلیل/بررسی کن» take the comprehensive-analysis
@@ -15,7 +24,6 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
   `git merge-tree --write-tree` + `git commit-tree` and pushed as `<sha>:refs/heads/prod`.
 - prod differs from develop in 4 non-app files (`docker-compose.override.yml`, its `.bak-20261103`,
   `.deepcode/settings.json`, an `implementing-domain-driven-design/SKILL.md`); unchanged since at least 1.15.0.
-- Base for "commits since last release": `v1.15.1`.
 - Previous: 1.15.0 (MINOR: notable Changed), annotated tag `v1.15.0` (tag object `81a8814`) on
   prod merge commit `738c926` ("Merge develop into prod for v1.15.0"; parents prod `7070079`, develop release
   commit `dd1947b`). Deploy run 44018545211 succeeded in 8m23s. `/releases` HTTP 200 and its HTML contains 1.15.0.
@@ -73,6 +81,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.16.0 | 2026-11-17 | dfd4730 | run 44158131482 success | readable layout for grounded report answers (163/162), web typography, Telegram bold |
 | 1.15.1 | 2026-11-17 | 842fa37 | run 44051050496 success | «سهم X را تحلیل/بررسی کن» take the analysis route (BUG-032) |
 | 1.15.0 | 2026-11-17 | 738c926 | run 44018545211 success | financial-statement and monthly sales-trend answers cost 2 credits |
 | 1.14.0 | 2026-11-16 | 0e2838e | run 43882866503 success | answers from the quarterly income statement for unanswered single-symbol questions (flag-gated); TahlilApp analyses only from the last 30 days; Report Discussion 2 credits + «… را تفسیر کن» suggestion |

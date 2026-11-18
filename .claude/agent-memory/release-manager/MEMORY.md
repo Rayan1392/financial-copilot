@@ -4,14 +4,22 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 ## Current state (2026-11-18)
 
-- Latest released version: **1.17.0** (MINOR: notable Changed), annotated tag `v1.17.0` (tag object `88b9093`) on
+- Latest released version: **1.17.1** (PATCH: Fixed only), annotated tag `v1.17.1` (tag object
+  `b685c747d28be36c683c931ae8a2b26a78d8b843`) on prod merge commit `bc38de3e` ("Merge develop into prod for
+  v1.17.1"; parents prod `3c68b8f`, develop release commit `da7fe4ef`). Deploy run 44307527081 succeeded in 8m53s.
+  `/releases` returned HTTP 200 with 1.17.1 marked as the current version; API health returned HTTP 200 `Healthy`.
+- 1.17.1 ships the BUG-033 billing fix: successful financial-report discussions settle at the fixed two-credit price
+  instead of failing when the selected base operation would otherwise charge more. Focused integration tests passed
+  35; 7 PostgreSQL tests were skipped because database connection configuration was unavailable. Release-note tests
+  passed 12/12. No database migration.
+- Base for "commits since last release": `v1.17.1`.
+- Previous: 1.17.0 (MINOR: notable Changed), annotated tag `v1.17.0` (tag object `88b9093`) on
   prod merge commit `3c68b8f` ("Merge develop into prod for v1.17.0"; parents prod `dfd4730`, develop release commit
   `33aefd8`). Deploy run 44228930762 succeeded in 3m58s. `/releases` returned HTTP 200 with 1.17.0 as the newest
   heading. The server reported API healthy (migrations/startup), frontend 200, and worker running without restarting.
 - 1.17.0 ships Dastkhat Main and FaNum typography for desktop and mobile PWA, with the Dastkhat font assets cached
   offline. No database migration. Release-note tests passed 12/12. Broader frontend baseline failures and the open
   desktop overflow criterion are documented in `specs/153-mobile-pwa-workspace/changes/dastkhat-font-typography/ImplementationReport.md`.
-- Base for "commits since last release": `v1.17.0`.
 - Previous: 1.16.0 (MINOR: notable Changed), annotated tag `v1.16.0` (tag object `d46ebc1`) on
   prod merge commit `dfd4730` ("Merge develop into prod for v1.16.0"; parents prod `63161ec`, develop release commit
   `71df9ed`). Deploy run 44158131482 succeeded in 9m30s. `/releases` HTTP 200, newest heading 1.16.0.
@@ -88,6 +96,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.17.1 | 2026-11-18 | bc38de3e | run 44307527081 success | BUG-033: fixed-price settlement for successful Report Discussion answers |
 | 1.17.0 | 2026-11-18 | 3c68b8f | run 44228930762 success | Dastkhat Main + FaNum typography for web/mobile PWA; offline font cache |
 | 1.16.0 | 2026-11-17 | dfd4730 | run 44158131482 success | readable layout for grounded report answers (163/162), web typography, Telegram bold |
 | 1.15.1 | 2026-11-17 | 842fa37 | run 44051050496 success | «سهم X را تحلیل/بررسی کن» take the analysis route (BUG-032) |

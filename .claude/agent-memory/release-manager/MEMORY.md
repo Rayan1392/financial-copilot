@@ -2,9 +2,17 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
-## Current state (2026-11-17)
+## Current state (2026-11-18)
 
-- Latest released version: **1.16.0** (MINOR: notable Changed), annotated tag `v1.16.0` (tag object `d46ebc1`) on
+- Latest released version: **1.17.0** (MINOR: notable Changed), annotated tag `v1.17.0` (tag object `88b9093`) on
+  prod merge commit `3c68b8f` ("Merge develop into prod for v1.17.0"; parents prod `dfd4730`, develop release commit
+  `33aefd8`). Deploy run 44228930762 succeeded in 3m58s. `/releases` returned HTTP 200 with 1.17.0 as the newest
+  heading. The server reported API healthy (migrations/startup), frontend 200, and worker running without restarting.
+- 1.17.0 ships Dastkhat Main and FaNum typography for desktop and mobile PWA, with the Dastkhat font assets cached
+  offline. No database migration. Release-note tests passed 12/12. Broader frontend baseline failures and the open
+  desktop overflow criterion are documented in `specs/153-mobile-pwa-workspace/changes/dastkhat-font-typography/ImplementationReport.md`.
+- Base for "commits since last release": `v1.17.0`.
+- Previous: 1.16.0 (MINOR: notable Changed), annotated tag `v1.16.0` (tag object `d46ebc1`) on
   prod merge commit `dfd4730` ("Merge develop into prod for v1.16.0"; parents prod `63161ec`, develop release commit
   `71df9ed`). Deploy run 44158131482 succeeded in 9m30s. `/releases` HTTP 200, newest heading 1.16.0.
 - 1.16.0 ships Feature 163 change `answer-readability` (`3c696e6`, merge `7718f98`): shared answer layout rules for
@@ -12,7 +20,6 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
   answers, Telegram bold in the API renderer (not the gateway host). No migrations. The real-model layout check (T7)
   was still open at release. The owner had merged develop into prod (`63161ec`) before the CHANGELOG commit, so the
   release commit was merged into prod a second time (merge-tree + commit-tree) before tagging.
-- Base for "commits since last release": `v1.16.0`.
 - Previous: 1.15.1 (PATCH, Fixed only), annotated tag `v1.15.1` (tag object `d4f4fae`) on prod
   merge commit `842fa37` ("Merge develop into prod for v1.15.1"; parents prod `738c926`, develop release commit
   `3131c52`). Deploy run 44051050496 succeeded in 9m4s. `/releases` HTTP 200, newest heading 1.15.1.
@@ -81,6 +88,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.17.0 | 2026-11-18 | 3c68b8f | run 44228930762 success | Dastkhat Main + FaNum typography for web/mobile PWA; offline font cache |
 | 1.16.0 | 2026-11-17 | dfd4730 | run 44158131482 success | readable layout for grounded report answers (163/162), web typography, Telegram bold |
 | 1.15.1 | 2026-11-17 | 842fa37 | run 44051050496 success | «سهم X را تحلیل/بررسی کن» take the analysis route (BUG-032) |
 | 1.15.0 | 2026-11-17 | 738c926 | run 44018545211 success | financial-statement and monthly sales-trend answers cost 2 credits |

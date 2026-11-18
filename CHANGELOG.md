@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-11-18
+
+### Fixed
+
+- پاسخ موفقِ گفت‌وگو دربارهٔ صورت مالی دیگر به‌دلیل محاسبهٔ دوبرابری اعتبار هنگام تسویه با خطا مواجه نمی‌شود و با هزینهٔ ثابت ۲ اعتبار ثبت می‌شود.
+
 ## [1.17.0] - 2026-11-18
 
 ### Changed
@@ -372,7 +378,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.1...develop
+[1.17.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.0...v1.17.1
 [1.17.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.0...v1.15.1

@@ -109,8 +109,14 @@ public sealed class SymbolGroundedFallbackHandler(
             return SymbolGroundedFallbackResult.UnchangedBecause("empty_answer", diagnostics);
         var closing = reply.ClosingOffer.Length > 0 ? reply.ClosingOffer : _promptBuilder.FixedClosingOffer(symbol);
         // Change «answer-readability»: the layout safety net runs before grounding, so the stored text is the verified text.
-        var text = GroundedAnswerLayout.Normalize(reply.Answer + "\n\n" + closing);
-        var grounding = NumericGroundingValidator.Validate(text, prompt.Data, question);
+        // Change «analytical-answer-and-report-score» (D3): the server-written score goes before the closing offer, which
+        // stays the last paragraph; the grounding check accepts the score and 100 it wrote.
+        var score = reply.ReportScore is { } value && prompt.Data.PeriodsNewestFirst.Count > 0
+            ? "\n\n" + GroundedAnalysis.ScoreBlock(value, prompt.Data.PeriodsNewestFirst[0])
+            : string.Empty;
+        var text = GroundedAnswerLayout.Normalize(reply.Answer + score + "\n\n" + closing);
+        var grounding = NumericGroundingValidator.Validate(text, prompt.Data, question,
+            score.Length > 0 ? GroundedAnalysis.ScoreNumbers(reply.ReportScore) : []);
         diagnostics = diagnostics with { NumbersChecked = grounding.NumbersChecked, UngroundedNumbers = grounding.UngroundedCount };
         if (!grounding.Passed)
             return SymbolGroundedFallbackResult.UnchangedBecause("unverified_answer", diagnostics);

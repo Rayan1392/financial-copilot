@@ -106,7 +106,8 @@ public sealed record ReportDiscussionPrompt(
 public sealed record ReportDiscussionModelReply(
     ReportDiscussionDisposition Disposition,
     string Answer,
-    IReadOnlyList<string> UsedEvidenceIds);
+    IReadOnlyList<string> UsedEvidenceIds,
+    int? ReportScore = null);
 
 public enum ReportDiscussionTurnKind
 {

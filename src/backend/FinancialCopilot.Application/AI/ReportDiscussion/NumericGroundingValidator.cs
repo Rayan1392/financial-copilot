@@ -21,9 +21,14 @@ public static partial class NumericGroundingValidator
     [GeneratedRegex(@"\b[FC][0-9۰-۹٠-٩]+\b", RegexOptions.CultureInvariant)]
     private static partial Regex EvidenceIdPattern();
 
-    public static NumericGroundingResult Validate(string answer, ReportDataSet data, string question)
+    /// <param name="serverNumbers">Numbers the server itself wrote into the text (the report score and 100).</param>
+    public static NumericGroundingResult Validate(
+        string answer,
+        ReportDataSet data,
+        string question,
+        IReadOnlyCollection<decimal>? serverNumbers = null)
     {
-        var allowedExact = new HashSet<decimal>();
+        var allowedExact = new HashSet<decimal>(serverNumbers ?? []);
         foreach (var text in data.PeriodsNewestFirst
                      .Concat(data.Facts.Select(fact => fact.Period + " " + fact.Label))
                      .Concat(data.Calculations.Select(calculation => calculation.Period + " " + calculation.Label))

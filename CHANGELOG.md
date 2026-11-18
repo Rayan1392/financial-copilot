@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-11-18
+
 ### Changed
 
 - تحلیل گزارش‌های مالی در گفت‌وگو تحلیلی‌تر شد: به‌جای تکرار اعداد جدول، معنای آن‌ها و نکات مهمِ آخرین دوره توضیح داده می‌شود، مبالغ به همت یا میلیارد تومان نوشته می‌شوند و در تحلیل کلی صورت سود و زیان فصلی امتیازی از ۱۰۰ به گزارش داده می‌شود.
@@ -382,7 +384,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.18.0...develop
+[1.18.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.1...v1.18.0
 [1.17.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.0...v1.17.1
 [1.17.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.1...v1.16.0

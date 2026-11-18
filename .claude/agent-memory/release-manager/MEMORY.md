@@ -96,6 +96,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.18.0 | 2026-11-18 | 420382fe | run 44326157068 success | analytical financial-report answers (162/163): amounts in همت / میلیارد تومان, newest-period analysis, 0–100 score for quarterly income statements |
 | 1.17.1 | 2026-11-18 | bc38de3e | run 44307527081 success | BUG-033: fixed-price settlement for successful Report Discussion answers |
 | 1.17.0 | 2026-11-18 | 3c68b8f | run 44228930762 success | Dastkhat Main + FaNum typography for web/mobile PWA; offline font cache |
 | 1.16.0 | 2026-11-17 | dfd4730 | run 44158131482 success | readable layout for grounded report answers (163/162), web typography, Telegram bold |

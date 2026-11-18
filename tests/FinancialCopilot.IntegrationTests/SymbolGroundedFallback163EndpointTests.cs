@@ -143,6 +143,23 @@ public sealed class SymbolGroundedFallback163EndpointTests : IClassFixture<Symbo
         Assert.Equal(UnavailableTopicCatalog.ValuationReasonCode, Payload(answer).FallbackOf!.ReasonCode);
     }
 
+    [Fact] // 162 change «analytical-answer-and-report-score» AC-7: the score goes before the closing offer, which stays last.
+    public async Task OverallAnalysis_ShowsTheScoreBeforeTheClosingOffer()
+    {
+        using var client = Client();
+        _factory.Fallback.Reply = prompt => EchoFirstFact(prompt) with { ReportScore = 64 };
+
+        var answer = await Post(client, AdviceQuestion);
+        var text = Text(answer);
+
+        Assert.Equal("Answered", Outcome(answer));
+        var score = text.IndexOf(": ۶۴ از ۱۰۰**", StringComparison.Ordinal);
+        Assert.True(score > 0);
+        Assert.True(score < text.IndexOf("توصیهٔ خرید یا فروش نیست", StringComparison.Ordinal));
+        Assert.EndsWith(Closing, text, StringComparison.Ordinal);
+        Assert.Contains(_factory.Fallback.Prompts.Single().Data.Facts[0].Unit, new[] { ReportDisplayUnits.Hemat, ReportDisplayUnits.BillionToman, "percent", "rial_per_share" });
+    }
+
     [Fact] // FR-7: an empty closing offer is replaced by the fixed sentence.
     public async Task EmptyClosingOffer_UsesTheFixedSentence()
     {

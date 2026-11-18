@@ -26,6 +26,14 @@ The quarterly income statement a Symbol-Grounded Fallback answer was written fro
 
 Answering a question about the Active Report from that report's own facts and deterministic calculations, in the same Conversation, with one bounded model call. Not to be confused with follow-up suggestions (the suggested-action chips under an answer). A Report Discussion turn that needs other data hands the turn back to normal routing (Feature 162).
 
+### همت (Hemat)
+
+One thousand billion toman (10¹² toman, 10¹³ rial). Grounded report answers (Report Discussion and Symbol-Grounded Fallback) write a monetary amount in همت from 1,000 billion toman upward and in میلیارد تومان below that. The server converts the values before the model sees them (`ReportDisplayUnits`); stored reports keep their source unit (162 change `analytical-answer-and-report-score`).
+
+### Report Score (امتیاز گزارش)
+
+A 0–100 evaluation of the newest period of a quarterly income statement, given only when the user asks for an overall analysis of the report or the company's performance. The model returns the number using a fixed rubric (revenue growth 25, profitability 30, quality of earnings 25, consistency 20); the server writes the score line and the sentence that it is not a buy or sell recommendation. It is never given for price, valuation or buy/sell questions (162 change `analytical-answer-and-report-score`).
+
 ### AI Query Orchestrator
 
 The Application-layer coordinator behind `POST /api/ai/v1/query`. It performs Intent Detection, Tool Routing, use-case execution, Usage Accounting, and Conversation persistence.

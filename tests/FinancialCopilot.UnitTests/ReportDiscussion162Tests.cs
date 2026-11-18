@@ -414,7 +414,8 @@ public sealed class ReportDiscussion162Tests
     public async Task Handler_AnswersTheInterpretationSuggestionOfTheActiveReport()
     {
         var suggestion = Interpretation();
-        var (handler, model) = Handler(_ => Answer("فروش فصل ۲ سال مالی ۱۴۰۴ برابر ۱٬۰۰۰ میلیون ریال بود."),
+        // 1,000 million rial is shown to the model as 0.1 billion toman (change «analytical-answer-and-report-score»).
+        var (handler, model) = Handler(_ => Answer("فروش فصل ۲ سال مالی ۱۴۰۴ برابر ۰٫۱ میلیارد تومان بود."),
             messages: ReportWithSuggestions(suggestion), time: new FakeTimeProvider(Now));
 
         var turn = await handler.TryHandleAsync(Request(suggestion.Message, suggestion.Id), Conversation, false, CancellationToken.None);
@@ -462,6 +463,55 @@ public sealed class ReportDiscussion162Tests
         Assert.Equal("QuarterlyIncomeStatement", turn.Marker.ReportFamily);
         Assert.Equal(1, model.Calls);
         Assert.Contains("F1 |", model.LastPrompt!.UserContent, StringComparison.Ordinal);
+    }
+
+    // ── Report score (change «analytical-answer-and-report-score», FR-4, FR-5) ──────────
+
+    private const string ScoreDisclaimer = "این امتیاز ارزیابی عملکرد مالی همین گزارش است و توصیهٔ خرید یا فروش نیست.";
+
+    [Fact] // AC-4
+    public async Task Handler_AppendsTheServerWrittenScoreForAQuarterlyStatement()
+    {
+        var (handler, _) = Handler(_ => Answer("**سودآوری فصل ۲ سال مالی ۱۴۰۴ ضعیف‌تر شد** و امتیاز ۷۲ است.") with { ReportScore = 72 });
+
+        var turn = await handler.TryHandleAsync(Request("گزارش را تحلیل کن"), Conversation, false, CancellationToken.None);
+
+        Assert.Equal(DialogueOutcome.Answered, turn.Outcome);
+        Assert.Contains("**امتیاز گزارش فصل ۲ سال مالی ۱۴۰۴: ۷۲ از ۱۰۰**", turn.Text!, StringComparison.Ordinal);
+        Assert.EndsWith(ScoreDisclaimer, turn.Text!, StringComparison.Ordinal);
+    }
+
+    [Fact] // AC-5
+    public async Task Handler_WithoutScore_AddsNoScoreLine()
+    {
+        var (handler, _) = Handler(_ => Answer("حاشیه سود عملیاتی در فصل ۲ سال مالی ۱۴۰۴ به ۲۰ درصد رسید."));
+
+        var turn = await handler.TryHandleAsync(Request(), Conversation, false, CancellationToken.None);
+
+        Assert.Equal(DialogueOutcome.Answered, turn.Outcome);
+        Assert.DoesNotContain("امتیاز گزارش", turn.Text!, StringComparison.Ordinal);
+    }
+
+    [Fact] // AC-6
+    public async Task Handler_NeverScoresABalanceSheet()
+    {
+        var (handler, _) = Handler(_ => Answer("نسبت جاری ۱٫۵ برابر است.") with { ReportScore = 72 },
+            messages: History(Payload(Table(balance: Balance()))));
+
+        var turn = await handler.TryHandleAsync(Request("ترازنامه را تحلیل کن"), Conversation, false, CancellationToken.None);
+
+        Assert.Equal(DialogueOutcome.Answered, turn.Outcome);
+        Assert.DoesNotContain("امتیاز گزارش", turn.Text!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Handler_ScoreDoesNotExcuseAnUngroundedNumber()
+    {
+        var (handler, _) = Handler(_ => Answer("حاشیه سود عملیاتی ۲۷ درصد بود.") with { ReportScore = 72 });
+
+        var turn = await handler.TryHandleAsync(Request("گزارش را تحلیل کن"), Conversation, false, CancellationToken.None);
+
+        Assert.Equal(ReportDiscussionReasonCodes.Unverified, turn.ReasonCode);
     }
 
     [Fact]

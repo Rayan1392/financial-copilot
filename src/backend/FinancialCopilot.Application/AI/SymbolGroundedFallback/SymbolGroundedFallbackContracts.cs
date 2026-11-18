@@ -70,7 +70,8 @@ public sealed record SymbolGroundedFallbackModelReply(
     SymbolGroundedFallbackDisposition Disposition,
     string Answer,
     string ClosingOffer,
-    IReadOnlyList<string> UsedEvidenceIds);
+    IReadOnlyList<string> UsedEvidenceIds,
+    int? ReportScore = null);
 
 public static class SymbolGroundedFallbackExecutionRoute
 {

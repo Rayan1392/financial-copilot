@@ -11,22 +11,25 @@ public sealed class LlmReportDiscussionModel(
     IAiModelExecutionService executionService,
     ReportDiscussionOptions options) : IReportDiscussionModel
 {
+    // v2 adds reportScore (change «analytical-answer-and-report-score», D3).
     private const string SchemaJson = """
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["disposition", "answer", "usedEvidenceIds"],
+          "required": ["disposition", "answer", "usedEvidenceIds", "reportScore"],
           "properties": {
             "disposition": { "type": "string", "enum": ["Answered", "MissingInReport", "NeedsDifferentData", "OutsideReport"] },
             "answer": { "type": "string", "maxLength": 4000 },
-            "usedEvidenceIds": { "type": "array", "maxItems": 60, "items": { "type": "string", "maxLength": 12 } }
+            "usedEvidenceIds": { "type": "array", "maxItems": 60, "items": { "type": "string", "maxLength": 12 } },
+        """ + GroundedAnalysis.ScoreSchemaProperty + """
+
           }
         }
         """;
 
     private static readonly AiStructuredOutputContract Contract = new(
-        "ReportDiscussionReply_v1",
-        ["disposition", "answer", "usedEvidenceIds"],
+        "ReportDiscussionReply_v2",
+        ["disposition", "answer", "usedEvidenceIds", "reportScore"],
         SchemaJson);
 
     public async Task<ReportDiscussionModelReply> AnswerAsync(
@@ -97,7 +100,7 @@ public sealed class LlmReportDiscussionModel(
                     .Take(60)
                     .ToArray()
                 : [];
-            return new ReportDiscussionModelReply(disposition, answer.Trim(), evidence);
+            return new ReportDiscussionModelReply(disposition, answer.Trim(), evidence, GroundedAnalysis.ParseScore(root));
         }
         catch (JsonException exception)
         {

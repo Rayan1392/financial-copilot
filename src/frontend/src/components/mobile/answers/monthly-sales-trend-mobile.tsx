@@ -152,7 +152,7 @@ export function MonthlySalesTrendMobile({ data, psVisualization }: Props) {
                   {item.totalLabel && (
                     <>
                       {" · "}
-                      <bdi className="tabular-nums">{item.totalLabel}</bdi>
+                      <bdi className="tabular-nums font-fanum">{item.totalLabel}</bdi>
                     </>
                   )}
                   {item.note && (
@@ -406,7 +406,7 @@ function DetailRow({
       </dt>
       <dd
         className={cn(
-          "shrink-0 tabular-nums",
+          "shrink-0 tabular-nums font-fanum",
           missing ? "text-muted-foreground" : "font-semibold text-foreground",
         )}
       >

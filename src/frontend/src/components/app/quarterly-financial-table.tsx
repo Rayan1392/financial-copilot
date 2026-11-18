@@ -546,7 +546,7 @@ function QuarterlyFinancialTableDesktop({
               {row.values.slice(0, model.quarters.length).map((value, index) => (
                 <td
                   key={index}
-                  className={`border border-slate-200 px-0.5 py-1.5 text-center tabular-nums ${row.grossMargin || row.bankingMargin ? "bg-yellow-200 font-bold text-amber-950" : value.startsWith("(") ? "bg-rose-100 text-rose-900" : "bg-white text-slate-800"}`}
+                  className={`border border-slate-200 px-0.5 py-1.5 text-center tabular-nums font-fanum ${row.grossMargin || row.bankingMargin ? "bg-yellow-200 font-bold text-amber-950" : value.startsWith("(") ? "bg-rose-100 text-rose-900" : "bg-white text-slate-800"}`}
                 >
                   {(row.grossMargin || row.bankingMargin) && value !== "-" && value !== "—"
                     ? `${value}${String.fromCharCode(0x066a)}`
@@ -554,7 +554,7 @@ function QuarterlyFinancialTableDesktop({
                 </td>
               ))}
               <td
-                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${row.grossMargin || row.bankingMargin ? grossMarginChangeClass(resolveQuarterlyChangeColors(row.sourceItemId, quarterlyRowChange(row)).tone) : resolveQuarterlyChangeColors(row.sourceItemId, quarterlyRowChange(row)).className}`}
+                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums font-fanum ${row.grossMargin || row.bankingMargin ? grossMarginChangeClass(resolveQuarterlyChangeColors(row.sourceItemId, quarterlyRowChange(row)).tone) : resolveQuarterlyChangeColors(row.sourceItemId, quarterlyRowChange(row)).className}`}
               >
                 {row.values.at(-1)}
               </td>

@@ -25,7 +25,7 @@ export function ConversationRow({
         >
           {thread.title || "گفتگوی بدون عنوان"}
         </span>
-        <span className="shrink-0 text-m-cap tabular-nums text-muted-foreground">{timestamp}</span>
+        <span className="shrink-0 text-m-cap tabular-nums font-fanum text-muted-foreground">{timestamp}</span>
       </Link>
       <button
         type="button"

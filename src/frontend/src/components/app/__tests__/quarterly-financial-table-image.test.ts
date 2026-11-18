@@ -1,4 +1,4 @@
-﻿import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { downloadQuarterlyFinancialTableImage } from "../quarterly-financial-table-image";
 import type { QuarterlyFinancialTableModel } from "../quarterly-financial-table";
 
@@ -156,7 +156,7 @@ describe("quarterly financial table image export", () => {
     ]);
     expect(drawnFonts).toContainEqual({
       text: "\u06f1\u06f7\u066b\u06f7\u066a",
-      font: '700 20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif',
+      font: '700 20px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif',
     });
     expect(drawnText).toContainEqual({
       text: "\u200e\u2212\u06f1\u0660\u066b\u0660\u066a",

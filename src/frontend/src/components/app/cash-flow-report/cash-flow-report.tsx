@@ -188,7 +188,7 @@ function CashFlowValidationSummary({ result }: { result: CashFlowReportResult })
               <p className="font-semibold">
                 {coverageSectionLabel(item.sectionId)}: {cashFlowStateLabel(item.status)}
               </p>
-              <p className="mt-1 tabular-nums">
+              <p className="mt-1 tabular-nums font-fanum">
                 جمع کدال: {formatCashFlowAmount(item.reportedSubtotal)} · ریزاقلام تأییدشده:{" "}
                 {formatCashFlowAmount(item.verifiedDetailTotal)} · اختلاف:{" "}
                 {formatCashFlowAmount(item.difference)}
@@ -456,7 +456,7 @@ export function CashFlowReport({ result }: { result: CashFlowReportResult }) {
             >
               <dt className="text-[11px] leading-5 text-slate-600 dark:text-slate-300">{label}</dt>
               <dd
-                className={`tabular-nums font-bold ${metric?.value != null && metric.value < 0 ? "text-rose-800 dark:text-rose-300" : "text-slate-900 dark:text-slate-100"}`}
+                className={`tabular-nums font-fanum font-bold ${metric?.value != null && metric.value < 0 ? "text-rose-800 dark:text-rose-300" : "text-slate-900 dark:text-slate-100"}`}
               >
                 {formatCashFlowAmount(metric?.value, metric?.state)}
               </dd>
@@ -606,7 +606,7 @@ export function CashFlowReport({ result }: { result: CashFlowReportResult }) {
                 className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-2"
               >
                 <dt className="text-slate-600 dark:text-slate-300">{kpi.label}</dt>
-                <dd className="tabular-nums">
+                <dd className="tabular-nums font-fanum">
                   {formatKpiValue(kpi.value, kpi.state, kpi.unit)}
                   {formatKpiUnit(kpi.unit) && ` ${formatKpiUnit(kpi.unit)}`}
                   {kpi.reason && (
@@ -720,7 +720,7 @@ function CashFlowWideSection({
               return (
                 <td
                   key={column.columnId}
-                  className={`px-1.5 py-2 text-center tabular-nums sm:px-2 ${cell?.value != null && cell.value < 0 ? "text-rose-800 dark:text-rose-300" : ""}`}
+                  className={`px-1.5 py-2 text-center tabular-nums font-fanum sm:px-2 ${cell?.value != null && cell.value < 0 ? "text-rose-800 dark:text-rose-300" : ""}`}
                   title={cell?.reason ? cashFlowReasonText(cell.reason) : undefined}
                 >
                   <span className="block whitespace-nowrap">
@@ -731,7 +731,7 @@ function CashFlowWideSection({
             })}
             {result.changes && (
               <td
-                className="px-1.5 py-2 text-center tabular-nums sm:px-2"
+                className="px-1.5 py-2 text-center tabular-nums font-fanum sm:px-2"
                 aria-label={compareLabel}
               >
                 <CashFlowChangeLine change={change} />
@@ -780,7 +780,7 @@ function CashFlowCompactRow({
             >
               <dt className="text-slate-500 dark:text-slate-400">{column.label}</dt>
               <dd
-                className={`whitespace-nowrap text-left tabular-nums ${cell?.value != null && cell.value < 0 ? "text-rose-800 dark:text-rose-300" : ""}`}
+                className={`whitespace-nowrap text-left tabular-nums font-fanum ${cell?.value != null && cell.value < 0 ? "text-rose-800 dark:text-rose-300" : ""}`}
               >
                 {formatCashFlowAmount(cell?.value, cell?.state)}
               </dd>
@@ -835,7 +835,7 @@ function CashFlowWaterfall({
                 style={{ right: `${right}%`, width: `${width}%` }}
               />
             </span>
-            <span className="whitespace-nowrap text-left tabular-nums">
+            <span className="whitespace-nowrap text-left tabular-nums font-fanum">
               {formatCashFlowAmount(step.value)}
             </span>
           </div>

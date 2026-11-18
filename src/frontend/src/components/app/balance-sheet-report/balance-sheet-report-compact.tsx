@@ -12,7 +12,7 @@ import {
 function Value({ row }: { row: BalanceSheetViewRow }) {
   return (
     <span
-      className={`whitespace-nowrap tabular-nums ${row.negative ? "rounded bg-rose-100 px-1 text-rose-900" : ""}`}
+      className={`whitespace-nowrap tabular-nums font-fanum ${row.negative ? "rounded bg-rose-100 px-1 text-rose-900" : ""}`}
       dir="ltr"
       aria-label={row.missing ? "داده موجود نیست" : undefined}
     >
@@ -50,12 +50,12 @@ function Item({
       {comparison && (
         <p className="mt-0.5 text-[11px] leading-5 text-slate-600">
           مانده در {view.comparison?.baseline?.date ?? "—"}:{" "}
-          <span dir="ltr" className="whitespace-nowrap tabular-nums">
+          <span dir="ltr" className="whitespace-nowrap tabular-nums font-fanum">
             {row.baselineValue}
           </span>
           {" · "}
           {BALANCE_SHEET_CHANGE_HEADER}:{" "}
-          <span dir="ltr" className="whitespace-nowrap tabular-nums">
+          <span dir="ltr" className="whitespace-nowrap tabular-nums font-fanum">
             {row.percent}
           </span>
           <span className="sr-only">
@@ -99,7 +99,7 @@ function Section({
           <span className="min-w-0 break-words text-[13px] font-bold">{side.label}</span>
         </span>
         <span className="flex flex-col items-end">
-          <span className="whitespace-nowrap text-[13px] font-bold tabular-nums" dir="ltr">
+          <span className="whitespace-nowrap text-[13px] font-bold tabular-nums font-fanum" dir="ltr">
             {total.value}
           </span>
           {comparison && (
@@ -180,7 +180,7 @@ export function BalanceSheetReportCompact({
         data-testid="balance-sheet-ratio-row"
       >
         <p className="text-[13px] font-extrabold leading-5">{BALANCE_SHEET_RATIO_LABEL}</p>
-        <p className="mt-1 flex flex-wrap gap-x-3 text-[13px] tabular-nums">
+        <p className="mt-1 flex flex-wrap gap-x-3 text-[13px] tabular-nums font-fanum">
           <span>
             {comparison ? `${view.anchor.date}: ` : ""}
             <span dir="ltr">{view.ratio.anchor}</span>

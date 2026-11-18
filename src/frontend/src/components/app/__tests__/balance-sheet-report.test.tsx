@@ -409,7 +409,7 @@ describe("Feature 154 PNG font loading (F154-V-08)", () => {
     delete (document as unknown as { fonts?: unknown }).fonts;
   });
 
-  it("loads every Vazirmatn weight the canvas uses and waits for document.fonts.ready", async () => {
+  it("loads every Dastkhat weight the canvas uses and waits for document.fonts.ready", async () => {
     let readyResolved = false;
     const fonts = stubFonts(
       () => Promise.resolve([]),
@@ -418,7 +418,7 @@ describe("Feature 154 PNG font loading (F154-V-08)", () => {
     await expect(ensureBalanceSheetPngFonts()).resolves.toBe(true);
     expect(readyResolved).toBe(true);
     expect(fonts.load.mock.calls.map(([font]) => font)).toEqual(
-      BALANCE_SHEET_PNG_FONT_WEIGHTS.map((weight) => `${weight} 16px Vazirmatn`),
+      BALANCE_SHEET_PNG_FONT_WEIGHTS.map((weight) => `${weight} 16px Dastkhat`),
     );
   });
 

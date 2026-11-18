@@ -2,11 +2,21 @@
 @source "../src";
 @import "tw-animate-css";
 
-/* Self-hosted fonts (Feature 153 change mobile-ui-refresh): no request leaves the app origin, and the service
-   worker precaches both files, so an offline launch keeps the typeface. */
+/* Self-hosted fonts: no request leaves the app origin, and the service worker precaches the UI faces for offline use. */
 @font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/vazirmatn-variable.woff2") format("woff2");
+  font-family: "Dastkhat";
+  src:
+    url("/fonts/dastkhat-main.woff2") format("woff2-variations"),
+    url("/fonts/dastkhat-main.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Dastkhat FaNum";
+  src:
+    url("/fonts/dastkhat-fanum-variable.woff2") format("woff2-variations"),
+    url("/fonts/dastkhat-fanum-variable.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -55,7 +65,7 @@
   --color-surface-2: var(--surface-2);
   --color-hairline: var(--hairline);
 
-  --font-sans: "Vazirmatn", "Noto Sans Arabic", Tahoma, Arial, sans-serif;
+  --font-sans: var(--font-dastkhat);
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* Mobile type scale (`/m`), the one owner of phone text sizes: text-m-body, text-m-sub, and so on.
@@ -78,6 +88,8 @@
 
 :root {
   --radius: 0.75rem;
+  --font-dastkhat: "Dastkhat", "Dastkhat Static", Tahoma, system-ui, sans-serif;
+  --font-dastkhat-fanum: "Dastkhat FaNum", "Dastkhat FaNum Static", Tahoma, system-ui, sans-serif;
 
   /* Dark is the initial theme; the persisted user preference may apply .light. */
   --background: oklch(0.145 0.005 270);
@@ -159,9 +171,14 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    line-height: 1.8;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "ss01", "ss02";
+  }
+
+  :is(h1, h2, h3, h4, h5, h6) {
+    line-height: 1.45;
   }
 
   .mono,
@@ -172,6 +189,11 @@
 }
 
 @layer utilities {
+  .font-fanum {
+    font-family: var(--font-dastkhat-fanum);
+    font-variant-numeric: tabular-nums;
+  }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }

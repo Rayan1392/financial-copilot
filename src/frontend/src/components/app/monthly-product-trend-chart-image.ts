@@ -80,10 +80,10 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
 
   context.fillStyle = "#17202a";
   context.textAlign = "right";
-  context.font = '700 36px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '700 36px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   drawRtlText(context, productTitle(data), WIDTH - PADDING, 72);
   context.fillStyle = "#5f6b76";
-  context.font = '24px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '24px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   drawRtlText(
     context,
     `مبلغ فروش به میلیارد تومان و نرخ فروش به تومان/${productUnit}`,
@@ -91,7 +91,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     116,
   );
   context.fillStyle = "#17202a";
-  context.font = '700 25px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '700 25px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   drawRtlText(context, PRODUCT_TREND_PANEL_LABELS.main, WIDTH - PADDING, 174);
 
   context.strokeStyle = "#d7dde3";
@@ -105,7 +105,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     context.stroke();
 
     context.fillStyle = "#5f6b76";
-    context.font = '20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '20px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.textAlign = "right";
     drawRtlText(context, formatProductTrendRate(maxRate * ratio), plotLeft - 18, y + 7);
     context.textAlign = "left";
@@ -113,7 +113,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   }
 
   context.fillStyle = "#5f6b76";
-  context.font = '700 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '700 22px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "left";
   drawRtlText(context, series.rate.label, PADDING, PLOT_TOP - 28);
   context.textAlign = "right";
@@ -128,7 +128,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
       context.fillStyle = series.sales.color;
       context.fillRect(center - barWidth / 2, plotBottom - barHeight, barWidth, barHeight);
       context.fillStyle = "#17202a";
-      context.font = '600 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+      context.font = '600 18px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
       context.textAlign = "center";
       drawRtlText(
         context,
@@ -150,12 +150,12 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     context.lineTo(plotRight, y);
     context.stroke();
     context.fillStyle = "#5f6b76";
-    context.font = '18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '18px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.textAlign = "right";
     drawRtlText(context, formatProductTrendIntegerNumber(tick), plotLeft - 18, y + 6);
   });
 
-  context.font = '700 25px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '700 25px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "right";
   context.fillStyle = "#17202a";
   drawRtlText(
@@ -191,7 +191,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   points.forEach((point, index) => {
     const center = plotLeft + quantityGroupWidth * (index + 0.5);
     context.fillStyle = "#17202a";
-    context.font = '600 19px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '600 19px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.textAlign = "center";
     drawRtlText(
       context,
@@ -202,7 +202,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
   });
 
   context.fillStyle = "#5f6b76";
-  context.font = '22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '22px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "right";
   drawSeriesLegend(
     context,
@@ -282,7 +282,7 @@ function drawQuantityLegend(
   y: number,
 ) {
   context.save();
-  context.font = '22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '22px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "right";
   let cursor = right;
   for (const entry of entries) {
@@ -310,7 +310,7 @@ function drawSeriesLegend(
   y: number,
 ) {
   context.save();
-  context.font = '22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '22px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "right";
   let cursor = right;
   for (const [kind, entry] of Object.entries(series)) {
@@ -387,7 +387,7 @@ function drawRateLabel(
 ) {
   const labelY = Math.max(PLOT_TOP + 18, y - 18 - (index % 2) * 22);
   context.save();
-  context.font = '600 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 18px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "center";
   context.fillStyle = "#b45309";
   context.strokeStyle = "#ffffff";

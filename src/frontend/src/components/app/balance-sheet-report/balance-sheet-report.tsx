@@ -225,7 +225,7 @@ export function BalanceSheetReport({ result }: { result: BalanceSheetReportResul
           {view.analytical.map((row) => (
             <span key={row.key}>
               {row.label}:{" "}
-              <span dir="ltr" className="whitespace-nowrap tabular-nums">
+              <span dir="ltr" className="whitespace-nowrap tabular-nums font-fanum">
                 {row.value}
               </span>
             </span>

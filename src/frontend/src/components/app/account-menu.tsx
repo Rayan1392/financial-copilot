@@ -133,7 +133,7 @@ export function AccountMenu({
                 <Wallet className="size-3.5" aria-hidden="true" />
                 اعتبار هوش مصنوعی
               </span>
-              <span className="font-semibold tabular-nums text-foreground">{creditSummary}</span>
+              <span className="font-semibold tabular-nums font-fanum text-foreground">{creditSummary}</span>
             </Link>
           </DropdownMenuItem>
         )}

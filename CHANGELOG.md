@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-11-18
+
+### Changed
+
+- فونت Dastkhat برای یکپارچگی خوانایی متن‌های فارسی در نسخه‌های وب و موبایل اضافه شد و نمایش ارقام مالی به فونت فارسی مجهز شد.
+
 ## [1.16.0] - 2026-11-17
 
 این نسخه پاسخ‌های تحلیلی بر اساس صورت‌های مالی را خواناتر نمایش می‌دهد.
@@ -366,7 +372,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.16.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.0...develop
+[1.17.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.14.0...v1.15.0

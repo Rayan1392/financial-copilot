@@ -64,7 +64,7 @@ export function CreditSummary() {
         <>
           <div className="mt-2 flex items-center justify-between gap-2 text-m-title">
             <span className="text-muted-foreground">اعتبار هوش مصنوعی</span>
-            <span className="font-semibold tabular-nums text-foreground">
+            <span className="font-semibold tabular-nums font-fanum text-foreground">
               {creditQuotaLabel(
                 data.creditQuotaMode,
                 credit?.limit != null

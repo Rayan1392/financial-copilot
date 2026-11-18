@@ -108,7 +108,7 @@ function IndustryRelativeValuationTable({
               {row.metrics.map((value, metricIndex) => (
                 <td
                   key={`${row.company}:${metricIndex}`}
-                  className={`px-3 py-2 align-top tabular-nums ${status(value, metricIndex) === "green" ? "bg-emerald-100" : status(value, metricIndex) === "red" ? "bg-rose-100" : "bg-surface"}`}
+                  className={`px-3 py-2 align-top tabular-nums font-fanum ${status(value, metricIndex) === "green" ? "bg-emerald-100" : status(value, metricIndex) === "red" ? "bg-rose-100" : "bg-surface"}`}
                 >
                   {value}
                 </td>
@@ -124,7 +124,7 @@ function IndustryRelativeValuationTable({
               >
                 <td className="px-3 py-2">{row.company}</td>
                 {row.metrics.map((value, index) => (
-                  <td key={index} className="px-3 py-2 tabular-nums">
+                  <td key={index} className="px-3 py-2 tabular-nums font-fanum">
                     {value}
                   </td>
                 ))}
@@ -355,7 +355,7 @@ function createMarkdownComponents(
   isRtl: boolean,
 ): Components {
   const sharedTableCellClass = "px-3 py-2 text-[13px] align-top border-b border-hairline";
-  // Change «answer-readability» (OQ-102, all Markdown answers): Persian text in Vazirmatn needs a taller line than
+  // Change «answer-readability» (OQ-102, all Markdown answers): Persian text in Dastkhat needs a taller line than
   // Latin text to keep paragraph breaks and list items visibly apart.
   const prose = { leading: isRtl ? "leading-7" : "leading-relaxed" };
   const rankingTableLayoutClass = isMonthlySalesQualityRankingTable
@@ -402,7 +402,7 @@ function createMarkdownComponents(
       );
     },
     strong: ({ children }) => (
-      <strong className="font-semibold text-foreground tabular-nums">{children}</strong>
+      <strong className="font-semibold text-foreground tabular-nums font-fanum">{children}</strong>
     ),
     em: ({ children }) => <em>{children}</em>,
     pre: ({ children }) => (

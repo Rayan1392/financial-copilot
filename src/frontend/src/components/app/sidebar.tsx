@@ -207,7 +207,7 @@ export function ConversationSidebar({
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                       {thread.title}
                     </span>
-                    <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
+                    <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums font-fanum">
                       {relativeTime(thread.updated_at)}
                     </span>
                   </Link>
@@ -277,7 +277,7 @@ export function ConversationSidebar({
               <div className="flex items-end justify-between gap-2">
                 <div>
                   <p className="text-[11px] text-muted-foreground">اعتبار باقی‌مانده</p>
-                  <p className="mt-1 text-2xl font-bold leading-none tracking-tight tabular-nums">
+                  <p className="mt-1 text-2xl font-bold leading-none tabular-nums font-fanum">
                     {formatNumber(credit.remaining)}
                   </p>
                 </div>
@@ -339,7 +339,7 @@ export function ConversationSidebar({
             aria-label="ساپیو"
           >
             <SapioMark className="size-9 shrink-0 object-contain" />
-            <span className="text-[17px] font-bold tracking-tight text-foreground leading-tight">
+            <span className="text-[17px] font-bold text-foreground leading-tight">
               ساپیو
             </span>
           </Link>
@@ -362,7 +362,7 @@ export function ConversationSidebar({
           <Plus className="size-4" />
         </button>
         <div className="flex min-h-0 flex-1 flex-col">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
+          <p className="text-[10px] font-semibold text-muted-foreground px-2 mb-3">
             گفتگوهای اخیر
           </p>
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 scrollbar-thin">

@@ -68,7 +68,7 @@ export function MonthlyTrendLegend({ entries }: { entries: MonthlyTrendLegendEnt
           {entry.totalLabel && (
             <>
               <span aria-hidden="true">·</span>
-              <bdi className="tabular-nums">{entry.totalLabel}</bdi>
+              <bdi className="tabular-nums font-fanum">{entry.totalLabel}</bdi>
             </>
           )}
           {entry.note && (

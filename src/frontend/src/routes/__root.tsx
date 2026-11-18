@@ -89,12 +89,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png" },
       { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png" },
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
-      // Fonts are self-hosted (public/fonts, declared in styles.css); the text face is preloaded.
+      // Fonts are self-hosted (public/fonts, declared in styles.css); preload Dastkhat Main for first paint.
       {
         rel: "preload",
         as: "font",
         type: "font/woff2",
-        href: "/fonts/vazirmatn-variable.woff2",
+        href: "/fonts/dastkhat-main.woff2",
         crossOrigin: "anonymous",
       },
     ],

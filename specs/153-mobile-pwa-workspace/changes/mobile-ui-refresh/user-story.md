@@ -52,7 +52,7 @@ unreachable for users in Iran.
 ## Scope
 
 - Mobile type scale as tokens, applied to every `/m` screen and to `compact`-density answers.
-- Self-hosted Vazirmatn and JetBrains Mono, precached by the service worker (app-wide font source).
+- Self-hosted Dastkhat Main and FaNum plus JetBrains Mono, precached by the service worker (app-wide font source; see `changes/dastkhat-font-typography/`).
 - Phosphor icons behind one mobile icon module.
 - Redesign of the top bar, bottom nav, composer, home, market, watchlist, symbol sheet, conversation,
   history, and account screens as listed in the design proposal.
@@ -115,16 +115,16 @@ RTL throughout; numbers keep tabular figures and `bdi` isolation. Both themes ar
 
 - Text contrast at least 4.5:1 and touch targets at least 44px in both themes.
 - No horizontal page scroll at 320px and 360px width, including quarterly and balance-sheet answers.
-- Font files are bounded: Vazirmatn variable and JetBrains Mono in `woff2` only; the service-worker precache
-  list grows by those files and nothing else.
-- Offline launch renders with Vazirmatn once the service worker is installed.
+- Font files are bounded to Dastkhat Main, Dastkhat FaNum, and JetBrains Mono variable `woff2` files; the
+  service-worker precache contains these fonts and no unused variants.
+- Offline launch renders with Dastkhat once the service worker is installed.
 - Client JavaScript for `/m` grows by no more than 25 kB gzip.
 
 ## Acceptance Criteria
 
 - [x] AC-01 A browser check finds no rendered text below 13px on the `/m` screens (chart axis ticks excepted) and body text at 17px.
 - [x] AC-02 A browser check records no request to Google Fonts hosts on `/m` and `/chat`; font files are in the precache list.
-- [x] AC-03 With the network offline after first load, `/m` renders in Vazirmatn.
+- [x] AC-03 With the network offline after first load, `/m` renders in Dastkhat.
 - [x] AC-04 `npm run lint` fails on a `lucide-react` import in a mobile file and passes on the tree.
 - [x] AC-05 Bottom nav matches requirement 4; existing nav tests pass.
 - [x] AC-06 Top bar matches requirement 5 for an admin and a non-admin user.

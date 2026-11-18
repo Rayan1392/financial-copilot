@@ -888,24 +888,38 @@ async function main() {
     const requested = [];
     fontPage.on("request", (request) => requested.push(request.url()));
     await check(
-      "Fonts: no Google Fonts request on /m and /chat; Vazirmatn served from /fonts",
+      "Fonts: no Google Fonts request on /m and /chat; Dastkhat served from /fonts",
       async () => {
         await open(fontPage, "/m/history");
         await fontPage.evaluate(() => document.fonts.ready);
+        await open(fontPage, "/m/market");
+        const financialFont = await fontPage.evaluate(() => {
+          const face = document.querySelector(".font-fanum");
+          return Boolean(
+            face &&
+              getComputedStyle(face).fontFamily.includes("Dastkhat FaNum") &&
+              document.fonts.check('14px "Dastkhat FaNum"'),
+          );
+        });
+        assert(financialFont, "financial values are not using the loaded Dastkhat FaNum face");
         await fontPage.goto(APP_URL + "/chat", { waitUntil: "networkidle" });
         await fontPage.evaluate(() => document.fonts.ready);
         const external = requested.filter((url) => /fonts\.(googleapis|gstatic)\.com/.test(url));
         assert(external.length === 0, external.slice(0, 3).join("; "));
         assert(
-          requested.some((url) => url.endsWith("/fonts/vazirmatn-variable.woff2")),
+          requested.some((url) => url.endsWith("/fonts/dastkhat-main.woff2")),
           "the self-hosted font was never requested",
+        );
+        assert(
+          requested.some((url) => url.endsWith("/fonts/dastkhat-fanum-variable.woff2")),
+          "the FaNum build was never requested",
         );
         const loaded = await fontPage.evaluate(() =>
           [...document.fonts].some(
-            (face) => /Vazirmatn/.test(face.family) && face.status === "loaded",
+            (face) => /Dastkhat/.test(face.family) && face.status === "loaded",
           ),
         );
-        assert(loaded, "Vazirmatn did not load");
+        assert(loaded, "Dastkhat did not load");
       },
     );
     await check("Type scale: body 17 px, secondary 14 px, tab label 13 px", async () => {
@@ -959,7 +973,8 @@ async function main() {
       );
       assert(forbidden.length === 0, forbidden.join("; "));
       for (const font of [
-        "/fonts/vazirmatn-variable.woff2",
+        "/fonts/dastkhat-main.woff2",
+        "/fonts/dastkhat-fanum-variable.woff2",
         "/fonts/jetbrains-mono-latin-variable.woff2",
       ])
         assert(
@@ -972,14 +987,15 @@ async function main() {
       "AC-27 reload while offline shows /offline.html; «تلاش مجدد» loads the app when back online",
       async () => {
         await pwa.setOffline(true);
-        // Offline, the worker still serves the text font from its cache.
-        const offlineFont = await pwaPage.evaluate(() =>
-          fetch("/fonts/vazirmatn-variable.woff2").then(
-            (response) => response.ok,
-            () => false,
+        // Offline, the worker still serves the selected Persian faces from its cache.
+        const offlineFonts = await pwaPage.evaluate(async () =>
+          Promise.all(
+            ["/fonts/dastkhat-main.woff2", "/fonts/dastkhat-fanum-variable.woff2"].map((path) =>
+              fetch(path).then((response) => response.ok, () => false),
+            ),
           ),
         );
-        assert(offlineFont, "the font is not available offline");
+        assert(offlineFonts.every(Boolean), "a Dastkhat font is not available offline");
         await pwaPage.reload().catch(() => undefined);
         await pwaPage
           .getByRole("heading", { name: "اتصال اینترنت برقرار نیست" })

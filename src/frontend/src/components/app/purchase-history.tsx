@@ -63,7 +63,7 @@ export function PurchaseHistory({ limit = 10 }: { limit?: number }) {
                 className="flex items-center justify-between gap-3 py-2.5"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground tabular-nums">
+                  <p className="text-sm font-medium text-foreground tabular-nums font-fanum">
                     {formatNumber(purchase.creditsPurchased)} اعتبار
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">

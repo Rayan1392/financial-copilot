@@ -158,6 +158,11 @@ public static class ReportDiscussionBillingPolicy
 {
     public const string AnsweredCompletionStatus = "ReportDiscussionAnswered";
     public const decimal AnsweredCredits = 2m;
+
+    public static decimal ApplyFixedAnsweredPrice(string completionStatus, decimal operationBasedCredits) =>
+        string.Equals(completionStatus, AnsweredCompletionStatus, StringComparison.OrdinalIgnoreCase)
+            ? AnsweredCredits
+            : operationBasedCredits;
 }
 
 public sealed class ReportDiscussionOptions

@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
@@ -294,6 +295,15 @@ public sealed class AiFacadeBillingHook(
         }
         var charge = chargeCalculator.Calculate(
             CreateChargeRequest(handle.OperationCode, request.CompletionStatus, request.Cached));
+        if (!EnforcesUsageBasedCredits(handle.OperationCode))
+        {
+            charge = charge with
+            {
+                CreditsCharged = ReportDiscussionBillingPolicy.ApplyFixedAnsweredPrice(
+                    request.CompletionStatus,
+                    charge.CreditsCharged)
+            };
+        }
 
         if (EvaluatesUsageBasedCredits(handle.OperationCode))
         {

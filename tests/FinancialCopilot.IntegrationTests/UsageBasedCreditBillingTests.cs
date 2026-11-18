@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Billing;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
@@ -187,6 +188,24 @@ public sealed class UsageBasedCreditBillingHookTests(UsageBasedCreditBillingApiF
         var reservation = _billing.ReadReservation(correlationId);
         Assert.Equal(5m, reservation.ReservedCredits);
         Assert.Equal(4m, reservation.CommittedCredits);
+    }
+
+    [Fact]
+    public async Task EnforcedMode_ReportDiscussionAnswerKeepsMeasuredUsagePrice()
+    {
+        var account = await _billing.CreateAccountAsync(balance: 10m);
+        var correlationId = NewCorrelationId();
+        var handle = await _billing.ReserveAsync(account, correlationId);
+        handle = await _billing.EnsureReservedCapacityAsync(handle);
+        _billing.RecordCall(correlationId, "premium-model", 2_000, 500); // 0.04 USD = 4 credits
+
+        var usage = await _billing.FinalizeAsync(handle, ReportDiscussionBillingPolicy.AnsweredCompletionStatus);
+
+        Assert.Equal(5m, handle.ReservedCredits);
+        Assert.Equal(4m, usage!.CreditsCharged);
+        var wallet = _billing.ReadWallet(account.AccountId);
+        Assert.Equal(6m, wallet.Balance);
+        Assert.Equal(0m, wallet.ReservedAmount);
     }
 
     [Fact]
@@ -432,6 +451,21 @@ public sealed class UsageBasedCreditLegacyModeTests(UsageBasedCreditLegacyApiFac
         Assert.Equal("v1", usage.PricingPolicyVersion);
         Assert.Single(_billing.ReadUnbilled(correlationId));
         Assert.Equal(9m, _billing.ReadWallet(account.AccountId).Balance);
+    }
+
+    [Fact]
+    public async Task LegacyMode_ReportDiscussionAnswerUsesFixedPriceForFinancialStatementOperation()
+    {
+        var account = await _billing.CreateAccountAsync(balance: 10m);
+        var correlationId = $"f162-report-discussion-financial-statement-{Guid.NewGuid():N}";
+
+        var handle = await _billing.ReserveAsync(account, correlationId, "AiQuery.FinancialStatement");
+        var usage = await _billing.FinalizeAsync(handle, ReportDiscussionBillingPolicy.AnsweredCompletionStatus);
+
+        Assert.Equal(2m, handle.ReservedCredits);
+        Assert.Equal(2m, usage!.CreditsCharged);
+        Assert.Equal(8m, _billing.ReadWallet(account.AccountId).Balance);
+        Assert.Equal(0m, _billing.ReadWallet(account.AccountId).ReservedAmount);
     }
 }
 

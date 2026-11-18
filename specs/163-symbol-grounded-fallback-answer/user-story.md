@@ -61,6 +61,9 @@ them yet.
 - A closing offer written by the model (OQ-094).
 - An income-statement offer when the model cannot answer the question (OQ-093).
 - Billing, configuration flag, logging.
+- Analytical answers with two or three key figures, amounts in همت / میلیارد تومان and a 0–100 score before the
+  closing offer for an overall analysis (162 change
+  [`analytical-answer-and-report-score`](../162-context-aware-financial-report-follow-up/changes/analytical-answer-and-report-score/user-story.md), 2026-11-18).
 
 ## Out Of Scope
 

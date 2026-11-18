@@ -43,6 +43,8 @@ public static class ReportDataSetBuilder
         "thousand_shares" => "هزار سهم",
         "rial_per_share" => "ریال به ازای هر سهم",
         "times" => "برابر",
+        ReportDisplayUnits.Hemat => "همت",
+        ReportDisplayUnits.BillionToman => ReportDisplayUnits.BillionTomanLabelFa,
         _ => unit
     };
 

@@ -95,8 +95,15 @@ public sealed class ReportDiscussionHandler(
             case ReportDiscussionDisposition.Answered:
                 // Change «answer-readability» (OQ-101): the layout safety net runs before grounding, so the stored text is
                 // the verified text.
-                var answer = GroundedAnswerLayout.Normalize(reply.Answer);
-                var grounding = NumericGroundingValidator.Validate(answer, prompt.Data, question);
+                // Change «analytical-answer-and-report-score» (D3): the server writes the score line, only for a quarterly
+                // income statement (OQ-104), and the grounding check accepts the score and 100 it wrote.
+                var score = GroundedAnalysis.ShownScore(prompt.Data.Family, reply.ReportScore);
+                var answer = reply.Answer.Length == 0
+                    ? string.Empty
+                    : GroundedAnswerLayout.Normalize(score is { } value && prompt.Data.PeriodsNewestFirst.Count > 0
+                        ? reply.Answer + "\n\n" + GroundedAnalysis.ScoreBlock(value, prompt.Data.PeriodsNewestFirst[0])
+                        : reply.Answer);
+                var grounding = NumericGroundingValidator.Validate(answer, prompt.Data, question, GroundedAnalysis.ScoreNumbers(score));
                 diagnostics = diagnostics with { NumbersChecked = grounding.NumbersChecked, UngroundedNumbers = grounding.UngroundedCount };
                 if (answer.Length == 0 || !grounding.Passed)
                 {

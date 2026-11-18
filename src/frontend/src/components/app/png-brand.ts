@@ -2,7 +2,7 @@
  * Sapio PNG brand helpers shared by the Feature 144 quarterly table and the Feature 154 balance-sheet exports.
  * Extracted unchanged from quarterly-financial-table-image.ts (Feature 154 T19).
  */
-export const PNG_FONT = 'Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+export const PNG_FONT = 'Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
 export const PNG_BRAND_HEIGHT = 100;
 export const PNG_FOOTER_HEIGHT = 80;
 export const PNG_HEADER_COLOR = "#164e63";

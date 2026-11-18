@@ -61,11 +61,14 @@ describe("service worker routing (spec §9.3, §9.7)", () => {
   });
 
   it("precaches the self-hosted fonts and leaves Google Fonts hosts alone", () => {
-    expect(worker.PRECACHE_PATHS).toContain("/fonts/vazirmatn-variable.woff2");
+    expect(worker.PRECACHE_PATHS).toContain("/fonts/dastkhat-main.woff2");
+    expect(worker.PRECACHE_PATHS).toContain("/fonts/dastkhat-fanum-variable.woff2");
+    expect(worker.PRECACHE_PATHS).not.toContain("/fonts/vazirmatn-variable.woff2");
     expect(worker.PRECACHE_PATHS).toContain("/fonts/jetbrains-mono-latin-variable.woff2");
-    expect(route(`${ORIGIN}/fonts/vazirmatn-variable.woff2`)).toBe("static");
-    expect(route("https://fonts.googleapis.com/css2?family=Vazirmatn")).toBe("passthrough");
-    expect(route("https://fonts.gstatic.com/s/vazirmatn/v1/a.woff2")).toBe("passthrough");
+    expect(route(`${ORIGIN}/fonts/dastkhat-main.woff2`)).toBe("static");
+    expect(route(`${ORIGIN}/fonts/dastkhat-fanum-variable.woff2`)).toBe("static");
+    expect(route("https://fonts.googleapis.com/css2?family=Dastkhat")).toBe("passthrough");
+    expect(route("https://fonts.gstatic.com/s/dastkhat/v1/a.woff2")).toBe("passthrough");
   });
 
   it("passes every non-GET request through", () => {

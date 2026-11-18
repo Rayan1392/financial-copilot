@@ -34,7 +34,7 @@ export function MonthlyTrendSummaryCards({ data }: { data: MonthlyActivityTrendR
           <span className="text-[11px] leading-5 text-muted-foreground">{card.label}</span>
           <span
             className={cn(
-              "flex items-center gap-1 text-lg font-semibold leading-7 tabular-nums",
+              "flex items-center gap-1 text-lg font-semibold leading-7 tabular-nums font-fanum",
               toneClass[card.tone],
             )}
             aria-label={card.accessibleValue}

@@ -31,9 +31,9 @@ export async function downloadMonthlyTrendChartImage(
   context.fillRect(0, 0, WIDTH, height);
   context.textAlign = "right";
   context.fillStyle = palette.foreground;
-  context.font = '600 34px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 34px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   drawRtlText(context, `${viewModel.title} — ${viewModel.companyLabel}`, WIDTH - PADDING, 84);
-  context.font = '24px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '24px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.fillStyle = palette.mutedForeground;
   drawRtlText(context, `واحد: ${viewModel.unitLabel}`, WIDTH - PADDING, 126);
 
@@ -60,7 +60,7 @@ export async function downloadMonthlyTrendChartImage(
     drawBar(context, center - barWidth - 5, point.previousYear, point.previousYearValueLabel, palette.previousYear, palette.foreground, maximum, plotBottom);
     drawBar(context, center + 5, point.currentYear, point.currentYearValueLabel, palette.currentYear, palette.foreground, maximum, plotBottom);
     context.fillStyle = palette.foreground;
-    context.font = '600 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '600 22px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.textAlign = "center";
     drawRtlText(context, point.fiscalMonthLabel, center, plotBottom + 38);
   });
@@ -82,17 +82,17 @@ export async function downloadMonthlyTrendChartImage(
   context.save();
   context.textAlign = "left";
   context.fillStyle = palette.watermark;
-  context.font = '700 34px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '700 34px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   drawRtlText(context, "ساپیو - دستیار هوشمند بازار", PADDING, plotBottom + 148);
   context.restore();
 
   const explanationTop = plotBottom + 105;
   context.textAlign = "right";
   context.fillStyle = palette.foreground;
-  context.font = '600 24px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 24px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   drawRtlText(context, "توضیحات", WIDTH - PADDING, explanationTop);
   context.fillStyle = palette.mutedForeground;
-  context.font = '600 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 22px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   const lines = viewModel.explanationLines.length > 0
     ? viewModel.explanationLines
     : [
@@ -160,7 +160,7 @@ function drawCompactPsGauge(
     const labelRadians = Math.PI - (labelAngle * Math.PI) / 180;
     const labelRadius = outer + 25;
     context.textAlign = "center";
-    context.font = '700 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '700 18px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.fillStyle = foreground;
     context.strokeStyle = background;
     context.lineWidth = 5;
@@ -178,7 +178,7 @@ function drawCompactPsGauge(
     const percentageAngle = (band.startAngleDegrees + band.endAngleDegrees) / 2;
     const percentageRadians = Math.PI - (percentageAngle * Math.PI) / 180;
     const percentageRadius = (outer + inner) / 2;
-    context.font = '700 16px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '700 16px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.strokeText(
       toPersianDigits(`${band.displayPercentage.toFixed(1)}%`),
       cx + percentageRadius * Math.cos(percentageRadians),
@@ -212,7 +212,7 @@ function drawLegend(context: CanvasRenderingContext2D, viewModel: MonthlyTrendCh
     : viewModel.averageLegend;
   const entries = [[viewModel.currentYearLegend, viewModel.palette.currentYear], [viewModel.previousYearLegend, viewModel.palette.previousYear], [averageLabel, viewModel.palette.average]];
   let cursor = right;
-  context.font = '20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '20px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   entries.forEach(([label, color]) => {
     context.fillStyle = color; context.fillRect(cursor - 18, y - 15, 18, 18);
     context.fillStyle = viewModel.palette.foreground; context.textAlign = "right";
@@ -227,7 +227,7 @@ function drawBar(context: CanvasRenderingContext2D, x: number, value: number | n
   context.fillStyle = color;
   context.fillRect(x, bottom - height, 30, height);
   context.fillStyle = labelColor;
-  context.font = '600 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 22px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "center";
   context.fillText(label, x + 15, bottom - height - 14);
 }

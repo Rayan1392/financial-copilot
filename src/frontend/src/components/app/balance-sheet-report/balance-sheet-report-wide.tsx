@@ -23,7 +23,7 @@ function Amount({
 }) {
   return (
     <span
-      className="whitespace-nowrap tabular-nums"
+      className="whitespace-nowrap tabular-nums font-fanum"
       dir="ltr"
       aria-label={missing ? "داده موجود نیست" : undefined}
     >
@@ -47,7 +47,7 @@ function ChangeCell({ row }: { row: BalanceSheetViewRow }) {
   const [open, setOpen] = useState(false);
   const id = useId();
   return (
-    <td className="relative whitespace-nowrap px-2 py-1.5 text-left tabular-nums text-slate-800">
+    <td className="relative whitespace-nowrap px-2 py-1.5 text-left tabular-nums font-fanum text-slate-800">
       <button
         type="button"
         className="inline-flex items-center rounded px-1 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
@@ -231,7 +231,7 @@ export function BalanceSheetRatioRow({
       data-testid="balance-sheet-ratio-row"
     >
       <span className="font-extrabold">{BALANCE_SHEET_RATIO_LABEL}</span>
-      <span className="flex flex-wrap items-center gap-x-4 gap-y-1 tabular-nums">
+      <span className="flex flex-wrap items-center gap-x-4 gap-y-1 tabular-nums font-fanum">
         <span>
           {comparison ? `${view.anchor.date}: ` : ""}
           <span dir="ltr">{view.ratio.anchor}</span>

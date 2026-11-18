@@ -539,10 +539,10 @@ export function renderBalanceSheetCanvas(
   return canvas;
 }
 
-/** Vazirmatn weights the Feature 154 canvas draws with (header, body, labels, brand). */
+/** Dastkhat weights the Feature 154 canvas draws with (header, body, labels, brand). */
 export const BALANCE_SHEET_PNG_FONT_WEIGHTS = [400, 600, 700, 800] as const;
 /**
- * Text whose characters span every Vazirmatn unicode-range subset the canvas draws: Arabic letters and
+ * Text whose characters span every Dastkhat unicode-range subset the canvas draws: Arabic letters and
  * Persian digits, plus the Latin subset for punctuation and symbols («—», «·», «%», «()», «+»/«-», digits).
  * FontFaceSet.load fetches only the subsets the sample touches, so a narrower sample leaves glyphs in fallback.
  */
@@ -553,7 +553,7 @@ export const BALANCE_SHEET_PNG_FONT_TIMEOUT_MS = 3000;
 
 /**
  * Canvas text does not wait for web fonts, so an export started right after page load can fall back to
- * another font (F154-V-08; spec §9.5 requires Vazirmatn). This waits, bounded, for the Vazirmatn faces the
+ * another font (F154-V-08; spec §9.5 requires Dastkhat). This waits, bounded, for the Dastkhat faces the
  * canvas uses. It never throws and never hangs: on timeout, error or no FontFaceSet it returns false and
  * the export proceeds with the font stack's fallback.
  */
@@ -565,7 +565,7 @@ export async function ensureBalanceSheetPngFonts(
   const loading = (async () => {
     await Promise.all(
       BALANCE_SHEET_PNG_FONT_WEIGHTS.map((weight) =>
-        fonts.load(`${weight} 16px Vazirmatn`, BALANCE_SHEET_PNG_FONT_SAMPLE),
+        fonts.load(`${weight} 16px Dastkhat`, BALANCE_SHEET_PNG_FONT_SAMPLE),
       ),
     );
     await fonts.ready;

@@ -58,7 +58,7 @@ export function SymbolSheet({
         <>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-3">
             {subject.price != null && (
-              <span className="text-m-hero font-bold tabular-nums text-foreground">
+              <span className="text-m-hero font-bold tabular-nums font-fanum text-foreground">
                 {formatNumber(subject.price)}
               </span>
             )}

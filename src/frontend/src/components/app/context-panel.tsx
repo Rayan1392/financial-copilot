@@ -12,7 +12,7 @@ import { SignedChange } from "@/components/mobile/signed-change";
 /** Rows shown per mover list; the column also has to leave room for the watchlist below it. */
 const MOVERS_SHOWN = 3;
 
-const SECTION_TITLE = "text-xs font-semibold text-muted-foreground uppercase tracking-widest";
+const SECTION_TITLE = "text-xs font-semibold text-muted-foreground";
 
 function MoverRow({ label, symbol, change }: { label: string; symbol: string; change: number }) {
   return (
@@ -64,7 +64,7 @@ function SymbolQuoteRow({
             )}
           </span>
           <span className="flex shrink-0 flex-col items-end gap-0.5 text-xs">
-            <span className="tabular-nums text-foreground">
+            <span className="tabular-nums font-fanum text-foreground">
               {price == null ? "–" : formatNumber(price)}
             </span>
             <SignedChange value={changePercent} />
@@ -191,7 +191,7 @@ export function ContextPanel({
                       <p className="truncate text-[11px] text-muted-foreground">
                         {index.name || index.symbol}
                       </p>
-                      <p className="mt-1 text-lg font-bold leading-none tracking-tight tabular-nums">
+                      <p className="mt-1 text-lg font-bold leading-none tabular-nums font-fanum">
                         {index.value == null ? "-" : formatNumber(index.value)}
                       </p>
                     </div>
@@ -297,17 +297,17 @@ export function ContextPanel({
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>
-                    <span className="font-semibold text-emerald tabular-nums">
+                    <span className="font-semibold text-emerald tabular-nums font-fanum">
                       {formatNumber(breadth.up)}
                     </span>{" "}
                     مثبت
                   </span>
                   <span>
-                    <span className="font-semibold tabular-nums">{formatNumber(breadth.flat)}</span>{" "}
+                    <span className="font-semibold tabular-nums font-fanum">{formatNumber(breadth.flat)}</span>{" "}
                     بدون تغییر
                   </span>
                   <span>
-                    <span className="font-semibold text-rose tabular-nums">
+                    <span className="font-semibold text-rose tabular-nums font-fanum">
                       {formatNumber(breadth.down)}
                     </span>{" "}
                     منفی
@@ -328,7 +328,7 @@ export function ContextPanel({
                         {quote.symbol}
                         {isLaggingQuote(quote, session) && <span className="text-gold"> *</span>}
                       </p>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
+                      <p className="text-[11px] text-muted-foreground tabular-nums font-fanum">
                         {quote.latestPrice == null ? "-" : formatNumber(quote.latestPrice)}
                       </p>
                     </div>
@@ -383,7 +383,7 @@ export function ContextPanel({
                   <div className="text-[11px] text-muted-foreground">
                     {index.name || index.symbol}
                   </div>
-                  <div className="text-lg mt-1 text-foreground tabular-nums">
+                  <div className="text-lg mt-1 text-foreground tabular-nums font-fanum">
                     {index.value == null ? "-" : formatNumber(index.value)}
                   </div>
                 </div>

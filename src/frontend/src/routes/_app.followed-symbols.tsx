@@ -373,7 +373,7 @@ function FollowedSymbolsPage() {
                             aria-hidden="true"
                           />
                         ) : (
-                          <span className="text-lg font-semibold leading-none text-foreground tabular-nums">
+                          <span className="text-lg font-semibold leading-none text-foreground tabular-nums font-fanum">
                             {quote?.latestPrice == null ? "—" : formatNumber(quote.latestPrice)}
                             {quote?.latestPrice != null && (
                               <span className="mr-1 text-[11px] font-normal text-muted-foreground">

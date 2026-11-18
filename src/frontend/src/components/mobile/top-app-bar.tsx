@@ -75,7 +75,7 @@ function CreditChip() {
       className="group flex min-h-11 shrink-0 items-center px-1 focus-visible:outline-none"
     >
       <span
-        className={`flex h-9 items-center gap-1.5 rounded-full bg-surface px-3 text-m-sub font-bold tabular-nums ring-1 transition-colors group-active:bg-surface-2 group-focus-visible:ring-2 group-focus-visible:ring-emerald/40 ${tone}`}
+        className={`flex h-9 items-center gap-1.5 rounded-full bg-surface px-3 text-m-sub font-bold tabular-nums font-fanum ring-1 transition-colors group-active:bg-surface-2 group-focus-visible:ring-2 group-focus-visible:ring-emerald/40 ${tone}`}
       >
         <CreditIcon weight="duotone" className="size-[18px]" aria-hidden="true" />
         {label}

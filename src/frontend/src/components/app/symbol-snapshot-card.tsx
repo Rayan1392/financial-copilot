@@ -23,7 +23,7 @@ function Change({
       <span className={labelHidden ? "sr-only" : undefined}>{label}</span>
       <span
         className={cn(
-          "inline-flex items-center gap-0.5 font-medium tabular-nums",
+          "inline-flex items-center gap-0.5 font-medium tabular-nums font-fanum",
           value > 0 && "text-emerald-600 dark:text-emerald-400",
           value < 0 && "text-rose-600 dark:text-rose-400",
         )}
@@ -99,7 +99,7 @@ export function SymbolSnapshotCard({
 
         <Section title="آخرین قیمت" notice={price.status === "Available" ? null : price.noticeFa}>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-lg font-semibold tabular-nums">
+            <span className="text-lg font-semibold tabular-nums font-fanum">
               {formatNumber(price.latestPrice ?? 0)}{" "}
               <span className="text-[11px] font-normal text-muted-foreground">ریال</span>
             </span>
@@ -117,7 +117,7 @@ export function SymbolSnapshotCard({
           period={monthly.status === "Available" ? monthly.periodLabelFa : null}
           notice={monthly.status === "Available" ? null : monthly.noticeFa}
         >
-          <span className="text-lg font-semibold tabular-nums">
+          <span className="text-lg font-semibold tabular-nums font-fanum">
             {formatNumber(monthly.salesAmount ?? 0)}{" "}
             <span className="text-[11px] font-normal text-muted-foreground">
               {monthly.unitLabelFa}
@@ -141,7 +141,7 @@ export function SymbolSnapshotCard({
                 className="grid gap-0.5 sm:col-span-3 sm:grid-cols-subgrid sm:items-baseline"
               >
                 <dt className="min-w-0 text-xs text-muted-foreground">{row.labelFa}</dt>
-                <dd className="text-sm font-medium tabular-nums">
+                <dd className="text-sm font-medium tabular-nums font-fanum">
                   {row.value === undefined || row.value === null ? (
                     "—"
                   ) : (

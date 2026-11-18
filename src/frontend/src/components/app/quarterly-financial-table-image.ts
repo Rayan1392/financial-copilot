@@ -76,17 +76,17 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   context.strokeStyle = "#e2e8f0";
   context.strokeRect(PAD, top, WIDTH - PAD * 2, CHART_HEIGHT - 14);
   context.fillStyle = COLORS.ink;
-  context.font = '700 20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '700 20px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   rtlText(context, banking ? "روند درآمد و سود فصلی بانک" : "روند فروش و سود فصلی", WIDTH - PAD - 18, top + 30);
   context.fillStyle = "#64748b";
-  context.font = '400 14px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '400 14px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   rtlText(context, banking ? "مبالغ: میلیون ریال | حاشیه‌ها: درصد" : "مبالغ: میلیون ریال | مارجین ناخالص: درصد", WIDTH - PAD - 18, top + 54);
   let legendX = WIDTH - PAD - 22;
   series.forEach((item) => {
     context.fillStyle = item.color;
     context.fillRect(legendX - 11, top + 68, 11, 11);
     context.fillStyle = COLORS.ink;
-    context.font = '400 13px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '400 13px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     rtlText(context, item.label, legendX - 17, top + 78);
     legendX -= context.measureText(item.label).width + 46;
   });
@@ -99,7 +99,7 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   for (let tick = 0; tick <= 4; tick++) {
     const y = plotBottom - tick / 4 * plotHeight;
     context.fillStyle = "#64748b";
-    context.font = '400 11px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '400 11px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.direction = "ltr";
     context.textAlign = "right";
     context.fillText(formatter.format(amountMin + tick / 4 * (amountMax - amountMin)), left - 8, y + 4);
@@ -116,7 +116,7 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
       context.fillRect(center + (seriesIndex - (barKeys.length - 1) / 2) * barWidth, Math.min(y, baseline), barWidth - 2, Math.max(1, Math.abs(baseline - y)));
     });
     context.fillStyle = COLORS.ink;
-    context.font = '400 11px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.font = '400 11px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
     context.direction = "rtl";
     context.textAlign = "center";
     context.fillText(point.shortLabel, center, plotBottom + 22, groupWidth - 4);
@@ -190,10 +190,10 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
   context.fillStyle = COLORS.header;
   context.fillRect(PAD, headerTop, WIDTH - PAD * 2, headerHeight);
   context.fillStyle = "#ffffff";
-  context.font = '700 34px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '700 34px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   rtlText(context, model.title, WIDTH - PAD - 24, headerTop + 46, WIDTH - PAD * 2 - 48);
   context.fillStyle = COLORS.muted;
-  context.font = '400 20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '400 20px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   const summaryLines = wrap(context, model.summary, WIDTH - PAD * 2 - 48).slice(0, 2);
   summaryLines.forEach((line, index) =>
     rtlText(context, line, WIDTH - PAD - 24, headerTop + 78 + index * 26),
@@ -215,7 +215,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
     [QUARTERLY_CHANGE_COLUMN_HEADER],
   ];
   let right = WIDTH - PAD;
-  context.font = '600 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 18px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
   headers.forEach((headerLines, index) => {
     const cellWidth = widths[index];
     const left = right - cellWidth;
@@ -232,12 +232,12 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       context.fillStyle = COLORS.header;
       context.font =
         headerLines.length >= 3 && lineIndex === 0
-          ? '700 19px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif'
+          ? '700 19px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif'
           : headerLines.length >= 3 && lineIndex === 1
-            ? '400 13px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif'
+            ? '400 13px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif'
             : headerLines.length >= 3
-              ? '600 15px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif'
-              : '600 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+              ? '600 15px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif'
+              : '600 18px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif';
       const baseline = headerLines.length >= 3 ? top + 20 + lineIndex * 19 : top + 27 + lineIndex * 24;
       if (index === 0) {
         rtlText(context, line, right - 6, baseline, cellWidth - 12);
@@ -277,7 +277,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       context.strokeStyle = COLORS.border;
       context.strokeRect(left, y, cellWidth, rowHeight);
       context.fillStyle = changeColors?.textColor ?? (row.grossMargin || row.bankingMargin ? "#78350f" : COLORS.ink);
-      context.font = `${row.grossMargin || row.bankingMargin ? "700 20" : columnIndex === 0 ? "600 17" : "400 17"}px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif`;
+      context.font = `${row.grossMargin || row.bankingMargin ? "700 20" : columnIndex === 0 ? "600 17" : "400 17"}px Dastkhat, "Noto Sans Arabic", Tahoma, sans-serif`;
       const displayValue =
         (row.grossMargin || row.bankingMargin) && columnIndex > 0 && !isChange && value !== "-" && value !== "—"
           ? `${value}${String.fromCharCode(0x066a)}`

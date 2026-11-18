@@ -21,7 +21,7 @@ export function QuarterlyFinancialChart({ model }: { model: QuarterlyFinancialTa
       : <Bar key={item.key} yAxisId="amount" dataKey={item.key} name={item.label} fill={item.color} maxBarSize={25} isAnimationActive={false} />);
 
   return (
-    <div className="border-b border-amber-200 bg-white px-2 py-4 sm:px-4" dir="rtl">
+    <div className="font-fanum border-b border-amber-200 bg-white px-2 py-4 sm:px-4" dir="rtl">
       <h4 className="mb-1 text-sm font-bold text-slate-900">{banking ? "روند درآمد و سود فصلی بانک" : "روند فروش و سود فصلی"}</h4>
       <p className="mb-3 text-[11px] text-slate-600">{banking ? "مبالغ: میلیون ریال · حاشیه‌ها: درصد" : "مبالغ: میلیون ریال · مارجین ناخالص: درصد"}</p>
       <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-700" aria-hidden="true">

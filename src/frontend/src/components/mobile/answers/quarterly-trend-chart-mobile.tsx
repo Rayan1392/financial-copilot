@@ -345,7 +345,7 @@ export function QuarterlyTrendChartMobile({ model }: { model: QuarterlyFinancial
                   </dt>
                   <dd
                     className={cn(
-                      "ms-auto shrink-0 tabular-nums",
+                      "ms-auto shrink-0 tabular-nums font-fanum",
                       value.missing ? "text-muted-foreground" : "font-semibold text-foreground",
                     )}
                   >

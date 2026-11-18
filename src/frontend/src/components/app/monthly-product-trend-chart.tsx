@@ -153,7 +153,7 @@ export function MonthlyProductTrendChart({ data }: { data: MonthlyProductTrendRe
   return (
     <section
       data-testid="monthly-product-trend-chart"
-      className="rounded-2xl ring-1 ring-hairline bg-surface/40 p-3 space-y-2"
+      className="font-fanum rounded-2xl ring-1 ring-hairline bg-surface/40 p-3 space-y-2"
       dir="rtl"
       aria-label={title}
     >

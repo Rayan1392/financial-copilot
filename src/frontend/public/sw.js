@@ -24,7 +24,8 @@ const PRECACHE_PATHS = [
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
   "/icons/apple-touch-icon.png",
-  "/fonts/vazirmatn-variable.woff2",
+  "/fonts/dastkhat-main.woff2",
+  "/fonts/dastkhat-fanum-variable.woff2",
   "/fonts/jetbrains-mono-latin-variable.woff2",
 ];
 

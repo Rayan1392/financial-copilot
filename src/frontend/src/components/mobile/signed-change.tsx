@@ -38,7 +38,7 @@ export function SignedChange({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 tabular-nums",
+        "inline-flex items-center gap-1 tabular-nums font-fanum",
         tone,
         badge && "rounded-full px-2.5 py-0.5 font-semibold",
         badge && surface,

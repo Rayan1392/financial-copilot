@@ -40,7 +40,7 @@ export function SymbolRow({
           )}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">
-          <span className="text-m-num font-semibold tabular-nums text-foreground">
+          <span className="text-m-num font-semibold tabular-nums font-fanum text-foreground">
             {price == null ? "–" : formatNumber(price)}
           </span>
           <SignedChange value={changePercent} variant="badge" className="text-m-sub" />

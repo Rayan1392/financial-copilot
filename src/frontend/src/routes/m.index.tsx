@@ -176,7 +176,7 @@ function MobileNewChat() {
                       <bdi className="text-m-body font-bold leading-7 text-foreground">
                         {row.symbol}
                       </bdi>
-                      <span className="text-m-sub tabular-nums text-foreground">
+                      <span className="text-m-sub tabular-nums font-fanum text-foreground">
                         {row.latestPrice == null ? "–" : formatNumber(row.latestPrice)}
                       </span>
                       <SignedChange value={row.changePercent} className="text-m-sub" />

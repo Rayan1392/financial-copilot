@@ -7,7 +7,7 @@ export function IndexCard({ index }: { index: MarketIndexObservation }) {
   return (
     <li className="min-w-0 rounded-2xl bg-surface p-3.5 ring-1 ring-hairline">
       <p className="truncate text-m-sub text-muted-foreground">{index.name || index.symbol}</p>
-      <p className="mt-1 truncate text-m-hero font-bold tabular-nums text-foreground">
+      <p className="mt-1 truncate text-m-hero font-bold tabular-nums font-fanum text-foreground">
         {index.value == null ? "–" : formatNumber(index.value)}
       </p>
       <SignedChange value={index.changePercent} className="mt-1 text-m-title font-semibold" />

@@ -195,6 +195,69 @@ public sealed class SemanticRouteExecutorTests
         Assert.Contains("live_metrics_failed", result.Warnings!);
     }
 
+    [Fact] // BUG-035: both reads share the scoped DbContext, which EF Core forbids using concurrently.
+    public async Task ComprehensiveAnalysisExecutor_NeverRunsTheAnalysisSearchAndTheMetricsLookupAtTheSameTime()
+    {
+        var gate = new OverlapDetector();
+        var executor = new ComprehensiveAnalysisCapabilityExecutor(
+            new OverlapAnalysisUseCase(gate), new OverlapLookupService(gate), TimeProvider.System);
+
+        var result = await executor.ExecuteAsync(Frame("comprehensive_analysis", Symbol("شسپا")), Context(), default);
+
+        Assert.False(gate.Overlapped);
+        Assert.Equal(2, gate.Entries);
+        Assert.Equal(CapabilityExecutionStatus.NoData, result.Status);
+        Assert.Equal(DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent, result.ReasonCode);
+    }
+
+    [Fact] // BUG-035 / OQ-107 (a): a failed search is "temporarily unavailable", free, without the metrics table.
+    public async Task ComprehensiveAnalysisExecutor_FailedAnalysisSearch_IsTemporarilyUnavailableEvenWithMetrics()
+    {
+        var lookup = new RecordingLookupService(rows: true);
+        var executor = new ComprehensiveAnalysisCapabilityExecutor(
+            new ThrowingAnalysisUseCase(), lookup, TimeProvider.System);
+
+        var result = await executor.ExecuteAsync(Frame("comprehensive_analysis", Symbol("شسپا")), Context(), default);
+
+        Assert.Equal(CapabilityExecutionStatus.TemporarilyUnavailable, result.Status);
+        Assert.Equal(DialogueOutcomeReasonCodes.ProviderOrToolFailure, result.ReasonCode);
+        Assert.Null(result.Payload);
+        Assert.Null(lookup.Request);
+        Assert.Contains("analysis_posts_failed", result.Warnings!);
+        Assert.Equal(SemanticBillingCompletionStatus.For(CapabilityExecutionStatus.Failed),
+            SemanticBillingCompletionStatus.For(result.Status));
+    }
+
+    [Fact] // BUG-035 (D2): a failed part is counted with its part name and exception type.
+    public async Task ComprehensiveAnalysisExecutor_CountsAFailedPartWithItsExceptionType()
+    {
+        var measurements = new System.Collections.Concurrent.ConcurrentBag<(string? Part, string? Type)>();
+        using var listener = new System.Diagnostics.Metrics.MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == "FinancialCopilot.ComprehensiveAnalysis" &&
+                instrument.Name == "comprehensive_analysis_part_failure_total")
+                meterListener.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            string? part = null, type = null;
+            foreach (var tag in tags)
+            {
+                if (tag.Key == "part") part = tag.Value as string;
+                if (tag.Key == "exception_type") type = tag.Value as string;
+            }
+            measurements.Add((part, type));
+        });
+        listener.Start();
+        var executor = new ComprehensiveAnalysisCapabilityExecutor(
+            new AnalysisUseCase(hasRows: false), new ThrowingLookupService(), TimeProvider.System);
+
+        await executor.ExecuteAsync(Frame("comprehensive_analysis", Symbol("چدن")), Context(), default);
+
+        Assert.Contains(("lookup", nameof(InvalidOperationException)), measurements);
+    }
+
     [Fact]
     public async Task ComprehensiveAnalysisExecutor_PreservesDatabaseReportsWhenLiveMetricsFail()
     {
@@ -280,6 +343,49 @@ public sealed class SemanticRouteExecutorTests
     {
         public Task<SymbolLookupTableResult> LookupAsync(SymbolLookupRequest request, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("simulated lookup failure");
+    }
+
+    private sealed class ThrowingAnalysisUseCase : IComprehensiveAnalysisQueryUseCase
+    {
+        public Task<ComprehensiveAnalysisQueryResponse> ExecuteAsync(ComprehensiveAnalysisQueryRequest request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("simulated analysis search failure");
+    }
+
+    /// <summary>Records whether two reads were inside at the same time (the shared-DbContext hazard of BUG-035).</summary>
+    private sealed class OverlapDetector
+    {
+        private int _active;
+        private int _entries;
+        public bool Overlapped { get; private set; }
+        public int Entries => _entries;
+
+        public async Task EnterAsync()
+        {
+            Interlocked.Increment(ref _entries);
+            if (Interlocked.Increment(ref _active) > 1) Overlapped = true;
+            await Task.Delay(30);
+            if (Volatile.Read(ref _active) > 1) Overlapped = true;
+            Interlocked.Decrement(ref _active);
+        }
+    }
+
+    private sealed class OverlapAnalysisUseCase(OverlapDetector gate) : IComprehensiveAnalysisQueryUseCase
+    {
+        public async Task<ComprehensiveAnalysisQueryResponse> ExecuteAsync(ComprehensiveAnalysisQueryRequest request, CancellationToken cancellationToken)
+        {
+            await gate.EnterAsync();
+            return new ComprehensiveAnalysisQueryResponse([], request.SymbolNames) { RecentWindowDays = 30 };
+        }
+    }
+
+    private sealed class OverlapLookupService(OverlapDetector gate) : ISymbolMetricLookupService
+    {
+        public async Task<SymbolLookupTableResult> LookupAsync(SymbolLookupRequest request, CancellationToken cancellationToken)
+        {
+            await gate.EnterAsync();
+            var row = new ScannerTableRow("شسپا", "شسپا", new Dictionary<string, ScannerTableCell>(), 1d, []);
+            return new SymbolLookupTableResult(Guid.NewGuid(), [], [row], new(DateTimeOffset.UtcNow, TimeSpan.Zero, 1, 1, false), [], []);
+        }
     }
 
     private sealed class AnalysisUseCase(bool hasRows) : IComprehensiveAnalysisQueryUseCase

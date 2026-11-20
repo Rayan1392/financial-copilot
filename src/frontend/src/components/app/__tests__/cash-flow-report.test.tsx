@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { AnswerDensityContext } from "../answer-density";
-import { CashFlowReport } from "../cash-flow-report/cash-flow-report";
+import { CashFlowReport, CashFlowLegendLabel } from "../cash-flow-report/cash-flow-report";
 import type { CashFlowReportResult } from "../cash-flow-report/cash-flow-report-types";
 import cashFlowReportSource from "../cash-flow-report/cash-flow-report.tsx?raw";
 import fixtures from "./fixtures/cash-flow-161.json";
@@ -266,6 +266,12 @@ describe("CashFlowReport", () => {
         expect(element.getAttribute("class")).not.toMatch(themeDependent);
       }
     }
+  });
+
+  // BUG-039: Recharts colors legend text with the series color (amber #f59e0b, 2.15:1 on white).
+  it("renders chart legend labels in readable ink instead of the series color", () => {
+    render(<CashFlowLegendLabel value="سرمایه‌گذاری" />);
+    expect(screen.getByText("سرمایه‌گذاری")).toHaveStyle({ color: "#334155" });
   });
 
   it("renders empty outcomes without presenting a fabricated report", () => {

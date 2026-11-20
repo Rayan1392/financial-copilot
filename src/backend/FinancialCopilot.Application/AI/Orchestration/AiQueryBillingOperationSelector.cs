@@ -7,13 +7,18 @@ public static class AiQueryBillingOperationSelector
     public const string FinancialStatementOperationCode = "AiQuery.FinancialStatement";
     public const string MonthlySalesTrendOperationCode = "AiQuery.MonthlySalesTrend";
 
-    public static string Select(string? validatedCapabilityCode, string? originalMessage)
+    /// <param name="periodAnalysisEnabled">
+    /// Feature 081 change «period-analysis-feature-flag»: when 081 is off its turns end unsupported, so they reserve the
+    /// default operation instead of the statement tariff.
+    /// </param>
+    public static string Select(string? validatedCapabilityCode, string? originalMessage, bool periodAnalysisEnabled = true)
     {
         if (!string.IsNullOrWhiteSpace(validatedCapabilityCode))
         {
             return validatedCapabilityCode switch
             {
-                "financial_statement_table" or "financial_statement_period_analysis" => FinancialStatementOperationCode,
+                "financial_statement_table" => FinancialStatementOperationCode,
+                "financial_statement_period_analysis" when periodAnalysisEnabled => FinancialStatementOperationCode,
                 "monthly_activity_trend" or "monthly_product_trend" => MonthlySalesTrendOperationCode,
                 _ => DefaultOperationCode
             };
@@ -21,7 +26,7 @@ public static class AiQueryBillingOperationSelector
 
         if (FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(originalMessage) ||
             FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(originalMessage) ||
-            FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(originalMessage))
+            periodAnalysisEnabled && FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(originalMessage))
         {
             return FinancialStatementOperationCode;
         }

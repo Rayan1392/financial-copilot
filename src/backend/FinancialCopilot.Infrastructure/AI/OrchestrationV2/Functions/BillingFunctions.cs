@@ -2,7 +2,10 @@ using FinancialCopilot.Application.AI.Orchestration;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
 
-internal sealed class BillingFunctions(IBillingFacadeHook billingHook)
+// Feature 081 change «period-analysis-feature-flag»: the 081 switch decides whether its turns reserve the statement tariff.
+internal sealed class BillingFunctions(
+    IBillingFacadeHook billingHook,
+    FinancialStatementPeriodAnalysisOptions? periodAnalysisOptions = null)
 {
     internal Task<BillingReservationHandle?> TryReserveAsync(
         AiQueryRequest request,
@@ -13,7 +16,8 @@ internal sealed class BillingFunctions(IBillingFacadeHook billingHook)
                 request.CorrelationId,
                 request.TenantId,
                 request.ActorId,
-                AiQueryBillingOperationSelector.Select(request.SemanticFrame?.CapabilityCode, request.Message),
+                AiQueryBillingOperationSelector.Select(request.SemanticFrame?.CapabilityCode, request.Message,
+                    periodAnalysisOptions?.Enabled ?? true),
                 request.UserId,
                 request.ApiClientId,
                 request.ExternalUserId,

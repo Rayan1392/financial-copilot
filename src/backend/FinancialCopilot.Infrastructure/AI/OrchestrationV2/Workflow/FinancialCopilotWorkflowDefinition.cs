@@ -87,8 +87,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     SymbolGroundedFallbackHandler? symbolGroundedFallbackHandler = null,
     // Change «sol-deep-analysis-web-search»: the price list, defaults and offer state a response carries.
     GroundedAnalysisHintFactory? groundedAnalysisHints = null,
-    FinancialCopilot.Infrastructure.AI.GroundedAnalysis.GroundedAnalysisTelemetry? groundedAnalysisTelemetry = null)
+    FinancialCopilot.Infrastructure.AI.GroundedAnalysis.GroundedAnalysisTelemetry? groundedAnalysisTelemetry = null,
+    // Feature 081 change «period-analysis-feature-flag»: null keeps 081 on.
+    FinancialStatementPeriodAnalysisOptions? periodAnalysisOptions = null)
 {
+    private bool PeriodAnalysisEnabled => periodAnalysisOptions?.Enabled ?? true;
+
     // Feature 148: which provider answers Chat. The registered financial source (Feature 141) reads
     // NoavaranAmin data, so it never answers in CyclicalWaves mode.
     private bool IsCyclicalWavesMode => capabilityAvailability?.Provider == FinancialDataChatProvider.CyclicalWaves;
@@ -541,6 +545,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (request.SemanticFrame is { } semanticFrame &&
             !MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message))
         {
+            if (!PeriodAnalysisEnabled &&
+                semanticFrame.CapabilityCode == CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis)
+                return await PeriodAnalysisDisabledAsync(msg, "semantic_capability", stepActivity, ct);
+
             stepActivity?.SetTag("chat.capability_source", SourceFor(semanticFrame.CapabilityCode).ToString());
             var interpretation = semanticFrame.Interpretation;
             var entities = string.Join(',', interpretation.EntityMentions
@@ -1230,6 +1238,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         var isFinancialStatementAnalysis = FinancialStatementAnalysisIntentRules.LooksLikeV2FinancialStatementAnalysisQuery(request.Message);
+        if (isFinancialStatementAnalysis && !PeriodAnalysisEnabled)
+            return await PeriodAnalysisDisabledAsync(msg, "financial_statement_period_analysis", stepActivity, ct);
         if (isFinancialStatementAnalysis)
         {
             var analysisQuery = FinancialStatementAnalysisIntentRules.BuildV2Query(request.Message);
@@ -1500,6 +1510,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.MonthlyActivityTrendResult,
                     msg.MonthlySalesQualityRankingResult,
                     msg.MonthlyProductComparisonResult);
+        // Feature 081 change «period-analysis-feature-flag» (FR-5): a switched-off 081 turn is an ordinary unsupported turn,
+        // whether its label came from the semantic frame or from the message text.
+        if (!PeriodAnalysisEnabled && detectedIntent == DetectedIntent.FinancialStatementPeriodAnalysis &&
+            msg.FinancialStatementAnalysisResult is null)
+            detectedIntent = DetectedIntent.Unknown;
         var clarificationRequired =
             msg.ScannerResult?.ClarificationRequired ?? msg.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -2567,6 +2582,46 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (FinancialStatementAnalysisIntentRules.LooksLikeV2FinancialStatementAnalysisQuery(message)) return CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis;
         if (PsGaugeIntentRules.ExtractCompanySymbol(message) is not null) return CapabilityExecutionRoutes.PsGaugeVisualization;
         return null;
+    }
+
+    /// <summary>
+    /// Feature 081 change «period-analysis-feature-flag» (FR-4): a turn 081 would have answered while it is switched off.
+    /// The Feature 141 fallback is tried first, as for every non-answer. Otherwise the turn is a zero-charge
+    /// <see cref="DialogueOutcome.Unsupported"/> whose reason code Feature 163 accepts, so its offer can follow.
+    /// </summary>
+    private async Task<AgentExecutedMessage> PeriodAnalysisDisabledAsync(
+        BillingReservedMessage msg, string route, Activity? stepActivity, CancellationToken ct)
+    {
+        var request = msg.Request;
+        var replyLanguage = AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message);
+        if (await TryFeature141FallbackAsync(request, msg.Reservation,
+                $"period_analysis_disabled:{route}", ct) is { } fallback)
+        {
+            stepActivity?.SetTag("workflow.intent", "Feature141Fallback");
+            return new AgentExecutedMessage(
+                request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext,
+                msg.Reservation, fallback.Answer, null, null, null, null, null, null, null, null,
+                fallback.CompletionStatus, false, null, fallback.Usage,
+                SemanticOutcome: fallback.Outcome,
+                SemanticReplyLanguage: replyLanguage);
+        }
+
+        const string reasonCode = FinancialStatementPeriodAnalysisOptions.DisabledReasonCode;
+        var response = AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+            DialogueOutcome.Unsupported, reasonCode, replyLanguage, null, false));
+        UsageAccountingResult? usage = null;
+        if (msg.Reservation is not null)
+            usage = await billingFunctions.FinalizeAsync(msg.Reservation, "ValidationFailed", false, CancellationToken.None);
+        stepActivity?.SetTag("workflow.intent", "FinancialStatementPeriodAnalysisDisabled");
+        logger.LogInformation(
+            "Chat financial-statement period analysis is switched off; the turn ends unsupported. Route={Route} ReasonCode={ReasonCode} CorrelationId={CorrelationId}",
+            route, reasonCode, request.CorrelationId);
+        return new AgentExecutedMessage(
+            request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext,
+            msg.Reservation, response, null, null, null, null, null, null, null, null,
+            "ValidationFailed", false, null, usage,
+            SemanticOutcome: DialogueOutcome.Unsupported, SemanticOutcomeReasonCode: reasonCode,
+            SemanticReplyLanguage: replyLanguage);
     }
 
     /// <summary>Answers a policy-blocked legacy route with the policy message; no data is read and the turn is not charged.</summary>

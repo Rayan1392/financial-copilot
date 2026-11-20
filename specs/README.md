@@ -49,6 +49,8 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `159-capability-source-map-comprehensive-analysis`: Gate B approved 2026-11-10; implemented on branch `feature/162-capability-source-map` (uncommitted), map empty by default. «تحلیل جامع X» answers from the CyclicalWaves v2 analyses while the provider stays NoavaranAmin: title and whole summary, fixed TahlilApp link (ADR 0001). Changes: `latest-analysis-teaser` (preview of the latest analysis), `bug-020-technical-analysis-topic`, `per-analysis-link` (withdrawn), `max-plan-full-analysis-text` (Gate B 2026-11-11, branch `track/a-routing-answer-correctness`, uncommitted: whole text for Max). Change `analysis-recency-window` (Gate A+B 2026-11-16): TahlilApp analyses older than 30 days are never shown; no recent analysis goes to the Feature 163 fallback.
 
+- `081-ai-financial-statement-period-analysis-query/changes/period-analysis-feature-flag`: Gate A (option B) and Gate B approved 2026-11-20; implemented locally (uncommitted). `FinancialStatementPeriodAnalysis:Enabled` switches 081's fixed statement summary off (off in `appsettings.json`); on V2 a question 081 would answer ends unsupported at zero credits so the Feature 163 analysis offer can follow. Statement tables are unchanged.
+
 ## Mobile Experience
 
 - `153-mobile-pwa-workspace` — mobile-first workspace at `/m` (chat, history, market, watchlist, account), device routing behind a rollout flag, and an installable PWA that caches static assets only.

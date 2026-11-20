@@ -995,6 +995,11 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ComprehensiveAnalysisToolAdapter>();
             services.AddScoped<ExplainableAnswerAdapter>();
             services.AddScoped<MemoryContextAdapter>();
+            // Feature 081 change «period-analysis-feature-flag»: on unless FinancialStatementPeriodAnalysis:Enabled is false.
+            services.AddOptions<FinancialCopilot.Application.AI.Orchestration.FinancialStatementPeriodAnalysisOptions>()
+                .BindConfiguration(FinancialCopilot.Application.AI.Orchestration.FinancialStatementPeriodAnalysisOptions.SectionName);
+            services.AddSingleton(provider => provider
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<FinancialCopilot.Application.AI.Orchestration.FinancialStatementPeriodAnalysisOptions>>().Value);
             services.AddScoped<BillingFunctions>();
             services.AddScoped<MessagePersistenceFunction>();
             services.AddScoped<MissingAnswerFeedbackFunction>();

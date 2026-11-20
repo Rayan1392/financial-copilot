@@ -62,7 +62,17 @@ public static partial class NumericGroundingValidator
 
     internal readonly record struct ExtractedNumber(decimal Value, int Decimals, bool IsPercent);
 
-    internal static IEnumerable<ExtractedNumber> Extract(string? text)
+    internal static IEnumerable<ExtractedNumber> Extract(string? text) =>
+        ExtractWithPositions(text).Select(located => located.Number);
+
+    /// <summary>A number and where it is in the original text (normalisation maps one character to one character).</summary>
+    internal readonly record struct LocatedNumber(ExtractedNumber Number, int Index, int Length);
+
+    /// <summary>
+    /// The numbers of a text with their positions, for the external evidence check (change «sol-deep-analysis-web-search»),
+    /// which removes a verified external number from the text this validator checks.
+    /// </summary>
+    internal static IEnumerable<LocatedNumber> ExtractWithPositions(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) yield break;
         var normalized = Normalize(text);
@@ -74,7 +84,7 @@ public static partial class NumericGroundingValidator
             var decimals = dot < 0 ? 0 : raw.Length - dot - 1;
             var tail = normalized.AsSpan(match.Index + match.Length).TrimStart().ToString();
             var isPercent = tail.StartsWith('%') || tail.StartsWith("درصد", StringComparison.Ordinal);
-            yield return new ExtractedNumber(value, decimals, isPercent);
+            yield return new LocatedNumber(new ExtractedNumber(value, decimals, isPercent), match.Index, match.Length);
         }
     }
 

@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 
@@ -13,7 +14,12 @@ public sealed class ReportDiscussionHandler(
     IConversationTaskStateService taskStateService,
     IReportDiscussionModel model,
     ReportDiscussionOptions options,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    // Change «sol-deep-analysis-web-search»: the analysis path. With GroundedAnalysis:Enabled false (or these not
+    // registered) the existing single-call path runs unchanged (rollback, design-proposal §15).
+    IReportDiscussionAnalysisModel? analysisModel = null,
+    GroundedAnalysisOptions? analysisOptions = null,
+    GroundedAnalysisPricing? analysisPricing = null)
 {
     /// <summary>Same lifetime as every other suggestion selection (ConversationTaskStateService).</summary>
     private static readonly TimeSpan SuggestionLifetime = TimeSpan.FromMinutes(30);
@@ -21,12 +27,21 @@ public sealed class ReportDiscussionHandler(
     private readonly ReportDiscussionContextBuilder _contextBuilder = new(options);
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
 
+    public bool IsEnabled => options.Enabled;
+
+    /// <summary>True when 162 answers with the analysis model at a fixed tier (change «sol-deep-analysis-web-search»).</summary>
+    public bool AnalysisEnabled =>
+        analysisOptions is { Enabled: true } && analysisModel is not null && analysisPricing is not null;
+
+    /// <param name="ensureBillingCapacityBeforeModelCall">
+    /// Called with the credits the answer will cost, before the (analysis) model call; throws when the balance is short.
+    /// </param>
     public async Task<ReportDiscussionTurn> TryHandleAsync(
         AiQueryRequest request,
         Guid conversationId,
         bool createConversation,
         CancellationToken cancellationToken,
-        Func<CancellationToken, Task>? ensureBillingCapacityBeforeModelCall = null)
+        Func<decimal, CancellationToken, Task>? ensureBillingCapacityBeforeModelCall = null)
     {
         if (!options.Enabled) return ReportDiscussionTurn.NotApplicableBecause("disabled");
         if (createConversation) return ReportDiscussionTurn.NotApplicableBecause("new_conversation");
@@ -54,6 +69,10 @@ public sealed class ReportDiscussionHandler(
 
         var family = report.Family.ToString();
         var question = request.OriginalUserMessage ?? request.Message;
+        if (AnalysisEnabled)
+            return await AnalyzeAsync(request, report, data, messages, question, cancellationToken,
+                ensureBillingCapacityBeforeModelCall);
+
         var prompt = _contextBuilder.Build(data, messages, question);
         if (prompt is null)
         {
@@ -64,7 +83,7 @@ public sealed class ReportDiscussionHandler(
         }
 
         if (ensureBillingCapacityBeforeModelCall is not null)
-            await ensureBillingCapacityBeforeModelCall(cancellationToken);
+            await ensureBillingCapacityBeforeModelCall(ReportDiscussionBillingPolicy.AnsweredCredits, cancellationToken);
 
         ReportDiscussionModelReply reply;
         try
@@ -120,6 +139,136 @@ public sealed class ReportDiscussionHandler(
     }
 
     /// <summary>
+    /// Change «sol-deep-analysis-web-search» (design-proposal §5): price check → routing step (no tools) → fixed tier
+    /// reservation → analysis call → layout → external and internal grounding. Every non-answer is zero-credit.
+    /// </summary>
+    private async Task<ReportDiscussionTurn> AnalyzeAsync(
+        AiQueryRequest request,
+        ActiveReport report,
+        ReportDataSet data,
+        IReadOnlyList<MessageRecord> messages,
+        string question,
+        CancellationToken cancellationToken,
+        Func<decimal, CancellationToken, Task>? ensureBillingCapacity)
+    {
+        var family = report.Family.ToString();
+        var pricing = analysisPricing!;
+        // PO-9: a page that showed other prices is never charged at the new ones; the reply carries the current list.
+        if (!pricing.IsCurrent(request.AnalysisOptions?.PricingVersion))
+        {
+            return Reply(report, ReportDiscussionDisposition.PricingChanged, ReportDiscussionMessages.PricingChanged(pricing),
+                DialogueOutcome.ClarificationNeeded, ReportDiscussionReasonCodes.PricingChanged, "ClarificationRequired",
+                new ReportDiscussionDiagnostics(family, nameof(ReportDiscussionDisposition.PricingChanged), 0, data.Facts.Count, 0, 0, null));
+        }
+
+        // PO-14: the routing decision comes first, with no tools, so a hand-back never reaches the analysis model.
+        var routing = _contextBuilder.BuildDisposition(data, messages, question);
+        ReportDiscussionDisposition decision;
+        try
+        {
+            decision = await analysisModel!.DecideAsync(routing, request.TenantId, request.CorrelationId, cancellationToken);
+        }
+        catch (ReportDiscussionModelUnavailableException exception)
+        {
+            return ProviderUnavailable(report, family, routing.EstimatedInputTokens, data.Facts.Count, $"disposition:{exception.Reason}");
+        }
+
+        var routed = new ReportDiscussionDiagnostics(family, decision.ToString(), routing.EstimatedInputTokens, data.Facts.Count,
+            0, 0, null, DispositionStep: decision.ToString());
+        switch (decision)
+        {
+            case ReportDiscussionDisposition.NeedsDifferentData:
+            case ReportDiscussionDisposition.OutsideReport:
+                return new ReportDiscussionTurn(ReportDiscussionTurnKind.HandBack, Marker(report, decision), Diagnostics: routed);
+            case ReportDiscussionDisposition.MissingInReport:
+                return Reply(report, ReportDiscussionDisposition.MissingInReport, ReportDiscussionMessages.MissingInReport(report),
+                    DialogueOutcome.NoData, ReportDiscussionReasonCodes.MissingInReport, SemanticBillingCompletionStatus.NoData, routed);
+        }
+
+        var choice = request.AnalysisOptions?.Resolve(analysisOptions!.DefaultChoice) ?? analysisOptions!.DefaultChoice;
+        var profile = new GroundedAnalysisProfiles(analysisOptions).For(choice.Depth);
+        if (_contextBuilder.BuildAnalysis(data, messages, question, choice, profile.InputTokenTarget) is not { } prompt)
+        {
+            return Reply(report, ReportDiscussionDisposition.NarrowRequired, ReportDiscussionMessages.NarrowRequired(report),
+                DialogueOutcome.NoData, ReportDiscussionReasonCodes.NarrowRequired, SemanticBillingCompletionStatus.NoData,
+                routed with { Disposition = nameof(ReportDiscussionDisposition.NarrowRequired) });
+        }
+
+        // FR-11: the hold covers the fixed tier before the model call; a short balance stops here (no model call).
+        if (ensureBillingCapacity is not null)
+            await ensureBillingCapacity(pricing.CreditsFor(choice), cancellationToken);
+
+        var run = new GroundedAnalysisRun(choice.Depth.ToString(), choice.WebSearch, choice.Tier, profile.Model);
+        ReportDiscussionAnalysisReply reply;
+        try
+        {
+            reply = await analysisModel!.AnalyzeAsync(prompt, choice, request.TenantId, request.CorrelationId, cancellationToken);
+        }
+        catch (ReportDiscussionModelUnavailableException exception)
+        {
+            return ProviderUnavailable(report, family, prompt.EstimatedInputTokens, prompt.Data.Facts.Count, exception.Reason) with
+            {
+                AnalysisRun = run
+            };
+        }
+
+        var diagnostics = routed with
+        {
+            Disposition = reply.Disposition.ToString(),
+            EstimatedInputTokens = prompt.EstimatedInputTokens,
+            FactCount = prompt.Data.Facts.Count
+        };
+        var facts = new GroundedAnalysisCallFacts(choice, reply.Usage, reply.ConsultedSources.Count);
+        if (reply.Disposition == ReportDiscussionDisposition.MissingInReport)
+        {
+            return Reply(report, ReportDiscussionDisposition.MissingInReport, ReportDiscussionMessages.MissingInReport(report),
+                DialogueOutcome.NoData, ReportDiscussionReasonCodes.MissingInReport, SemanticBillingCompletionStatus.NoData,
+                diagnostics) with { AnalysisRun = run, AnalysisFacts = facts };
+        }
+
+        var score = GroundedAnalysis.ShownScore(prompt.Data.Family, reply.ReportScore);
+        var answer = reply.Answer.Length == 0
+            ? string.Empty
+            : GroundedAnswerLayout.Normalize(score is { } value && prompt.Data.PeriodsNewestFirst.Count > 0
+                ? reply.Answer + "\n\n" + GroundedAnalysis.ScoreBlock(value, prompt.Data.PeriodsNewestFirst[0], reply.ScoreReason)
+                : reply.Answer);
+        // FR-10: external markers first (web content is kept apart and traceable), then every other number against the report.
+        var evidence = ExternalEvidenceValidator.Validate(answer, reply.DeclaredSources, reply.ConsultedSources);
+        var grounding = NumericGroundingValidator.Validate(evidence.GroundingText, prompt.Data, question, GroundedAnalysis.ScoreNumbers(score));
+        diagnostics = diagnostics with
+        {
+            NumbersChecked = grounding.NumbersChecked,
+            UngroundedNumbers = grounding.UngroundedCount,
+            ExternalMarkers = evidence.MarkersChecked,
+            ExternalItemsRemoved = evidence.ItemsRemoved,
+            Reason = evidence.FailureReason
+        };
+        if (answer.Length == 0 || !evidence.Passed || !grounding.Passed)
+        {
+            return Reply(report, ReportDiscussionDisposition.Unverified, ReportDiscussionMessages.Unverified(report),
+                DialogueOutcome.NoData, ReportDiscussionReasonCodes.Unverified, SemanticBillingCompletionStatus.NoData,
+                diagnostics with { Disposition = nameof(ReportDiscussionDisposition.Unverified) }) with
+            {
+                AnalysisRun = run, AnalysisFacts = facts
+            };
+        }
+
+        var text = ExternalEvidenceValidator.AppendSourcesBlock(evidence.Text, evidence.Sources);
+        return Reply(report, ReportDiscussionDisposition.Answered, text, DialogueOutcome.Answered,
+            DialogueOutcomeReasonCodes.None, GroundedAnalysisBillingPolicy.AnsweredStatus(choice), diagnostics) with
+        {
+            AnalysisRun = run,
+            Sources = evidence.Sources.Count == 0 ? null : evidence.Sources,
+            AnalysisFacts = facts
+        };
+    }
+
+    private static ReportDiscussionTurn ProviderUnavailable(ActiveReport report, string family, int inputTokens, int facts, string reason) =>
+        Reply(report, ReportDiscussionDisposition.ProviderUnavailable, ReportDiscussionMessages.ProviderUnavailable,
+            DialogueOutcome.TemporarilyUnavailable, ReportDiscussionReasonCodes.ProviderUnavailable, "ProviderFailed",
+            new ReportDiscussionDiagnostics(family, nameof(ReportDiscussionDisposition.ProviderUnavailable), inputTokens, facts, 0, 0, reason));
+
+    /// <summary>
     /// The selected suggestion is a <see cref="SuggestedActionKind.DiscussReport"/> stored on the active report's own
     /// message, its text was sent unchanged, and it is not older than the suggestion lifetime.
     /// </summary>
@@ -152,6 +301,12 @@ public static class ReportDiscussionMessages
 
     public static string Unverified(ActiveReport report) =>
         $"نتوانستم پاسخی بسازم که همه‌ی اعدادش با داده‌های {Subject(report)} قابل تطبیق باشد. لطفاً قلم و دوره‌ی موردنظر را دقیق‌تر بپرسید. اعتباری از شما کسر نشد.";
+
+    /// <summary>PO-9: the prices changed after the page was loaded; nothing ran and the current list is shown.</summary>
+    public static string PricingChanged(GroundedAnalysisPricing pricing) =>
+        "تعرفهٔ تحلیل به‌روز شده است و پرسش شما اجرا نشد. تعرفهٔ فعلی: " +
+        string.Join("، ", pricing.Prices.Select(price => $"{AnalysisLabels.Tier(price.Depth, price.WebSearch)} {AnalysisLabels.Credits(price.Credits)}")) +
+        ". لطفاً تنظیمات را بررسی کنید و دوباره بفرستید. اعتباری از شما کسر نشد.";
 
     public static string NarrowRequired(ActiveReport report) =>
         $"داده‌های {Subject(report)} برای پاسخ یکجا بیش از حد بزرگ است. لطفاً قلم یا دوره‌ی موردنظر را محدودتر بپرسید. اعتباری از شما کسر نشد.";

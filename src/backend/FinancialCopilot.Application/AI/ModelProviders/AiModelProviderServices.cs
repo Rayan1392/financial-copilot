@@ -57,7 +57,9 @@ public sealed class CapabilityBasedAiModelProviderResolver(
         (request.AllowLocalRuntime || descriptor.HostingMode != AiProviderHostingMode.Local) &&
         (descriptor.AllowedTenantIds is null || descriptor.AllowedTenantIds.Contains(request.TenantId)) &&
         (request.RequiredDataResidency is null ||
-            string.Equals(descriptor.DataResidency, request.RequiredDataResidency, StringComparison.OrdinalIgnoreCase));
+            string.Equals(descriptor.DataResidency, request.RequiredDataResidency, StringComparison.OrdinalIgnoreCase)) &&
+        (request.RequiredProviderKey is null ||
+            string.Equals(descriptor.ProviderKey, request.RequiredProviderKey, StringComparison.OrdinalIgnoreCase));
 
     private static string? Normalize(string? providerKey) =>
         string.IsNullOrWhiteSpace(providerKey) ? null : providerKey.Trim();
@@ -165,7 +167,7 @@ public sealed class AiModelExecutionService(
                 {
                     CorrelationId = selection.CorrelationId,
                     ProviderKey = client.Descriptor.ProviderKey,
-                    ModelKey = client.Descriptor.ModelKey,
+                    ModelKey = ModelKeyCalled(client, request),
                     AttemptNumber = attempt,
                     Duration = timeProvider.GetUtcNow() - startedAt,
                     Status = AiExecutionStatus.Completed
@@ -182,7 +184,7 @@ public sealed class AiModelExecutionService(
                     new AiExecutionUsageFacts(
                         selection.CorrelationId,
                         client.Descriptor.ProviderKey,
-                        client.Descriptor.ModelKey,
+                        ModelKeyCalled(client, request),
                         exception.Status,
                         timeProvider.GetUtcNow() - startedAt,
                         attempt,
@@ -207,7 +209,7 @@ public sealed class AiModelExecutionService(
                     {
                         CorrelationId = selection.CorrelationId,
                         ProviderKey = client.Descriptor.ProviderKey,
-                        ModelKey = client.Descriptor.ModelKey,
+                        ModelKey = ModelKeyCalled(client, request),
                         AttemptNumber = attempt,
                         Duration = timeProvider.GetUtcNow() - startedAt,
                         Status = exception.Status,
@@ -219,6 +221,10 @@ public sealed class AiModelExecutionService(
 
         throw lastFailure!;
     }
+
+    /// <summary>Usage records the model actually called (change «sol-deep-analysis-web-search», FR-1).</summary>
+    private static string ModelKeyCalled(IAiModelClient client, AiModelRequest request) =>
+        string.IsNullOrWhiteSpace(request.ModelKeyOverride) ? client.Descriptor.ModelKey : request.ModelKeyOverride.Trim();
 
     private void RecordUsageSafely(AiExecutionUsageFacts facts)
     {

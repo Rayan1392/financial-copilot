@@ -242,6 +242,12 @@ public sealed class TelegramGatewayPollingWorker(
             callback.From is { } callbackFrom &&
             callback.Message?.Chat is { } callbackChat)
         {
+            // Change «sol-deep-analysis-web-search» (T13): an analysis offer button can run for up to about 90 s, so it
+            // is answered before the primary call and the button stops spinning at once. Other callbacks are unchanged.
+            var answeredFirst = FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOfferActions
+                .IsOfferAction(callback.Data);
+            if (answeredFirst)
+                await telegram.AnswerCallbackQueryAsync(callback.Id, cancellationToken);
             await telegram.SendChatActionAsync(callbackChat.Id, "typing", cancellationToken);
             TelegramAssistantResult? result;
             try
@@ -279,7 +285,8 @@ public sealed class TelegramGatewayPollingWorker(
                 return UpdateCompletion.Retry;
             }
 
-            await telegram.AnswerCallbackQueryAsync(callback.Id, cancellationToken);
+            if (!answeredFirst)
+                await telegram.AnswerCallbackQueryAsync(callback.Id, cancellationToken);
             return result is null
                 ? UpdateCompletion.Retry
                 : await SendMessagesAsync(callbackChat.Id, update.UpdateId, result.Messages, cancellationToken);

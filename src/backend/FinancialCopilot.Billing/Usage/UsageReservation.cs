@@ -26,7 +26,9 @@ public sealed class UsageReservation
             throw new ArgumentException("Idempotency key and operation code are required.");
         }
 
-        if (quotaMode == CreditQuotaMode.Finite && reservedCredits <= 0 ||
+        // A finite zero-credit reservation holds nothing and only claims its idempotency key (a cancelled analysis offer,
+        // change «sol-deep-analysis-web-search»); it can only be committed at zero.
+        if (quotaMode == CreditQuotaMode.Finite && reservedCredits < 0 ||
             quotaMode == CreditQuotaMode.Unlimited &&
             (reservedCredits != 0 || sourceSubscriptionId is null || sourceSubscriptionId == Guid.Empty || sourceSubscriptionExpiresAtUtc is null))
         {

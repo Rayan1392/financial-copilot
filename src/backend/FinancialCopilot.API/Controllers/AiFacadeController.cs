@@ -1,6 +1,7 @@
 using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Billing;
 using FinancialCopilot.Application.Authentication;
@@ -26,7 +27,10 @@ public sealed class AiFacadeController(
     IConversationRepository conversationRepository,
     IMessageRepository messageRepository,
     IAlertHistoryUseCases alertHistory,
-    ICapabilityGuidanceService guidanceService) : ControllerBase
+    ICapabilityGuidanceService guidanceService,
+    // Change «sol-deep-analysis-web-search», OQ-113 (a): registered with the V2 workflow only.
+    GroundedAnalysisHintFactory? groundedAnalysisHints = null,
+    TimeProvider? timeProvider = null) : ControllerBase
 {
     [HttpGet("capabilities/guidance")]
     public ActionResult<IReadOnlyCollection<CapabilityStarterPromptHttpResponse>> GetCapabilityGuidance(
@@ -53,6 +57,12 @@ public sealed class AiFacadeController(
         if (httpRequest.IdempotencyKey == Guid.Empty)
         {
             ModelState.AddModelError(nameof(httpRequest.IdempotencyKey), "IdempotencyKey must be a non-empty GUID.");
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryMapAnalysisOptions(httpRequest.AnalysisOptions, out var analysisOptions))
+        {
+            ModelState.AddModelError(nameof(httpRequest.AnalysisOptions), "AnalysisOptions.Depth must be 'simple' or 'deep'.");
             return ValidationProblem(ModelState);
         }
 
@@ -93,7 +103,8 @@ public sealed class AiFacadeController(
                         : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId),
                     OriginalUserMessage: httpRequest.Message,
                     SuggestedActionId: httpRequest.SuggestedActionId,
-                    BillingOperationId: billingOperationId),
+                    BillingOperationId: billingOperationId,
+                    AnalysisOptions: analysisOptions),
                 cancellationToken);
         }
         catch (BillingIdempotencyConflictException)
@@ -197,11 +208,49 @@ public sealed class AiFacadeController(
             conversationId,
             cancellationToken);
 
+        var records = messages.ToList();
+        var mapped = records.Select(MapMessage).ToList();
+        await AttachLatestAnalysisHintAsync(actor, conversationId, records, mapped, cancellationToken);
+
         return Ok(new ConversationDetailResponse(
             summary.ConversationId,
             summary.StartedAt,
             summary.UpdatedAt,
-            messages.Select(MapMessage).ToList()));
+            mapped));
+    }
+
+    /// <summary>
+    /// OQ-113 (a): a reloaded conversation shows the same analysis settings and 163 offer as the live answer. Only the
+    /// latest assistant message carries the hint; the policy (stored availability, offer expiry, current prices and
+    /// balance) is <see cref="GroundedAnalysisHintFactory.ForSavedAnswerAsync"/>.
+    /// </summary>
+    private async Task AttachLatestAnalysisHintAsync(
+        CurrentActor actor,
+        Guid conversationId,
+        IReadOnlyList<MessageRecord> messages,
+        List<MessageResponse> mapped,
+        CancellationToken cancellationToken)
+    {
+        if (groundedAnalysisHints is not { Enabled: true }) return;
+        var index = messages.Count - 1;
+        while (index >= 0 && messages[index].Role != MessageRole.Assistant) index--;
+        if (index < 0 || messages[index].AssistantPayload is not { } payload || mapped[index].AssistantContent is not { } content)
+            return;
+
+        var caller = new AiQueryRequest(
+            string.Empty,
+            actor.TenantId,
+            actor.ActorId,
+            HttpContext.TraceIdentifier,
+            conversationId,
+            actor.UserId,
+            actor.ApiClientId,
+            ActorType: actor.ActorType,
+            AuthenticationMode: actor.AuthenticationMode);
+        var hint = await groundedAnalysisHints.ForSavedAnswerAsync(
+            caller, payload, (timeProvider ?? TimeProvider.System).GetUtcNow(), cancellationToken);
+        if (hint is not null)
+            mapped[index] = mapped[index] with { AssistantContent = content with { GroundedAnalysis = MapGroundedAnalysisHint(hint) } };
     }
 
     [HttpDelete("conversations/{conversationId:guid}")]
@@ -277,7 +326,58 @@ public sealed class AiFacadeController(
              MapMonthlyProductComparisonResult(result.MonthlyProductComparisonResult),
              FinancialStatementValueSearchResult: result.FinancialStatementValueSearchResult,
              MonthlyProductTrendResult: MapMonthlyProductTrendResult(result.MonthlyProductTrendResult),
-             SymbolSnapshotResult: result.SymbolSnapshotResult);
+             SymbolSnapshotResult: result.SymbolSnapshotResult,
+             GroundedAnalysis: MapGroundedAnalysisHint(result.GroundedAnalysis),
+             Sources: MapExternalSources(result.Sources));
+
+    // Change «sol-deep-analysis-web-search» (FR-4): only the depth and web choice cross the boundary; never an amount.
+    private static bool TryMapAnalysisOptions(AnalysisOptionsHttpRequest? options, out AnalysisOptionsRequest? mapped)
+    {
+        mapped = null;
+        if (options is null) return true;
+        AnalysisDepth? depth = null;
+        if (!string.IsNullOrWhiteSpace(options.Depth))
+        {
+            if (string.Equals(options.Depth, "simple", StringComparison.OrdinalIgnoreCase)) depth = AnalysisDepth.Simple;
+            else if (string.Equals(options.Depth, "deep", StringComparison.OrdinalIgnoreCase)) depth = AnalysisDepth.Deep;
+            else return false;
+        }
+
+        mapped = new AnalysisOptionsRequest(
+            depth,
+            options.WebSearch,
+            string.IsNullOrWhiteSpace(options.PricingVersion) ? null : options.PricingVersion.Trim());
+        return true;
+    }
+
+    private static string DepthName(AnalysisDepth depth) => depth == AnalysisDepth.Simple ? "simple" : "deep";
+
+    private static GroundedAnalysisHttpResponse? MapGroundedAnalysisHint(GroundedAnalysisHint? hint) =>
+        hint is null
+            ? null
+            : new GroundedAnalysisHttpResponse(
+                hint.Available,
+                hint.PricingVersion,
+                hint.Prices.Select(price => new GroundedAnalysisPriceHttpResponse(
+                    DepthName(price.Depth), price.WebSearch, price.Credits)).ToList(),
+                DepthName(hint.Defaults.Depth),
+                hint.Defaults.WebSearch,
+                hint.Unlimited,
+                hint.Offer is null
+                    ? null
+                    : new GroundedAnalysisOfferHttpResponse(
+                        hint.Offer.OfferId,
+                        hint.Offer.Symbol,
+                        hint.Offer.ExpiresAt,
+                        hint.Offer.SufficientBalance,
+                        hint.Offer.ConfirmActionId,
+                        hint.Offer.CancelActionId));
+
+    private static IReadOnlyList<ExternalSourceHttpResponse>? MapExternalSources(IReadOnlyList<ExternalSource>? sources) =>
+        sources is not { Count: > 0 }
+            ? null
+            : sources.Select(source => new ExternalSourceHttpResponse(
+                source.Id, source.Title, source.Url, source.PublishedAt)).ToList();
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -525,7 +625,8 @@ public sealed class AiFacadeController(
                 MapMonthlyProductComparisonResult(payload.MonthlyProductComparisonResult),
                 FinancialStatementValueSearchResult: payload.FinancialStatementValueSearchResult,
                 MonthlyProductTrendResult: MapMonthlyProductTrendResult(payload.MonthlyProductTrendResult),
-                SymbolSnapshotResult: payload.SymbolSnapshotResult);
+                SymbolSnapshotResult: payload.SymbolSnapshotResult,
+                Sources: MapExternalSources(payload.ExternalSources));
 
     private static MonthlyProductComparisonHttpResponse? MapMonthlyProductComparisonResult(MonthlyProductComparisonResponse? result)
     {

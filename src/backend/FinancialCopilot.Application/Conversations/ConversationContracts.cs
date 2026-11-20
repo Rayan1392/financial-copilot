@@ -72,7 +72,15 @@ public sealed record AssistantMessagePayload(
     // shown to the user and no client renders it; Report Discussion reads it as the conversation's active report.
     FinancialStatementTableResult? GroundingReport = null,
     // Feature 163: the non-answer the fallback replaced, so unmet demand stays measurable (Feature 155).
-    FinancialCopilot.Application.AI.SymbolGroundedFallback.FallbackOrigin? FallbackOf = null);
+    FinancialCopilot.Application.AI.SymbolGroundedFallback.FallbackOrigin? FallbackOf = null,
+    // Change «sol-deep-analysis-web-search»: a pending 163 offer (FR-7), what an answered analysis ran (FR-11) and the
+    // external sources it cited (FR-10). Null on every other turn and on old payloads.
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? GroundedAnalysisOffer = null,
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisRun? GroundedAnalysisRun = null,
+    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? ExternalSources = null,
+    // OQ-113 (a): whether the next question about this answer may be a priced analysis, as decided when the turn ran,
+    // so a reloaded conversation shows the same settings bar. Null when analysis is off and on old payloads.
+    bool? GroundedAnalysisAvailable = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

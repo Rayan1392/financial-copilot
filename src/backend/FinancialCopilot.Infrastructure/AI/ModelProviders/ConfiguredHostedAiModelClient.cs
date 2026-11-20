@@ -36,7 +36,10 @@ public sealed record HostedAiCompletionResponse(
     int? CachedInputTokens = null,
     int? CacheWriteInputTokens = null,
     int? CacheWrite30mInputTokens = null,
-    int? CacheWrite12hInputTokens = null);
+    int? CacheWrite12hInputTokens = null,
+    int? ReasoningTokens = null,
+    int? WebSearchCalls = null,
+    IReadOnlyCollection<string>? ConsultedSources = null);
 
 public sealed record HostedAiEmbeddingResponse(
     IReadOnlyCollection<IReadOnlyList<float>> Vectors,
@@ -54,11 +57,15 @@ public sealed class ConfiguredHostedAiModelClient(
     public async Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
     {
         Require(AiModelCapability.ChatCompletion);
+        // Change «sol-deep-analysis-web-search» (FR-5): a provider without the web search capability never silently
+        // drops the tool; the caller settles the turn at zero.
+        if (request.WebSearch is not null) Require(AiModelCapability.WebSearch);
         var startedAt = timeProvider.GetUtcNow();
+        var modelKey = ModelKeyFor(request);
 
         try
         {
-            var response = await transport.CompleteAsync(Descriptor.ModelKey, request, cancellationToken);
+            var response = await transport.CompleteAsync(modelKey, request, cancellationToken);
             return new AiModelResult(
                 response.Text,
                 response.StructuredJson,
@@ -66,7 +73,7 @@ public sealed class ConfiguredHostedAiModelClient(
                 new AiExecutionUsageFacts(
                     request.CorrelationId,
                     Descriptor.ProviderKey,
-                    Descriptor.ModelKey,
+                    modelKey,
                     AiExecutionStatus.Completed,
                     timeProvider.GetUtcNow() - startedAt,
                     AttemptNumber: 0,
@@ -80,8 +87,11 @@ public sealed class ConfiguredHostedAiModelClient(
                     CacheWriteInputTokens: response.CacheWriteInputTokens,
                     CacheWrite30mInputTokens: response.CacheWrite30mInputTokens,
                     CacheWrite12hInputTokens: response.CacheWrite12hInputTokens,
-                    Workload: request.Workload),
-                ResponseId: response.ResponseId);
+                    Workload: request.Workload,
+                    ReasoningTokens: response.ReasoningTokens,
+                    WebSearchCalls: response.WebSearchCalls),
+                ResponseId: response.ResponseId,
+                ConsultedSources: response.ConsultedSources);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -132,8 +142,9 @@ public sealed class ConfiguredHostedAiModelClient(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         Require(AiModelCapability.Streaming);
+        if (request.WebSearch is not null) Require(AiModelCapability.WebSearch);
 
-        await foreach (var chunk in transport.StreamAsync(Descriptor.ModelKey, request, cancellationToken))
+        await foreach (var chunk in transport.StreamAsync(ModelKeyFor(request), request, cancellationToken))
         {
             yield return chunk;
         }
@@ -167,6 +178,10 @@ public sealed class ConfiguredHostedAiModelClient(
             Descriptor.ModelKey,
             await transport.CheckAvailabilityAsync(Descriptor.ModelKey, cancellationToken),
             timeProvider.GetUtcNow());
+
+    /// <summary>The descriptor model unless the request names another model of this provider (FR-1).</summary>
+    private string ModelKeyFor(AiModelRequest request) =>
+        string.IsNullOrWhiteSpace(request.ModelKeyOverride) ? Descriptor.ModelKey : request.ModelKeyOverride.Trim();
 
     private void Require(AiModelCapability capability)
     {

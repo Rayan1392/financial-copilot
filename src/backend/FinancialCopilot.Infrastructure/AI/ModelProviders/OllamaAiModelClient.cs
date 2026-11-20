@@ -16,6 +16,8 @@ public sealed class OllamaAiModelClient(
     public async Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
     {
         Require(AiModelCapability.ChatCompletion);
+        // Change «sol-deep-analysis-web-search» (FR-5): Ollama has no hosted web search.
+        if (request.WebSearch is not null) Require(AiModelCapability.WebSearch);
         var startedAt = timeProvider.GetUtcNow();
         var payload = new
         {

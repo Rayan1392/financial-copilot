@@ -53,7 +53,12 @@ internal sealed class MessagePersistenceFunction(
         FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? reportDiscussion = null,
         // Feature 163: the hidden report a fallback answer was written from, and the non-answer it replaced.
         FinancialStatementTableResult? groundingReport = null,
-        FinancialCopilot.Application.AI.SymbolGroundedFallback.FallbackOrigin? fallbackOf = null)
+        FinancialCopilot.Application.AI.SymbolGroundedFallback.FallbackOrigin? fallbackOf = null,
+        // Change «sol-deep-analysis-web-search»: a pending 163 offer, what an analysis ran, and its cited sources.
+        FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? groundedAnalysisOffer = null,
+        FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisRun? groundedAnalysisRun = null,
+        IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? externalSources = null,
+        bool? groundedAnalysisAvailable = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -133,7 +138,11 @@ internal sealed class MessagePersistenceFunction(
                         : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion,
                     ReportDiscussion: reportDiscussion,
                     GroundingReport: groundingReport,
-                    FallbackOf: fallbackOf)),
+                    FallbackOf: fallbackOf,
+                    GroundedAnalysisOffer: groundedAnalysisOffer,
+                    GroundedAnalysisRun: groundedAnalysisRun,
+                    ExternalSources: externalSources,
+                    GroundedAnalysisAvailable: groundedAnalysisAvailable)),
             createConversation,
             cancellationToken);
         return persisted with { SuggestedActions = suggestions };

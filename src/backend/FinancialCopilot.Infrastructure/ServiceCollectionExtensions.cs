@@ -5,6 +5,7 @@ using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
 using FinancialCopilot.Application.AI.Evaluation;
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
@@ -474,6 +475,7 @@ public static class ServiceCollectionExtensions
                 "and non-negative per-million token prices with provider and model keys.")
             .ValidateOnStart();
         services.AddSingleton<UsageBasedCreditCalculator>();
+        AddGroundedAnalysis(services, configuration);
 
         services
             .AddOptions<AiProviderOptions>()
@@ -993,6 +995,11 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ComprehensiveAnalysisToolAdapter>();
             services.AddScoped<ExplainableAnswerAdapter>();
             services.AddScoped<MemoryContextAdapter>();
+            // Feature 081 change «period-analysis-feature-flag»: on unless FinancialStatementPeriodAnalysis:Enabled is false.
+            services.AddOptions<FinancialCopilot.Application.AI.Orchestration.FinancialStatementPeriodAnalysisOptions>()
+                .BindConfiguration(FinancialCopilot.Application.AI.Orchestration.FinancialStatementPeriodAnalysisOptions.SectionName);
+            services.AddSingleton(provider => provider
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<FinancialCopilot.Application.AI.Orchestration.FinancialStatementPeriodAnalysisOptions>>().Value);
             services.AddScoped<BillingFunctions>();
             services.AddScoped<MessagePersistenceFunction>();
             services.AddScoped<MissingAnswerFeedbackFunction>();
@@ -1008,6 +1015,10 @@ public static class ServiceCollectionExtensions
                 .GetRequiredService<Microsoft.Extensions.Options.IOptions<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionOptions>>().Value);
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionMessageReader, ReportDiscussionMessageReader>();
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionModel, FinancialCopilot.Application.AI.ReportDiscussion.LlmReportDiscussionModel>();
+            // Change «sol-deep-analysis-web-search»: the routing and analysis calls, used only with GroundedAnalysis:Enabled.
+            services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionAnalysisModel, FinancialCopilot.Application.AI.ReportDiscussion.LlmReportDiscussionAnalysisModel>();
+            services.AddScoped<IGroundedAnalysisBalanceReader, FinancialCopilot.Infrastructure.Billing.GroundedAnalysisBalanceReader>();
+            services.AddScoped<GroundedAnalysisHintFactory>();
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionHandler>();
             // Feature 163 Symbol-Grounded Fallback: V2 only, off unless SymbolGroundedFallback:Enabled is true.
             services.AddOptions<FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackOptions>()
@@ -1897,6 +1908,35 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Change «sol-deep-analysis-web-search»: prices (PO-6) and technical budgets (PO-8) are two separately validated
+    /// sections with separate owners. Both are registered in every mode because billing settles and replays the
+    /// fixed tiers. The price section is validated whenever it is present or the feature is on.
+    /// </summary>
+    private static void AddGroundedAnalysis(IServiceCollection services, IConfiguration configuration)
+    {
+        var featureEnabled = configuration.GetValue<bool>($"{GroundedAnalysisOptions.SectionName}:Enabled");
+        var pricingConfigured = configuration.GetSection(GroundedAnalysisPricingOptions.SectionName).Exists();
+        services.AddOptions<GroundedAnalysisPricingOptions>()
+            .BindConfiguration(GroundedAnalysisPricingOptions.SectionName)
+            .Validate(options =>
+            {
+                if (featureEnabled || pricingConfigured) options.Validate();
+                return true;
+            })
+            .ValidateOnStart();
+        services.AddSingleton(provider => new GroundedAnalysisPricing(
+            provider.GetRequiredService<IOptions<GroundedAnalysisPricingOptions>>().Value));
+        services.AddOptions<GroundedAnalysisOptions>()
+            .BindConfiguration(GroundedAnalysisOptions.SectionName)
+            .Validate(options => { options.Validate(); return true; })
+            .ValidateOnStart();
+        services.AddSingleton(provider => provider.GetRequiredService<IOptions<GroundedAnalysisOptions>>().Value);
+        services.AddSingleton<GroundedAnalysisProfiles>();
+        // Monitoring only (FR-13): no billing type depends on it.
+        services.AddSingleton<FinancialCopilot.Infrastructure.AI.GroundedAnalysis.GroundedAnalysisTelemetry>();
+    }
+
     private static AiModelProviderDescriptor ToDescriptor(AiModelProviderRegistration registration) =>
         new(
             registration.ProviderKey,
@@ -1934,7 +1974,8 @@ public static class ServiceCollectionExtensions
                     AiModelCapability.ToolCalling |
                     AiModelCapability.Streaming |
                     AiModelCapability.UsageReporting |
-                    AiModelCapability.HealthCheck,
+                    AiModelCapability.HealthCheck |
+                    AiModelCapability.WebSearch,
                 TimeoutSeconds = 120
             }
             : null;

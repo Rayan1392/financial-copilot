@@ -5,6 +5,7 @@ using System.Runtime.ExceptionServices;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.Evaluation;
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Application.AI.SymbolGroundedFallback;
 using FinancialCopilot.Application.Authentication;
@@ -83,8 +84,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     // Feature 162: answers questions about the conversation's active report before the dialogue gate.
     ReportDiscussionHandler? reportDiscussionHandler = null,
     // Feature 163: answers an unsupported question about one company from its quarterly income statement.
-    SymbolGroundedFallbackHandler? symbolGroundedFallbackHandler = null)
+    SymbolGroundedFallbackHandler? symbolGroundedFallbackHandler = null,
+    // Change «sol-deep-analysis-web-search»: the price list, defaults and offer state a response carries.
+    GroundedAnalysisHintFactory? groundedAnalysisHints = null,
+    FinancialCopilot.Infrastructure.AI.GroundedAnalysis.GroundedAnalysisTelemetry? groundedAnalysisTelemetry = null,
+    // Feature 081 change «period-analysis-feature-flag»: null keeps 081 on.
+    FinancialStatementPeriodAnalysisOptions? periodAnalysisOptions = null)
 {
+    private bool PeriodAnalysisEnabled => periodAnalysisOptions?.Enabled ?? true;
+
     // Feature 148: which provider answers Chat. The registered financial source (Feature 141) reads
     // NoavaranAmin data, so it never answers in CyclicalWaves mode.
     private bool IsCyclicalWavesMode => capabilityAvailability?.Provider == FinancialDataChatProvider.CyclicalWaves;
@@ -281,6 +289,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             throw new ConversationNotFoundException(conversationId);
         }
 
+        // Change «sol-deep-analysis-web-search» (FR-8): a 163 offer action is resolved before Report Discussion, on the
+        // offer's own derived reservation; the turn holds no reservation of its own.
+        if (GroundedAnalysisOfferActions.IsOfferAction(request.SuggestedActionId))
+        {
+            var offerTurn = await ResolveAnalysisOfferAsync(request, conversationId, createConversation, ct);
+            return new WorkflowStartMessage(
+                request, conversationId, createConversation, timeProvider.GetUtcNow(), OfferTurn: offerTurn);
+        }
+
         var reservation = await billingFunctions.TryReserveAsync(request, ct);
         try
         {
@@ -290,12 +307,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 request,
                 conversationId,
                 createConversation,
-                async cancellationToken =>
+                async (credits, cancellationToken) =>
                 {
                     if (reservation is not null)
                     {
                         reservation = await billingFunctions.EnsureReservedCapacityAsync(
-                            reservation, ReportDiscussionBillingPolicy.AnsweredCredits, cancellationToken);
+                            reservation, credits, cancellationToken);
                     }
                 },
                 ct);
@@ -333,7 +350,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         AiQueryRequest request,
         Guid conversationId,
         bool createConversation,
-        Func<CancellationToken, Task> ensureBillingCapacityBeforeModelCall,
+        Func<decimal, CancellationToken, Task> ensureBillingCapacityBeforeModelCall,
         CancellationToken ct)
     {
         if (reportDiscussionHandler is null) return ReportDiscussionTurn.NotApplicableBecause("not_registered");
@@ -348,10 +365,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 logger.LogInformation(
                     "Report discussion evaluated. Kind={Kind} ReportFamily={ReportFamily} Disposition={Disposition} Reason={Reason} " +
                     "EstimatedInputTokens={EstimatedInputTokens} FactCount={FactCount} NumbersChecked={NumbersChecked} " +
-                    "UngroundedNumbers={UngroundedNumbers} ElapsedMs={ElapsedMs} CorrelationId={CorrelationId}",
+                    "UngroundedNumbers={UngroundedNumbers} DispositionStep={DispositionStep} AnalysisTier={AnalysisTier} " +
+                    "ExternalMarkers={ExternalMarkers} ExternalItemsRemoved={ExternalItemsRemoved} ElapsedMs={ElapsedMs} " +
+                    "CorrelationId={CorrelationId}",
                     turn.Kind, diagnostics?.ReportFamily, diagnostics?.Disposition, diagnostics?.Reason,
                     diagnostics?.EstimatedInputTokens, diagnostics?.FactCount, diagnostics?.NumbersChecked,
-                    diagnostics?.UngroundedNumbers, Stopwatch.GetElapsedTime(started).TotalMilliseconds, request.CorrelationId);
+                    diagnostics?.UngroundedNumbers, diagnostics?.DispositionStep, turn.AnalysisRun?.Tier,
+                    diagnostics?.ExternalMarkers, diagnostics?.ExternalItemsRemoved,
+                    Stopwatch.GetElapsedTime(started).TotalMilliseconds, request.CorrelationId);
+                if (turn.AnalysisFacts is { } facts)
+                    groundedAnalysisTelemetry?.Record(facts, turn.BillingCompletionStatus, diagnostics?.Disposition,
+                        Stopwatch.GetElapsedTime(started), request.CorrelationId);
             }
             return turn;
         }
@@ -378,13 +402,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.ConversationId, msg.Request.CorrelationId, ct);
 
         // Feature 162: a Report Discussion reply is already composed; the agent prompt enrichment is not needed.
-        var enrichedMessage = msg.ReportDiscussion is null
+        // The same holds for a resolved 163 offer action.
+        var enrichedMessage = msg.ReportDiscussion is null && msg.OfferTurn is null
             ? BuildEnrichedMessage(msg.Request.Message, memoryContext)
             : msg.Request.Message;
 
         return new MemoryRetrievedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation,
-            msg.Now, memoryContext, enrichedMessage, msg.Reservation, msg.ReportDiscussion);
+            msg.Now, memoryContext, enrichedMessage, msg.Reservation, msg.ReportDiscussion, msg.OfferTurn);
     }
 
     private async ValueTask<BillingReservedMessage> ExecuteBillingReservationStepAsync(
@@ -400,7 +425,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         return new BillingReservedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation,
-            msg.Now, msg.MemoryContext, msg.EnrichedMessage, reservation, msg.ReportDiscussion);
+            msg.Now, msg.MemoryContext, msg.EnrichedMessage, reservation, msg.ReportDiscussion, msg.OfferTurn);
     }
 
     private async ValueTask<AgentExecutedMessage> ExecuteAgentStepAsync(
@@ -408,6 +433,22 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step3.AgentExecution");
         var request = msg.Request;
+
+        // Change «sol-deep-analysis-web-search»: a 163 offer action was resolved and settled before the dialogue gate.
+        if (msg.OfferTurn is { } offerTurn)
+        {
+            stepActivity?.SetTag("workflow.intent", "GroundedAnalysisOffer");
+            stepActivity?.SetTag("grounded_analysis.offer_reason", offerTurn.ReasonCode);
+            return new AgentExecutedMessage(
+                request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, null, offerTurn.Text,
+                null, null, null, null, null, null, null, null,
+                offerTurn.CompletionStatus, false, null, offerTurn.Usage,
+                SemanticOutcome: offerTurn.Outcome,
+                SemanticOutcomeReasonCode: offerTurn.ReasonCode,
+                SemanticReplyLanguage: "fa",
+                OfferTurn: offerTurn);
+        }
 
         // Feature 162: the Report Discussion reply was composed before the dialogue gate. Settle the turn once with its
         // status (an answer is charged; every non-answer is zero-charge) and skip the agent and capability routes.
@@ -504,6 +545,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (request.SemanticFrame is { } semanticFrame &&
             !MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message))
         {
+            if (!PeriodAnalysisEnabled &&
+                semanticFrame.CapabilityCode == CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis)
+                return await PeriodAnalysisDisabledAsync(msg, "semantic_capability", stepActivity, ct);
+
             stepActivity?.SetTag("chat.capability_source", SourceFor(semanticFrame.CapabilityCode).ToString());
             var interpretation = semanticFrame.Interpretation;
             var entities = string.Join(',', interpretation.EntityMentions
@@ -1193,6 +1238,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         var isFinancialStatementAnalysis = FinancialStatementAnalysisIntentRules.LooksLikeV2FinancialStatementAnalysisQuery(request.Message);
+        if (isFinancialStatementAnalysis && !PeriodAnalysisEnabled)
+            return await PeriodAnalysisDisabledAsync(msg, "financial_statement_period_analysis", stepActivity, ct);
         if (isFinancialStatementAnalysis)
         {
             var analysisQuery = FinancialStatementAnalysisIntentRules.BuildV2Query(request.Message);
@@ -1420,6 +1467,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         if (msg.ReportDiscussion is { Kind: ReportDiscussionTurnKind.Reply } discussion)
             return ComputeReportDiscussionResult(msg, discussion, stepActivity);
+        if (msg.OfferTurn is { } offerTurn)
+            return ComputeOfferTurnResult(msg, offerTurn, stepActivity);
 
         var isMonthlyProductComparison = msg.Request.SemanticFrame is null &&
             MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
@@ -1461,6 +1510,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.MonthlyActivityTrendResult,
                     msg.MonthlySalesQualityRankingResult,
                     msg.MonthlyProductComparisonResult);
+        // Feature 081 change «period-analysis-feature-flag» (FR-5): a switched-off 081 turn is an ordinary unsupported turn,
+        // whether its label came from the semantic frame or from the message text.
+        if (!PeriodAnalysisEnabled && detectedIntent == DetectedIntent.FinancialStatementPeriodAnalysis &&
+            msg.FinancialStatementAnalysisResult is null)
+            detectedIntent = DetectedIntent.Unknown;
         var clarificationRequired =
             msg.ScannerResult?.ClarificationRequired ?? msg.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -1502,11 +1556,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         RecordRoutingDiagnostic(msg, detectedIntent, outcome, routingDiagnosticSink);
         RecordCanaryEvidence(msg, detectedIntent, outcome, canaryTelemetrySink);
 
-        // Feature 163: the one place a non-answer can become a symbol-grounded answer. The routing diagnostics above
-        // keep the original outcome (the routes did not answer); everything after this line sees the final one.
-        var fallback = await TrySymbolGroundedFallbackAsync(msg, outcome, ct);
-        if (fallback.Result.Kind == SymbolGroundedFallbackKind.Answered)
-            return ComputeSymbolGroundedFallbackResult(msg, fallback.Result, fallback.Usage, outcome, stepActivity);
+        // Feature 163, changed by «sol-deep-analysis-web-search» (FR-7): the one place a non-answer can carry an analysis
+        // offer. The original outcome stays (Feature 155 still counts the question); no model call, no reservation.
+        var fallback = await TrySymbolGroundedFallbackOfferAsync(msg, outcome, ct);
 
         outcomeTelemetry.Record(msg.Request, outcome,
             msg.Request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", msg.Now);
@@ -1540,11 +1592,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 outcome,
                 detectedIntent == DetectedIntent.Unknown ? null : msg.AgentResponseText);
 
-        // Feature 163 (OQ-093): the question cannot be answered from an income statement; the non-answer stays and
-        // offers the statement itself.
-        var offersIncomeStatement = fallback.Result.Kind == SymbolGroundedFallbackKind.OfferIncomeStatement;
-        if (offersIncomeStatement)
-            groundedAnswer = $"{groundedAnswer}\n\n{fallback.Result.Text}";
+        var analysisOffer = fallback.Kind == SymbolGroundedFallbackKind.OfferAnalysis ? fallback.Offer : null;
+        if (analysisOffer is not null)
+            groundedAnswer = $"{groundedAnswer}\n\n{fallback.Text}";
 
         var confidenceScore = CalculateConfidenceScore(
             msg.Request.CorrelationId, groundedAnswer, msg.LookupResult?.Table, explainableAnswer);
@@ -1566,11 +1616,6 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.FinancialStatementAnalysisResult), ct);
         var deterministicActions = followUps.Actions;
         var deterministicApplied = followUps.Applied;
-        if (offersIncomeStatement && fallback.Result.Suggestion is { } incomeStatementSuggestion)
-        {
-            deterministicActions = [incomeStatementSuggestion];
-            deterministicApplied = true;
-        }
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);
@@ -1598,7 +1643,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
             SuggestedActions: deterministicActions,
             DeterministicSuggestionsApplied: deterministicApplied,
-            SymbolSnapshotResult: msg.SymbolSnapshotResult);
+            SymbolSnapshotResult: msg.SymbolSnapshotResult,
+            GroundedAnalysisOffer: analysisOffer);
     }
 
     /// <summary>
@@ -1630,62 +1676,125 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     }
 
     /// <summary>
-    /// Feature 163 entry point. The fallback must never break the turn: an unexpected failure, or too little credit
-    /// for the two-credit answer, is logged and the turn keeps its original non-answer. The answer is billed on its
-    /// own derived reservation because the turn's reservation was already settled by the route that did not answer.
-    /// Only identifiers and counts are logged, never report values, the question or the answer.
+    /// Feature 163 entry point, changed by «sol-deep-analysis-web-search» (FR-7, AC-8): an eligible non-answer about one
+    /// company gets an analysis offer. No model call and no reservation happen here; an unexpected failure is logged
+    /// and the turn keeps its original non-answer. Only identifiers and counts are logged.
     /// </summary>
-    private async Task<(SymbolGroundedFallbackResult Result, UsageAccountingResult? Usage)> TrySymbolGroundedFallbackAsync(
+    private async Task<SymbolGroundedFallbackResult> TrySymbolGroundedFallbackOfferAsync(
         AgentExecutedMessage msg, DialogueOutcomeResult outcome, CancellationToken ct)
     {
         if (symbolGroundedFallbackHandler is null ||
             !SymbolGroundedFallbackEligibility.MayReplace(outcome.Outcome, outcome.ReasonCode))
-            return (SymbolGroundedFallbackResult.UnchangedBecause("not_applicable"), null);
+            return SymbolGroundedFallbackResult.UnchangedBecause("not_applicable");
 
         var request = msg.Request;
-        var started = Stopwatch.GetTimestamp();
-        BillingReservationHandle? reservation = null;
         try
         {
-            var result = await symbolGroundedFallbackHandler.TryHandleAsync(
+            var result = await symbolGroundedFallbackHandler.TryOfferAsync(
                 new SymbolGroundedFallbackRequest(
                     request, outcome.Outcome, outcome.ReasonCode, outcome.ReplyLanguage,
                     ReportDiscussionApplied: msg.ReportDiscussion is not null),
-                ct,
-                async cancellationToken =>
-                {
-                    reservation = await billingFunctions.TryReserveAsync(
-                        request with
-                        {
-                            CorrelationId = $"{request.CorrelationId}:fallback163",
-                            BillingOperationId = FallbackBillingOperationId(request.BillingOperationId)
-                        },
-                        cancellationToken,
-                        usageCorrelationId: request.CorrelationId);
-                    if (reservation is not null)
-                        reservation = await billingFunctions.EnsureReservedCapacityAsync(
-                            reservation, SymbolGroundedFallbackBillingPolicy.AnsweredCredits, cancellationToken);
-                });
-            var usage = reservation is null
-                ? null
-                : await billingFunctions.FinalizeAsync(
-                    reservation,
-                    result.Kind == SymbolGroundedFallbackKind.Answered
-                        ? SymbolGroundedFallbackBillingPolicy.AnsweredCompletionStatus
-                        : SymbolGroundedFallbackBillingPolicy.NotAnsweredCompletionStatus,
-                    false, CancellationToken.None, executionRoute: SymbolGroundedFallbackExecutionRoute.Code);
-            var diagnostics = result.Diagnostics;
-            if (diagnostics?.Reason is not "disabled")
+                ct);
+            if (result.Diagnostics?.Reason is not "disabled")
             {
                 logger.LogInformation(
-                    "Symbol-grounded fallback evaluated. Kind={Kind} Disposition={Disposition} Reason={Reason} OriginalReasonCode={OriginalReasonCode} " +
-                    "EstimatedInputTokens={EstimatedInputTokens} FactCount={FactCount} NumbersChecked={NumbersChecked} " +
-                    "UngroundedNumbers={UngroundedNumbers} ElapsedMs={ElapsedMs} CorrelationId={CorrelationId}",
-                    result.Kind, diagnostics?.Disposition, diagnostics?.Reason, outcome.ReasonCode,
-                    diagnostics?.EstimatedInputTokens, diagnostics?.FactCount, diagnostics?.NumbersChecked,
-                    diagnostics?.UngroundedNumbers, Stopwatch.GetElapsedTime(started).TotalMilliseconds, request.CorrelationId);
+                    "Symbol-grounded fallback offer evaluated. Kind={Kind} Reason={Reason} OriginalReasonCode={OriginalReasonCode} " +
+                    "FactCount={FactCount} OfferId={OfferId} CorrelationId={CorrelationId}",
+                    result.Kind, result.Diagnostics?.Reason, outcome.ReasonCode, result.Diagnostics?.FactCount,
+                    result.Offer?.OfferId, request.CorrelationId);
             }
-            return (result, usage);
+            return result;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogWarning(
+                "Symbol-grounded fallback offer failed; keeping the original non-answer. FailureType={FailureType} CorrelationId={CorrelationId}",
+                exception.GetType().Name, request.CorrelationId);
+            return SymbolGroundedFallbackResult.UnchangedBecause("handler_failed");
+        }
+    }
+
+    /// <summary>
+    /// The single arbiter of a 163 offer (FR-8): a billing operation id derived from the offer id, so its reservation
+    /// key is unique to the offer. Exactly one confirm or cancel claims it, once.
+    /// </summary>
+    internal static Guid OfferBillingOperationId(Guid offerId) =>
+        new(System.Security.Cryptography.SHA256.HashData(
+            Encoding.UTF8.GetBytes($"{offerId:N}:grounded_analysis_offer")).AsSpan(0, 16));
+
+    /// <summary>
+    /// Change «sol-deep-analysis-web-search» (design-proposal §6): resolves a <c>ga1:</c> confirm or cancel. The offer is
+    /// read in the request's tenant and actor scope; an expired, unknown or already claimed offer never runs. Cancel
+    /// claims the offer key at zero and settles at once. Confirm checks the balance without claiming (a short balance
+    /// keeps the offer), claims the key with the analysis operation, runs the analysis once and settles once: the tier
+    /// for an answer, zero for anything else. A second request for the same offer gets a zero-credit reply.
+    /// </summary>
+    private async Task<GroundedAnalysisOfferTurn> ResolveAnalysisOfferAsync(
+        AiQueryRequest request, Guid conversationId, bool createConversation, CancellationToken ct)
+    {
+        var started = Stopwatch.GetTimestamp();
+        if (createConversation || symbolGroundedFallbackHandler is not { OfferEnabled: true } handler ||
+            !GroundedAnalysisOfferActions.TryParse(request.SuggestedActionId, out var offerId, out var confirm))
+            return OfferReply(SymbolGroundedFallbackMessages.OfferExpired, GroundedAnalysisOfferReasonCodes.Expired);
+
+        var pending = await handler.FindOfferAsync(conversationId, request.TenantId, request.ActorId, offerId, ct);
+        if (pending is null || handler.IsExpired(pending.Offer))
+            return LogOffer(OfferReply(SymbolGroundedFallbackMessages.OfferExpired, GroundedAnalysisOfferReasonCodes.Expired));
+
+        var offerOperationId = OfferBillingOperationId(offerId);
+        if (await ClaimedOfferReplyAsync(offerOperationId, ct) is { } claimed) return LogOffer(claimed);
+
+        if (!confirm)
+        {
+            BillingReservationHandle? claim;
+            try
+            {
+                claim = await billingFunctions.TryClaimOfferAsync(
+                    request, offerOperationId, GroundedAnalysisBillingPolicy.OfferCancelOperationCode, ct);
+            }
+            catch (FinancialCopilot.Billing.BillingIdempotencyConflictException)
+            {
+                return LogOffer(await ClaimedOfferReplyAsync(offerOperationId, ct) ?? AlreadyResolvedReply());
+            }
+
+            var cancelUsage = claim is null
+                ? null
+                : await billingFunctions.FinalizeAsync(claim, GroundedAnalysisBillingPolicy.OfferCancelledCompletionStatus, false,
+                    CancellationToken.None, executionRoute: SymbolGroundedFallbackExecutionRoute.Code);
+            return LogOffer(OfferReply(SymbolGroundedFallbackMessages.OfferCancelled, GroundedAnalysisOfferReasonCodes.Cancelled,
+                usage: cancelUsage));
+        }
+
+        var choice = request.AnalysisOptions?.Resolve(handler.DefaultChoice) ?? handler.DefaultChoice;
+        // AC-10: the standard insufficient-credit response, and the offer stays confirmable until it expires.
+        if (groundedAnalysisHints is not null && await groundedAnalysisHints.CoversAsync(request, choice, ct) == false)
+            throw new FinancialCopilot.Billing.InsufficientCreditException();
+
+        BillingReservationHandle? reservation;
+        try
+        {
+            reservation = await billingFunctions.TryClaimOfferAsync(
+                request, offerOperationId, GroundedAnalysisBillingPolicy.AnalysisOperationCode, ct);
+        }
+        catch (FinancialCopilot.Billing.BillingIdempotencyConflictException)
+        {
+            // Another request claimed this offer between the check above and this claim.
+            return LogOffer(await ClaimedOfferReplyAsync(offerOperationId, ct) ?? AlreadyResolvedReply());
+        }
+
+        SymbolGroundedFallbackResult result;
+        try
+        {
+            result = await handler.RunConfirmedAsync(request, pending, choice, ct, async (credits, token) =>
+            {
+                if (reservation is not null)
+                    reservation = await billingFunctions.EnsureReservedCapacityAsync(reservation, credits, token);
+            });
+        }
+        catch (FinancialCopilot.Billing.InsufficientCreditException)
+        {
+            // The reservation upgrader releases the hold itself when the tier preflight fails.
+            throw;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -1696,59 +1805,118 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
         catch (Exception exception)
         {
-            // The reservation upgrader releases the hold itself when the two-credit preflight fails.
-            if (reservation is not null && exception is not FinancialCopilot.Billing.InsufficientCreditException)
+            if (reservation is not null)
                 await billingFunctions.FinalizeAsync(reservation, "ProviderFailed", false, CancellationToken.None,
                     executionRoute: SymbolGroundedFallbackExecutionRoute.Code);
             logger.LogWarning(
-                exception,
-                "Symbol-grounded fallback failed; keeping the original non-answer. FailureType={FailureType} CorrelationId={CorrelationId}",
-                exception.GetType().Name, request.CorrelationId);
-            return (SymbolGroundedFallbackResult.UnchangedBecause("handler_failed"), null);
+                "Grounded analysis offer failed. FailureType={FailureType} OfferId={OfferId} CorrelationId={CorrelationId}",
+                exception.GetType().Name, offerId, request.CorrelationId);
+            return OfferReply(SymbolGroundedFallbackMessages.AnalysisFailed, GroundedAnalysisOfferReasonCodes.NotAnswered,
+                DialogueOutcome.TemporarilyUnavailable);
+        }
+
+        var completionStatus = result.Kind switch
+        {
+            SymbolGroundedFallbackKind.Answered => GroundedAnalysisBillingPolicy.AnsweredStatus(choice),
+            _ when result.Diagnostics?.Reason?.StartsWith("model_unavailable", StringComparison.Ordinal) == true => "ProviderFailed",
+            _ => SymbolGroundedFallbackBillingPolicy.NotAnsweredCompletionStatus
+        };
+        var usage = reservation is null
+            ? null
+            : await billingFunctions.FinalizeAsync(reservation, completionStatus, false, CancellationToken.None,
+                executionRoute: SymbolGroundedFallbackExecutionRoute.Code);
+        if (result.AnalysisFacts is { } facts)
+            groundedAnalysisTelemetry?.Record(facts, completionStatus, result.Diagnostics?.Disposition ?? result.Kind.ToString(),
+                Stopwatch.GetElapsedTime(started), request.CorrelationId);
+
+        var turn = result.Kind switch
+        {
+            SymbolGroundedFallbackKind.Answered => new GroundedAnalysisOfferTurn(
+                result.Text!, DialogueOutcome.Answered, DialogueOutcomeReasonCodes.None, completionStatus, usage,
+                new SymbolGroundedFallbackAnswer(result.GroundingReport!, pending.Origin, result.AnalysisRun, result.Sources)),
+            SymbolGroundedFallbackKind.OfferIncomeStatement => new GroundedAnalysisOfferTurn(
+                result.Text!, DialogueOutcome.NoData, GroundedAnalysisOfferReasonCodes.NotAnswerable, completionStatus, usage,
+                Suggestion: result.Suggestion),
+            SymbolGroundedFallbackKind.Stale => WithFreshOffer(
+                SymbolGroundedFallbackMessages.OfferChanged, DialogueOutcome.ClarificationNeeded,
+                GroundedAnalysisOfferReasonCodes.Changed, completionStatus, usage, result.Offer),
+            _ => WithFreshOffer(
+                SymbolGroundedFallbackMessages.AnalysisFailed,
+                completionStatus == "ProviderFailed" ? DialogueOutcome.TemporarilyUnavailable : DialogueOutcome.NoData,
+                GroundedAnalysisOfferReasonCodes.NotAnswered, completionStatus, usage, result.Offer)
+        };
+        return LogOffer(turn, result);
+
+        GroundedAnalysisOfferTurn WithFreshOffer(
+            string text, DialogueOutcome outcome, string reasonCode, string status, UsageAccountingResult? turnUsage,
+            GroundedAnalysisOffer? fresh) =>
+            new(fresh is null ? text : $"{text}\n\n{handler.OfferText(fresh)}", outcome, reasonCode, status, turnUsage,
+                NewOffer: fresh);
+
+        GroundedAnalysisOfferTurn LogOffer(GroundedAnalysisOfferTurn reply, SymbolGroundedFallbackResult? run = null)
+        {
+            logger.LogInformation(
+                "Grounded analysis offer resolved. Action={Action} Reason={Reason} Kind={Kind} RunReason={RunReason} " +
+                "AnalysisTier={AnalysisTier} NumbersChecked={NumbersChecked} UngroundedNumbers={UngroundedNumbers} " +
+                "OfferId={OfferId} ElapsedMs={ElapsedMs} CorrelationId={CorrelationId}",
+                confirm ? "confirm" : "cancel", reply.ReasonCode, run?.Kind, run?.Diagnostics?.Reason, run?.AnalysisRun?.Tier,
+                run?.Diagnostics?.NumbersChecked, run?.Diagnostics?.UngroundedNumbers, offerId,
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds, request.CorrelationId);
+            return reply;
         }
     }
 
-    /// <summary>
-    /// The reservation key is the billing operation id, and the turn's own reservation is already settled, so the
-    /// fallback needs its own id. It is derived, not random, so a retried request reaches the same reservation.
-    /// </summary>
-    private static Guid? FallbackBillingOperationId(Guid? turnOperationId) =>
-        turnOperationId is { } id
-            ? new Guid(System.Security.Cryptography.SHA256.HashData(
-                Encoding.UTF8.GetBytes($"{id:N}:symbol_grounded_fallback")).AsSpan(0, 16))
-            : null;
+    /// <summary>The zero-credit reply when the offer key is already claimed: in progress, or done or cancelled.</summary>
+    private async Task<GroundedAnalysisOfferTurn?> ClaimedOfferReplyAsync(Guid offerOperationId, CancellationToken ct) =>
+        await billingFunctions.FindReservationStatusAsync(offerOperationId, ct) switch
+        {
+            null => null,
+            "Reserved" => OfferReply(SymbolGroundedFallbackMessages.OfferInProgress, GroundedAnalysisOfferReasonCodes.InProgress),
+            _ => AlreadyResolvedReply()
+        };
+
+    private static GroundedAnalysisOfferTurn AlreadyResolvedReply() =>
+        OfferReply(SymbolGroundedFallbackMessages.OfferAlreadyResolved, GroundedAnalysisOfferReasonCodes.AlreadyResolved);
+
+    private static GroundedAnalysisOfferTurn OfferReply(
+        string text, string reasonCode, DialogueOutcome outcome = DialogueOutcome.NoData, UsageAccountingResult? usage = null) =>
+        new(text, outcome, reasonCode, SymbolGroundedFallbackBillingPolicy.NotAnsweredCompletionStatus, usage);
 
     /// <summary>
-    /// Feature 163: the fallback answer is already grounded (numeric check) and in Persian, and its report was not
-    /// shown, so no result tables, prose grounding or suggestion chips apply. It is persisted like a Report Discussion
-    /// reply, with the hidden report and the non-answer it replaced.
+    /// A resolved 163 offer action: the reply is already composed, settled and grounded, so no result tables, prose
+    /// grounding or suggestion pipeline apply. An answer is persisted like a Report Discussion reply, with the hidden
+    /// report, the non-answer it replaced and the confirmed offer id; a fresh offer is persisted for a retry.
     /// </summary>
-    private ResultsComputedMessage ComputeSymbolGroundedFallbackResult(
-        AgentExecutedMessage msg, SymbolGroundedFallbackResult fallback, UsageAccountingResult? usage,
-        DialogueOutcomeResult original, Activity? stepActivity)
+    private ResultsComputedMessage ComputeOfferTurnResult(
+        AgentExecutedMessage msg, GroundedAnalysisOfferTurn turn, Activity? stepActivity)
     {
-        var outcome = new DialogueOutcomeResult(DialogueOutcome.Answered, DialogueOutcomeReasonCodes.None, "fa", null, false);
+        var outcome = new DialogueOutcomeResult(turn.Outcome, turn.ReasonCode, "fa", null, false);
         outcomeTelemetry.Record(msg.Request, outcome,
             msg.Request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", msg.Now);
-        stepActivity?.SetTag("workflow.detected_intent", nameof(DetectedIntent.ReportDiscussion));
+        var answered = turn.Answer is not null;
+        stepActivity?.SetTag("workflow.detected_intent", answered ? nameof(DetectedIntent.ReportDiscussion) : nameof(DetectedIntent.Unknown));
         stepActivity?.SetTag("workflow.outcome", outcome.Outcome.ToString());
         stepActivity?.SetTag("workflow.outcome_reason", outcome.ReasonCode);
-        stepActivity?.SetTag("symbol_grounded_fallback.original_outcome", original.Outcome.ToString());
-        stepActivity?.SetTag("symbol_grounded_fallback.original_reason", original.ReasonCode);
+        if (turn.Answer is { } answer)
+        {
+            stepActivity?.SetTag("symbol_grounded_fallback.original_outcome", answer.Origin.Outcome.ToString());
+            stepActivity?.SetTag("symbol_grounded_fallback.original_reason", answer.Origin.ReasonCode);
+        }
         return new ResultsComputedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
-            msg.MemoryContext, msg.Reservation,
-            fallback.Text!, null, null, null, null, null, null, null, null,
-            SymbolGroundedFallbackBillingPolicy.AnsweredCompletionStatus, false, null,
-            DetectedIntent.ReportDiscussion, false, null,
-            null, null, fallback.Text, usage ?? msg.Usage,
+            msg.MemoryContext, null,
+            turn.Text, null, null, null, null, null, null, null, null,
+            turn.CompletionStatus, false, null,
+            answered ? DetectedIntent.ReportDiscussion : DetectedIntent.Unknown, false, null,
+            null, null, turn.Text, turn.Usage,
             Outcome: outcome.Outcome,
             OutcomeReasonCode: outcome.ReasonCode,
             ReplyLanguage: "fa",
-            SuggestedActions: Array.Empty<SuggestedAction>(),
+            SuggestedActions: turn.Suggestion is { } suggestion ? [suggestion] : Array.Empty<SuggestedAction>(),
             DeterministicSuggestionsApplied: true,
-            SymbolGroundedFallback: new SymbolGroundedFallbackAnswer(
-                fallback.GroundingReport!, new FallbackOrigin(original.Outcome, original.ReasonCode)));
+            SymbolGroundedFallback: turn.Answer,
+            GroundedAnalysisOffer: turn.NewOffer,
+            OfferTurn: turn);
     }
 
     private void RecordRoutingDiagnostic(
@@ -2011,7 +2179,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         // Feature 162: a discussion reply is the text itself. It is not a capability task, so the conversation task
         // state is left as it was (the dialogue gate did not run for this turn).
         var isReportDiscussion = msg.ReportDiscussion is { Kind: ReportDiscussionTurnKind.Reply };
-        if (isReportDiscussion)
+        if (isReportDiscussion || msg.OfferTurn is not null)
             responseTextAnswer = msg.AgentResponseText;
         else
         {
@@ -2021,6 +2189,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             await dialogueGate.RecordOutcomeAsync(
                 msg.Request, msg.ConversationId, msg.ClarificationRequired, msg.OutcomeReasonCode, ct);
         }
+
+        // Change «sol-deep-analysis-web-search»: null while analysis is off, so old behaviour stores nothing new.
+        bool? analysisAvailable = groundedAnalysisHints is { Enabled: true } ? NextQuestionMayBeDiscussed(msg) : null;
 
         var persistedExchange = await persistenceFunction.PersistAsync(
             msg.ConversationId, msg.Request,
@@ -2051,7 +2222,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              deterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied,
              reportDiscussion: isReportDiscussion ? msg.ReportDiscussion!.Marker : msg.Request.ReportDiscussionHandBack,
              groundingReport: msg.SymbolGroundedFallback?.GroundingReport,
-             fallbackOf: msg.SymbolGroundedFallback?.Origin);
+             fallbackOf: msg.SymbolGroundedFallback?.Origin,
+             groundedAnalysisOffer: msg.GroundedAnalysisOffer,
+             groundedAnalysisRun: isReportDiscussion ? msg.ReportDiscussion!.AnalysisRun : msg.SymbolGroundedFallback?.AnalysisRun,
+             externalSources: AnswerSources(msg),
+             // OQ-113 (a): one decision, stored so the conversation's messages endpoint returns the same hint.
+             groundedAnalysisAvailable: analysisAvailable);
+
+        var groundedAnalysisHint = groundedAnalysisHints is null
+            ? null
+            : await groundedAnalysisHints.CreateAsync(msg.Request, analysisAvailable == true,
+                msg.GroundedAnalysisOffer, CancellationToken.None);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -2072,7 +2253,31 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
              SuggestedActions: persistedExchange.SuggestedActions,
              DeterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied,
-             SymbolSnapshotResult: msg.SymbolSnapshotResult);
+             SymbolSnapshotResult: msg.SymbolSnapshotResult,
+             GroundedAnalysis: groundedAnalysisHint,
+             Sources: AnswerSources(msg));
+    }
+
+    /// <summary>Change «sol-deep-analysis-web-search» (FR-10): the verified external sources an answer cited.</summary>
+    private static IReadOnlyList<ExternalSource>? AnswerSources(ResultsComputedMessage msg) =>
+        msg.ReportDiscussion is { Kind: ReportDiscussionTurnKind.Reply } discussion
+            ? discussion.Sources
+            : msg.SymbolGroundedFallback?.Sources;
+
+    /// <summary>
+    /// Change «sol-deep-analysis-web-search» (design-proposal §7): the analysis controls are shown when the next question
+    /// may be answered by Report Discussion — the same rule <see cref="ActiveReportResolver"/> applies to the history:
+    /// this turn shows a discussable report, is a discussion or fallback turn, or handed back without leaving the report.
+    /// </summary>
+    private bool NextQuestionMayBeDiscussed(ResultsComputedMessage msg)
+    {
+        if (reportDiscussionHandler is not { IsEnabled: true, AnalysisEnabled: true }) return false;
+        if (msg.ReportDiscussion is { Kind: ReportDiscussionTurnKind.Reply } || msg.SymbolGroundedFallback is not null)
+            return true;
+        if (msg.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer &&
+            ActiveReportResolver.Discussable(msg.FinancialStatementTableResult, msg.MonthlyActivityTrendResult) is not null)
+            return true;
+        return msg.Request.ReportDiscussionHandBack is { DeactivatesReport: false };
     }
 
     private static AiQueryResponse BuildFinalResponse(PersistenceCompletedMessage msg)
@@ -2119,7 +2324,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             SuggestedActions: msg.SuggestedActions,
             SemanticCapabilityCode: EffectiveSemanticCapabilityCode(msg.Request),
             SemanticRegistryVersion: EffectiveSemanticRegistryVersion(msg.Request),
-            FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult);
+            FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
+            GroundedAnalysis: msg.GroundedAnalysis,
+            Sources: msg.Sources);
     }
 
     private static string? EffectiveSemanticCapabilityCode(AiQueryRequest request) =>
@@ -2375,6 +2582,46 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (FinancialStatementAnalysisIntentRules.LooksLikeV2FinancialStatementAnalysisQuery(message)) return CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis;
         if (PsGaugeIntentRules.ExtractCompanySymbol(message) is not null) return CapabilityExecutionRoutes.PsGaugeVisualization;
         return null;
+    }
+
+    /// <summary>
+    /// Feature 081 change «period-analysis-feature-flag» (FR-4): a turn 081 would have answered while it is switched off.
+    /// The Feature 141 fallback is tried first, as for every non-answer. Otherwise the turn is a zero-charge
+    /// <see cref="DialogueOutcome.Unsupported"/> whose reason code Feature 163 accepts, so its offer can follow.
+    /// </summary>
+    private async Task<AgentExecutedMessage> PeriodAnalysisDisabledAsync(
+        BillingReservedMessage msg, string route, Activity? stepActivity, CancellationToken ct)
+    {
+        var request = msg.Request;
+        var replyLanguage = AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message);
+        if (await TryFeature141FallbackAsync(request, msg.Reservation,
+                $"period_analysis_disabled:{route}", ct) is { } fallback)
+        {
+            stepActivity?.SetTag("workflow.intent", "Feature141Fallback");
+            return new AgentExecutedMessage(
+                request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext,
+                msg.Reservation, fallback.Answer, null, null, null, null, null, null, null, null,
+                fallback.CompletionStatus, false, null, fallback.Usage,
+                SemanticOutcome: fallback.Outcome,
+                SemanticReplyLanguage: replyLanguage);
+        }
+
+        const string reasonCode = FinancialStatementPeriodAnalysisOptions.DisabledReasonCode;
+        var response = AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+            DialogueOutcome.Unsupported, reasonCode, replyLanguage, null, false));
+        UsageAccountingResult? usage = null;
+        if (msg.Reservation is not null)
+            usage = await billingFunctions.FinalizeAsync(msg.Reservation, "ValidationFailed", false, CancellationToken.None);
+        stepActivity?.SetTag("workflow.intent", "FinancialStatementPeriodAnalysisDisabled");
+        logger.LogInformation(
+            "Chat financial-statement period analysis is switched off; the turn ends unsupported. Route={Route} ReasonCode={ReasonCode} CorrelationId={CorrelationId}",
+            route, reasonCode, request.CorrelationId);
+        return new AgentExecutedMessage(
+            request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext,
+            msg.Reservation, response, null, null, null, null, null, null, null, null,
+            "ValidationFailed", false, null, usage,
+            SemanticOutcome: DialogueOutcome.Unsupported, SemanticOutcomeReasonCode: reasonCode,
+            SemanticReplyLanguage: replyLanguage);
     }
 
     /// <summary>Answers a policy-blocked legacy route with the policy message; no data is read and the turn is not charged.</summary>

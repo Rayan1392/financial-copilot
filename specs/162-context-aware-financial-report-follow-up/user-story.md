@@ -58,6 +58,7 @@ Today every message is re-classified, so a natural question like «چرا حاش
 - V2 only, behind `ReportDiscussion:Enabled` (default `false`).
 - Interpretation suggestion first under a shown quarterly income statement, balance sheet or monthly sales trend, at most 5 suggestions per answer (change [`report-interpretation-suggestion`](changes/report-interpretation-suggestion/design-proposal.md), 2026-11-16).
 - Analytical answers, amounts in همت / میلیارد تومان (converted by the server before the prompt) and a 0–100 score for an overall analysis of a quarterly income statement (change [`analytical-answer-and-report-score`](changes/analytical-answer-and-report-score/user-story.md), 2026-11-18; also applies to Feature 163).
+- Analysis with `gpt-6.2-sol` at a chosen depth (Simple / Deep, default Deep) with an optional web search (default on), at fixed credits 8 / 12 / 16 / 25 shown before sending; behind `GroundedAnalysis:Enabled` (default `false`). This replaces the 2-credit price for answered turns while the flag is on (change [`sol-deep-analysis-web-search`](changes/sol-deep-analysis-web-search/user-story.md), 2026-11-20; also applies to Feature 163).
 
 ## Out Of Scope
 

@@ -76,6 +76,10 @@ GET /api/v1/admin/ai/provider
 
 The response includes configured provider, resolved provider, model, capabilities, and availability. It never returns API keys or prompt payloads.
 
+## Grounded Analysis Model Override
+
+Features 162 and 163 analyses call `gpt-6.2-sol` through `AiModelRequest.ModelKeyOverride` and may add the hosted `web_search` tool (OpenAI only, capability `WebSearch`); every other workload keeps the registration model. See `docs/providers/openai-grounded-analysis.md` and `docs/grounded-analysis-operations.md`.
+
 ## Usage Accounting
 
 AI query finalization stores provider usage facts on `billing_usage_ledger_entries`:

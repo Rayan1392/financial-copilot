@@ -57,6 +57,11 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
             }
         if (request.MaxOutputTokens is > 0)
             payload["max_output_tokens"] = request.MaxOutputTokens.Value;
+        // Change «sol-deep-analysis-web-search» (FR-5): optional fields only, so a request without them serialises as before.
+        if (!string.IsNullOrWhiteSpace(request.ReasoningEffort))
+            payload["reasoning"] = new JsonObject { ["effort"] = request.ReasoningEffort.Trim() };
+        if (request.WebSearch is { } webSearch)
+            AddWebSearch(payload, webSearch);
 
         for (var attempt = 1; attempt <= MaxRateLimitAttempts; attempt++)
         {
@@ -144,7 +149,10 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
                     CachedInputTokens: body.Usage?.InputTokensDetails?.CachedTokens,
                     CacheWriteInputTokens: body.Usage?.InputTokensDetails?.CacheWriteTokens,
                     CacheWrite30mInputTokens: body.Usage?.InputTokensDetails?.CacheWriteTokensDetails?.Ttl30mTokens,
-                    CacheWrite12hInputTokens: body.Usage?.InputTokensDetails?.CacheWriteTokensDetails?.Ttl12hTokens);
+                    CacheWrite12hInputTokens: body.Usage?.InputTokensDetails?.CacheWriteTokensDetails?.Ttl12hTokens,
+                    ReasoningTokens: body.Usage?.OutputTokensDetails?.ReasoningTokens,
+                    WebSearchCalls: request.WebSearch is null ? null : CountWebSearchCalls(body.Output),
+                    ConsultedSources: request.WebSearch is null ? null : ConsultedSources(body.Output));
             }
 
             var failure = await ReadFailureAsync(response, cancellationToken);
@@ -293,6 +301,65 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
         catch { return null; }
     }
 
+    /// <summary>
+    /// The hosted web search tool (FR-5): <c>tool_choice</c> stays at its default (auto), so the model may search but
+    /// need not; <c>max_tool_calls</c> is the hard per-response cap; the consulted sources are requested for the
+    /// external evidence check (FR-10).
+    /// </summary>
+    private static void AddWebSearch(JsonObject payload, AiWebSearchOptions webSearch)
+    {
+        var tool = new JsonObject
+        {
+            ["type"] = "web_search",
+            ["search_context_size"] = string.IsNullOrWhiteSpace(webSearch.SearchContextSize) ? "low" : webSearch.SearchContextSize.Trim()
+        };
+        if (!string.IsNullOrWhiteSpace(webSearch.UserLocationCountry))
+            tool["user_location"] = new JsonObject { ["type"] = "approximate", ["country"] = webSearch.UserLocationCountry.Trim() };
+        if (webSearch.AllowedDomains is { Count: > 0 } domains)
+        {
+            tool["filters"] = new JsonObject
+            {
+                ["allowed_domains"] = new JsonArray(domains.Select(domain => (JsonNode)JsonValue.Create(domain.Trim())).ToArray())
+            };
+        }
+
+        var tools = payload["tools"] as JsonArray ?? [];
+        tools.Add(tool);
+        payload["tools"] = tools;
+        payload["max_tool_calls"] = webSearch.MaxToolCalls;
+        payload["include"] = new JsonArray("web_search_call.action.sources");
+    }
+
+    /// <summary>Every web_search_call item counts, including open_page and find_in_page actions (T00).</summary>
+    private static int CountWebSearchCalls(OpenAiOutputItem[]? output) =>
+        output?.Count(item => string.Equals(item.Type, "web_search_call", StringComparison.Ordinal)) ?? 0;
+
+    /// <summary>Search sources, opened pages and URL citations of the response: the URLs the model could have read.</summary>
+    private static IReadOnlyCollection<string> ConsultedSources(OpenAiOutputItem[]? output)
+    {
+        var urls = new List<string>();
+        foreach (var item in output ?? [])
+        {
+            if (!string.Equals(item.Type, "web_search_call", StringComparison.Ordinal)) continue;
+            if (item.Action?.Url is { Length: > 0 } pageUrl) urls.Add(pageUrl);
+            foreach (var source in item.Action?.Sources ?? [])
+            {
+                if (source.Url is { Length: > 0 } url) urls.Add(url);
+            }
+        }
+
+        foreach (var annotation in (output ?? [])
+                     .Where(item => string.Equals(item.Type, "message", StringComparison.Ordinal))
+                     .SelectMany(item => item.Content ?? [])
+                     .SelectMany(content => content.Annotations ?? []))
+        {
+            if (string.Equals(annotation.Type, "url_citation", StringComparison.Ordinal) && annotation.Url is { Length: > 0 } url)
+                urls.Add(url);
+        }
+
+        return urls.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
     private static string? GetOutputText(OpenAiOutputItem[]? output) =>
         output?
             .Where(item => string.Equals(item.Type, "message", StringComparison.Ordinal))
@@ -419,14 +486,26 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
         OpenAiContentItem[]? Content,
         [property: JsonPropertyName("call_id")] string? CallId,
         string? Name,
-        string? Arguments);
+        string? Arguments,
+        OpenAiWebSearchAction? Action = null);
 
-    private sealed record OpenAiContentItem(string Type, string? Text);
+    private sealed record OpenAiContentItem(string Type, string? Text, OpenAiAnnotation[]? Annotations = null);
+
+    private sealed record OpenAiAnnotation(string? Type, string? Url);
+
+    // web_search_call.action: search (with sources when included), open_page (url) or find_in_page (url).
+    private sealed record OpenAiWebSearchAction(string? Type, string? Url, OpenAiWebSearchSource[]? Sources);
+
+    private sealed record OpenAiWebSearchSource(string? Type, string? Url);
 
     private sealed record OpenAiUsage(
         [property: JsonPropertyName("input_tokens")] int? InputTokens,
         [property: JsonPropertyName("output_tokens")] int? OutputTokens,
-        [property: JsonPropertyName("input_tokens_details")] OpenAiInputTokensDetails? InputTokensDetails = null);
+        [property: JsonPropertyName("input_tokens_details")] OpenAiInputTokensDetails? InputTokensDetails = null,
+        [property: JsonPropertyName("output_tokens_details")] OpenAiOutputTokensDetails? OutputTokensDetails = null);
+
+    private sealed record OpenAiOutputTokensDetails(
+        [property: JsonPropertyName("reasoning_tokens")] int? ReasoningTokens);
 
     // cached_tokens is the part of input_tokens served from the prompt cache.
     private sealed record OpenAiInputTokensDetails(

@@ -23,6 +23,42 @@ public sealed class TelegramAssistantResponseRenderer(
 
     public IReadOnlyList<TelegramAssistantRenderedMessage> Render(
         AiQueryResponse response,
+        string locale) =>
+        WithGroundedAnalysis(RenderCore(response, locale), response.GroundedAnalysis);
+
+    /// <summary>
+    /// Change «sol-deep-analysis-web-search» (T13): the price line under a discussable report, or a 163 offer's note and
+    /// tier buttons, on the last part of every rendering. A part that has no room for the line is followed by one more.
+    /// </summary>
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> WithGroundedAnalysis(
+        IReadOnlyList<TelegramAssistantRenderedMessage> messages,
+        FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisHint? hint)
+    {
+        var (note, actions) = TelegramGroundedAnalysis.Offer(hint);
+        var line = note ?? TelegramGroundedAnalysis.PriceLine(hint);
+        if ((line is null && actions.Count == 0) || messages.Count == 0) return messages;
+
+        var last = messages[^1];
+        var escaped = line is null ? null : EscapeMarkdownV2(line);
+        var limit = last.Media is null ? TelegramMessageLimit + 150 : TelegramPhotoCaptionLimit;
+        IReadOnlyList<TelegramAssistantAction>? combined =
+            actions.Count == 0 ? last.Actions : [.. last.Actions ?? [], .. actions];
+        if (escaped is null || last.Text.Length + 2 + escaped.Length <= limit)
+        {
+            var text = escaped is null ? last.Text : $"{last.Text}\n\n{escaped}";
+            return [.. messages.Take(messages.Count - 1), last with { Text = text, Actions = combined }];
+        }
+
+        var total = messages.Count + 1;
+        return
+        [
+            .. messages.Select(message => message with { TotalParts = total }),
+            new TelegramAssistantRenderedMessage(total, total, escaped, Actions: actions.Count == 0 ? null : actions)
+        ];
+    }
+
+    private IReadOnlyList<TelegramAssistantRenderedMessage> RenderCore(
+        AiQueryResponse response,
         string locale)
     {
         if (response.DisclosureListingResult is not null)

@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.ReportDiscussion;
@@ -28,7 +29,9 @@ public sealed class AiFacadeBillingHook(
     IOptions<UsageBasedCreditBillingOptions> usageBasedCreditOptions,
     UsageBasedCreditCalculator usageBasedCreditCalculator,
     ILogger<AiFacadeBillingHook> logger,
-    ISubscriptionPlanRepository? subscriptionPlans = null) : IBillingFacadeHook
+    ISubscriptionPlanRepository? subscriptionPlans = null,
+    // Change «sol-deep-analysis-web-search» (FR-11): the fixed analysis tiers. Optional so existing hosts compile.
+    GroundedAnalysisPricing? groundedAnalysisPricing = null) : IBillingFacadeHook
 {
     private const string PricingPolicyVersion = "v1";
     private static readonly Meter Meter = new("FinancialCopilot.TelegramMembership");
@@ -210,8 +213,10 @@ public sealed class AiFacadeBillingHook(
         if (string.Equals(handle.QuotaMode, "Unlimited", StringComparison.Ordinal))
             return Task.FromResult(handle);
 
+        // A fixed analysis tier (up to 25 credits) can be above the usage-based per-question maximum; the hold must
+        // cover the fixed amount in every mode (change «sol-deep-analysis-web-search», FR-11).
         var capacity = EnforcesUsageBasedCredits(handle.OperationCode)
-            ? creditOptions.MaximumCreditsPerQuestion
+            ? Math.Max(creditOptions.MaximumCreditsPerQuestion, requiredCredits)
             : requiredCredits;
         return EnsureReservedCapacityCoreAsync(handle, capacity, cancellationToken);
     }
@@ -295,7 +300,16 @@ public sealed class AiFacadeBillingHook(
         }
         var charge = chargeCalculator.Calculate(
             CreateChargeRequest(handle.OperationCode, request.CompletionStatus, request.Cached));
-        if (!EnforcesUsageBasedCredits(handle.OperationCode))
+        // Change «sol-deep-analysis-web-search» (PO-6, PO-7): an answered analysis settles at its fixed tier amount and
+        // never takes the usage-based path, whatever UsageBasedCredits:Mode is. The tier is in the completion status.
+        var fixedAnalysisCredits = groundedAnalysisPricing is null
+            ? null
+            : GroundedAnalysisBillingPolicy.FixedCredits(request.CompletionStatus, groundedAnalysisPricing);
+        if (fixedAnalysisCredits is { } tierCredits)
+        {
+            charge = charge with { CreditsCharged = tierCredits };
+        }
+        else if (!EnforcesUsageBasedCredits(handle.OperationCode))
         {
             charge = charge with
             {
@@ -305,7 +319,7 @@ public sealed class AiFacadeBillingHook(
             };
         }
 
-        if (EvaluatesUsageBasedCredits(handle.OperationCode))
+        if (fixedAnalysisCredits is null && EvaluatesUsageBasedCredits(handle.OperationCode))
         {
             try
             {
@@ -360,7 +374,7 @@ public sealed class AiFacadeBillingHook(
             return await ReplayFinalizationAsync(handle, existingEntry, cancellationToken);
         }
 
-        if (EvaluatesUsageBasedCredits(handle.OperationCode))
+        if (fixedAnalysisCredits is null && EvaluatesUsageBasedCredits(handle.OperationCode))
         {
             try
             {
@@ -415,6 +429,11 @@ public sealed class AiFacadeBillingHook(
                 "Workflow released without a chargeable outcome."),
             cancellationToken);
     }
+
+    public async Task<string?> FindReservationStatusAsync(
+        Guid billingOperationId,
+        CancellationToken cancellationToken) =>
+        (await reservations.FindByIdempotencyKeyAsync($"{billingOperationId:N}:reservation", cancellationToken))?.Status.ToString();
 
     private bool EnforcesUsageBasedCredits(string operationCode) =>
         creditOptions.Mode == UsageBasedBillingMode.Enforced && creditOptions.AppliesTo(operationCode);

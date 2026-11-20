@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { SendIcon } from "@/components/mobile/icons";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,8 @@ interface MobileComposerProps {
   onSubmit: (text: string) => void;
   pending: boolean;
   online: boolean;
+  /** Shown above the field, e.g. the analysis settings bar (change «sol-deep-analysis-web-search»). */
+  accessory?: ReactNode;
 }
 
 /** An example question, so the empty composer also shows how to ask. */
@@ -28,6 +30,7 @@ export function MobileComposer({
   onSubmit,
   pending,
   online,
+  accessory,
 }: MobileComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hintId = useId();
@@ -49,6 +52,7 @@ export function MobileComposer({
 
   return (
     <div className="shrink-0 border-t border-hairline bg-background px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))]">
+      {accessory && <div className="mx-auto max-w-2xl">{accessory}</div>}
       <form
         className="mx-auto flex max-w-2xl items-end gap-2"
         onSubmit={(event) => {

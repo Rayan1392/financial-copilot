@@ -671,28 +671,21 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         // the TahlilApp status when due); any doubt means the preview.
         var includeFullText = await IsFullTextGrantedAsync(context, cancellationToken);
 
-        var analysisTask = TryExecuteAsync(
+        // BUG-035 (owner, 2026-11-19): the analysis search and the context lookup run one after the other. Both read the
+        // request's scoped FinancialIngestionDbContext, which EF Core does not allow to be used concurrently; run in
+        // parallel, one of them failed at random and a failed search was answered «تحلیلی … پیدا نشد» with 1 credit.
+        var analysisAttempt = await TryExecuteAsync(
+            AnalysisPart,
             () => useCase.ExecuteAsync(
                 new ComprehensiveAnalysisQueryRequest(symbols, topics, fromDate, limit, includeFullText),
                 cancellationToken),
             cancellationToken);
-        var lookupTask = TryExecuteAsync(
-            () => lookupService.LookupAsync(new SymbolLookupRequest(
-                symbols.SelectMany(symbolName => SemanticLookupMetricPolicy.ContextMetricCodes.Select(metricCode =>
-                    new SymbolLookupRequestPair(symbolName, new MetricCode(metricCode)))).ToArray(),
-                DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime),
-                context.ActorId.ToString(),
-                frame.Interpretation.OriginalText), cancellationToken),
-            cancellationToken);
-        await Task.WhenAll(analysisTask, lookupTask);
-
-        var analysisAttempt = await analysisTask;
-        var lookupAttempt = await lookupTask;
         // BUG-020 (owner, 2026-11-11): no technical analysis for the symbol → its latest analysis, with a line saying so.
         if (analysisAttempt.Value is { HasResults: false } &&
             topics.Contains(ComprehensiveAnalysisTopics.TechnicalAnalysis, StringComparer.Ordinal))
         {
             var latestAttempt = await TryExecuteAsync(
+                AnalysisPart,
                 () => useCase.ExecuteAsync(
                     new ComprehensiveAnalysisQueryRequest(symbols, topics.Where(topic => topic != ComprehensiveAnalysisTopics.TechnicalAnalysis).ToArray(), fromDate, limit, includeFullText),
                     cancellationToken),
@@ -701,11 +694,23 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
                 analysisAttempt = new ExecutionAttempt<ComprehensiveAnalysisQueryResponse>(
                     latest with { TechnicalAnalysisNotFoundSymbols = symbols }, false);
         }
-        if (analysisAttempt.Failed && lookupAttempt.Failed)
-            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Failed,
-                DialogueOutcomeReasonCodes.ProviderOrToolFailure);
 
-        var analysis = analysisAttempt.Value ?? new ComprehensiveAnalysisQueryResponse([], symbols);
+        // BUG-035 / OQ-107 (a): a failed search is "temporarily unavailable", free, whatever the context metrics would
+        // say: the reply must not claim that no analysis exists, and the metrics are shown only beside an analysis.
+        if (analysisAttempt.Value is not { } analysis)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
+                DialogueOutcomeReasonCodes.ProviderOrToolFailure, null, ["analysis_posts_unavailable", "analysis_posts_failed"]);
+
+        var lookupAttempt = await TryExecuteAsync(
+            LookupPart,
+            () => lookupService.LookupAsync(new SymbolLookupRequest(
+                symbols.SelectMany(symbolName => SemanticLookupMetricPolicy.ContextMetricCodes.Select(metricCode =>
+                    new SymbolLookupRequestPair(symbolName, new MetricCode(metricCode)))).ToArray(),
+                DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime),
+                context.ActorId.ToString(),
+                frame.Interpretation.OriginalText), cancellationToken),
+            cancellationToken);
+
         var lookup = lookupAttempt.Value ?? EmptyLookup(symbols, context.Now);
         var payload = new SemanticComprehensiveAnalysisPayload(analysis, lookup);
         var hasAnalysis = analysis.HasResults;
@@ -713,23 +718,19 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
             CardCounter.Add(1, new KeyValuePair<string, object?>("text", analysis.FullTextIncluded ? "full" : "preview"));
         var hasMetrics = lookup.Rows.Count > 0;
         var warnings = new List<string>();
-        if (analysisAttempt.Failed) warnings.AddRange(["analysis_posts_unavailable", "analysis_posts_failed"]);
-        else if (!hasAnalysis) warnings.Add("analysis_posts_unavailable");
+        if (!hasAnalysis) warnings.Add("analysis_posts_unavailable");
         if (lookupAttempt.Failed) warnings.AddRange(["live_metrics_unavailable", "live_metrics_failed"]);
         else if (!hasMetrics) warnings.Add("live_metrics_unavailable");
 
         // Feature 159 (FR7): no analysis for the symbol is a no-data answer, free, whatever happened to the context
         // metrics; the payload still carries them and the "no analysis found" card. Change «analysis-recency-window»: only
-        // recent analyses are searched, so the reason says so and the Feature 163 fallback may answer instead. Checked
-        // before the failure rule: the context metrics are shown only beside an analysis, so their failure must not turn
-        // "no recent analysis" into "temporarily unavailable" (owner report 2026-11-16, «سهم چدن را بررسی کن»).
-        if (!hasAnalysis && !analysisAttempt.Failed)
+        // recent analyses are searched, so the reason says so and the Feature 163 fallback may answer instead. A failed
+        // context lookup must not turn "no recent analysis" into "temporarily unavailable" (owner report 2026-11-16,
+        // «سهم چدن را بررسی کن»).
+        if (!hasAnalysis)
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
                 DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent, payload, warnings);
-        if (analysisAttempt.Failed && !hasMetrics)
-            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
-                DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
-        return hasAnalysis && hasMetrics
+        return hasMetrics
             ? Success(frame, payload)
             : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Partial,
                 DialogueOutcomeReasonCodes.PartialEvidence, payload, warnings);
@@ -760,7 +761,18 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         }
     }
 
-    private async Task<ExecutionAttempt<T>> TryExecuteAsync<T>(
+    private const string AnalysisPart = "analysis";
+    private const string LookupPart = "lookup";
+
+    /// <summary>
+    /// BUG-035: a failed part is counted with its part name and exception type only (no question, symbol or message),
+    /// so production shows why a part failed; the Application layer keeps no logging dependency.
+    /// </summary>
+    private static readonly System.Diagnostics.Metrics.Counter<long> PartFailureCounter =
+        CardMeter.CreateCounter<long>("comprehensive_analysis_part_failure_total");
+
+    private static async Task<ExecutionAttempt<T>> TryExecuteAsync<T>(
+        string part,
         Func<Task<T>> execute,
         CancellationToken cancellationToken) where T : class
     {
@@ -772,8 +784,11 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         {
             throw;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            PartFailureCounter.Add(1,
+                new KeyValuePair<string, object?>("part", part),
+                new KeyValuePair<string, object?>("exception_type", exception.GetType().Name));
             return new(null, true);
         }
     }

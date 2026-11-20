@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp } from "lucide-react";
 import { AssistedQueryDialog } from "@/components/app/assisted-query-dialog";
 import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
@@ -12,6 +12,8 @@ interface Props {
   initialValue?: string;
   /** Adds the «نسخهٔ x.y.z · تاریخچهٔ نسخه‌ها» link to the fine print. Home page only; needs a router. */
   showReleaseVersion?: boolean;
+  /** Shown inside the composer above the text, e.g. the analysis settings bar (change «sol-deep-analysis-web-search»). */
+  accessory?: ReactNode;
 }
 
 export function PromptInput({
@@ -21,6 +23,7 @@ export function PromptInput({
   assistedQueryDisabled = true,
   initialValue = "",
   showReleaseVersion = false,
+  accessory,
 }: Props) {
   const [value, setValue] = useState(initialValue);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -45,6 +48,7 @@ export function PromptInput({
     <div className="p-6 flex-shrink-0">
       <div className="relative max-w-3xl mx-auto">
         <div className="rounded-2xl bg-surface ring-1 ring-hairline focus-within:ring-emerald/40 transition-shadow">
+          {accessory}
           <textarea
             ref={ref}
             value={value}

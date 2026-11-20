@@ -21,6 +21,7 @@
     "test:balance-sheet-browser": "node scripts/balance-sheet-report.browser.mjs",
     "test:cash-flow-browser": "node scripts/cash-flow-report.browser.mjs",
     "test:symbol-snapshot-browser": "node scripts/symbol-snapshot-card.browser.mjs",
+    "test:analysis-settings-browser": "node scripts/analysis-settings.browser.mjs",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "test:watch": "vitest",
     "format": "prettier --write ."

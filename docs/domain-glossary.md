@@ -34,6 +34,30 @@ One thousand billion toman (10¹² toman, 10¹³ rial). Grounded report answers 
 
 A 0–100 evaluation of the newest period of a quarterly income statement, given only when the user asks for an overall analysis of the report or the company's performance. The model returns the number using a fixed rubric (revenue growth 25, profitability 30, quality of earnings 25, consistency 20); the server writes the score line and the sentence that it is not a buy or sell recommendation. It is never given for price, valuation or buy/sell questions (162 change `analytical-answer-and-report-score`).
 
+### Grounded Analysis (تحلیل مستند)
+
+A Report Discussion or Symbol-Grounded Fallback answer written by the analysis model (`gpt-6.2-sol`) under one Analysis Depth, with or without Web Search, and charged at the Fixed Analysis Tariff. Report figures still come only from report facts and deterministic calculations. Behind `GroundedAnalysis:Enabled`; with the flag off the earlier Report Discussion path runs (162 change `sol-deep-analysis-web-search`).
+
+### Analysis Depth (عمق تحلیل)
+
+Simple (ساده) or Deep (عمیق); the default is Deep. A depth selects a technical profile (reasoning effort, output and input budgets, timeout, maximum web searches) in `GroundedAnalysis:Profiles`. The profile never sets the price.
+
+### Web Search (جست‌وجوی وب)
+
+The user's switch, on by default, that lets a Grounded Analysis consult web sources (at most 1 search for Simple, 2 for Deep). Every external number in the answer carries a `[Wn]` marker and must match a source the model actually consulted, with a publication date; the source is shown at the end of the section that uses it. Web content is data, never instructions. A turn that Report Discussion hands back to normal routing never uses the web.
+
+### Fixed Analysis Tariff (تعرفهٔ ثابت تحلیل)
+
+The credits charged for one answered Grounded Analysis: Simple 8, Simple + web 12, Deep 16, Deep + web 25 (`GroundedAnalysisPricing:Credits`). The backend is the only price source; a client sends the choice and the pricing version, never an amount. Non-answers cost 0 and Max users are not charged. Changing the amounts is an owner decision (`docs/grounded-analysis-operations.md`).
+
+### Analysis Offer (پیشنهاد تحلیل)
+
+What a Feature 163 question gets instead of an immediate answer: the original non-answer, the four tiers with their credits, and «تحلیل کن» / «انصراف». Nothing runs and nothing is reserved until the user presses «تحلیل کن»; the offer is single-use and expires after `GroundedAnalysis:OfferLifetimeMinutes`. Its action ids are `ga1:{offerId}:confirm|cancel`; a typed «بله» never confirms it.
+
+### Score Reason (دلیل امتیاز)
+
+One sentence after the Report Score naming the main strengths and weaknesses behind it, without numbers. A reason with a digit, or an empty one, is left out and the score stays.
+
 ### AI Query Orchestrator
 
 The Application-layer coordinator behind `POST /api/ai/v1/query`. It performs Intent Detection, Tool Routing, use-case execution, Usage Accounting, and Conversation persistence.

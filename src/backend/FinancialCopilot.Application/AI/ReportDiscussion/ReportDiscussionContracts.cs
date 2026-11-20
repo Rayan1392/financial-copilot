@@ -32,7 +32,9 @@ public enum ReportDiscussionDisposition
     /// <summary>The report's relevant data does not fit the input budget.</summary>
     NarrowRequired,
     /// <summary>The model provider failed or timed out.</summary>
-    ProviderUnavailable
+    ProviderUnavailable,
+    /// <summary>Change «sol-deep-analysis-web-search» (PO-9): the client showed an old price list; nothing ran.</summary>
+    PricingChanged
 }
 
 /// <summary>
@@ -126,7 +128,12 @@ public sealed record ReportDiscussionTurn(
     DialogueOutcome Outcome = DialogueOutcome.Answered,
     string ReasonCode = DialogueOutcomeReasonCodes.None,
     string BillingCompletionStatus = "Completed",
-    ReportDiscussionDiagnostics? Diagnostics = null)
+    ReportDiscussionDiagnostics? Diagnostics = null,
+    // Change «sol-deep-analysis-web-search»: what ran (persisted on an answer), the verified external sources and the
+    // facts of the analysis call for cost telemetry. Null on the existing path.
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisRun? AnalysisRun = null,
+    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null,
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisCallFacts? AnalysisFacts = null)
 {
     public static ReportDiscussionTurn NotApplicableBecause(string reason) =>
         new(ReportDiscussionTurnKind.NotApplicable, Diagnostics: new ReportDiscussionDiagnostics(null, null, 0, 0, 0, 0, reason));
@@ -140,7 +147,11 @@ public sealed record ReportDiscussionDiagnostics(
     int FactCount,
     int NumbersChecked,
     int UngroundedNumbers,
-    string? Reason);
+    string? Reason,
+    // Change «sol-deep-analysis-web-search»: the routing step's decision and the external evidence counts.
+    string? DispositionStep = null,
+    int ExternalMarkers = 0,
+    int ExternalItemsRemoved = 0);
 
 public static class ReportDiscussionReasonCodes
 {
@@ -148,6 +159,7 @@ public static class ReportDiscussionReasonCodes
     public const string Unverified = "report_discussion_unverified_answer";
     public const string NarrowRequired = "report_discussion_narrow_required";
     public const string ProviderUnavailable = "report_discussion_provider_unavailable";
+    public const string PricingChanged = "report_discussion_pricing_changed";
 }
 
 public static class ReportDiscussionExecutionRoute

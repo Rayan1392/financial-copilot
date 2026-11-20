@@ -120,7 +120,8 @@ public sealed class UsageReservationAuthorizationService(
                 ? FinancialCopilot.Billing.Accounts.CreditQuotaMode.Finite
                 : FinancialCopilot.Billing.Accounts.CreditQuotaMode.Unlimited;
             var reservedCredits = quotaMode == FinancialCopilot.Billing.Accounts.CreditQuotaMode.Unlimited ? 0m : maximumCredits;
-            if (quotaMode == FinancialCopilot.Billing.Accounts.CreditQuotaMode.Finite &&
+            // A zero-credit reservation holds nothing and only claims its idempotency key (a cancelled analysis offer).
+            if (quotaMode == FinancialCopilot.Billing.Accounts.CreditQuotaMode.Finite && maximumCredits > 0 &&
                 !creditLinePolicy.CanReserve(account, spendableWallet, maximumCredits))
             {
                 throw new InsufficientCreditException();

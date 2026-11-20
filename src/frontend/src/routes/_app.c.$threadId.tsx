@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MessageList } from "@/components/app/message-list";
 import { PromptInput } from "@/components/app/prompt-input";
+import { AnalysisSettingsBar } from "@/components/app/analysis-settings";
 import { useEffect, useRef } from "react";
 import { ChatErrorNotice } from "@/components/app/chat-error-notice";
 import { useChatThread } from "@/lib/chat/use-chat-thread";
@@ -34,10 +35,30 @@ function ChatThreadPage() {
           onDisclosurePageChange={thread.changeDisclosurePage}
           showDiagnostics={showDiagnostics}
           followedSymbols={thread.followedSymbols}
+          analysis={{
+            hint: thread.analysisHint,
+            messageId: thread.analysisHintMessageId,
+            choice: thread.analysisChoice,
+            onChoiceChange: thread.setAnalysisChoice,
+          }}
         />
       </div>
       <ChatErrorNotice failure={thread.failure} />
-      <PromptInput onSubmit={submit} loading={thread.isPending} showAssistedQuery />
+      <PromptInput
+        onSubmit={submit}
+        loading={thread.isPending}
+        showAssistedQuery
+        accessory={
+          thread.analysisHint?.available ? (
+            <AnalysisSettingsBar
+              hint={thread.analysisHint}
+              choice={thread.analysisChoice}
+              onChange={thread.setAnalysisChoice}
+              disabled={thread.isPending}
+            />
+          ) : undefined
+        }
+      />
     </>
   );
 }

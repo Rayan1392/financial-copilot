@@ -3,8 +3,10 @@ import type {
   AssistantChatBlock,
   ChatMessage,
   DisclosureListingResult,
+  GroundedAnalysisHint,
   ScannerTable,
 } from "@/lib/chat.functions";
+import type { AnalysisChoice } from "@/lib/chat/analysis-choice";
 import {
   formatNumber,
   formatPercent,
@@ -32,6 +34,8 @@ import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import { SymbolSnapshotCard } from "@/components/app/symbol-snapshot-card";
 import { AnswerDensityContext, useAnswerDensity } from "@/components/app/answer-density";
+import { AnalysisOfferCard } from "@/components/app/analysis-settings";
+import { withInlineSources } from "@/lib/chat/external-sources";
 import {
   consolidationLabel,
   disclosureTypeLabels,
@@ -50,7 +54,20 @@ interface Props {
   followedSymbols?: ReadonlySet<string>;
   /** "compact" is the phone layout (Feature 153): tighter padding and spacing, wider user bubbles. */
   density?: "default" | "compact";
+  /** Change «sol-deep-analysis-web-search»: the latest answer's analysis hint and the viewer's choice. */
+  analysis?: MessageListAnalysis;
 }
+
+export interface MessageListAnalysis {
+  hint: GroundedAnalysisHint | null;
+  /** The answer the hint belongs to; only that answer shows the 163 offer card. */
+  messageId: string | null;
+  choice: AnalysisChoice;
+  onChoiceChange: (choice: AnalysisChoice) => void;
+}
+
+const OFFER_CONFIRM_TEXT = "تحلیل کن";
+const OFFER_CANCEL_TEXT = "انصراف";
 
 export function MessageList({
   messages,
@@ -62,6 +79,7 @@ export function MessageList({
   showDiagnostics,
   followedSymbols,
   density = "default",
+  analysis,
 }: Props) {
   if (loading) return <div className="p-8 text-sm text-muted-foreground">در حال بارگذاری...</div>;
   const compact = density === "compact";
@@ -105,6 +123,11 @@ export function MessageList({
                   onRegenerate={canRegenerate ? () => onSuggested(originalQuestion!) : undefined}
                   showDiagnostics={showDiagnostics}
                   followedSymbols={followedSymbols}
+                  analysis={
+                    analysis?.hint?.offer && analysis.messageId === message.id
+                      ? analysis
+                      : undefined
+                  }
                 />
               )}
             </div>
@@ -143,6 +166,7 @@ function AssistantBlock({
   onRegenerate,
   showDiagnostics,
   followedSymbols,
+  analysis,
 }: {
   block: AssistantChatBlock;
   onSuggested: (q: string, actionId?: string) => void;
@@ -153,6 +177,8 @@ function AssistantBlock({
   onRegenerate?: () => void;
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
+  /** Set only on the answer that carries a live 163 offer. */
+  analysis?: MessageListAnalysis;
 }) {
   const compact = useAnswerDensity() === "compact";
   const isSuccessfulProductTrend = block.monthlyProductTrendResult?.resolutionState === "Resolved";
@@ -162,7 +188,7 @@ function AssistantBlock({
       ? ""
       : tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
         ? ""
-        : replaceProviderDisplayNames(block.message);
+        : withInlineSources(replaceProviderDisplayNames(block.message), block.sources);
   const typedQuarterly = block.financialStatementTableResult?.quarterlyResult;
   const typedQuarterlyTable =
     typedQuarterly &&
@@ -316,6 +342,19 @@ function AssistantBlock({
             result={block.disclosureListingResult}
             originalQuery={disclosureOriginalQuery}
             onPageChange={onDisclosurePageChange}
+          />
+        )}
+
+        {analysis?.hint?.offer && (
+          <AnalysisOfferCard
+            hint={analysis.hint}
+            choice={analysis.choice}
+            onChange={analysis.onChoiceChange}
+            disabled={actionsDisabled}
+            compact={compact}
+            creditHref={compact ? "/m/account" : "/profile"}
+            onConfirm={() => onSuggested(OFFER_CONFIRM_TEXT, analysis.hint!.offer!.confirmActionId)}
+            onCancel={() => onSuggested(OFFER_CANCEL_TEXT, analysis.hint!.offer!.cancelActionId)}
           />
         )}
 

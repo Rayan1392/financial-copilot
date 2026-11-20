@@ -105,9 +105,15 @@ public sealed class GroundedAnswerLayoutTests
     [Fact]
     public void BothPrompts_CarryTheSharedLayoutRules_AndNoLongerThe250WordLimit()
     {
-        Assert.Contains(GroundedAnswerLayout.PromptRules, SymbolGroundedFallbackPromptBuilder.SystemPrompt);
+        // Change «sol-deep-analysis-web-search»: 163 runs only as the confirmed analysis, with the per-depth layout.
+        foreach (var depth in new[] { FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Simple, FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Deep })
+        {
+            var fallback = SymbolGroundedFallbackPromptBuilder.AnalysisSystemPromptFor(
+                new FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisChoice(depth, false));
+            Assert.Contains(GroundedAnswerLayout.AnalysisPromptRules(depth), fallback);
+            Assert.DoesNotContain("250 words", fallback);
+        }
         Assert.Contains(GroundedAnswerLayout.PromptRules, ReportDiscussionContextBuilder.SystemPrompt);
-        Assert.DoesNotContain("250 words", SymbolGroundedFallbackPromptBuilder.SystemPrompt);
         Assert.DoesNotContain("250 words", ReportDiscussionContextBuilder.SystemPrompt);
         Assert.Contains("thousands separators", GroundedAnswerLayout.PromptRules);
         Assert.Contains("**bold**", GroundedAnswerLayout.PromptRules);

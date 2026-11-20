@@ -10,7 +10,9 @@ public enum AiModelCapability
     Streaming = 8,
     Embeddings = 16,
     UsageReporting = 32,
-    HealthCheck = 64
+    HealthCheck = 64,
+    // Change «sol-deep-analysis-web-search»: the provider can run a hosted web search tool in one response.
+    WebSearch = 128
 }
 
 public enum AiProviderHostingMode
@@ -68,7 +70,23 @@ public sealed record AiModelRequest(
     IReadOnlyCollection<AiToolDefinition>? Tools = null,
     bool Stream = false,
     string? PreviousResponseId = null,
-    int? MaxOutputTokens = null);
+    int? MaxOutputTokens = null,
+    // Change «sol-deep-analysis-web-search» (FR-1, FR-5): optional, so every existing request serialises as before.
+    // ModelKeyOverride selects another model of the same provider for this call only; ReasoningEffort is passed to
+    // providers that support it; WebSearch is honoured only by a provider with AiModelCapability.WebSearch.
+    string? ModelKeyOverride = null,
+    string? ReasoningEffort = null,
+    AiWebSearchOptions? WebSearch = null);
+
+/// <summary>
+/// A hosted web search tool for one response. <see cref="MaxToolCalls"/> is a hard per-response cap on built-in tool
+/// calls; <see cref="SearchContextSize"/> (low, medium, high) bounds the search content only approximately.
+/// </summary>
+public sealed record AiWebSearchOptions(
+    int MaxToolCalls,
+    string SearchContextSize = "low",
+    IReadOnlyCollection<string>? AllowedDomains = null,
+    string? UserLocationCountry = null);
 
 public sealed record AiToolCall(string Id, string Name, string ArgumentsJson, string? ItemId = null);
 
@@ -94,7 +112,11 @@ public sealed record AiExecutionUsageFacts(
     int? CacheWriteInputTokens = null,
     int? CacheWrite30mInputTokens = null,
     int? CacheWrite12hInputTokens = null,
-    AiWorkloadKind? Workload = null);
+    AiWorkloadKind? Workload = null,
+    // Change «sol-deep-analysis-web-search» (FR-12): a subset of OutputTokens; null when not reported.
+    int? ReasoningTokens = null,
+    // Number of hosted web search tool calls in the response; null when no search tool was offered.
+    int? WebSearchCalls = null);
 
 public sealed record AiExecutionUsageSummary(
     string ProviderKey,
@@ -106,7 +128,9 @@ public sealed record AiExecutionUsageSummary(
     int? CachedInputTokens = null,
     int? CacheWriteInputTokens = null,
     int? CacheWrite30mInputTokens = null,
-    int? CacheWrite12hInputTokens = null)
+    int? CacheWrite12hInputTokens = null,
+    int? ReasoningTokens = null,
+    int? WebSearchCalls = null)
 {
     public int? TotalTokens => InputTokens is null && OutputTokens is null
         ? null
@@ -131,7 +155,9 @@ public sealed record AiExecutionUsageSummary(
             SumIfAllReported(calls.Select(call => call.CachedInputTokens)),
             SumIfAllReported(calls.Select(call => call.CacheWriteInputTokens)),
             SumIfAllReported(calls.Select(call => call.CacheWrite30mInputTokens)),
-            SumIfAllReported(calls.Select(call => call.CacheWrite12hInputTokens)));
+            SumIfAllReported(calls.Select(call => call.CacheWrite12hInputTokens)),
+            Sum(calls.Select(call => call.ReasoningTokens)),
+            Sum(calls.Select(call => call.WebSearchCalls)));
     }
 
     private static int? Sum(IEnumerable<int?> values) =>
@@ -165,7 +191,10 @@ public sealed record AiModelResult(
     string? StructuredJson,
     IReadOnlyCollection<AiToolCall> ToolCalls,
     AiExecutionUsageFacts Usage,
-    string? ResponseId = null);
+    string? ResponseId = null,
+    // Change «sol-deep-analysis-web-search» (FR-10): the URLs the hosted web search consulted, for the external
+    // evidence check. Empty when no search ran.
+    IReadOnlyCollection<string>? ConsultedSources = null);
 
 public sealed record AiStreamingChunk(
     string? TextDelta,
@@ -206,7 +235,10 @@ public sealed record AiModelSelectionRequest(
     AiModelCapability RequiredCapabilities,
     string CorrelationId,
     bool AllowLocalRuntime = true,
-    string? RequiredDataResidency = null);
+    string? RequiredDataResidency = null,
+    // Change «sol-deep-analysis-web-search»: a call that names a model of one provider (ModelKeyOverride) must not
+    // fall through to another provider.
+    string? RequiredProviderKey = null);
 
 public static class AiWorkloadCapabilities
 {

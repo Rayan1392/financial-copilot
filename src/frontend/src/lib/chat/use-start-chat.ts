@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { sendChatMessage } from "@/lib/chat.functions";
 import { ChatSendError, classifyClientError, type ChatFailure } from "@/lib/chat/chat-errors";
 import { initialRecovery, type SendRecovery } from "@/lib/chat/send-recovery";
+import { rememberAnswerHint } from "@/lib/chat/live-analysis-hint";
 
 interface StartChatVariables {
   message: string;
@@ -37,12 +38,14 @@ export function useStartChat({
         data: { message, scannerPage: 1, suggestedActionId, idempotencyKey },
       });
       if (!response.ok) throw new ChatSendError(response.failure.code, response.failure.message);
-      return response.result.threadId;
+      return response.result;
     },
-    onSuccess: (threadId) => {
+    onSuccess: (result) => {
       void qc.invalidateQueries({ queryKey: ["usage"] });
       void qc.invalidateQueries({ queryKey: ["threads"] });
-      navigateToThread(threadId);
+      // The opened conversation shows the first answer's analysis prices and offer (only the live response has them).
+      rememberAnswerHint(qc, result);
+      navigateToThread(result.threadId);
     },
     onError: (error: Error, variables) => {
       const classified = classifyClientError(error);

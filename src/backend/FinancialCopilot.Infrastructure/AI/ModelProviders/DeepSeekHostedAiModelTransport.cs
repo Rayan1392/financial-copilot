@@ -21,6 +21,14 @@ public sealed class DeepSeekHostedAiModelTransport(
         CancellationToken cancellationToken)
     {
         EnsureCredential();
+        // Change «sol-deep-analysis-web-search» (FR-5): this provider has no hosted web search; never drop the tool silently.
+        if (request.WebSearch is not null)
+        {
+            throw new AiModelProviderException(
+                AiExecutionStatus.CapabilityUnavailable,
+                "capability_unavailable",
+                "The configured provider does not expose a hosted web search tool.");
+        }
 
         var payload = new JsonObject
         {

@@ -21,7 +21,23 @@ internal sealed record WorkflowStartMessage(
     DateTimeOffset Now,
     BillingReservationHandle? Reservation = null,
     // Feature 162: a Report Discussion reply decided before the dialogue gate; null for every other turn.
-    ReportDiscussionTurn? ReportDiscussion = null);
+    ReportDiscussionTurn? ReportDiscussion = null,
+    // Change «sol-deep-analysis-web-search»: the resolved 163 offer action (confirm or cancel); null for every other turn.
+    GroundedAnalysisOfferTurn? OfferTurn = null);
+
+/// <summary>
+/// Change «sol-deep-analysis-web-search» (FR-8): the reply to a 163 offer action, composed and settled before the dialogue
+/// gate. Its own reservation (keyed by the offer) is already settled, so <see cref="Usage"/> is final.
+/// </summary>
+internal sealed record GroundedAnalysisOfferTurn(
+    string Text,
+    DialogueOutcome Outcome,
+    string ReasonCode,
+    string CompletionStatus,
+    UsageAccountingResult? Usage = null,
+    SymbolGroundedFallbackAnswer? Answer = null,
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? NewOffer = null,
+    SuggestedAction? Suggestion = null);
 
 internal sealed record MemoryRetrievedMessage(
     AiQueryRequest Request,
@@ -31,7 +47,8 @@ internal sealed record MemoryRetrievedMessage(
     AuthorizedMemoryContext MemoryContext,
     string EnrichedMessage,
     BillingReservationHandle? Reservation = null,
-    ReportDiscussionTurn? ReportDiscussion = null);
+    ReportDiscussionTurn? ReportDiscussion = null,
+    GroundedAnalysisOfferTurn? OfferTurn = null);
 
 internal sealed record BillingReservedMessage(
     AiQueryRequest Request,
@@ -41,7 +58,8 @@ internal sealed record BillingReservedMessage(
     AuthorizedMemoryContext MemoryContext,
     string EnrichedMessage,
     BillingReservationHandle? Reservation,
-    ReportDiscussionTurn? ReportDiscussion = null);
+    ReportDiscussionTurn? ReportDiscussion = null,
+    GroundedAnalysisOfferTurn? OfferTurn = null);
 
 internal sealed record AgentExecutedMessage(
     AiQueryRequest Request,
@@ -73,7 +91,8 @@ internal sealed record AgentExecutedMessage(
      MonthlyProductTrendResult? MonthlyProductTrendResult = null,
      ValidatedQueryFrame? ExecutedFrame = null,
      SymbolSnapshotResult? SymbolSnapshotResult = null,
-     ReportDiscussionTurn? ReportDiscussion = null);
+     ReportDiscussionTurn? ReportDiscussion = null,
+     GroundedAnalysisOfferTurn? OfferTurn = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -114,12 +133,19 @@ internal sealed record ResultsComputedMessage(
     bool DeterministicSuggestionsApplied = false,
     SymbolSnapshotResult? SymbolSnapshotResult = null,
     ReportDiscussionTurn? ReportDiscussion = null,
-    SymbolGroundedFallbackAnswer? SymbolGroundedFallback = null);
+    SymbolGroundedFallbackAnswer? SymbolGroundedFallback = null,
+    // Change «sol-deep-analysis-web-search»: a 163 analysis offer made on this turn (no model call, no reservation).
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? GroundedAnalysisOffer = null,
+    // Change «sol-deep-analysis-web-search»: set when this turn resolved a 163 offer action (the dialogue gate did not run).
+    GroundedAnalysisOfferTurn? OfferTurn = null);
 
 /// <summary>Feature 163: what an answered symbol-grounded fallback adds to the persisted turn.</summary>
 internal sealed record SymbolGroundedFallbackAnswer(
     FinancialStatementTableResult GroundingReport,
-    FallbackOrigin Origin);
+    FallbackOrigin Origin,
+    // Change «sol-deep-analysis-web-search»: what the confirmed analysis ran and the sources it cited.
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisRun? AnalysisRun = null,
+    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -155,4 +181,7 @@ internal sealed record PersistenceCompletedMessage(
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
     bool DeterministicSuggestionsApplied = false,
-    SymbolSnapshotResult? SymbolSnapshotResult = null);
+    SymbolSnapshotResult? SymbolSnapshotResult = null,
+    // Change «sol-deep-analysis-web-search»: the response hint (prices, defaults, offer) and an answer's cited sources.
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisHint? GroundedAnalysis = null,
+    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null);

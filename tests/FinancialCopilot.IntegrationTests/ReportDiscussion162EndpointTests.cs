@@ -219,8 +219,15 @@ public sealed class ReportDiscussion162ApiFactory : BalanceSheetReport154ApiFact
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
+        // These tests cover the plain (pre-analysis) Report Discussion path, so grounded analysis is pinned off: a local
+        // appsettings.json with GroundedAnalysis:Enabled=true must not change what they assert. The analysis path has
+        // its own fixtures (GroundedAnalysis162EndpointTests, AnalysisRecencyWindow159EndpointTests).
         builder.ConfigureAppConfiguration((_, config) =>
-            config.AddInMemoryCollection(new Dictionary<string, string?> { ["ReportDiscussion:Enabled"] = "true" }));
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ReportDiscussion:Enabled"] = "true",
+                ["GroundedAnalysis:Enabled"] = "false"
+            }));
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IReportDiscussionModel>();

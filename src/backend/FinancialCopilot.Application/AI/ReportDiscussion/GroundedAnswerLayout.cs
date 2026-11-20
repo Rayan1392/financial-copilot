@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using AnalysisDepth = FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth;
 
 namespace FinancialCopilot.Application.AI.ReportDiscussion;
 
@@ -25,6 +26,28 @@ public static partial class GroundedAnswerLayout
         "- A required sentence that this is not a valuation or an investment recommendation goes alone on the last line, " +
         "not bold.\n" +
         "- Keep the answer within about 180 words.\n";
+
+    /// <summary>
+    /// Change «sol-deep-analysis-web-search» (§10, §12): the layout of an analysis answer per depth. Length is steered here,
+    /// never by cutting text; <see cref="Normalize"/> is unchanged.
+    /// </summary>
+    public static string AnalysisPromptRules(AnalysisDepth depth) =>
+        "Answer layout (Markdown subset, written for reading in a chat):\n" +
+        "- Line 1: one sentence with the main takeaway; put the takeaway itself in **bold**. When every value compares " +
+        "the same periods, name those periods once in this line instead of repeating them in every sentence.\n" +
+        (depth == AnalysisDepth.Simple
+            ? "- Then a blank line and a list of 3 to 6 items, one topic per item, each written as \"- **label:** text\" " +
+              "with at most three short sentences. For a narrow question about one item, use 1 to 3 items.\n" +
+              "- Keep the answer within about 300 to 500 words; shorter is better when the question is narrow.\n"
+            : "- Then a blank line and a list of 4 to 8 items, one topic per item, each written as \"- **label:** text\" " +
+              "with at most four sentences. Include the main risks and qualitative scenarios, and any unconfirmed " +
+              "hypothesis worded as a possibility. For a narrow question about one item, use 2 to 4 items.\n" +
+              "- Keep the answer within about 500 to 800 words; shorter is better when the question is narrow.\n") +
+        "- Bold only the item labels and the one or two key figures or changes of each item; never bold a whole sentence.\n" +
+        "- Write every number of five or more digits with thousands separators. Every value keeps its unit.\n" +
+        "- Do not use headings (#), tables, links, emojis or code.\n" +
+        "- A required sentence that this is not a valuation or an investment recommendation goes alone on the last line, " +
+        "not bold.\n";
 
     /// <summary>Applies the layout safety net. Idempotent; never adds, removes or changes a number's value.</summary>
     public static string Normalize(string? answer)

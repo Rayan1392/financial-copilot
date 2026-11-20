@@ -70,9 +70,10 @@ public sealed record WalletSnapshot(
         };
     }
 
+    // Zero is a key-only reservation that held nothing (change «sol-deep-analysis-web-search»).
     private void ValidateReservedAmount(decimal credits)
     {
-        if (credits <= 0 || credits > ReservedAmount)
+        if (credits < 0 || credits > ReservedAmount)
         {
             throw new ArgumentOutOfRangeException(nameof(credits));
         }

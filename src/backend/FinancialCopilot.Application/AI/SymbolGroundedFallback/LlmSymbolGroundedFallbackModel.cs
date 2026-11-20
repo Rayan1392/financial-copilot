@@ -1,63 +1,61 @@
 using System.Text.Json;
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.ReportDiscussion;
 
 namespace FinancialCopilot.Application.AI.SymbolGroundedFallback;
 
 /// <summary>
-/// The single fallback model call (FR-4): <see cref="AiWorkloadKind.ExplanationGeneration"/>, structured output,
-/// no tools, explicit timeout, no retry. Usage facts are recorded by the execution service under the turn's correlation id.
+/// The analysis call of a confirmed 163 offer (change «sol-deep-analysis-web-search», FR-1, FR-5):
+/// <see cref="AiWorkloadKind.ExplanationGeneration"/> on the configured analysis model, structured output, the depth's
+/// reasoning effort, output budget and timeout, the hosted web search only when the user chose it, no retry. Usage
+/// facts are recorded by the execution service under the turn's correlation id.
 /// </summary>
 public sealed class LlmSymbolGroundedFallbackModel(
     IAiModelExecutionService executionService,
-    SymbolGroundedFallbackOptions options) : ISymbolGroundedFallbackModel
+    GroundedAnalysisOptions options,
+    GroundedAnalysisProfiles profiles) : ISymbolGroundedFallbackModel
 {
-    // v2 adds reportScore (change «analytical-answer-and-report-score», D3).
-    private const string SchemaJson = """
+    // The analysis output adds the cited external sources to the v2 reply (reportScore, «analytical-answer-and-report-score»).
+    internal const string AnalysisSchemaJson = """
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["disposition", "answer", "closingOffer", "usedEvidenceIds", "reportScore"],
+          "required": ["disposition", "answer", "closingOffer", "usedEvidenceIds", "reportScore", "scoreReason", "externalSources"],
           "properties": {
             "disposition": { "type": "string", "enum": ["Answered", "NotAnswerable"] },
-            "answer": { "type": "string", "maxLength": 4000 },
+            "answer": { "type": "string", "maxLength": 9000 },
             "closingOffer": { "type": "string", "maxLength": 400 },
-            "usedEvidenceIds": { "type": "array", "maxItems": 60, "items": { "type": "string", "maxLength": 12 } },
-        """ + GroundedAnalysis.ScoreSchemaProperty + """
+            "usedEvidenceIds": { "type": "array", "maxItems": 80, "items": { "type": "string", "maxLength": 12 } },
+        """ + ReportDiscussion.GroundedAnalysis.ScoreSchemaProperty + """
+        ,
+        """ + ReportDiscussion.GroundedAnalysis.ScoreReasonSchemaProperty + """
+        ,
+        """ + ReportDiscussion.GroundedAnalysis.ExternalSourcesSchemaProperty + """
 
           }
         }
         """;
 
-    private static readonly AiStructuredOutputContract Contract = new(
-        "SymbolGroundedFallbackReply_v2",
-        ["disposition", "answer", "closingOffer", "usedEvidenceIds", "reportScore"],
-        SchemaJson);
+    public static readonly AiStructuredOutputContract AnalysisContract = new(
+        "SymbolGroundedFallbackAnalysis_v1",
+        ["disposition", "answer", "closingOffer", "usedEvidenceIds", "reportScore", "scoreReason", "externalSources"],
+        AnalysisSchemaJson);
 
-    public async Task<SymbolGroundedFallbackModelReply> AnswerAsync(
+    public async Task<SymbolGroundedFallbackModelReply> AnalyzeAsync(
         SymbolGroundedFallbackPrompt prompt,
+        AnalysisChoice choice,
         Guid tenantId,
         string correlationId,
         CancellationToken cancellationToken)
     {
-        var selection = new AiModelSelectionRequest(
-            tenantId,
-            AiWorkloadKind.ExplanationGeneration,
-            AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput,
-            correlationId);
-        var request = new AiModelRequest(
-            correlationId,
-            tenantId,
-            AiWorkloadKind.ExplanationGeneration,
-            [
-                new AiConversationMessage(AiMessageRole.System, prompt.SystemPrompt),
-                new AiConversationMessage(AiMessageRole.User, prompt.UserContent)
-            ],
-            StructuredOutput: Contract,
-            MaxOutputTokens: options.MaxOutputTokens);
+        var profile = profiles.For(choice.Depth);
+        var selection = GroundedAnalysisModelCall.Selection(profile, choice.WebSearch, tenantId, correlationId);
+        var request = GroundedAnalysisModelCall.Request(profile, options.WebSearch, choice.WebSearch, AnalysisContract,
+            prompt.SystemPrompt, prompt.UserContent, tenantId, correlationId);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(options.ModelTimeoutSeconds));
+        timeout.CancelAfter(TimeSpan.FromSeconds(profile.TimeoutSeconds));
         AiModelResult result;
         try
         {
@@ -72,7 +70,11 @@ public sealed class LlmSymbolGroundedFallbackModel(
             throw new ReportDiscussionModelUnavailableException($"{exception.Status}:{exception.Code}", exception);
         }
 
-        return Parse(result.StructuredJson ?? result.Text);
+        return Parse(result.StructuredJson ?? result.Text) with
+        {
+            ConsultedSources = result.ConsultedSources,
+            Usage = result.Usage
+        };
     }
 
     internal static SymbolGroundedFallbackModelReply Parse(string? json)
@@ -101,7 +103,9 @@ public sealed class LlmSymbolGroundedFallbackModel(
                 : [];
             return new SymbolGroundedFallbackModelReply(
                 disposition, Text(root, "answer").Trim(), Text(root, "closingOffer").Trim(), evidence,
-                GroundedAnalysis.ParseScore(root));
+                ReportDiscussion.GroundedAnalysis.ParseScore(root),
+                ReportDiscussion.GroundedAnalysis.ParseExternalSources(root),
+                ScoreReason: ReportDiscussion.GroundedAnalysis.ParseScoreReason(root));
         }
         catch (JsonException exception)
         {

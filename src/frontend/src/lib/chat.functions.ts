@@ -49,6 +49,13 @@ export interface AssistantChatBlock {
     balanceSheetReport?: BalanceSheetReportResult | null;
     cashFlowReport?: CashFlowReportResult | null;
   };
+  /** Change «sol-deep-analysis-web-search»: the web sources an analysis consulted (also in saved answers). */
+  sources?: ExternalSource[];
+  /**
+   * Change «sol-deep-analysis-web-search»: the backend price list, defaults and 163 offer of a fresh answer. Only the
+   * live response carries it; a saved answer has none.
+   */
+  groundedAnalysis?: GroundedAnalysisHint;
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -62,6 +69,50 @@ export interface AssistantChatBlock {
     providerFallbackOccurred?: boolean;
     correlationId?: string;
   };
+}
+
+export type AnalysisDepth = "simple" | "deep";
+
+/** The analysis choice a client sends. There is deliberately no amount: the backend is the only price source. */
+export interface AnalysisOptions {
+  depth: AnalysisDepth;
+  webSearch: boolean;
+  /** The version of the price list the client showed; the backend refuses an old one without charging. */
+  pricingVersion?: string;
+}
+
+export interface GroundedAnalysisPrice {
+  depth: AnalysisDepth;
+  webSearch: boolean;
+  credits: number;
+}
+
+export interface GroundedAnalysisOfferHint {
+  offerId: string;
+  symbol: string;
+  expiresAt: string;
+  /** Whether the balance covers the default tier; the confirmation still checks the chosen one. */
+  sufficientBalance: boolean;
+  confirmActionId: string;
+  cancelActionId: string;
+}
+
+export interface GroundedAnalysisHint {
+  /** The next question about this answer's report may be answered by an analysis at these prices. */
+  available: boolean;
+  pricingVersion: string;
+  prices: GroundedAnalysisPrice[];
+  defaultDepth: AnalysisDepth;
+  defaultWebSearch: boolean;
+  unlimited: boolean;
+  offer?: GroundedAnalysisOfferHint | null;
+}
+
+export interface ExternalSource {
+  id: string;
+  title: string;
+  url: string;
+  publishedAt: string;
 }
 
 export interface DisclosureListingResult {
@@ -437,6 +488,8 @@ interface AssistantContentResponse {
   providerFallbackOccurred?: boolean;
   workflowCorrelationId?: string;
   suggestedActions?: SuggestedAction[];
+  groundedAnalysis?: GroundedAnalysisHint | null;
+  sources?: ExternalSource[] | null;
 }
 
 export interface QuarterlyFinancialReportTableResult {
@@ -588,6 +641,15 @@ const sendChatMessageInput = z.object({
   disclosurePage: z.number().int().min(1).default(1),
   suggestedActionId: z.string().max(160).optional(),
   idempotencyKey: z.string().uuid().optional(),
+  // Change «sol-deep-analysis-web-search»: depth and web choice only, never an amount.
+  analysisOptions: z
+    .object({
+      depth: z.enum(["simple", "deep"]),
+      webSearch: z.boolean(),
+      pricingVersion: z.string().max(128).optional(),
+    })
+    .strict()
+    .optional(),
 });
 
 export type ChatSendResult = Awaited<ReturnType<typeof runChatQuery>>;
@@ -643,6 +705,7 @@ async function runChatQuery(
       disclosurePage: data.disclosurePage,
       suggestedActionId: data.suggestedActionId,
       idempotencyKey,
+      analysisOptions: data.analysisOptions,
     }),
   });
   const createdAt = new Date().toISOString();
@@ -738,6 +801,8 @@ function mapAssistantBlock(
     psVisualizationResult: content?.psVisualizationResult,
     financialStatementAnalysisResult,
     financialStatementTableResult: content?.financialStatementTableResult,
+    sources: content?.sources ?? undefined,
+    groundedAnalysis: content?.groundedAnalysis ?? undefined,
     citations: explanation?.dataCitations ?? [],
     orchestration:
       content?.aiOrchestrationMode || content?.workflowCorrelationId

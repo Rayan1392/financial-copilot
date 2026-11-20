@@ -235,3 +235,165 @@ describe("useChatThread (follow-up, spec AC-06b)", () => {
     expect(getThreadMessages).toHaveBeenCalledOnce();
   });
 });
+
+describe("analysis options (change «sol-deep-analysis-web-search», T12)", () => {
+  const hint = (offer?: boolean) => ({
+    available: true,
+    pricingVersion: "v1",
+    prices: [
+      { depth: "simple", webSearch: false, credits: 8 },
+      { depth: "simple", webSearch: true, credits: 12 },
+      { depth: "deep", webSearch: false, credits: 16 },
+      { depth: "deep", webSearch: true, credits: 25 },
+    ],
+    defaultDepth: "deep",
+    defaultWebSearch: true,
+    unlimited: false,
+    offer: offer
+      ? {
+          offerId: "o1",
+          symbol: "فولاد",
+          expiresAt: "2026-11-20T10:00:00Z",
+          sufficientBalance: true,
+          confirmActionId: "ga1:o1:confirm",
+          cancelActionId: "ga1:o1:cancel",
+        }
+      : null,
+  });
+  const withHint = (id: string, offer?: boolean): ChatMessage => {
+    const message = assistant(id);
+    return {
+      ...message,
+      content: { ...(message.content as object), groundedAnalysis: hint(offer) },
+    } as ChatMessage;
+  };
+  const before = [user("u1", "عملکرد مالی فصلی فولاد را بررسی کن")];
+
+  beforeEach(() => localStorage.clear());
+
+  async function threadAfterReport(offer = false) {
+    getThreadMessages.mockResolvedValueOnce(before).mockResolvedValue([...before, assistant("a1")]);
+    sendChatMessage.mockResolvedValueOnce({
+      ok: true,
+      result: { threadId: THREAD, aiMsg: withHint("a1", offer) },
+    });
+    const { result } = renderHook(() => useChatThread(THREAD), {
+      wrapper: wrapper(new QueryClient()),
+    });
+    await waitFor(() => expect(result.current.messages).toHaveLength(1));
+    act(() => result.current.submit("گزارش"));
+    await waitFor(() => expect(result.current.analysisHint).not.toBeNull());
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    sendChatMessage.mockResolvedValue({ ok: true, result: { threadId: THREAD } });
+    return result;
+  }
+
+  it("the question after a discussable report carries the default choice and the shown price version, never an amount", async () => {
+    const result = await threadAfterReport();
+    expect(sendChatMessage.mock.calls[0][0].data.analysisOptions).toBeUndefined();
+
+    act(() => result.current.submit("حاشیه سود چرا افت کرد؟"));
+
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledTimes(2));
+    const data = sendChatMessage.mock.calls[1][0].data;
+    expect(data.analysisOptions).toEqual({ depth: "deep", webSearch: true, pricingVersion: "v1" });
+    expect(JSON.stringify(data)).not.toMatch(/credit|amount|"price"/i);
+  });
+
+  it("a changed choice is sent and remembered for this viewer", async () => {
+    const result = await threadAfterReport();
+
+    act(() => result.current.setAnalysisChoice({ depth: "simple", webSearch: false }));
+    act(() => result.current.submit("حاشیه سود چرا افت کرد؟"));
+
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledTimes(2));
+    expect(sendChatMessage.mock.calls[1][0].data.analysisOptions).toEqual({
+      depth: "simple",
+      webSearch: false,
+      pricingVersion: "v1",
+    });
+    expect(JSON.parse(localStorage.getItem("sapio.analysis-choice.v1")!)).toEqual({
+      depth: "simple",
+      webSearch: false,
+    });
+  });
+
+  it("«تحلیل کن» sends the offer's confirm id with the choice; «انصراف» sends the cancel id alone", async () => {
+    const result = await threadAfterReport(true);
+
+    act(() => result.current.submit("تحلیل کن", "ga1:o1:confirm"));
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledTimes(2));
+    expect(sendChatMessage.mock.calls[1][0].data).toMatchObject({
+      suggestedActionId: "ga1:o1:confirm",
+      analysisOptions: { depth: "deep", webSearch: true },
+    });
+    expect(sendChatMessage.mock.calls[1][0].data.analysisOptions.pricingVersion).toBeUndefined();
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+
+    act(() => result.current.submit("انصراف", "ga1:o1:cancel"));
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledTimes(3));
+    expect(sendChatMessage.mock.calls[2][0].data.suggestedActionId).toBe("ga1:o1:cancel");
+    expect(sendChatMessage.mock.calls[2][0].data.analysisOptions).toBeUndefined();
+  });
+
+  it("the hint applies only while its answer is the latest one", async () => {
+    getThreadMessages
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce([...before, assistant("a1")])
+      .mockResolvedValue([...before, assistant("a1"), user("u2", "x"), assistant("a2")]);
+    sendChatMessage
+      .mockResolvedValueOnce({ ok: true, result: { threadId: THREAD, aiMsg: withHint("a1") } })
+      .mockResolvedValue({ ok: true, result: { threadId: THREAD, aiMsg: assistant("a2") } });
+    const { result } = renderHook(() => useChatThread(THREAD), {
+      wrapper: wrapper(new QueryClient()),
+    });
+    await waitFor(() => expect(result.current.messages).toHaveLength(1));
+    act(() => result.current.submit("گزارش"));
+    await waitFor(() => expect(result.current.analysisHint).not.toBeNull());
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+
+    act(() => result.current.submit("x"));
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(4));
+    expect(result.current.analysisHint).toBeNull();
+  });
+
+  it("a reloaded conversation uses the hint saved on its latest answer (OQ-113 a)", async () => {
+    getThreadMessages.mockResolvedValue([...before, withHint("a1", true)]);
+    sendChatMessage.mockResolvedValue({ ok: true, result: { threadId: THREAD } });
+    const { result } = renderHook(() => useChatThread(THREAD), {
+      wrapper: wrapper(new QueryClient()),
+    });
+
+    await waitFor(() => expect(result.current.analysisHint?.offer?.offerId).toBe("o1"));
+    expect(result.current.analysisHintMessageId).toBe("a1");
+
+    act(() => result.current.submit("حاشیه سود چرا افت کرد؟"));
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledOnce());
+    expect(sendChatMessage.mock.calls[0][0].data.analysisOptions).toEqual({
+      depth: "deep",
+      webSearch: true,
+      pricingVersion: "v1",
+    });
+  });
+
+  it("the first answer's hint reaches the conversation the new-chat page opens", async () => {
+    const client = new QueryClient();
+    sendChatMessage.mockResolvedValue({
+      ok: true,
+      result: { threadId: THREAD, aiMsg: withHint("a1") },
+    });
+    const navigateToThread = vi.fn();
+    const start = renderHook(() => useStartChat({ navigateToThread }), {
+      wrapper: wrapper(client),
+    });
+    act(() => start.result.current.submit("عملکرد مالی فصلی فولاد را بررسی کن"));
+    await waitFor(() => expect(navigateToThread).toHaveBeenCalledWith(THREAD));
+
+    getThreadMessages.mockResolvedValue([...before, assistant("a1")]);
+    const { result } = renderHook(() => useChatThread(THREAD), { wrapper: wrapper(client) });
+
+    await waitFor(() => expect(result.current.analysisHint?.pricingVersion).toBe("v1"));
+    expect(result.current.analysisHintMessageId).toBe("a1");
+  });
+});

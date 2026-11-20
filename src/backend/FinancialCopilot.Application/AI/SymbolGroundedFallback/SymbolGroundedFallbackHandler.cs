@@ -1,5 +1,7 @@
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.ReportDiscussion;
+using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 
 namespace FinancialCopilot.Application.AI.SymbolGroundedFallback;
@@ -40,9 +42,11 @@ public static class SymbolGroundedFallbackEligibility
 }
 
 /// <summary>
-/// Feature 163 use case. For an eligible turn it resolves the single company named in the question, reads its
-/// quarterly income statement, runs the single grounded model call and returns an answer, an income-statement
-/// offer, or "unchanged". It never throws for an expected failure: every failure leaves the turn unchanged (FR-11).
+/// Feature 163 use case, changed by «sol-deep-analysis-web-search» (design-proposal §6): the fallback never runs on its
+/// own any more. <see cref="TryOfferAsync"/> checks eligibility, the single company and its quarterly income statement
+/// and returns an analysis offer — no model call and no reservation (PO-10, AC-8). <see cref="RunConfirmedAsync"/> runs
+/// the analysis of an offer the user confirmed, at the chosen depth and web switch. Neither throws for an expected
+/// failure (FR-11); a short balance throws from the caller's capacity callback before the model call.
 /// </summary>
 public sealed class SymbolGroundedFallbackHandler(
     ICanonicalQueryEntityResolver entityResolver,
@@ -50,49 +54,150 @@ public sealed class SymbolGroundedFallbackHandler(
     ISymbolGroundedFallbackModel model,
     SymbolGroundedFallbackOptions options,
     SymbolGroundedFallbackOffers offers,
-    RelatedFollowUpActionFactory? suggestionFactory = null)
+    RelatedFollowUpActionFactory? suggestionFactory = null,
+    GroundedAnalysisOptions? analysisOptions = null,
+    GroundedAnalysisPricing? analysisPricing = null,
+    IReportDiscussionMessageReader? messageReader = null,
+    TimeProvider? timeProvider = null)
 {
-    private readonly SymbolGroundedFallbackPromptBuilder _promptBuilder = new(options, offers);
+    /// <summary>How far back an offer is looked up; an older offer reads as expired.</summary>
+    internal const int OfferLookbackMessages = 20;
 
-    public async Task<SymbolGroundedFallbackResult> TryHandleAsync(
+    private readonly SymbolGroundedFallbackPromptBuilder _promptBuilder = new(options, offers);
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+
+    /// <summary>
+    /// True when 163 offers an analysis: both flags on (rollback, design-proposal §15). With either off the turn stays
+    /// unchanged; no path runs 163 without confirmation.
+    /// </summary>
+    public bool OfferEnabled =>
+        options.Enabled && analysisOptions is { Enabled: true } && analysisPricing is not null;
+
+    /// <summary>The configured default depth and web switch of an offer.</summary>
+    public AnalysisChoice DefaultChoice => analysisOptions?.DefaultChoice ?? new AnalysisChoice(AnalysisDepth.Deep, true);
+
+    /// <summary>
+    /// FR-7: an offer for an eligible turn about exactly one company with a usable quarterly income statement. No model
+    /// call, no reservation. The caller keeps the original outcome (Feature 155) and appends <see cref="SymbolGroundedFallbackResult.Text"/>.
+    /// </summary>
+    public async Task<SymbolGroundedFallbackResult> TryOfferAsync(
         SymbolGroundedFallbackRequest turn,
-        CancellationToken cancellationToken,
-        Func<CancellationToken, Task>? ensureBillingCapacityBeforeModelCall = null)
+        CancellationToken cancellationToken)
     {
         if (SymbolGroundedFallbackEligibility.IneligibleReason(turn, options) is { } ineligible)
             return SymbolGroundedFallbackResult.UnchangedBecause(ineligible);
+        if (!OfferEnabled) return SymbolGroundedFallbackResult.UnchangedBecause("analysis_disabled");
 
         var question = turn.Request.OriginalUserMessage ?? turn.Request.Message;
         if (await ResolveSingleCompanyAsync(turn.Request, question, cancellationToken) is not { } company)
             return SymbolGroundedFallbackResult.UnchangedBecause("no_single_company");
 
         var symbol = company.DisplaySymbol.Trim();
-        var table = await statementTables.ExecuteAsync(
-            FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(SymbolGroundedFallbackMessages.IncomeStatementRequest(symbol)),
-            cancellationToken);
-        // The statement must be the resolved company's own: a different match would ground the answer on the wrong data.
-        if (ReportDataSetBuilder.BuildQuarterly(table) is not { Facts.Count: > 0 } data ||
-            RelatedFollowUpActionFactory.Canonical(data.CompanySymbol) != RelatedFollowUpActionFactory.Canonical(symbol))
+        if (await ReadStatementAsync(symbol, cancellationToken) is not { } statement)
             return SymbolGroundedFallbackResult.UnchangedBecause("no_income_statement");
 
-        if (_promptBuilder.Build(data, question) is not { } prompt)
-            return SymbolGroundedFallbackResult.UnchangedBecause("over_input_budget",
-                new SymbolGroundedFallbackDiagnostics(null, 0, data.Facts.Count, 0, 0, null));
+        var offer = NewOffer(company, symbol, statement.Data);
+        return new SymbolGroundedFallbackResult(
+            SymbolGroundedFallbackKind.OfferAnalysis,
+            SymbolGroundedFallbackMessages.AnalysisOffer(offer, analysisPricing!, DefaultChoice),
+            CompanySymbol: symbol,
+            Diagnostics: new SymbolGroundedFallbackDiagnostics(null, 0, statement.Data.Facts.Count, 0, 0, "offered"),
+            Offer: offer);
+    }
 
-        if (ensureBillingCapacityBeforeModelCall is not null)
-            await ensureBillingCapacityBeforeModelCall(cancellationToken);
+    /// <summary>
+    /// FR-8: the pending offer with this id on an assistant message of this conversation, read in the request's
+    /// tenant and actor scope, with the question of the same exchange and the non-answer it was offered on. Null when
+    /// there is none (another conversation, too old, or a deleted conversation).
+    /// </summary>
+    public async Task<PendingAnalysisOffer?> FindOfferAsync(
+        Guid conversationId,
+        Guid tenantId,
+        Guid actorId,
+        Guid offerId,
+        CancellationToken cancellationToken)
+    {
+        if (messageReader is null) return null;
+        var messages = await messageReader.ListRecentAsync(conversationId, tenantId, actorId, OfferLookbackMessages, cancellationToken);
+        for (var index = messages.Count - 1; index >= 0; index--)
+        {
+            var message = messages[index];
+            if (message.Role != MessageRole.Assistant ||
+                message.AssistantPayload?.GroundedAnalysisOffer is not { } offer || offer.OfferId != offerId)
+                continue;
+            var question = index > 0 && messages[index - 1].Role == MessageRole.User ? messages[index - 1].Content : null;
+            if (string.IsNullOrWhiteSpace(question)) return null;
+            var payload = message.AssistantPayload;
+            return new PendingAnalysisOffer(offer, question,
+                new FallbackOrigin(payload.Outcome, payload.OutcomeReasonCode, offer.OfferId));
+        }
 
+        return null;
+    }
+
+    /// <summary>The offer sentence with the current prices and defaults (FR-7).</summary>
+    public string OfferText(GroundedAnalysisOffer offer) =>
+        SymbolGroundedFallbackMessages.AnalysisOffer(offer, analysisPricing!, DefaultChoice);
+
+    /// <summary>True when the offer may no longer be confirmed.</summary>
+    public bool IsExpired(GroundedAnalysisOffer offer) => _time.GetUtcNow() >= offer.ExpiresAt;
+
+    /// <summary>
+    /// FR-8, FR-9: the analysis of a confirmed offer. Re-checks the price list, the company and the newest period (a
+    /// change returns a fresh offer, nothing runs); then calls <paramref name="ensureBillingCapacity"/> with the tier's
+    /// fixed credits, runs the analysis model once and validates the answer. Every non-answer carries a fresh offer when
+    /// the statement is still available, so the user can retry (each offer is single-use).
+    /// </summary>
+    public async Task<SymbolGroundedFallbackResult> RunConfirmedAsync(
+        AiQueryRequest request,
+        PendingAnalysisOffer pending,
+        AnalysisChoice choice,
+        CancellationToken cancellationToken,
+        Func<decimal, CancellationToken, Task>? ensureBillingCapacity = null)
+    {
+        if (!OfferEnabled) return SymbolGroundedFallbackResult.NotAnsweredBecause("analysis_disabled");
+        var offer = pending.Offer;
+        var pricing = analysisPricing!;
+
+        var company = await ResolveExactAsync(offer.Symbol, cancellationToken);
+        var statement = company is null ? null : await ReadStatementAsync(company.DisplaySymbol.Trim(), cancellationToken);
+        if (company is null || statement is null)
+            return SymbolGroundedFallbackResult.NotAnsweredBecause("no_income_statement");
+        var fresh = NewOffer(company, company.DisplaySymbol.Trim(), statement.Data);
+
+        // PO-9 and design-proposal §6: what the user agreed to must still hold; otherwise they consent again at 0 credits.
+        var stale = !string.Equals(offer.PricingVersion, pricing.PricingVersion, StringComparison.Ordinal) ? "pricing_changed"
+            : !string.Equals(offer.CompanyCanonicalId, fresh.CompanyCanonicalId, StringComparison.Ordinal) ? "company_changed"
+            : !string.Equals(offer.NewestPeriod, fresh.NewestPeriod, StringComparison.Ordinal) ? "period_changed"
+            : null;
+        if (stale is not null)
+            return SymbolGroundedFallbackResult.StaleBecause(stale, fresh);
+
+        var profile = new GroundedAnalysisProfiles(analysisOptions!).For(choice.Depth);
+        var data = statement.Data;
+        var symbol = fresh.Symbol;
+        if (_promptBuilder.BuildAnalysis(data, pending.Question, choice, profile.InputTokenTarget) is not { } prompt)
+            return SymbolGroundedFallbackResult.NotAnsweredBecause("over_input_budget",
+                new SymbolGroundedFallbackDiagnostics(null, 0, data.Facts.Count, 0, 0, null), fresh);
+
+        // FR-11: the hold covers the fixed tier before the model call; a short balance stops here (no model call).
+        if (ensureBillingCapacity is not null)
+            await ensureBillingCapacity(pricing.CreditsFor(choice), cancellationToken);
+
+        var run = new GroundedAnalysisRun(choice.Depth.ToString(), choice.WebSearch, choice.Tier, profile.Model);
         SymbolGroundedFallbackModelReply reply;
         try
         {
-            reply = await model.AnswerAsync(prompt, turn.Request.TenantId, turn.Request.CorrelationId, cancellationToken);
+            reply = await model.AnalyzeAsync(prompt, choice, request.TenantId, request.CorrelationId, cancellationToken);
         }
         catch (ReportDiscussionModelUnavailableException exception)
         {
-            return SymbolGroundedFallbackResult.UnchangedBecause($"model_unavailable:{exception.Reason}",
-                new SymbolGroundedFallbackDiagnostics(null, prompt.EstimatedInputTokens, prompt.Data.Facts.Count, 0, 0, null));
+            return SymbolGroundedFallbackResult.NotAnsweredBecause($"model_unavailable:{exception.Reason}",
+                new SymbolGroundedFallbackDiagnostics(null, prompt.EstimatedInputTokens, prompt.Data.Facts.Count, 0, 0, null),
+                fresh) with { AnalysisRun = run };
         }
 
+        var facts = new GroundedAnalysisCallFacts(choice, reply.Usage, reply.ConsultedSources?.Count ?? 0);
         var diagnostics = new SymbolGroundedFallbackDiagnostics(
             reply.Disposition.ToString(), prompt.EstimatedInputTokens, prompt.Data.Facts.Count, 0, 0, null);
         if (reply.Disposition == SymbolGroundedFallbackDisposition.NotAnswerable)
@@ -103,31 +208,80 @@ public sealed class SymbolGroundedFallbackHandler(
                     SymbolGroundedFallbackMessages.QuarterlyReportCapabilityCode,
                     SymbolGroundedFallbackMessages.IncomeStatementRequest(symbol),
                     symbol,
-                    SymbolGroundedFallbackMessages.RelevanceReason));
+                    SymbolGroundedFallbackMessages.RelevanceReason),
+                AnalysisRun: run,
+                AnalysisFacts: facts);
 
         if (reply.Answer.Length == 0)
-            return SymbolGroundedFallbackResult.UnchangedBecause("empty_answer", diagnostics);
+            return SymbolGroundedFallbackResult.NotAnsweredBecause("empty_answer", diagnostics, fresh) with
+            {
+                AnalysisRun = run, AnalysisFacts = facts
+            };
         var closing = reply.ClosingOffer.Length > 0 ? reply.ClosingOffer : _promptBuilder.FixedClosingOffer(symbol);
         // Change «answer-readability»: the layout safety net runs before grounding, so the stored text is the verified text.
-        // Change «analytical-answer-and-report-score» (D3): the server-written score goes before the closing offer, which
-        // stays the last paragraph; the grounding check accepts the score and 100 it wrote.
+        // Change «analytical-answer-and-report-score» (D3): the server-written score goes before the closing offer; the
+        // grounding check accepts the score and 100 it wrote.
         var score = reply.ReportScore is { } value && prompt.Data.PeriodsNewestFirst.Count > 0
-            ? "\n\n" + GroundedAnalysis.ScoreBlock(value, prompt.Data.PeriodsNewestFirst[0])
+            ? "\n\n" + ReportDiscussion.GroundedAnalysis.ScoreBlock(value, prompt.Data.PeriodsNewestFirst[0], reply.ScoreReason)
             : string.Empty;
         var text = GroundedAnswerLayout.Normalize(reply.Answer + score + "\n\n" + closing);
-        var grounding = NumericGroundingValidator.Validate(text, prompt.Data, question,
-            score.Length > 0 ? GroundedAnalysis.ScoreNumbers(reply.ReportScore) : []);
-        diagnostics = diagnostics with { NumbersChecked = grounding.NumbersChecked, UngroundedNumbers = grounding.UngroundedCount };
-        if (!grounding.Passed)
-            return SymbolGroundedFallbackResult.UnchangedBecause("unverified_answer", diagnostics);
+        // FR-10: external markers first (web content is kept apart and traceable), then every other number against the report.
+        var evidence = ExternalEvidenceValidator.Validate(text, reply.DeclaredSources ?? [], reply.ConsultedSources ?? []);
+        var grounding = NumericGroundingValidator.Validate(evidence.GroundingText, prompt.Data, pending.Question,
+            score.Length > 0 ? ReportDiscussion.GroundedAnalysis.ScoreNumbers(reply.ReportScore) : []);
+        diagnostics = diagnostics with
+        {
+            NumbersChecked = grounding.NumbersChecked,
+            UngroundedNumbers = grounding.UngroundedCount,
+            Reason = evidence.FailureReason
+        };
+        if (!evidence.Passed || !grounding.Passed)
+            return SymbolGroundedFallbackResult.NotAnsweredBecause("unverified_answer", diagnostics, fresh) with
+            {
+                AnalysisRun = run, AnalysisFacts = facts
+            };
 
         // The rendered table text is not kept: the report was not shown, only its data is the audit trail (FR-10).
-        return new SymbolGroundedFallbackResult(SymbolGroundedFallbackKind.Answered, text,
-            table! with { RenderedAnswer = null }, symbol, diagnostics);
+        return new SymbolGroundedFallbackResult(SymbolGroundedFallbackKind.Answered,
+            ExternalEvidenceValidator.AppendSourcesBlock(evidence.Text, evidence.Sources),
+            statement.Table with { RenderedAnswer = null }, symbol, diagnostics,
+            AnalysisRun: run,
+            Sources: evidence.Sources.Count == 0 ? null : evidence.Sources,
+            AnalysisFacts: facts);
+    }
+
+    private GroundedAnalysisOffer NewOffer(CanonicalQueryEntity company, string symbol, ReportDataSet data) =>
+        new(Guid.NewGuid(),
+            company.CanonicalId.ToString("N"),
+            symbol,
+            data.PeriodsNewestFirst.Count > 0 ? data.PeriodsNewestFirst[0] : string.Empty,
+            analysisPricing!.PricingVersion,
+            _time.GetUtcNow().AddMinutes(analysisOptions!.OfferLifetimeMinutes));
+
+    private sealed record Statement(FinancialStatementTableResult Table, ReportDataSet Data);
+
+    /// <summary>The symbol's quarterly income statement; null unless it is the symbol's own and has facts.</summary>
+    private async Task<Statement?> ReadStatementAsync(string symbol, CancellationToken cancellationToken)
+    {
+        var table = await statementTables.ExecuteAsync(
+            FinancialStatementTableIntentRules.BuildV2QuarterlyQuery(SymbolGroundedFallbackMessages.IncomeStatementRequest(symbol)),
+            cancellationToken);
+        // The statement must be the resolved company's own: a different match would ground the answer on the wrong data.
+        return table is not null &&
+               ReportDataSetBuilder.BuildQuarterly(table) is { Facts.Count: > 0 } data &&
+               RelatedFollowUpActionFactory.Canonical(data.CompanySymbol) == RelatedFollowUpActionFactory.Canonical(symbol)
+            ? new Statement(table, data)
+            : null;
     }
 
     /// <summary>Upper bound of words checked one by one, so a long message cannot cause many catalogue reads.</summary>
     private const int MaximumWordsResolved = 12;
+
+    private async Task<CanonicalQueryEntity?> ResolveExactAsync(string mention, CancellationToken cancellationToken) =>
+        await entityResolver.ResolveMentionAsync(mention, cancellationToken) is EntityResolutionResult.Resolved resolved &&
+        EntityResolutionMatchKinds.IsExact(resolved.Evidence.MatchKind)
+            ? resolved.Entity
+            : null;
 
     /// <summary>
     /// Exactly one company (FR-2): the company the routed capability already resolved for this turn (the same identity

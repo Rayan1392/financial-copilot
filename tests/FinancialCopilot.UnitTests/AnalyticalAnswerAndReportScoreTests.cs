@@ -82,7 +82,9 @@ public sealed class AnalyticalAnswerAndReportScoreTests
     {
         var discussion = new ReportDiscussionContextBuilder(new ReportDiscussionOptions()).Build(Data(), [], "تحلیل کن")!;
         var fallback = new SymbolGroundedFallbackPromptBuilder(new SymbolGroundedFallbackOptions(), new SymbolGroundedFallbackOffers(false))
-            .Build(Data(), "تحلیل کن")!;
+            .BuildAnalysis(Data(), "تحلیل کن",
+                new FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisChoice(
+                    FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Deep, false), 10000)!;
 
         foreach (var (content, data) in new[] { (discussion.UserContent, discussion.Data), (fallback.UserContent, fallback.Data) })
         {
@@ -116,7 +118,10 @@ public sealed class AnalyticalAnswerAndReportScoreTests
     [Fact]
     public void FallbackPrompt_IsAnalytical_KeepsKeyFigures_AndScores()
     {
-        var prompt = SymbolGroundedFallbackPromptBuilder.SystemPrompt;
+        // Change «sol-deep-analysis-web-search»: 163 runs only as the confirmed analysis; its prompt keeps these rules.
+        var prompt = SymbolGroundedFallbackPromptBuilder.AnalysisSystemPromptFor(
+            new FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisChoice(
+                FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Deep, false));
         Assert.DoesNotContain("Do not convert units", prompt, StringComparison.Ordinal);
         Assert.Contains(GroundedAnalysis.UnitRules, prompt, StringComparison.Ordinal);
         Assert.Contains(GroundedAnalysis.HiddenReportRule, prompt, StringComparison.Ordinal);

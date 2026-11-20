@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
@@ -1475,6 +1476,11 @@ public sealed class TelegramAiAssistantAdapter(
             return await HandleTrackerCallbackAsync(data, update, actor, cancellationToken);
         }
 
+        if (GroundedAnalysisOfferActions.IsOfferAction(data))
+        {
+            return await HandleGroundedAnalysisCallbackAsync(data!, update, actor, cancellationToken);
+        }
+
         if (data is not null && data.StartsWith("dlp1:", StringComparison.OrdinalIgnoreCase))
         {
             return await HandleDisclosurePaginationCallbackAsync(data, update, actor, cancellationToken);
@@ -1601,6 +1607,58 @@ public sealed class TelegramAiAssistantAdapter(
             null,
             update.CorrelationId,
             "این عملیات تلگرام پشتیبانی نمی‌شود. برای مشاهده وضعیت اعتبار /credits را ارسال کنید.");
+    }
+
+    /// <summary>
+    /// Change «sol-deep-analysis-web-search» (T13): a 163 offer button. The only way Telegram confirms an offer; typed
+    /// text never does (PO-10). The backend checks the offer, its conversation, expiry, price version, balance and
+    /// single use exactly as for the web, and bills the chosen tier through the same workflow.
+    /// </summary>
+    private async Task<TelegramAssistantResult> HandleGroundedAnalysisCallbackAsync(
+        string data,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        if (!TelegramGroundedAnalysis.TryParse(data, out var offerId, out var choice))
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, TelegramGroundedAnalysis.InvalidCallbackText);
+        }
+
+        var label = choice is null ? TelegramGroundedAnalysis.CancelLabel : TelegramGroundedAnalysis.ConfirmLabel;
+        var conversationId = await GetOrCreateConversationBindingAsync(update, actor, cancellationToken);
+        var response = await aiQueryOrchestrationService.ExecuteAsync(
+            new AiQueryRequest(
+                label,
+                actor.TenantId,
+                actor.ActorId,
+                update.CorrelationId,
+                conversationId,
+                actor.UserId,
+                actor.ApiClientId,
+                ExternalUserId: $"telegram:{update.TelegramUserId.ToString(CultureInfo.InvariantCulture)}",
+                DisclosurePageSize: 8,
+                ActorType: actor.ActorType,
+                AuthenticationMode: actor.AuthenticationMode,
+                OriginalUserMessage: label,
+                SuggestedActionId: choice is null
+                    ? GroundedAnalysisOfferActions.Cancel(offerId)
+                    : GroundedAnalysisOfferActions.Confirm(offerId),
+                BillingOperationId: BuildBillingOperationId(update),
+                AnalysisOptions: choice is { } chosen ? new AnalysisOptionsRequest(chosen.Depth, chosen.WebSearch) : null),
+            cancellationToken);
+
+        await TouchConversationBindingAsync(update, actor, response.ConversationId, cancellationToken);
+        return new TelegramAssistantResult(
+            TelegramAssistantResultStatus.Accepted,
+            actor.ActorId,
+            actor.TenantId,
+            response.ConversationId,
+            RenderResponse(response, update, actor, label),
+            update.CorrelationId,
+            response,
+            responseRenderer.Version);
     }
 
     private async Task<Guid> GetOrCreateConversationBindingAsync(

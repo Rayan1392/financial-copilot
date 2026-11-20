@@ -25,7 +25,7 @@ public sealed class OwnProfileStore(
 {
     private const int MaximumStoredAvatarBytes = 1024 * 1024;
     private const int MaximumAvatarDimension = 4096;
-    private readonly IDataProtector _contactMobileProtector = dataProtection.CreateProtector("FinancialCopilot.OwnProfile.ContactMobile.v1");
+    private readonly IDataProtector _contactMobileProtector = ContactMobileProtection.CreateProtector(dataProtection);
 
     public async Task<OwnProfileView?> GetMaskedAsync(Guid userId, CancellationToken cancellationToken)
     {

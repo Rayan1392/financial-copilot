@@ -96,6 +96,7 @@ Release log and open items. Policy: `docs/release/release-process.md`. Source of
 
 | Version | Date | Commit (prod) | Deploy | Notes |
 |---|---|---|---|---|
+| 1.19.0 | 2026-11-20 | f975690e | run 44801484039 success (20m40s) | grounded analysis on (Simple/Deep, web search, 8/12/16/25 credits, 163 offer after «تحلیل کن»); Feature 081 period summary switched off (its questions get the 163 offer); BUG-035 fix. No migrations. Telegram gateway change (offer button answered first) needs the separate gateway host updated. Launch items left to the owner: `.env` WebSearch capability on the OpenAI provider, `TELEGRAM_GATEWAY_REQUEST_TIMEOUT_SECONDS=120` on the gateway host, reverse proxy ≥120 s; T00/T15 of change sol-deep-analysis-web-search still open. Not merged: `feature/release-1.17.0-dastkhat` (rollback override, skill deletion), Feature 164 (uncommitted in another worktree). |
 | 1.18.0 | 2026-11-18 | 420382fe | run 44326157068 success | analytical financial-report answers (162/163): amounts in همت / میلیارد تومان, newest-period analysis, 0–100 score for quarterly income statements |
 | 1.17.1 | 2026-11-18 | bc38de3e | run 44307527081 success | BUG-033: fixed-price settlement for successful Report Discussion answers |
 | 1.17.0 | 2026-11-18 | 3c68b8f | run 44228930762 success | Dastkhat Main + FaNum typography for web/mobile PWA; offline font cache |

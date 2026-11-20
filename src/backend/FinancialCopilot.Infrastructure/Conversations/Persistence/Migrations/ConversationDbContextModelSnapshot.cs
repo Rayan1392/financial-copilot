@@ -17,7 +17,7 @@ namespace FinancialCopilot.Infrastructure.Conversations.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -121,6 +121,12 @@ namespace FinancialCopilot.Infrastructure.Conversations.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.HasIndex("CreatedAt", "Id")
+                        .HasDatabaseName("IX_Messages_User_CreatedAt_Id")
+                        .HasFilter("\"Role\" = 'User'");
+
+                    NpgsqlIndexBuilderExtensions.IncludeProperties(b.HasIndex("CreatedAt", "Id"), new[] { "ConversationId" });
 
                     b.ToTable("Messages", (string)null);
                 });

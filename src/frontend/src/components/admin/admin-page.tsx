@@ -8,6 +8,7 @@ import {
   CreditCard,
   Layers3,
   LoaderCircle,
+  MessagesSquare,
   Plus,
   RefreshCw,
   Search,
@@ -30,7 +31,10 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { AdminCustomerChatHistory } from "@/components/admin/admin-customer-chat-history";
+import { Loading, Message, Panel } from "@/components/admin/admin-ui";
+import { showError } from "@/components/admin/admin-errors";
 import { UserAnalyticsPanel } from "@/components/admin/user-analytics-panel";
+import { AiConversationLogsPanel } from "@/components/admin/ai-conversation-logs-panel";
 import { TahlilAppTopUpReconciliationPanel } from "@/components/admin/tahlilapp-top-up-reconciliation-panel";
 import {
   Table,
@@ -64,23 +68,12 @@ import {
 } from "@/integrations/financial-copilot/admin-permissions";
 import type { AuthUser } from "@/integrations/financial-copilot/auth";
 
-type AdminTab = "users" | "user-analytics" | "roles" | "tenants" | "billing" | "audits";
+type AdminTab = "users" | "user-analytics" | "ai-logs" | "roles" | "tenants" | "billing" | "audits";
 const splitCsv = (value: string) =>
   value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-const showError = (error: unknown) => {
-  if (!(error instanceof Error)) return "درخواست ناموفق بود.";
-  const details = error as Error & { type?: string; correlationId?: string };
-  return [
-    details.message,
-    details.type,
-    details.correlationId && `شناسه پیگیری: ${details.correlationId}`,
-  ]
-    .filter(Boolean)
-    .join(" | ");
-};
 
 const permissionLabels: Record<string, { label: string; description: string }> = {
   "AiQuery.FinancialComparison": {
@@ -154,6 +147,12 @@ export function AdminPage({ user }: { user: AuthUser }) {
       label: "آمار کاربران",
       description: "منابع جذب و اشتراک‌ها",
       icon: TrendingUp,
+    },
+    hasPermission(user, adminPermissions.usersRead) && {
+      value: "ai-logs" as const,
+      label: "تاریخچه پرسش و پاسخ کاربران",
+      description: "پرسش‌های کاربران و پاسخ‌های هوش مصنوعی",
+      icon: MessagesSquare,
     },
     hasPermission(user, adminPermissions.rolesRead) && {
       value: "roles" as const,
@@ -293,6 +292,7 @@ export function AdminPage({ user }: { user: AuthUser }) {
 
             {tab === "users" && <UsersPanel user={user} />}
             {tab === "user-analytics" && <UserAnalyticsPanel />}
+            {tab === "ai-logs" && <AiConversationLogsPanel />}
             {tab === "roles" && <RolesPanel user={user} />}
             {tab === "tenants" && <TenantsPanel user={user} />}
             {tab === "billing" && <BillingPanel user={user} />}
@@ -302,48 +302,6 @@ export function AdminPage({ user }: { user: AuthUser }) {
       </div>
     </div>
   );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="admin-panel min-w-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm shadow-slate-900/[0.03]">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
-        <h2 className="text-sm font-bold text-slate-900 sm:text-base">{title}</h2>
-        <span className="size-2 rounded-full bg-emerald-400" aria-hidden="true" />
-      </div>
-      <div className="min-w-0 p-4 sm:p-6">{children}</div>
-    </section>
-  );
-}
-function Message({ error, success }: { error?: string | null; success?: string | null }) {
-  return (
-    <>
-      {error && (
-        <p
-          role="alert"
-          className="my-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
-        >
-          {error}
-        </p>
-      )}
-      {success && (
-        <p
-          role="status"
-          className="my-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
-        >
-          {success}
-        </p>
-      )}
-    </>
-  );
-}
-function Loading({ active }: { active: boolean }) {
-  return active ? (
-    <div className="flex items-center gap-2 py-3 text-sm text-slate-500" role="status">
-      <LoaderCircle className="size-4 animate-spin" />
-      در حال بارگذاری...
-    </div>
-  ) : null;
 }
 
 type AdminDialogChoice = { value: string; label: string; description?: string };
@@ -679,7 +637,10 @@ function UsersPanel({ user }: { user: AuthUser }) {
         search: search.trim() || undefined,
         status: statusFilter as "any" | "enabled" | "disabled" | "locked",
         acquisitionSource: (sourceFilter || undefined) as
-          "native" | "tahlilapp" | "unknown" | undefined,
+          | "native"
+          | "tahlilapp"
+          | "unknown"
+          | undefined,
         linkedProvider: (providerFilter || undefined) as "tahlilapp" | "telegram" | undefined,
         externalProvider: externalId.trim() ? "tahlilapp" : undefined,
         externalUserId: externalId.trim() || undefined,

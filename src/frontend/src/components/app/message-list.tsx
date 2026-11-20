@@ -156,6 +156,16 @@ function UserBubble({ text, compact = false }: { text: string; compact?: boolean
   );
 }
 
+/**
+ * Feature 164: a stored answer exactly as the user saw it, for the admin conversation logs. Charts, tables and cards
+ * render as in the chat; nothing that acts (follow-ups, regenerate, follow symbol, paging, the 163 offer) is shown.
+ */
+export function ReadOnlyAssistantAnswer({ block }: { block: AssistantChatBlock }) {
+  return <AssistantBlock block={block} onSuggested={ignoreSuggestion} actionsDisabled readOnly />;
+}
+
+function ignoreSuggestion() {}
+
 function AssistantBlock({
   block,
   onSuggested,
@@ -167,6 +177,7 @@ function AssistantBlock({
   showDiagnostics,
   followedSymbols,
   analysis,
+  readOnly = false,
 }: {
   block: AssistantChatBlock;
   onSuggested: (q: string, actionId?: string) => void;
@@ -179,6 +190,8 @@ function AssistantBlock({
   followedSymbols?: ReadonlySet<string>;
   /** Set only on the answer that carries a live 163 offer. */
   analysis?: MessageListAnalysis;
+  /** Feature 164: render the answer without any control that acts (see {@link ReadOnlyAssistantAnswer}). */
+  readOnly?: boolean;
 }) {
   const compact = useAnswerDensity() === "compact";
   const isSuccessfulProductTrend = block.monthlyProductTrendResult?.resolutionState === "Resolved";
@@ -276,6 +289,7 @@ function AssistantBlock({
               <SymbolSnapshotCard
                 data={symbolSnapshot}
                 followed={followedSymbols?.has(symbolSnapshot.symbol) ?? false}
+                showFollow={!readOnly}
               />
             )}
             {financialStatementAnalysis && (
@@ -312,6 +326,7 @@ function AssistantBlock({
               originalQuery={disclosureOriginalQuery}
               onPageChange={onPageChange}
               followedSymbols={followedSymbols}
+              showFollow={!readOnly}
             />
           )}
 
@@ -345,7 +360,7 @@ function AssistantBlock({
           />
         )}
 
-        {analysis?.hint?.offer && (
+        {!readOnly && analysis?.hint?.offer && (
           <AnalysisOfferCard
             hint={analysis.hint}
             choice={analysis.choice}
@@ -384,17 +399,19 @@ function AssistantBlock({
           <span>{toPersianDigits(block.creditsUsed)} اعتبار مصرف شد</span>
         </div>
 
-        <AnswerActions
-          text={displayMessage}
-          onRegenerate={onRegenerate}
-          disabled={actionsDisabled}
-        />
+        {!readOnly && (
+          <AnswerActions
+            text={displayMessage}
+            onRegenerate={onRegenerate}
+            disabled={actionsDisabled}
+          />
+        )}
 
-        {showDiagnostics && block.orchestration && (
+        {!readOnly && showDiagnostics && block.orchestration && (
           <OrchestrationDiagnosticsPanel orchestration={block.orchestration} />
         )}
 
-        {(block.suggestedActions ?? []).length > 0 && (
+        {!readOnly && (block.suggestedActions ?? []).length > 0 && (
           <div
             className="flex flex-wrap gap-2 pt-1"
             role="group"
@@ -416,7 +433,7 @@ function AssistantBlock({
           </div>
         )}
 
-        {block.suggestedQuestions.length > 0 && (
+        {!readOnly && block.suggestedQuestions.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
             {block.suggestedQuestions.map((question) => (
               <button
@@ -708,12 +725,14 @@ function ScannerResultTable({
   originalQuery,
   onPageChange,
   followedSymbols,
+  showFollow = true,
 }: {
   table: ScannerTable;
   metadataLabel?: string;
   originalQuery?: string;
   onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   followedSymbols?: ReadonlySet<string>;
+  showFollow?: boolean;
 }) {
   const isPersianTable = isRtlFinancialTable(table);
   const { page, pageSize, totalPages, matchingSymbolCount } = table.executionFacts;
@@ -774,15 +793,17 @@ function ScannerResultTable({
                           {cell.freshnessStatus}
                         </span>
                       )}
-                      {column.identifier.toUpperCase() === "SYMBOL" && row.symbolCode && (
-                        <span className="mt-1 block">
-                          <FollowSymbolButton
-                            symbol={row.symbolCode}
-                            compact
-                            followed={followedSymbols?.has(row.symbolCode) ?? false}
-                          />
-                        </span>
-                      )}
+                      {showFollow &&
+                        column.identifier.toUpperCase() === "SYMBOL" &&
+                        row.symbolCode && (
+                          <span className="mt-1 block">
+                            <FollowSymbolButton
+                              symbol={row.symbolCode}
+                              compact
+                              followed={followedSymbols?.has(row.symbolCode) ?? false}
+                            />
+                          </span>
+                        )}
                     </td>
                   );
                 })}

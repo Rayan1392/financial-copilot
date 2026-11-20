@@ -134,20 +134,16 @@ public sealed class EfCoreAdminChatHistoryQueries(
             return null;
         }
 
-        auth.SecurityAdminAudits.Add(new SecurityAdminAuditRow
-        {
-            Id = Guid.NewGuid(),
-            OccurredAt = timeProvider.GetUtcNow(),
-            TenantId = tenantId,
-            ActorId = administratorId,
-            ActorType = administratorType,
-            PermissionCode = FinancialCopilot.Application.Authentication.FinancialCopilotPermissions.AdminUsersRead,
-            ActionCode = "admin.customer-chat-history.turn-read",
-            TargetType = "chat_history_turn",
-            TargetId = turnId.ToString("D"),
-            CorrelationId = correlationId
-        });
-        await auth.SaveChangesAsync(cancellationToken);
+        await AdminContentReadAudit.RecordTurnReadAsync(
+            auth,
+            timeProvider,
+            tenantId,
+            administratorId,
+            administratorType,
+            correlationId,
+            "admin.customer-chat-history.turn-read",
+            turnId,
+            cancellationToken);
 
         var answerRows = await conversations.Messages.AsNoTracking()
             .Where(ForTurns([anchor]))
@@ -175,6 +171,10 @@ public sealed class EfCoreAdminChatHistoryQueries(
             answers);
     }
 
+    // Turn order is (CreatedAt, role, Id) with a User before an Assistant at the same instant: one exchange stores the
+    // question and its answer with the same CreatedAt, and the random ids must not decide which turn an answer joins
+    // (BUG-037). An answer therefore follows a question at or after its time, and a later question takes over the
+    // answers from its own time onwards.
     private Expression<Func<MessageRow, bool>> ForTurns(IReadOnlyCollection<QuestionAnchor> anchors)
     {
         var predicate = False<MessageRow>();
@@ -187,15 +187,13 @@ public sealed class EfCoreAdminChatHistoryQueries(
         Expression<Func<MessageRow, bool>> ForTurn(QuestionAnchor question) => answer =>
             answer.ConversationId == question.ConversationId &&
             answer.Role == AssistantRole &&
-            (answer.CreatedAt > question.CreatedAt ||
-             (answer.CreatedAt == question.CreatedAt && answer.Id.CompareTo(question.Id) > 0)) &&
+            answer.CreatedAt >= question.CreatedAt &&
             !conversations.Messages.AsNoTracking().Any(nextQuestion =>
                 nextQuestion.ConversationId == question.ConversationId &&
                 nextQuestion.Role == UserRole &&
                 (nextQuestion.CreatedAt > question.CreatedAt ||
                  (nextQuestion.CreatedAt == question.CreatedAt && nextQuestion.Id.CompareTo(question.Id) > 0)) &&
-                (nextQuestion.CreatedAt < answer.CreatedAt ||
-                 (nextQuestion.CreatedAt == answer.CreatedAt && nextQuestion.Id.CompareTo(answer.Id) < 0)));
+                nextQuestion.CreatedAt <= answer.CreatedAt);
     }
 
     private static Expression<Func<T, bool>> False<T>() => _ => false;
@@ -222,8 +220,7 @@ public sealed class EfCoreAdminChatHistoryQueries(
             for (var index = questions.Length - 1; index >= 0; index--)
             {
                 var question = questions[index];
-                if (answer.CreatedAt > question.CreatedAt ||
-                    (answer.CreatedAt == question.CreatedAt && answer.Id.CompareTo(question.Id) > 0))
+                if (answer.CreatedAt >= question.CreatedAt)
                 {
                     result[question.Id].Add(answer);
                     break;

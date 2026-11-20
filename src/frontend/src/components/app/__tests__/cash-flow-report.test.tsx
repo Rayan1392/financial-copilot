@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { AnswerDensityContext } from "../answer-density";
 import { CashFlowReport } from "../cash-flow-report/cash-flow-report";
 import type { CashFlowReportResult } from "../cash-flow-report/cash-flow-report-types";
+import cashFlowReportSource from "../cash-flow-report/cash-flow-report.tsx?raw";
 import fixtures from "./fixtures/cash-flow-161.json";
 
 vi.mock("recharts", () => ({
@@ -236,6 +237,35 @@ describe("CashFlowReport", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  // BUG-038 / AC-U07: like Features 144 and 154 the report is a fixed light "paper" surface. Tailwind
+  // `dark:` follows the operating system here (no class-based dark variant), and theme tokens follow
+  // the site theme, so neither may appear in the report; the PNG export is light as well.
+  it("uses a fixed light surface with no dark variants or theme tokens", () => {
+    const themeDependent =
+      /(^|\s)dark:|muted-foreground|bg-background|text-foreground|bg-card|bg-muted/;
+    expect(cashFlowReportSource).not.toMatch(themeDependent);
+
+    const warned: CashFlowReportResult = {
+      ...result,
+      warnings: [{ code: "gap", severity: "warning", columnId: "q3", message: "داده ناقص است." }],
+      notices: ["یک نکته"],
+    };
+    const views = [
+      render(<CashFlowReport result={warned} />),
+      render(
+        <AnswerDensityContext.Provider value="compact">
+          <CashFlowReport result={warned} />
+        </AnswerDensityContext.Provider>,
+      ),
+      render(<CashFlowReport result={{ ...result, outcome: "no_data", message: "ناموجود" }} />),
+    ];
+    for (const { container } of views) {
+      for (const element of container.querySelectorAll("[class]")) {
+        expect(element.getAttribute("class")).not.toMatch(themeDependent);
+      }
+    }
   });
 
   it("renders empty outcomes without presenting a fabricated report", () => {

@@ -151,7 +151,7 @@ export function AdminPage({ user }: { user: AuthUser }) {
     hasPermission(user, adminPermissions.usersRead) && {
       value: "ai-logs" as const,
       label: "تاریخچه پرسش و پاسخ کاربران",
-      description: "پرسش‌های کاربران و پاسخ‌های هوش مصنوعی",
+      description: "پرسش‌ها و پاسخ‌های ثبت‌شده",
       icon: MessagesSquare,
     },
     hasPermission(user, adminPermissions.rolesRead) && {
@@ -219,7 +219,9 @@ export function AdminPage({ user }: { user: AuthUser }) {
                   type="button"
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => setTab(value)}
-                  className={`group flex min-w-max items-center gap-3 rounded-xl px-3 py-2.5 text-right transition-colors lg:w-full lg:px-3.5 ${
+                  title={`${label}: ${description}`}
+                  // min-w-max keeps the scrollable tab row whole below lg; on desktop the item stays inside the sidebar.
+                  className={`group flex min-w-max items-center gap-3 rounded-xl px-3 py-2.5 text-right transition-colors lg:w-full lg:min-w-0 lg:px-3.5 ${
                     isActive
                       ? "bg-emerald-400/15 text-emerald-200 ring-1 ring-inset ring-emerald-300/15"
                       : "text-slate-300 hover:bg-white/5 hover:text-white"
@@ -228,10 +230,10 @@ export function AdminPage({ user }: { user: AuthUser }) {
                   <Icon
                     className={`size-[18px] shrink-0 ${isActive ? "text-emerald-300" : "text-slate-400 group-hover:text-slate-200"}`}
                   />
-                  <span className="flex flex-col">
+                  <span className="flex min-w-0 flex-1 flex-col">
                     <span className="text-sm font-medium">{label}</span>
                     <span
-                      className={`mt-0.5 hidden text-[11px] lg:block ${isActive ? "text-emerald-100/65" : "text-slate-500"}`}
+                      className={`mt-0.5 hidden text-[11px] lg:block lg:truncate ${isActive ? "text-emerald-100/65" : "text-slate-500"}`}
                     >
                       {description}
                     </span>

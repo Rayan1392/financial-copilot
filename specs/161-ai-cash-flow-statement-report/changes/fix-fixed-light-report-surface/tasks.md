@@ -31,7 +31,7 @@ Status: Gate A and Gate B: Approved by the owner on 2026-11-21 («Gate A و B ت
 ### 3. Records
 
 - [x] 3.1 `specs/bugs.md` BUG-038 status; `specs/backlog.md` entry for the other `dark:` components.
-- [ ] 3.2 `CHANGELOG.md` `[Unreleased]` entry via release-manager.
+- [x] 3.2 `CHANGELOG.md` `[Unreleased]` entry via release-manager.
 
 ## Definition of Done
 

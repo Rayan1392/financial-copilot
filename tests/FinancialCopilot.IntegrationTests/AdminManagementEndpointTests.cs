@@ -175,6 +175,56 @@ public sealed class AdminManagementEndpointTests : IClassFixture<AdminManagement
         Assert.Equal(HttpStatusCode.NotFound, crossUser.StatusCode);
     }
 
+    // BUG-037: a question and its answer are stored with the same CreatedAt; the answer id may sort before the
+    // question id, so the turn order must not depend on the random id.
+    [Fact]
+    public async Task CustomerChatHistory_PairsSameTimestampAnswersWithTheirOwnQuestion()
+    {
+        await _factory.ResetAsync();
+        var conversationId = Guid.NewGuid();
+        var firstQuestionId = Guid.Parse("90000000-0000-0000-0000-000000000001");
+        var secondQuestionId = Guid.Parse("90000000-0000-0000-0000-000000000002");
+        var firstTime = DateTimeOffset.Parse("2026-10-30T10:00:00Z");
+        var secondTime = firstTime.AddMinutes(1);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ConversationDbContext>();
+            context.Conversations.Add(new ConversationRow
+            {
+                Id = conversationId, TenantId = AuthenticationApiFactory.TenantId,
+                ActorId = AdminManagementApiFactory.ManagedUserId, StartedAt = firstTime,
+                UpdatedAt = secondTime, MessageCount = 4, Title = "Same timestamp conversation"
+            });
+            context.Messages.AddRange(
+                new MessageRow { Id = firstQuestionId, ConversationId = conversationId, Role = "User", Content = "question one", CreatedAt = firstTime },
+                new MessageRow { Id = Guid.Parse("10000000-0000-0000-0000-000000000001"), ConversationId = conversationId, Role = "Assistant", Content = "answer one", CreatedAt = firstTime },
+                new MessageRow { Id = secondQuestionId, ConversationId = conversationId, Role = "User", Content = "question two", CreatedAt = secondTime },
+                new MessageRow { Id = Guid.Parse("10000000-0000-0000-0000-000000000002"), ConversationId = conversationId, Role = "Assistant", Content = "answer two", CreatedAt = secondTime });
+            await context.SaveChangesAsync();
+        }
+
+        using var client = UserClient(FinancialCopilotPermissions.AdminUsersRead);
+        using var pageResponse = await client.GetAsync($"/api/v1/admin/users/{AdminManagementApiFactory.ManagedUserId}/chat-history?page=1");
+        using var pageJson = await ReadJsonAsync(pageResponse);
+        var items = pageJson.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal(HttpStatusCode.OK, pageResponse.StatusCode);
+        Assert.Equal(2, items.Length);
+        Assert.Equal("question two", items[0].GetProperty("questionSummary").GetString());
+        Assert.Equal("answer two", items[0].GetProperty("answerSummary").GetString());
+        Assert.Equal("question one", items[1].GetProperty("questionSummary").GetString());
+        Assert.Equal("answer one", items[1].GetProperty("answerSummary").GetString());
+        Assert.All(items, item => Assert.True(item.GetProperty("hasAnswer").GetBoolean()));
+
+        foreach (var (turnId, expected) in new[] { (firstQuestionId, "answer one"), (secondQuestionId, "answer two") })
+        {
+            using var detailResponse = await client.GetAsync($"/api/v1/admin/users/{AdminManagementApiFactory.ManagedUserId}/chat-history/{turnId}");
+            using var detailJson = await ReadJsonAsync(detailResponse);
+            Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+            var answer = Assert.Single(detailJson.RootElement.GetProperty("answers").EnumerateArray());
+            Assert.Equal(expected, answer.GetProperty("content").GetString());
+        }
+    }
+
     [Fact]
     public async Task RoleLifecycle_CreatesAndDisablesAdministrativeGrouping()
     {

@@ -66,9 +66,12 @@ function auditLabel(isAudited?: boolean | null): string | null {
 export function SymbolSnapshotCard({
   data,
   followed = false,
+  showFollow = true,
 }: {
   data: SymbolSnapshotResult;
   followed?: boolean;
+  /** False in the read-only admin view (Feature 164). */
+  showFollow?: boolean;
 }) {
   const { price, monthlySales: monthly, quarterlyReport: quarterly } = data;
   const details = [data.marketName, data.groupName].filter(Boolean).join(" · ");
@@ -94,7 +97,7 @@ export function SymbolSnapshotCard({
             </h2>
             {details && <p className="text-[11px] leading-5 text-muted-foreground">{details}</p>}
           </div>
-          <FollowSymbolButton symbol={data.symbol} compact followed={followed} />
+          {showFollow && <FollowSymbolButton symbol={data.symbol} compact followed={followed} />}
         </header>
 
         <Section title="آخرین قیمت" notice={price.status === "Available" ? null : price.noticeFa}>

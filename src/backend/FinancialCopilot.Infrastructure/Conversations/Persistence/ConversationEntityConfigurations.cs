@@ -21,6 +21,13 @@ public sealed class MessageRowConfiguration : IEntityTypeConfiguration<MessageRo
         builder.ToTable("Messages");
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.ConversationId, row.CreatedAt });
+        // Feature 164: the admin conversation logs page questions newest first over a date range. Partial on User
+        // rows (assistant inserts do not maintain it); ConversationId is included so the count reads only the index.
+        // Created CONCURRENTLY by migration AddMessagesUserCreatedAtIndex.
+        builder.HasIndex(row => new { row.CreatedAt, row.Id })
+            .HasDatabaseName("IX_Messages_User_CreatedAt_Id")
+            .HasFilter("\"Role\" = 'User'")
+            .IncludeProperties(row => row.ConversationId);
         builder.Property(row => row.Role).HasMaxLength(20);
     }
 }

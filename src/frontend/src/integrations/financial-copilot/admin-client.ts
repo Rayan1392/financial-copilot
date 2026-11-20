@@ -1,3 +1,4 @@
+import type { AssistantContentResponse } from "@/lib/chat.functions";
 import { financialCopilotApi } from "./api-client";
 
 export type AdminUser = {
@@ -259,6 +260,86 @@ export type AdminChatHistoryTurn = {
     structuredPayload: unknown | null;
   }[];
 };
+// Feature 164: cross-user AI conversation logs.
+export const adminConversationLogStatuses = [
+  "Answered",
+  "PartialAnswer",
+  "ClarificationNeeded",
+  "DisambiguationNeeded",
+  "NoData",
+  "Unsupported",
+  "TemporarilyUnavailable",
+  "Failed",
+  "NoResponse",
+] as const;
+export type AdminConversationLogStatus = (typeof adminConversationLogStatuses)[number];
+export type AdminConversationLogChannel = "Web" | "Telegram";
+export type AdminConversationLogPageSize = 20 | 50 | 100;
+export type AdminConversationLogQuery = {
+  page?: number;
+  pageSize?: AdminConversationLogPageSize;
+  q?: string;
+  user?: string;
+  fromUtc?: string;
+  toUtc?: string;
+  status?: AdminConversationLogStatus;
+};
+export type AdminConversationLogUser = {
+  userId: string;
+  displayName: string | null;
+  email: string | null;
+  maskedMobile: string | null;
+};
+export type AdminConversationLogItem = {
+  turnId: string;
+  conversationId: string;
+  conversationTitle: string | null;
+  user: AdminConversationLogUser;
+  questionPreview: string;
+  answerPreview: string | null;
+  questionCreatedAtUtc: string;
+  answerCreatedAtUtc: string | null;
+  status: AdminConversationLogStatus;
+  channel: AdminConversationLogChannel;
+};
+export type AdminConversationLogPage = {
+  items: AdminConversationLogItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
+export type AdminConversationLogUsage = {
+  providerName: string | null;
+  modelName: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  creditsCharged: number;
+  completionStatus: string;
+  executionRoute: string | null;
+};
+export type AdminConversationLogAnswer = {
+  messageId: string;
+  content: string;
+  createdAtUtc: string;
+  status: AdminConversationLogStatus;
+  outcomeReasonCode: string | null;
+  usage: AdminConversationLogUsage | null;
+  /** The stored answer, mapped as the chat's messages endpoint maps it (without plan, usage and memory). */
+  assistantContent: AssistantContentResponse | null;
+};
+export type AdminConversationLogTurn = {
+  turnId: string;
+  conversationId: string;
+  conversationTitle: string | null;
+  channel: AdminConversationLogChannel;
+  user: AdminConversationLogUser;
+  question: string;
+  questionCreatedAtUtc: string;
+  status: AdminConversationLogStatus;
+  answers: AdminConversationLogAnswer[];
+};
 export type AdminRole = { roleId: string; name: string; isEnabled: boolean; permissions: string[] };
 export type AdminTenant = { tenantId: string; name: string };
 export type AdminTenantMember = {
@@ -431,6 +512,20 @@ export const adminApi = {
     ),
   customerChatHistoryTurn: (id: string, turnId: string) =>
     financialCopilotApi<AdminChatHistoryTurn>(`/api/v1/admin/users/${id}/chat-history/${turnId}`),
+  aiConversationLogs: (query: AdminConversationLogQuery = {}, signal?: AbortSignal) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+    }
+    return financialCopilotApi<AdminConversationLogPage>(
+      `/api/v1/admin/ai-conversation-logs?${params}`,
+      { signal },
+    );
+  },
+  aiConversationLogTurn: (turnId: string) =>
+    financialCopilotApi<AdminConversationLogTurn>(
+      `/api/v1/admin/ai-conversation-logs/${encodeURIComponent(turnId)}`,
+    ),
   customerCreditHistory: (id: string, pageSize = 10, cursor?: string | null) => {
     const params = new URLSearchParams({ pageSize: String(pageSize) });
     if (cursor) params.set("cursor", cursor);

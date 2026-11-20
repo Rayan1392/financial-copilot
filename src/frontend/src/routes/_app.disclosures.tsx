@@ -1,11 +1,6 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays } from "lucide-react";
-import { faIRJalali } from "react-day-picker/locale/fa-IR-jalali";
-import { getDateLib } from "react-day-picker/persian";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { JalaliDateFilter } from "@/components/app/jalali-date-filter";
 import { FinancialCopilotApiError } from "@/integrations/financial-copilot/api-client";
 import {
   getDisclosures,
@@ -14,13 +9,10 @@ import {
 } from "@/integrations/financial-copilot/disclosures";
 import {
   disclosureTypeLabels,
-  formatDisclosureDateOnly,
   formatDisclosurePagination,
   formatDisclosurePeriod,
   formatDisclosurePeriodType,
   formatDisclosureReceiptDate,
-  parseDisclosureDateOnly,
-  serializeDisclosureDateOnly,
 } from "@/lib/format/disclosure";
 import { normalizeDisclosureSearch, patchDisclosureSearch } from "@/lib/disclosure-search";
 import { toPersianDigits } from "@/lib/format/persian";
@@ -37,8 +29,6 @@ const scopes: Array<[DisclosureScope, string]> = [
   ["Consolidated", "تلفیقی"],
   ["Both", "هر دو"],
 ];
-
-const jalaliDateLib = getDateLib({ locale: faIRJalali, numerals: "arabext" });
 
 export const Route = createFileRoute("/_app/disclosures")({
   validateSearch: normalizeDisclosureSearch,
@@ -177,13 +167,13 @@ function DisclosuresPage() {
                 تاریخ انتشار
               </legend>
               <div className="grid grid-cols-2 gap-2">
-                <DateFilter
+                <JalaliDateFilter
                   label="از"
                   ariaLabel="از تاریخ انتشار"
                   value={filters.publishedFrom}
                   onChange={(publishedFrom) => update({ publishedFrom })}
                 />
-                <DateFilter
+                <JalaliDateFilter
                   label="تا"
                   ariaLabel="تا تاریخ انتشار"
                   value={filters.publishedTo}
@@ -323,67 +313,6 @@ function DisclosuresPage() {
   );
 }
 
-function DateFilter({
-  label,
-  ariaLabel,
-  value,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const selected = parseDisclosureDateOnly(value);
-  return (
-    <div className="space-y-1 text-xs text-muted-foreground">
-      <span className="block">{label}</span>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label={ariaLabel}
-            aria-haspopup="dialog"
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm text-foreground outline-none transition hover:border-emerald/35 focus-visible:border-emerald/50 focus-visible:ring-2 focus-visible:ring-emerald/10"
-          >
-            <span className={selected ? "" : "text-muted-foreground"}>
-              {selected ? formatDisclosureDateOnly(value) : "انتخاب تاریخ"}
-            </span>
-            <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" dir="rtl" className="w-auto p-2">
-          <Calendar
-            mode="single"
-            selected={selected}
-            onSelect={(date) => {
-              onChange(date ? serializeDisclosureDateOnly(date) : "");
-              setOpen(false);
-            }}
-            locale={faIRJalali}
-            dateLib={jalaliDateLib}
-            numerals="arabext"
-            dir="rtl"
-            initialFocus
-          />
-          {selected && (
-            <button
-              type="button"
-              onClick={() => {
-                onChange("");
-                setOpen(false);
-              }}
-              className="w-full rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground"
-            >
-              حذف تاریخ
-            </button>
-          )}
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
 function Header({ children }: { children: React.ReactNode }) {
   return <th className="p-3 font-medium">{children}</th>;
 }

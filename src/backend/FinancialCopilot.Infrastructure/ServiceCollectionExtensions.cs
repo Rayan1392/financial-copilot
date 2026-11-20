@@ -353,6 +353,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
         services.AddScoped<IAdminUserQueries, EfCoreAdminUserQueries>();
         services.AddScoped<IAdminChatHistoryQueries, EfCoreAdminChatHistoryQueries>();
+        services.AddScoped<IAdminConversationLogQueries, EfCoreAdminConversationLogQueries>();
 
         services.AddOptions<SalesGrowthScannerOptions>()
             .BindConfiguration(SalesGrowthScannerOptions.SectionName)

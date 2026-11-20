@@ -1,3 +1,4 @@
+using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -165,6 +166,16 @@ public sealed class PostgreSqlTestDatabase(
         if (commandInterceptor is not null)
             builder.AddInterceptors(commandInterceptor);
         return new AuthDbContext(builder.Options);
+    }
+
+    public ConversationDbContext CreateConversationContext(DbCommandInterceptor? commandInterceptor = null)
+    {
+        var builder = new DbContextOptionsBuilder<ConversationDbContext>()
+            .UseNpgsql(ConnectionString)
+            .EnableDetailedErrors();
+        if (commandInterceptor is not null)
+            builder.AddInterceptors(commandInterceptor);
+        return new ConversationDbContext(builder.Options);
     }
 
     public BillingDbContext CreateBillingContext(DbCommandInterceptor? commandInterceptor = null)

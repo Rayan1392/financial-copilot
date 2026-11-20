@@ -354,6 +354,21 @@ Authenticated actor
   -> Retrieve history through /api/ai/v1/conversations endpoints
 ```
 
+### Admin read path for conversations (Features 149 and 164)
+
+- Administrators with `admin.users.read` read stored turns read-only: per user through
+  `/api/v1/admin/users/{id}/chat-history` (149) and across users through `/api/v1/admin/ai-conversation-logs` (164).
+- A turn is a `User` message and the `Assistant` messages that follow it until the next `User` message, ordered by
+  `(CreatedAt, role, Id)` with User before Assistant at the same instant (one exchange stores both rows with the same
+  `CreatedAt`; BUG-037).
+- The 164 list is parameterized raw SQL in `Infrastructure/Administration/EfCoreAdminConversationLogQueries.cs`
+  (`ConversationDbContext`, read-only transaction, 5 s statement timeout, previews cut in SQL, partial index
+  `IX_Messages_User_CreatedAt_Id`). Users come from `AuthDbContext` in one query per page (the contexts cannot join);
+  the mobile filter narrows by stored last four digits and compares decrypted values in memory; mobiles are shown masked.
+- Opening a turn's full content writes a content-free `SecurityAdminAuditRow` first (`AdminContentReadAudit`); if
+  that write fails no content is returned. The answer is mapped with the chat's own mapper (`AiFacadeHttpMapper`) and
+  rendered in the admin drawer by the chat renderer in read-only mode; nothing calls the model or changes messages.
+
 ## Data Access Strategy
 
 Use PostgreSQL as the source of truth for normalized and derived financial datasets required for screening. Use third-party APIs as external sources. Do not directly couple scanner use cases to third-party APIs.

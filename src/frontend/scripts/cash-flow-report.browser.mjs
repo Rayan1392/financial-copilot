@@ -25,6 +25,69 @@ const executablePath = [
   .find(existsSync);
 if (!executablePath) throw new Error("A local Chrome or Chromium executable is required.");
 
+/** Applies a site theme the way `theme-toggle.tsx` does, then measures the card and its text contrast. */
+async function siteThemeSurface(page, theme) {
+  await page.evaluate((value) => {
+    const root = document.documentElement;
+    root.classList.toggle("light", value === "light");
+    root.classList.toggle("dark", value === "dark");
+    root.style.colorScheme = value;
+  }, theme);
+  await page.waitForTimeout(100);
+  return page.evaluate(() => {
+    // Resolve any CSS color (including oklch) to sRGB through a 1-pixel canvas.
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const parse = (value) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = "#000";
+      context.fillStyle = value;
+      context.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
+      return [r, g, b, a / 255];
+    };
+    const lum = ([r, g, b]) =>
+      [r, g, b]
+        .map((v) => {
+          v /= 255;
+          return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        })
+        .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const background = (element) => {
+      for (let node = element; node; node = node.parentElement) {
+        const color = parse(getComputedStyle(node).backgroundColor);
+        if (color[3] > 0.5) return color;
+      }
+      return [255, 255, 255];
+    };
+    const card = document.querySelector("[data-testid='cash-flow-report']");
+    const targets = [...card.querySelectorAll("*")].filter(
+      (element) =>
+        !element.closest("svg") &&
+        // BUG-039: Recharts colors legend text with the series color (amber 2.15:1 in both themes);
+        // a separate defect, so the legend is excluded until it is fixed.
+        !element.closest(".recharts-legend-wrapper") &&
+        element.checkVisibility() &&
+        [...element.childNodes].some(
+          (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0,
+        ),
+    );
+    return {
+      cardLuminance: Math.round(lum(background(card)) * 1000) / 1000,
+      contrast: targets.map((element) => {
+        const fg = lum(parse(getComputedStyle(element).color));
+        const bg = lum(background(element));
+        const ratio = (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+        return {
+          text: (element.textContent ?? "").trim().slice(0, 30),
+          ratio: Math.round(ratio * 100) / 100,
+        };
+      }),
+    };
+  });
+}
+
 await mkdir(evidenceDir, { recursive: true });
 const server = await createServer({
   configFile: false,
@@ -108,11 +171,25 @@ try {
       );
     }
     if (width === 768) {
+      // BUG-038 / AC-U07: with the operating system set to dark, the report stays the same light
+      // "paper" surface under both site themes (the site theme is the class on <html>).
       await page.emulateMedia({ colorScheme: "dark" });
-      await page.screenshot({
-        path: path.join(evidenceDir, "cash-flow-ui-redesign-tablet-dark.png"),
-        fullPage: true,
-      });
+      for (const theme of ["dark", "light"]) {
+        const surface = await siteThemeSurface(page, theme);
+        assert.ok(
+          surface.cardLuminance > 0.9,
+          `site ${theme} theme, OS dark: card background is not light (${surface.cardLuminance})`,
+        );
+        const low = surface.contrast.filter((item) => item.ratio < 4.5);
+        assert.equal(low.length, 0, `site ${theme} theme: ${JSON.stringify(low.slice(0, 3))}`);
+        console.log(
+          `ok - OS dark + site ${theme}: light card, ${surface.contrast.length} text nodes, min contrast ${Math.min(...surface.contrast.map((item) => item.ratio))}:1`,
+        );
+        await page.screenshot({
+          path: path.join(evidenceDir, `cash-flow-light-surface-os-dark-site-${theme}.png`),
+          fullPage: true,
+        });
+      }
     }
     console.log(`ok - ${width}px ${density}, RTL, no page overflow`);
     await context.close();

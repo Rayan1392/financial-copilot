@@ -26,7 +26,7 @@ Scope: Feature 161 frontend presentation and PNG export
 
 - Desktop RTL: [cash-flow-ui-redesign-desktop-1280.png](cash-flow-ui-redesign-desktop-1280.png)
 - Mobile RTL: [cash-flow-ui-redesign-mobile-390.png](cash-flow-ui-redesign-mobile-390.png)
-- Dark tablet: [cash-flow-ui-redesign-tablet-dark.png](cash-flow-ui-redesign-tablet-dark.png)
+- Dark tablet: [cash-flow-ui-redesign-tablet-dark.png](cash-flow-ui-redesign-tablet-dark.png) — superseded: this was the OS dark preference, not the site theme, and shows defect BUG-038. See [OS dark + site dark](cash-flow-light-surface-os-dark-site-dark.png) and [OS dark + site light](cash-flow-light-surface-os-dark-site-light.png).
 - Desktop PNG export: [cash-flow-ui-redesign-desktop-1280.png-export.png](cash-flow-ui-redesign-desktop-1280.png-export.png)
 - Mobile PNG export: [cash-flow-ui-redesign-mobile-390.png-export.png](cash-flow-ui-redesign-mobile-390.png-export.png)
 

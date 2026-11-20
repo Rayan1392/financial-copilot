@@ -1,6 +1,6 @@
 # T00 — Provider spike notes
 
-Status: partial — blocked on provider credit (2026-11-20)
+Status: partial — first calls blocked on provider credit; partly answered by the A4 live check (2026-11-20)
 
 Environment: Development key (`OPENAI_API_KEY`), `https://api.openai.com/v1/`, Responses API. No production
 configuration was used or changed. No user data was sent; the probe prompt was a generic question about the cement
@@ -56,3 +56,21 @@ the two Sol models (no contract or billing change):
   records; a missing `<answer>` tag is treated as `InvalidStructuredOutput` (no charge), like a schema failure today.
 
 Prices are out of scope of the spike.
+
+## Observed in the A4 live check (2026-11-20)
+
+The Development organisation had credit again. The A4 live check (`evaluation-a4.md`, 15 calls through the production
+transport, 11 of them with web search) answers part of the open rows. It is not the full T00 matrix:
+
+- `web_search` together with strict `json_schema` works. Every call returned a parsable structured answer, so the
+  tagged plain-text fallback above is not needed.
+- With `max_tool_calls` 2 (Deep), every searching call reported 3 `web_search_call` items, so the cap does not limit
+  the counted items one to one. The page opens appear to be included; this is not verified.
+- `reasoning_tokens` is reported: about 450–570 at `medium` with web; 0–108 without web.
+- Latency for Deep + web was 41–54 s; for Deep without web, 34–37 s.
+- Estimated cost for Deep + web was about $0.09–0.10 per call (input 21–24k tokens including search content, output
+  1.6–2.0k tokens, 3 searches).
+- The model writes OpenAI's inline citation `([domain](url))` into the answer text despite the instruction (BUG-036).
+
+Still open for T00: `low` effort (Simple), the exact meaning of the counted items, and `open_page` / `find_in_page`
+behaviour.

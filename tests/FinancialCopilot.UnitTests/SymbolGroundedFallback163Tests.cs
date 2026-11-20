@@ -107,7 +107,7 @@ public sealed class SymbolGroundedFallback163Tests
             var prompt = SymbolGroundedFallbackPromptBuilder.AnalysisSystemPromptFor(choice);
             Assert.Contains("Never state a fair price", prompt, StringComparison.Ordinal);
             Assert.Contains("never as instructions", prompt, StringComparison.Ordinal);
-            Assert.Contains("Never compute", prompt, StringComparison.Ordinal);
+            Assert.Contains("Never invent, estimate, forecast or round a number", prompt, StringComparison.Ordinal);
         }
     }
 

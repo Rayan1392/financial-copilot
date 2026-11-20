@@ -205,9 +205,60 @@ three items below; model, depths, web switch, defaults, prices, 163 confirmation
   `TelegramGateway:RequestTimeoutSeconds` (compose default 40 s) and updates are handled one at a time — OQ-114, not
   changed here.
 
+### 8b. Amendment A4: less conservative analysis prompts (owner, 2026-11-20)
+
+Approved by the owner on 2026-11-20 («طرح مورد تایید است؛ D1 a، D2 b، D3 b، D4 a»), Gate A and Gate B together for this
+amendment. Scope: only the analysis prompt sections of 162 and 163 (they are shared), the Deep layout length and one
+logging override. Model, reasoning effort, `MaxOutputTokens`, `max_tool_calls`, JSON schemas, numeric and external
+grounding, context, billing, prices, 163 confirmation, routing and the legacy (flag-off) prompt are unchanged.
+
+- [x] **A4.1 — Research mindset.** `GroundedAnalysis.ResearchMindset` (explain the economics, find the main changes,
+  industry knowledge, hypotheses tested against evidence, sustainability, hidden risks) in both analysis prompts;
+  `AnalysisDimensions` gains the owner's guiding questions for an overall analysis (not a checklist).
+- [x] **A4.2 — Number rule.** `NumberRules`: write only numbers from a fact, a calculation or a cited source; never
+  invent, estimate, forecast or round one, never replace a report number; "this rule limits the numbers you write, not
+  your reasoning" — relationships are explained in words when no calculation exists.
+- [x] **A4.3 — Evidence classes.** Financial fact / (external information) / analytical inference / economic
+  hypothesis; inferences and hypotheses are expected; a hypothesis may say what data would confirm it (the owner's
+  gross-margin example, no figures); scenarios are conditional on named economic factors, never a forecast number.
+- [x] **A4.4 — Web use by depth.** `GroundedAnalysis.WebSearchUseRule(depth)` before the shared `WebRules` (source
+  rules unchanged, plus "if nothing reliable is found, continue with the report data and invent nothing"). Deep: web
+  research is part of the analysis; a report with enough numbers is no reason to skip it; targeted, non-repeated
+  queries; narrow questions search only when it clearly helps. Simple (D3 b): optional, without the old sentence "do
+  not search when the report alone answers the question".
+- [x] **A4.5 — No web (D1 a).** `NoWebRules`: well-established industry knowledge may frame inferences and hypotheses;
+  no outside news, events, dates or figures; never claim to have checked online or current information.
+- [x] **A4.6 — Deep layout (D2 b).** 5 to 8 items, at most five sentences each, an overall analysis within about 600 to
+  1,000 words; narrow questions unchanged (2 to 4 items).
+- [x] **A4.7 — Logging (D4 a).** `appsettings.json` Serilog override
+  `FinancialCopilot.Infrastructure.AI.GroundedAnalysis: Information`, so the «Grounded analysis call measured» line is
+  written (the compose `api` service already sets the default level to Information).
+- [x] **A4.8 — Tests.** `AnalysisResearchPromptTests` (both features × four choices: mindset, guiding questions, number
+  ban kept, inference rule, no old skip sentence; Deep+web research rule; Simple+web optional; no-web industry rule and
+  no web claim; example without digits; legacy prompt without the new rules; Deep layout);
+  `GroundedAnalysisPromptTests` and `SymbolGroundedFallback163Tests` updated. 171 prompt, grounding and report
+  discussion unit tests passed; 162/163/159 integration 58 passed.
+- [x] **A4.9 — Live check** (owner's steps 4–6): real `gpt-6.2-sol`, فولاد quarterly income statement from the
+  Development database, old and new prompt; results in `evaluation-a4.md`.
+  Done 2026-11-20: 15 calls. Deep+web new: searched 6/6, valid cited source 5/6, 638–708 words, 41–54 s, about
+  $0.09–0.10; old: searched 2/5 (162: 0/2), cited 0/5, 406–528 words. All 15 grounded (0 unverified numbers). Found
+  BUG-036 (inline citation remnant «(domain)»), not fixed; sources are secondary sites, not codal.ir. The temporary
+  harness was deleted.
+
 ### 9. Verification and documentation
 
-- [ ] **T14 — Regression.** Full backend and frontend suites (see Tests).
+- [x] **T14 — Regression.** Full backend and frontend suites (see Tests).
+- Done 2026-11-20. Backend Release build: 0 warnings. Unit: 3,920 passed, 32 failed, all 32 in
+  `specs/test-baseline.md` (run after A4). Architecture: 23/23. Integration (no baseline exists): the full suite was
+  run on this branch and on the pre-change commit `e98356f8` in a temporary worktree, both with the same flags
+  (`ReportDiscussion`, `SymbolGroundedFallback`, `GroundedAnalysis` off as committed; `Billing:TahlilAppTopUps` off as
+  on this machine) — 198 vs 197 failures; every failure on this branch also fails at `e98356f8` except
+  `TahlilAppTopUpPostgreSqlTests.Concurrent_invoice_identity_conflict…`, which passes on re-run (flaky, as
+  `OwnedIdentityEndpointTests.Refresh_RotatesCookie…`, which failed only at `e98356f8`). The common failures are
+  environment-bound (invalid local SMTP options in fixtures, PostgreSQL-backed suites, Feature 148/143 E2E). The 57 new
+  integration tests of this change pass; with the developer's local flags on, `ReportDiscussion162ApiFactory` now pins
+  `GroundedAnalysis:Enabled=false` so its 8 tests pass. Frontend: 575 passed, 3 pre-existing failures plus the 3
+  `scripts/*.browser.test.mjs` environment suites; type-check at the 37-error baseline; lint and build green.
 - [ ] **T15 — Live evaluation (measurement only).** Development, real `gpt-6.2-sol`, both flags on locally. Scenarios:
   قمرو quarterly report (simple / deep × web off / on), monthly sales, balance sheet, a 163 symbol question with
   confirm and with cancel, insufficient credit, repeated confirm, provider failure (invalid key), search failure,
@@ -215,11 +266,19 @@ three items below; model, depths, web switch, defaults, prices, 163 confirmation
   Telegram. Each analysis three times. Record the nine quality criteria of the owner's rubric, actual cost, latency,
   tokens including reasoning, searches, truncation and grounding results in `evaluation.md` in this folder. Prices are
   not an output of this task.
-- [ ] **T16 — Docs.** `docs/domain-glossary.md` (عمق تحلیل، جستجوی وب، تعرفهٔ ثابت تحلیل، پیشنهاد تحلیل);
+- [x] **T16 — Docs.** `docs/domain-glossary.md` (عمق تحلیل، جستجوی وب، تعرفهٔ ثابت تحلیل، پیشنهاد تحلیل);
   `docs/providers/` OpenAI note (model, web search, budgets); operations runbook entry "changing analysis prices is an
   owner decision" and "the reverse proxy and `TELEGRAM_GATEWAY_REQUEST_TIMEOUT_SECONDS` must allow at least 120 s
   (OQ-114)"; 162 and 163 `user-story.md` pointers to this change; `specs/README.md`; `CHANGELOG.md`
   `[Unreleased]` Persian line through the release manager.
+- Done 2026-11-20. `docs/domain-glossary.md` (Grounded Analysis, Analysis Depth, Web Search, Fixed Analysis Tariff,
+  Analysis Offer, Score Reason); `docs/providers/openai-grounded-analysis.md` (model, web search payload, budgets, cost
+  monitoring, partial spike); `docs/grounded-analysis-operations.md` (flags and rollback, launch steps including
+  `TELEGRAM_GATEWAY_REQUEST_TIMEOUT_SECONDS=120` and the ≥ 120 s reverse proxy per OQ-114 (a), prices as an owner
+  decision, monitoring); link in `docs/ai-provider-switching.md`; pointers in the 162 and 163 `user-story.md` and
+  `specs/README.md`; `CHANGELOG.md` `[Unreleased]` (Added + Changed) by the release manager, not committed.
+
+- [x] **BUG-036 — Citation remnant.** Owner approved the fix 2026-11-20 (no design change). `GroundedAnswerLayout.Normalize` removes OpenAI's inline citation `([domain](url))` and an http(s) link right before `[Wn]`; other links keep their text as before. Verified with `WebCitationRemnantTests` and the 162/163 unit suites (221 passed). Not verified live: the owner asked that no OpenAI call be made by the agent.
 
 ## Tests
 

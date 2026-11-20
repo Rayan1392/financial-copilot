@@ -56,15 +56,17 @@ Sent only when the user's web switch is on:
 - Above `GroundedAnalysis:Telemetry:CostAlertUsd` (0.20), a warning is logged and `grounded_analysis.cost_alerts` is
   incremented.
 
-## Not yet verified
+## Spike and live-check status
 
 The provider spike (T00, `spike-notes.md` in the change folder) is partial. Its results so far, on 2026-11-20:
 
 - Confirmed: `gpt-6.2-sol` is reachable with the development key.
 - Confirmed: the lowest accepted `reasoning.effort` is `low` (`none` is rejected).
-- Not yet verified, because every generating call returned 429 `credit_balance_exhausted`:
-  - whether `web_search` works together with a strict `json_schema` output;
-  - how `max_tool_calls` behaves, including the `open_page` and `find_in_page` actions;
-  - the `reasoning_tokens` count and the sources field.
+- Confirmed by the A4 live check (`evaluation-a4.md`): `web_search` works together with a strict `json_schema` output.
+- Measured in that check: with `max_tool_calls` 2, a call reports 3 `web_search_call` items, and Deep + web costs
+  about $0.09–0.10 and takes 41–54 s.
+- Known defect: the model writes OpenAI's inline citation `([domain](url))` into the answer text, and the server keeps
+  only «(domain)» (BUG-036, fixed 2026-11-20: the layout step now removes the whole citation).
+- Since amendment A4, the Deep prompts make web research part of the analysis; Simple keeps it optional.
 
-Complete these checks before enabling the flag in any environment that uses a real key.
+Not yet measured: Simple at `low` effort.

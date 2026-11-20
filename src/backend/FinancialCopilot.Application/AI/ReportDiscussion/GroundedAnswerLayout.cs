@@ -39,17 +39,22 @@ public static partial class GroundedAnswerLayout
             ? "- Then a blank line and a list of 3 to 6 items, one topic per item, each written as \"- **label:** text\" " +
               "with at most three short sentences. For a narrow question about one item, use 1 to 3 items.\n" +
               "- Keep the answer within about 300 to 500 words; shorter is better when the question is narrow.\n"
-            : "- Then a blank line and a list of 4 to 8 items, one topic per item, each written as \"- **label:** text\" " +
-              "with at most four sentences. Include the main risks and qualitative scenarios, and any unconfirmed " +
+            : "- Then a blank line and a list of 5 to 8 items, one topic per item, each written as \"- **label:** text\" " +
+              "with at most five sentences. Include the main risks and qualitative scenarios, and any unconfirmed " +
               "hypothesis worded as a possibility. For a narrow question about one item, use 2 to 4 items.\n" +
-              "- Keep the answer within about 500 to 800 words; shorter is better when the question is narrow.\n") +
+              "- Keep an overall analysis within about 600 to 1,000 words; shorter is better when the question is " +
+              "narrow.\n") +
         "- Bold only the item labels and the one or two key figures or changes of each item; never bold a whole sentence.\n" +
         "- Write every number of five or more digits with thousands separators. Every value keeps its unit.\n" +
         "- Do not use headings (#), tables, links, emojis or code.\n" +
         "- A required sentence that this is not a valuation or an investment recommendation goes alone on the last line, " +
         "not bold.\n";
 
-    /// <summary>Applies the layout safety net. Idempotent; never adds, removes or changes a number's value.</summary>
+    /// <summary>
+    /// Applies the layout safety net. Idempotent; never adds, removes or changes a number's value in the answer text.
+    /// A web citation the model wrote as a link (BUG-036) is removed whole, digits of its domain included: the cited
+    /// source is shown through its <c>[Wn]</c> marker and the server-written source list instead.
+    /// </summary>
     public static string Normalize(string? answer)
     {
         if (string.IsNullOrWhiteSpace(answer)) return string.Empty;
@@ -64,6 +69,8 @@ public static partial class GroundedAnswerLayout
             var line = raw.TrimEnd();
             line = HeadingMarker().Replace(line, string.Empty);
             line = Image().Replace(line, "$1");
+            line = RemoveWebCitations(WebCitation(), line);
+            line = RemoveWebCitations(WebLinkBeforeMarker(), line);
             line = Link().Replace(line, "$1");
             line = TableRow().IsMatch(line) ? "- " + string.Join(" · ", SplitTableRow(line)) : line;
             line = BulletMarker().Replace(line, "- ");
@@ -135,11 +142,37 @@ public static partial class GroundedAnswerLayout
     [GeneratedRegex(@"^\s{0,3}#{1,6}\s+", RegexOptions.CultureInvariant)]
     private static partial Regex HeadingMarker();
 
+    /// <summary>
+    /// Removes each citation with the spaces before it, but keeps one space when the citation sat between two words
+    /// or before a marker («است ([a](u))[W1]» → «است [W1]»).
+    /// </summary>
+    private static string RemoveWebCitations(Regex citation, string line) =>
+        citation.Replace(line, match =>
+        {
+            var next = match.Index + match.Length;
+            var spaced = match.Value.Length > 0 && match.Value[0] is ' ' or '	';
+            return spaced && next < line.Length && !char.IsWhiteSpace(line[next]) && !".,،;؛:!?؟)".Contains(line[next])
+                ? " "
+                : string.Empty;
+        });
+
     [GeneratedRegex(@"!\[([^\]]*)\]\([^)]*\)", RegexOptions.CultureInvariant)]
     private static partial Regex Image();
 
     [GeneratedRegex(@"\[([^\]]+)\]\([^)]*\)", RegexOptions.CultureInvariant)]
     private static partial Regex Link();
+
+    /// <summary>
+    /// OpenAI's inline web citation: one or more http(s) links inside parentheses, «([irrena.ir](https://…))» or
+    /// «([a](u1), [b](u2))» (BUG-036). A plain link in running text is not a citation and keeps its text.
+    /// </summary>
+    [GeneratedRegex(@"[ \t]*\(\s*\[(?!W[0-9۰-۹٠-٩]{1,2}\])[^\]\n]*\]\(https?://[^)\s]+\)(?:\s*[,،;؛]\s*\[(?!W[0-9۰-۹٠-٩]{1,2}\])[^\]\n]*\]\(https?://[^)\s]+\))*\s*\)",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex WebCitation();
+
+    /// <summary>An http(s) link written right before a <c>[Wn]</c> marker: the marker already names that source (BUG-036).</summary>
+    [GeneratedRegex(@"[ \t]*\[(?!W[0-9۰-۹٠-٩]{1,2}\])[^\]\n]*\]\(https?://[^)\s]+\)(?=\s*\[W[0-9۰-۹٠-٩]{1,2}\])", RegexOptions.CultureInvariant)]
+    private static partial Regex WebLinkBeforeMarker();
 
     [GeneratedRegex(@"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$", RegexOptions.CultureInvariant)]
     private static partial Regex TableSeparatorRow();

@@ -73,7 +73,7 @@ public sealed class GroundedAnalysisPromptTests
 
     [Theory]
     [InlineData(AnalysisDepth.Simple, "300 to 500 words")]
-    [InlineData(AnalysisDepth.Deep, "500 to 800 words")]
+    [InlineData(AnalysisDepth.Deep, "600 to 1,000 words")]
     public void Layout_TargetsTheDepthsLength(AnalysisDepth depth, string length)
     {
         Assert.Contains(length, GroundedAnswerLayout.AnalysisPromptRules(depth));
@@ -144,6 +144,7 @@ public sealed class GroundedAnalysisPromptTests
     private static void AssertCommonSections(string prompt, AnalysisDepth depth, bool web)
     {
         Assert.Contains(ReportGroundedAnalysis.AnalystRole, prompt);
+        Assert.Contains(ReportGroundedAnalysis.ResearchMindset, prompt);
         Assert.Contains(ReportGroundedAnalysis.AnalysisDimensions, prompt);
         Assert.Contains(ReportGroundedAnalysis.UnitRules, prompt);
         Assert.Contains(ReportGroundedAnalysis.NoValuationRules, prompt);
@@ -151,7 +152,7 @@ public sealed class GroundedAnalysisPromptTests
         Assert.Contains(GroundedAnswerLayout.AnalysisPromptRules(depth), prompt);
         if (web)
         {
-            Assert.Contains(ReportGroundedAnalysis.WebRules, prompt);
+            Assert.Contains(ReportGroundedAnalysis.WebSearchUseRule(depth) + ReportGroundedAnalysis.WebRules, prompt);
             Assert.DoesNotContain(ReportGroundedAnalysis.NoWebRules, prompt);
         }
         else

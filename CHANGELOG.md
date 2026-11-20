@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-20
+
+مدیران می‌توانند پرسش‌های کاربران و پاسخ‌های داده‌شده را در پنل مدیریت جست‌وجو و مرور کنند.
+
 ### Added
 
 - در پنل مدیریت، صفحهٔ «تاریخچه پرسش و پاسخ کاربران» پرسش‌های همهٔ کاربران و پاسخ‌های داده‌شده را با جست‌وجو در متن پرسش، فیلتر کاربر، بازهٔ تاریخ و وضعیت پاسخ نشان می‌دهد و هر پاسخ را همان‌طور که کاربر دیده است نمایش می‌دهد.
@@ -410,7 +414,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.19.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.0...develop
+[1.20.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.18.0...v1.19.0
 [1.18.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.1...v1.18.0
 [1.17.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.0...v1.17.1

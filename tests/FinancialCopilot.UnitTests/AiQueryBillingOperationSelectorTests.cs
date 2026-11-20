@@ -33,4 +33,27 @@ public sealed class AiQueryBillingOperationSelectorTests
     {
         Assert.Equal(expectedOperationCode, AiQueryBillingOperationSelector.Select(null, message));
     }
+
+    // Feature 081 change «period-analysis-feature-flag» (FR-6, AC-5): with 081 off its turns reserve the default operation.
+    [Theory]
+    [InlineData("financial_statement_period_analysis", "سود و زیان شاراک را تفسیر و تحلیل کن", "AiQuery.Scanner")]
+    [InlineData(null, "سود و زیان شاراک را تفسیر و تحلیل کن", "AiQuery.Scanner")]
+    [InlineData("financial_statement_table", "جدول ترازنامه کگل", "AiQuery.FinancialStatement")]
+    [InlineData(null, "جدول ترازنامه کگل", "AiQuery.FinancialStatement")]
+    [InlineData(null, "گزارش فصلی وبملت", "AiQuery.FinancialStatement")]
+    public void Select_WhenPeriodAnalysisIsOff_IgnoresOnlyThePeriodAnalysisRoute(
+        string? capabilityCode,
+        string message,
+        string expectedOperationCode)
+    {
+        Assert.Equal(expectedOperationCode, AiQueryBillingOperationSelector.Select(capabilityCode, message, periodAnalysisEnabled: false));
+    }
+
+    [Fact] // AC-4: a missing configuration section keeps 081 on.
+    public void PeriodAnalysisOptions_DefaultToEnabled()
+    {
+        Assert.True(new FinancialStatementPeriodAnalysisOptions().Enabled);
+        Assert.Equal("AiQuery.FinancialStatement",
+            AiQueryBillingOperationSelector.Select(null, "سود و زیان شاراک را تفسیر و تحلیل کن"));
+    }
 }

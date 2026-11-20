@@ -29,7 +29,8 @@ public sealed class CreditReservationService(
             return existing;
         }
 
-        if (!creditLinePolicy.CanReserve(account, wallet, maximumCredits))
+        // A zero-credit reservation holds nothing and only claims its idempotency key.
+        if (maximumCredits > 0 && !creditLinePolicy.CanReserve(account, wallet, maximumCredits))
         {
             throw new InsufficientCreditException();
         }
@@ -45,7 +46,8 @@ public sealed class CreditReservationService(
             now.Add(DefaultReservationDuration));
 
         await reservations.SaveAsync(reservation, cancellationToken);
-        await wallets.SaveAsync(wallet.Reserve(maximumCredits, now), cancellationToken);
+        if (maximumCredits > 0)
+            await wallets.SaveAsync(wallet.Reserve(maximumCredits, now), cancellationToken);
 
         return reservation;
     }

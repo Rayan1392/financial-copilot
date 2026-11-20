@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getThreadMessages, sendChatMessage, type ChatMessage } from "@/lib/chat.functions";
+import {
+  getThreadMessages,
+  sendChatMessage,
+  type AnalysisOptions,
+  type ChatMessage,
+} from "@/lib/chat.functions";
 import { getFollowedSymbols } from "@/lib/followed-symbols.functions";
 import { getAuthenticatedUser } from "@/integrations/financial-copilot/auth";
 import {
@@ -15,6 +20,12 @@ import {
   type SendAttempt,
   type SendRecovery,
 } from "@/lib/chat/send-recovery";
+import { analysisOptionsFor } from "@/lib/chat/analysis-choice";
+import {
+  rememberAnswerHint,
+  useAnalysisChoice,
+  useLiveAnalysisHint,
+} from "@/lib/chat/live-analysis-hint";
 
 interface SendVariables {
   message: string;
@@ -22,6 +33,7 @@ interface SendVariables {
   scannerPageSize?: number;
   disclosurePage?: number;
   suggestedActionId?: string;
+  analysisOptions?: AnalysisOptions;
   idempotencyKey: string;
   knownMessageIds: readonly string[];
 }
@@ -89,6 +101,10 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
     throwOnError: false,
     refetchOnWindowFocus: false,
   });
+  const messages = messagesQuery.data ?? [];
+  // Change «sol-deep-analysis-web-search»: the latest answer's prices and offer, and the viewer's choice.
+  const liveHint = useLiveAnalysisHint(threadId, messages);
+  const [analysisChoice, setAnalysisChoice] = useAnalysisChoice(liveHint?.hint);
   const { data: followed } = useQuery({
     queryKey: ["followed-symbols"],
     queryFn: () => fetchFollowed(),
@@ -124,14 +140,16 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
           scannerPageSize: variables.scannerPageSize ?? 20,
           disclosurePage: variables.disclosurePage ?? 1,
           suggestedActionId: variables.suggestedActionId,
+          analysisOptions: variables.analysisOptions,
           idempotencyKey: variables.idempotencyKey,
         },
       });
       if (!response.ok) throw new ChatSendError(response.failure.code, response.failure.message);
       return response.result;
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       setFailure(null);
+      rememberAnswerHint(qc, result);
       qc.invalidateQueries({ queryKey: ["threads"] });
       qc.invalidateQueries({ queryKey: ["subscription"] });
       qc.invalidateQueries({ queryKey: ["usage"] });
@@ -174,7 +192,14 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
   function submit(text: string, suggestedActionId?: string) {
     if (sendMutation.isPending) return;
     lastMessageRef.current = text;
-    mutate({ message: text, suggestedActionId }, true);
+    mutate(
+      {
+        message: text,
+        suggestedActionId,
+        analysisOptions: analysisOptionsFor(liveHint?.hint, analysisChoice, suggestedActionId),
+      },
+      true,
+    );
   }
 
   function changeScannerPage(page: number, originalQuery?: string, pageSize?: number) {
@@ -197,8 +222,6 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
     void reconcile(failure.attempt);
   }
 
-  const messages = messagesQuery.data ?? [];
-
   return {
     messages,
     isLoading: messagesQuery.isLoading,
@@ -214,5 +237,9 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
     changeScannerPage,
     changeDisclosurePage,
     recheck,
+    analysisHint: liveHint?.hint ?? null,
+    analysisHintMessageId: liveHint?.messageId ?? null,
+    analysisChoice,
+    setAnalysisChoice,
   };
 }

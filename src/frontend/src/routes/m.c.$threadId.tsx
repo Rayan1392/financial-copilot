@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MessageList } from "@/components/app/message-list";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { MobileComposer } from "@/components/mobile/mobile-composer";
+import { AnalysisSettingsBar } from "@/components/app/analysis-settings";
 import { ChatErrorCard } from "@/components/mobile/chat-error-card";
 import { MobileUserBubble, PendingAnswer } from "@/components/mobile/pending-exchange";
 import { BottomSheet, SheetAction } from "@/components/mobile/bottom-sheet";
@@ -128,6 +129,17 @@ function ConversationScreen({ threadId }: { threadId: string }) {
           onSubmit={submit}
           pending={thread.isPending}
           online={online}
+          accessory={
+            thread.analysisHint?.available ? (
+              <AnalysisSettingsBar
+                hint={thread.analysisHint}
+                choice={thread.analysisChoice}
+                onChange={thread.setAnalysisChoice}
+                disabled={thread.isPending}
+                compact
+              />
+            ) : undefined
+          }
         />
       }
     >
@@ -153,6 +165,12 @@ function ConversationScreen({ threadId }: { threadId: string }) {
           onDisclosurePageChange={thread.changeDisclosurePage}
           showDiagnostics={false}
           followedSymbols={thread.followedSymbols}
+          analysis={{
+            hint: thread.analysisHint,
+            messageId: thread.analysisHintMessageId,
+            choice: thread.analysisChoice,
+            onChoiceChange: thread.setAnalysisChoice,
+          }}
         />
       )}
       {(exchangeText !== null || thread.isPending) && (

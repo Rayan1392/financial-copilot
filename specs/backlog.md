@@ -27,3 +27,5 @@ Ideas and deferred work that are not yet a spec.
 - Feature 163: balance sheet and cash flow as additional grounding data for the symbol-grounded fallback (out of scope in v1).
 - Feature 163 / 155: the unanswered-question report (`specs/155-admin-unanswered-question-demand-report/queries.sql`) reads only `Outcome`; add `FallbackOf` so questions answered by the fallback stay visible as unmet capability demand.
 - Feature 163: resolve a company named by its full name or an alias (v1 resolves exact tickers only, like the existing exact-ticker resolver).
+- Telegram Gateway (OQ-114, answered (a) on 2026-11-20): bounded per-chat concurrent update processing, so one long Deep + web analysis (30–90 s) no longer delays every other Telegram user. Keep per-chat order and the existing offset/replay semantics; needs its own Gate A.
+- Feature 081 change `period-analysis-feature-flag`: with 081 off, help text, capability guidance and follow-up chips that suggest «تحلیل صورت مالی X» now lead to the Feature 163 offer. Review their wording, and remove 081 code once the owner decides it stays off.

@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Billing.Pricing;
@@ -27,7 +28,12 @@ internal static class DefaultPricingPolicy
             ["AiQuery.PersonalDigest"] = 4m,
             ["AiQuery.Embeddings"] = 0.5m,
             ["AiQuery.RagSearch"] = 2m,
-            ["AiQuery.BackgroundJob"] = 6m
+            ["AiQuery.BackgroundJob"] = 6m,
+            // Change «sol-deep-analysis-web-search»: a confirmed 163 analysis holds its fixed tier before the model call
+            // and settles with a GroundedAnalysisAnswered.* status (the amount comes from GroundedAnalysisPricing, never
+            // from this table); a cancelled offer is claimed at zero.
+            [GroundedAnalysisBillingPolicy.AnalysisOperationCode] = 1m,
+            [GroundedAnalysisBillingPolicy.OfferCancelOperationCode] = 0m
         },
         CachedMultiplier: 0.2m,
         // A turn that gave the user no answer is free: rejected input, a clarification question,

@@ -455,6 +455,37 @@ public sealed class TelegramGateway130Tests
         Assert.Contains("خصوصی", Assert.Single(sent), StringComparison.Ordinal);
     }
 
+    [Theory] // Change «sol-deep-analysis-web-search» T13: an offer button is answered before the long analysis call.
+    [InlineData("ga1:0f8b6c1e2d3a4b5c9d8e7f6a5b4c3d2e:d1", true)]
+    [InlineData("rd.n1:3:b", false)]
+    public async Task Callback_is_answered_before_the_primary_call_only_for_an_analysis_offer(string data, bool first)
+    {
+        var calls = new List<string>();
+        var fixture = Fixture((name, request) =>
+        {
+            if (name == "TelegramGateway.PrimaryApi")
+            {
+                calls.Add("primary");
+                return Task.FromResult(JsonResponse(HttpStatusCode.OK, AssistantResult()));
+            }
+
+            var operation = request.RequestUri!.AbsolutePath.Split('/')[^1];
+            if (operation == "answerCallbackQuery") calls.Add("answer");
+            return Task.FromResult(TelegramSuccess());
+        });
+        var update = new TelegramGatewayUpdate(
+            1350,
+            CallbackQuery: new TelegramGatewayCallbackQuery(
+                "callback-1350",
+                new TelegramGatewayUser(9001, "linked", "fa-IR"),
+                new TelegramGatewayMessage(41, null, null, new TelegramGatewayChat(8001, "private"), 1_700_000_000, "پیشنهاد"),
+                data));
+
+        Assert.True(await fixture.Worker.ProcessUpdatesAsync([update], CancellationToken.None));
+
+        Assert.Equal(first ? ["answer", "primary"] : ["primary", "answer"], calls);
+    }
+
     private static GatewayFixture Fixture(
         Func<string, HttpRequestMessage, Task<HttpResponseMessage>> responder)
     {

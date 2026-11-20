@@ -25,11 +25,32 @@ public enum SymbolGroundedFallbackKind
     /// <summary>The fallback answered; the turn becomes an answer written from the hidden report.</summary>
     Answered,
     /// <summary>The original non-answer stays, with an offer to show the income statement (OQ-093).</summary>
-    OfferIncomeStatement
+    OfferIncomeStatement,
+    /// <summary>
+    /// Change «sol-deep-analysis-web-search» (FR-7): the original non-answer stays, with an offer to analyse the
+    /// income statement after confirmation. No model call and no reservation happened.
+    /// </summary>
+    OfferAnalysis,
+    /// <summary>A confirmed analysis did not answer (FR-9): zero credits, a fresh offer when the statement is available.</summary>
+    NotAnswered,
+    /// <summary>The price list, company or newest period changed since the offer: nothing ran, a fresh offer is returned.</summary>
+    Stale
 }
 
-/// <summary>The non-answer a fallback answer replaced. Persisted with the answer.</summary>
-public sealed record FallbackOrigin(DialogueOutcome Outcome, string ReasonCode);
+/// <summary>
+/// A 163 offer found on an assistant message of the conversation (FR-8): the question of the same exchange and the
+/// non-answer it was offered on (with the offer id, persisted as <c>FallbackOf</c> when the analysis answers).
+/// </summary>
+public sealed record PendingAnalysisOffer(
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer Offer,
+    string Question,
+    FallbackOrigin Origin);
+
+/// <summary>
+/// The non-answer a fallback answer replaced. Persisted with the answer. <see cref="ConfirmedOfferId"/> is the
+/// analysis offer the user confirmed (change «sol-deep-analysis-web-search»); null on answers written before it.
+/// </summary>
+public sealed record FallbackOrigin(DialogueOutcome Outcome, string ReasonCode, Guid? ConfirmedOfferId = null);
 
 public sealed record SymbolGroundedFallbackRequest(
     AiQueryRequest Request,
@@ -44,11 +65,34 @@ public sealed record SymbolGroundedFallbackResult(
     FinancialStatementTableResult? GroundingReport = null,
     string? CompanySymbol = null,
     SymbolGroundedFallbackDiagnostics? Diagnostics = null,
-    SuggestedAction? Suggestion = null)
+    SuggestedAction? Suggestion = null,
+    // Change «sol-deep-analysis-web-search»: the offer made (OfferAnalysis) or the fresh offer of a failed or stale
+    // confirmation; what the confirmed analysis ran, the sources it cited and its cost facts (monitoring only).
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? Offer = null,
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisRun? AnalysisRun = null,
+    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null,
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisCallFacts? AnalysisFacts = null)
 {
     public static SymbolGroundedFallbackResult UnchangedBecause(string reason, SymbolGroundedFallbackDiagnostics? diagnostics = null) =>
         new(SymbolGroundedFallbackKind.Unchanged,
             Diagnostics: (diagnostics ?? new SymbolGroundedFallbackDiagnostics(null, 0, 0, 0, 0, null)) with { Reason = reason });
+
+    public static SymbolGroundedFallbackResult NotAnsweredBecause(
+        string reason,
+        SymbolGroundedFallbackDiagnostics? diagnostics = null,
+        FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? freshOffer = null) =>
+        new(SymbolGroundedFallbackKind.NotAnswered,
+            CompanySymbol: freshOffer?.Symbol,
+            Diagnostics: (diagnostics ?? new SymbolGroundedFallbackDiagnostics(null, 0, 0, 0, 0, null)) with { Reason = reason },
+            Offer: freshOffer);
+
+    public static SymbolGroundedFallbackResult StaleBecause(
+        string reason,
+        FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer freshOffer) =>
+        new(SymbolGroundedFallbackKind.Stale,
+            CompanySymbol: freshOffer.Symbol,
+            Diagnostics: new SymbolGroundedFallbackDiagnostics(null, 0, 0, 0, 0, reason),
+            Offer: freshOffer);
 }
 
 /// <summary>Safe telemetry: identifiers and counts only, never report values, the question or the answer.</summary>
@@ -71,11 +115,33 @@ public sealed record SymbolGroundedFallbackModelReply(
     string Answer,
     string ClosingOffer,
     IReadOnlyList<string> UsedEvidenceIds,
-    int? ReportScore = null);
+    int? ReportScore = null,
+    // Change «sol-deep-analysis-web-search» (FR-10): the sources the model declared (unverified) and the URLs the
+    // hosted search consulted; the usage of the call for cost telemetry (FR-13). Empty or null with web off.
+    IReadOnlyList<FinancialCopilot.Application.AI.ReportDiscussion.DeclaredExternalSource>? DeclaredSources = null,
+    IReadOnlyCollection<string>? ConsultedSources = null,
+    FinancialCopilot.Application.AI.ModelProviders.AiExecutionUsageFacts? Usage = null,
+    // Amendment A2: the model's one-sentence reason for the score (shown only through GroundedAnalysis.ScoreBlock).
+    string? ScoreReason = null);
 
 public static class SymbolGroundedFallbackExecutionRoute
 {
     public const string Code = "symbol_grounded_fallback";
+}
+
+/// <summary>
+/// The persisted reason codes of the replies to a 163 offer action (change «sol-deep-analysis-web-search», FR-8, FR-9).
+/// Each reply is zero-credit except an answered analysis.
+/// </summary>
+public static class GroundedAnalysisOfferReasonCodes
+{
+    public const string Cancelled = "analysis_offer_cancelled";
+    public const string AlreadyResolved = "analysis_offer_resolved";
+    public const string InProgress = "analysis_offer_in_progress";
+    public const string Expired = "analysis_offer_expired";
+    public const string Changed = "analysis_offer_changed";
+    public const string NotAnswered = "analysis_not_answered";
+    public const string NotAnswerable = "analysis_not_answerable";
 }
 
 /// <summary>
@@ -110,11 +176,16 @@ public sealed class SymbolGroundedFallbackOptions
     }
 }
 
-/// <summary>Runs the single bounded fallback model call. Throws <see cref="ReportDiscussionModelUnavailableException"/> on provider failure or timeout.</summary>
+/// <summary>
+/// Runs the analysis call of a confirmed offer with the depth's profile and the web switch (change
+/// «sol-deep-analysis-web-search»). Throws <see cref="ReportDiscussionModelUnavailableException"/> on provider failure,
+/// timeout or invalid output.
+/// </summary>
 public interface ISymbolGroundedFallbackModel
 {
-    Task<SymbolGroundedFallbackModelReply> AnswerAsync(
+    Task<SymbolGroundedFallbackModelReply> AnalyzeAsync(
         SymbolGroundedFallbackPrompt prompt,
+        FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisChoice choice,
         Guid tenantId,
         string correlationId,
         CancellationToken cancellationToken);

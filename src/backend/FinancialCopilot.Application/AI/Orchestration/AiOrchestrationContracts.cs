@@ -73,7 +73,9 @@ public sealed record AiQueryRequest(
     Guid? BillingOperationId = null,
     // Feature 162: set when Report Discussion handed this turn to the normal route; persisted with the answer.
     // Server-derived, so it is excluded from the request fingerprint.
-    FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? ReportDiscussionHandBack = null);
+    FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionMarker? ReportDiscussionHandBack = null,
+    // Change «sol-deep-analysis-web-search» (FR-4): the caller's depth and web choice. No amount is ever accepted.
+    FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisOptionsRequest? AnalysisOptions = null);
 
 public static class AiQueryRequestFingerprint
 {
@@ -90,6 +92,15 @@ public static class AiQueryRequestFingerprint
         int? MonthlyActivityTrendReportYear,
         int? MonthlyActivityTrendReportMonth,
         string? SuggestedActionId);
+
+    // Version 2 adds the analysis choice, which changes the price. A request without options keeps the Version 1
+    // payload byte for byte, so existing reservations and replays keep their identity.
+    private sealed record PayloadV2(
+        int Version,
+        Payload Base,
+        string? AnalysisDepth,
+        bool? AnalysisWebSearch,
+        string? AnalysisPricingVersion);
 
     // Hash only the stable caller payload. Correlation IDs, workflow frames, and derived server
     // context are excluded so retries can have a different trace ID without changing billing
@@ -110,7 +121,15 @@ public static class AiQueryRequestFingerprint
             request.Context?.MonthlyActivityTrendReportYear,
             request.Context?.MonthlyActivityTrendReportMonth,
             request.SuggestedActionId);
-        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(payload)));
+        var bytes = request.AnalysisOptions is { } options
+            ? JsonSerializer.SerializeToUtf8Bytes(new PayloadV2(
+                2,
+                payload,
+                options.Depth?.ToString(),
+                options.WebSearch,
+                options.PricingVersion))
+            : JsonSerializer.SerializeToUtf8Bytes(payload);
+        return Convert.ToHexString(SHA256.HashData(bytes));
     }
 }
 
@@ -158,7 +177,11 @@ public sealed record AiQueryResponse(
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
-    SymbolSnapshotResult? SymbolSnapshotResult = null);
+    SymbolSnapshotResult? SymbolSnapshotResult = null,
+    // Change «sol-deep-analysis-web-search»: prices, defaults and a pending offer (FR-4, FR-7), and the external
+    // sources an answer cited (FR-10).
+    FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisHint? GroundedAnalysis = null,
+    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,
@@ -258,6 +281,13 @@ public interface IBillingFacadeHook
     Task ReleaseAsync(
         BillingReservationHandle handle,
         CancellationToken cancellationToken);
+
+    // Change «sol-deep-analysis-web-search» (FR-8): the status of the reservation keyed by this billing operation id
+    // (Reserved, Committed, Released, Expired), or null when none exists. A 163 offer's derived key is its single
+    // arbiter: once claimed by a confirm or a cancel, no later request runs the analysis.
+    Task<string?> FindReservationStatusAsync(
+        Guid billingOperationId,
+        CancellationToken cancellationToken) => Task.FromResult<string?>(null);
 }
 
 public interface IAiIntentDetector

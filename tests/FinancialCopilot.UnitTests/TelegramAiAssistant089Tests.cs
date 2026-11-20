@@ -470,6 +470,103 @@ public sealed class TelegramAiAssistant089Tests
         Assert.Equal(1, purchases.CreateCallCount);
     }
 
+    // ── Change «sol-deep-analysis-web-search» T13: 163 offer buttons ─────────────────────
+
+    private static TelegramAssistantUpdate Callback(string data, long updateId = 950) =>
+        new(updateId, TelegramAssistantUpdateKind.CallbackQuery, 1001, 1001, null, 10, $"callback-{updateId}", data, null,
+            "fa-IR", DateTimeOffset.UtcNow, $"corr-{updateId}");
+
+    [Theory] // AC-8: a tier button confirms that offer at that tier; the backend owns price, balance and single use.
+    [InlineData("s0", FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Simple, false)]
+    [InlineData("s1", FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Simple, true)]
+    [InlineData("d0", FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Deep, false)]
+    [InlineData("d1", FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Deep, true)]
+    public async Task Offer_tier_button_confirms_the_offer_at_that_tier(
+        string code, FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth depth, bool web)
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai);
+        var offerId = Guid.NewGuid();
+
+        var result = await adapter.HandleAsync(Callback($"ga1:{offerId:N}:{code}"), CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
+        Assert.Equal(1, ai.CallCount);
+        Assert.Equal($"ga1:{offerId:N}:confirm", ai.LastRequest!.SuggestedActionId);
+        Assert.Equal(depth, ai.LastRequest.AnalysisOptions!.Depth);
+        Assert.Equal(web, ai.LastRequest.AnalysisOptions.WebSearch);
+        Assert.Null(ai.LastRequest.AnalysisOptions.PricingVersion);
+        Assert.Equal("تحلیل کن", ai.LastRequest.Message);
+        Assert.NotNull(ai.LastRequest.BillingOperationId);
+    }
+
+    [Fact] // AC-9: cancel is the backend's cancel action, without analysis options.
+    public async Task Offer_cancel_button_cancels_the_offer()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai);
+        var offerId = Guid.NewGuid();
+
+        await adapter.HandleAsync(Callback($"ga1:{offerId:N}:x"), CancellationToken.None);
+
+        Assert.Equal($"ga1:{offerId:N}:cancel", ai.LastRequest!.SuggestedActionId);
+        Assert.Null(ai.LastRequest.AnalysisOptions);
+        Assert.Equal("انصراف", ai.LastRequest.Message);
+    }
+
+    [Theory] // A malformed or forged button never reaches the AI pipeline.
+    [InlineData("ga1:not-a-guid:d1")]
+    [InlineData("ga1:0f8b6c1e2d3a4b5c9d8e7f6a5b4c3d2e:confirm")]
+    [InlineData("ga1:0f8b6c1e2d3a4b5c9d8e7f6a5b4c3d2e:z9")]
+    public async Task Malformed_offer_button_is_refused_without_ai_call(string data)
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai);
+
+        var result = await adapter.HandleAsync(Callback(data), CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.ValidationError, result.Status);
+        Assert.Equal(0, ai.CallCount);
+    }
+
+    [Fact] // AC-9, AC-11: a redelivered button press replays the stored result and never runs twice.
+    public async Task Offer_button_replay_does_not_run_twice()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai);
+        var update = Callback($"ga1:{Guid.NewGuid():N}:d1");
+
+        await adapter.HandleAsync(update, CancellationToken.None);
+        var replay = await adapter.HandleAsync(update, CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
+        Assert.Equal(1, ai.CallCount);
+    }
+
+    [Theory] // AC-8, PO-10: typed text is a normal question and never carries an offer action.
+    [InlineData("بله")]
+    [InlineData("تحلیل کن")]
+    public async Task Typed_text_never_confirms_an_offer(string text)
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai);
+
+        await adapter.HandleAsync(Update(text, telegramUserId: 1001, updateId: 960), CancellationToken.None);
+
+        Assert.Null(ai.LastRequest!.SuggestedActionId);
+        Assert.Null(ai.LastRequest.AnalysisOptions);
+    }
+
     private static TelegramAiAssistantAdapter CreateAdapter(
         AuthDbContext db,
         ITelegramIdentityLinkReader? linkReader = null,

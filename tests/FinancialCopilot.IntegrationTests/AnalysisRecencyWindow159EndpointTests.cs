@@ -35,15 +35,30 @@ public sealed class AnalysisRecencyWindow159EndpointTests : IClassFixture<Analys
         factory.Fallback.Reset();
     }
 
-    private async Task<JsonElement> Post(string message)
+    private async Task<JsonElement> Post(string message) => await Send(new { message });
+
+    private async Task<JsonElement> Send(object body)
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
-        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", body, CancellationToken.None);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return document.RootElement.Clone();
     }
+
+    /// <summary>Change «sol-deep-analysis-web-search»: 163 runs only after the offer is confirmed.</summary>
+    private Task<JsonElement> Confirm(JsonElement offerTurn) =>
+        Send(new
+        {
+            message = "تحلیل کن",
+            conversationId = offerTurn.GetProperty("conversationId").GetGuid(),
+            suggestedActionId = offerTurn.GetProperty("groundedAnalysis").GetProperty("offer").GetProperty("confirmActionId").GetString()
+        });
+
+    private static bool HasOffer(JsonElement turn) =>
+        turn.TryGetProperty("groundedAnalysis", out var hint) && hint.ValueKind == JsonValueKind.Object &&
+        hint.TryGetProperty("offer", out var offer) && offer.ValueKind == JsonValueKind.Object;
 
     private static string Text(JsonElement root) => root.GetProperty("textAnswer").GetString() ?? string.Empty;
     private static decimal Credits(JsonElement root) => root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal();
@@ -57,8 +72,8 @@ public sealed class AnalysisRecencyWindow159EndpointTests : IClassFixture<Analys
             db.Messages.AsNoTracking().Single(message => message.Id == id).AssistantPayloadJson!)!;
     }
 
-    [Fact] // D1, D3, D4: the old analysis is never shown; the question is answered by the Feature 163 fallback.
-    public async Task OnlyAnOldAnalysis_IsNotShown_AndTheFallbackAnswers()
+    [Fact] // D1, D3, D4: the old analysis is never shown; the question is answered by the confirmed Feature 163 analysis.
+    public async Task OnlyAnOldAnalysis_IsNotShown_AndTheConfirmedFallbackAnswers()
     {
         _factory.Fallback.Reply = prompt =>
         {
@@ -68,29 +83,31 @@ public sealed class AnalysisRecencyWindow159EndpointTests : IClassFixture<Analys
                 "", [fact.EvidenceId]);
         };
 
-        var answer = await Post("سهم وبملت را بررسی کن");
+        var offer = await Post("سهم وبملت را بررسی کن");
+        Assert.Equal(0, _factory.Fallback.Calls);
+        var answer = await Confirm(offer);
 
         Assert.True(Text(answer).StartsWith("بر اساس صورت سود و زیان فصلی", StringComparison.Ordinal), answer.ToString());
-        Assert.DoesNotContain(AnalysisRecencyWindow159ApiFactory.OldTitle, answer.GetRawText(), StringComparison.Ordinal);
+        Assert.DoesNotContain(AnalysisRecencyWindow159ApiFactory.OldTitle, offer.GetRawText(), StringComparison.Ordinal);
         Assert.Equal("Answered", answer.GetProperty("outcome").GetString());
-        Assert.Equal(2m, Credits(answer));
+        Assert.Equal(25m, Credits(answer));
         Assert.Equal("وبملت", _factory.Fallback.Prompts.Single().Data.CompanySymbol);
         var origin = Payload(answer).FallbackOf!;
         Assert.Equal(DialogueOutcome.NoData, origin.Outcome);
         Assert.Equal(DialogueOutcomeReasonCodes.ComprehensiveAnalysisNotRecent, origin.ReasonCode);
     }
 
-    [Fact] // D5: when the fallback cannot answer, the free card says only recent analyses were searched.
-    public async Task OnlyAnOldAnalysis_AndTheFallbackFails_IsTheFreeNoRecentAnalysisCard()
+    [Fact] // D5: the free card says only recent analyses were searched, and carries the analysis offer.
+    public async Task OnlyAnOldAnalysis_IsTheFreeNoRecentAnalysisCard_WithTheOffer()
     {
-        _factory.Fallback.Reply = _ => throw new ReportDiscussionModelUnavailableException("timeout");
-
         var answer = await Post("سهم وبملت را بررسی کن");
 
         Assert.Contains(NoRecentSentence, Text(answer), StringComparison.Ordinal);
         Assert.DoesNotContain(AnalysisRecencyWindow159ApiFactory.OldTitle, answer.GetRawText(), StringComparison.Ordinal);
         Assert.Equal("NoData", answer.GetProperty("outcome").GetString());
         Assert.Equal(0m, Credits(answer));
+        Assert.True(HasOffer(answer));
+        Assert.Equal(0, _factory.Fallback.Calls);
     }
 
     [Fact] // Feature 163 without a semantic company slot (fixed investment-advice refusal): the word «وبملت» is resolved
@@ -100,7 +117,7 @@ public sealed class AnalysisRecencyWindow159EndpointTests : IClassFixture<Analys
         _factory.Fallback.Reply = prompt => new SymbolGroundedFallbackModelReply(
             SymbolGroundedFallbackDisposition.NotAnswerable, "", "", []);
 
-        var answer = await Post("وبملت ارزش خرید دارد؟");
+        var answer = await Confirm(await Post("وبملت ارزش خرید دارد؟"));
 
         Assert.Equal("وبملت", _factory.Fallback.Prompts.Single().Data.CompanySymbol);
         Assert.EndsWith("می‌توانم صورت سود و زیان وبملت را تحلیل کنم.", Text(answer), StringComparison.Ordinal);
@@ -111,8 +128,9 @@ public sealed class AnalysisRecencyWindow159EndpointTests : IClassFixture<Analys
     [InlineData("این سهم ارزش خرید دارد؟")]
     public async Task NotExactlyOneCompany_DoesNotCallTheFallbackModel(string question)
     {
-        await Post(question);
+        var answer = await Post(question);
 
+        Assert.False(HasOffer(answer));
         Assert.Equal(0, _factory.Fallback.Calls);
     }
 
@@ -142,7 +160,11 @@ public sealed class AnalysisRecencyWindow159ApiFactory : BalanceSheetReport154Ap
         // Production setting: comprehensive analysis reads the v2 analysis tables in NoavaranAmin mode (Feature 159).
         builder.UseSetting("FinancialData:CapabilitySources:comprehensive_analysis", "CyclicalWaves");
         builder.ConfigureAppConfiguration((_, config) =>
-            config.AddInMemoryCollection(new Dictionary<string, string?> { ["SymbolGroundedFallback:Enabled"] = "true" }));
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SymbolGroundedFallback:Enabled"] = "true",
+                ["GroundedAnalysis:Enabled"] = "true"
+            }));
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<ISymbolGroundedFallbackModel>();

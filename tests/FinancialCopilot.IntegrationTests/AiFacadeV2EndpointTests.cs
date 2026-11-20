@@ -2362,7 +2362,9 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
-                ["NoavaranCurrentApi:ProviderName"] = "NadpcoApi"
+                ["NoavaranCurrentApi:ProviderName"] = "NadpcoApi",
+                // Feature 081 change «period-analysis-feature-flag»: production switches 081 off; these tests cover it on.
+                ["FinancialStatementPeriodAnalysis:Enabled"] = "true"
             });
         });
 

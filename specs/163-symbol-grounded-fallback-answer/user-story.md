@@ -64,6 +64,8 @@ them yet.
 - Analytical answers with two or three key figures, amounts in همت / میلیارد تومان and a 0–100 score before the
   closing offer for an overall analysis (162 change
   [`analytical-answer-and-report-score`](../162-context-aware-financial-report-follow-up/changes/analytical-answer-and-report-score/user-story.md), 2026-11-18).
+- With `GroundedAnalysis:Enabled` on, the fallback no longer answers at once: it keeps the original non-answer and offers an analysis at four fixed tiers (8 / 12 / 16 / 25 credits) that runs only after «تحلیل کن» (162 change
+  [`sol-deep-analysis-web-search`](../162-context-aware-financial-report-follow-up/changes/sol-deep-analysis-web-search/user-story.md), 2026-11-20).
 
 ## Out Of Scope
 

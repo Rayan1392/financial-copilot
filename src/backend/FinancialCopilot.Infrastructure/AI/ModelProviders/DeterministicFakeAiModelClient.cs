@@ -17,6 +17,12 @@ public sealed class DeterministicFakeAiModelClient(
             throw NotSupported(AiModelCapability.ChatCompletion);
         }
 
+        // Change «sol-deep-analysis-web-search» (FR-5): a web search request needs the capability on this fake too.
+        if (request.WebSearch is not null && (Descriptor.Capabilities & AiModelCapability.WebSearch) == 0)
+        {
+            throw NotSupported(AiModelCapability.WebSearch);
+        }
+
         if (resultFactory is not null)
             return Task.FromResult(resultFactory.Invoke(request));
 

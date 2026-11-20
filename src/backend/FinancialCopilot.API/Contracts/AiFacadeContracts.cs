@@ -14,7 +14,39 @@ public sealed record AiQueryHttpRequest(
     int DisclosurePage = 1,
     AiQueryContextHttpRequest? Context = null,
     string? SuggestedActionId = null,
-    Guid? IdempotencyKey = null);
+    Guid? IdempotencyKey = null,
+    AnalysisOptionsHttpRequest? AnalysisOptions = null);
+
+/// <summary>
+/// The analysis choice (change «sol-deep-analysis-web-search», FR-4). <c>depth</c> is <c>simple</c> or <c>deep</c>.
+/// There is deliberately no amount: the backend is the only price source; <c>pricingVersion</c> is the version of the
+/// price list the client showed.
+/// </summary>
+public sealed record AnalysisOptionsHttpRequest(
+    string? Depth = null,
+    bool? WebSearch = null,
+    string? PricingVersion = null);
+
+public sealed record GroundedAnalysisPriceHttpResponse(string Depth, bool WebSearch, decimal Credits);
+
+public sealed record GroundedAnalysisOfferHttpResponse(
+    Guid OfferId,
+    string Symbol,
+    DateTimeOffset ExpiresAt,
+    bool SufficientBalance,
+    string ConfirmActionId,
+    string CancelActionId);
+
+public sealed record GroundedAnalysisHttpResponse(
+    bool Available,
+    string PricingVersion,
+    IReadOnlyList<GroundedAnalysisPriceHttpResponse> Prices,
+    string DefaultDepth,
+    bool DefaultWebSearch,
+    bool Unlimited,
+    GroundedAnalysisOfferHttpResponse? Offer = null);
+
+public sealed record ExternalSourceHttpResponse(string Id, string Title, string Url, string PublishedAt);
 
 public sealed record CapabilityStarterPromptHttpResponse(
     string CapabilityCode,
@@ -63,7 +95,9 @@ public sealed record AiQueryHttpResponse(
     MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null,
-    SymbolSnapshotResult? SymbolSnapshotResult = null);
+    SymbolSnapshotResult? SymbolSnapshotResult = null,
+    GroundedAnalysisHttpResponse? GroundedAnalysis = null,
+    IReadOnlyList<ExternalSourceHttpResponse>? Sources = null);
 
 public sealed record MonthlyProductTrendHttpResponse(
     string ResultDiscriminator,
@@ -348,7 +382,10 @@ public sealed record AssistantMessageContentResponse(
     MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null,
-    SymbolSnapshotResult? SymbolSnapshotResult = null);
+    SymbolSnapshotResult? SymbolSnapshotResult = null,
+    IReadOnlyList<ExternalSourceHttpResponse>? Sources = null,
+    // OQ-113 (a): only on the conversation's latest assistant message, with current prices and balance.
+    GroundedAnalysisHttpResponse? GroundedAnalysis = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

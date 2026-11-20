@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.20.1] - 2026-11-21
+
+صورت جریان وجوه نقد در گفتگو همیشه با زمینهٔ روشن نمایش داده می‌شود.
+
+### Fixed
+
+- صورت جریان وجوه نقد در گفتگو دیگر وقتی دستگاه شما روی حالت تیره است تیره نمایش داده نمی‌شود؛ مانند صورت سود و زیان فصلی و ترازنامه، در حالت روشن و تیرهٔ سایت همیشه با زمینهٔ روشن و همانند تصویر دانلودشده نمایش داده می‌شود.
+
 ## [1.20.0] - 2026-11-20
 
 مدیران می‌توانند پرسش‌های کاربران و پاسخ‌های داده‌شده را در پنل مدیریت جست‌وجو و مرور کنند.
@@ -414,7 +422,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.1...develop
+[1.20.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.0...v1.20.1
 [1.20.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.18.0...v1.19.0
 [1.18.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.17.1...v1.18.0

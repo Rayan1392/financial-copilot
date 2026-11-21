@@ -27,6 +27,13 @@ const multiple = new Intl.NumberFormat("fa-IR-u-nu-arabext", {
   maximumFractionDigits: 2,
 });
 const unavailable = "—";
+/** Legend text ink (slate-700). Recharts colors labels with the series color (amber 2.15:1, BUG-039). */
+const LEGEND_INK = "#334155";
+
+/** Legend label in readable ink; the series color stays on the legend swatch. */
+export function CashFlowLegendLabel({ value }: { value: string }) {
+  return <span style={{ color: LEGEND_INK }}>{value}</span>;
+}
 const HEADLINE_METRICS = [
   ["operating_cash_flow", "جریان نقد عملیاتی"],
   ["investing_cash_flow", "جریان نقد سرمایه‌گذاری"],
@@ -497,6 +504,7 @@ export function CashFlowReport({ result }: { result: CashFlowReportResult }) {
                   verticalAlign="top"
                   height={30}
                   wrapperStyle={{ direction: "rtl", fontSize: 12 }}
+                  formatter={(value: string) => <CashFlowLegendLabel value={value} />}
                 />
                 <Bar dataKey="operating_cash_flow" name="عملیاتی" fill="#0f766e" />
                 <Bar dataKey="investing_cash_flow" name="سرمایه‌گذاری" fill="#f59e0b" />

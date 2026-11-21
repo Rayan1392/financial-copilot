@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace FinancialCopilot.Application.Administration;
 
 public sealed record AdminUserDirectoryQuery(
@@ -13,7 +15,13 @@ public sealed record AdminUserDirectoryQuery(
     DateTimeOffset? RegisteredToUtc = null,
     DateTimeOffset? LastLoginFromUtc = null,
     DateTimeOffset? LastLoginToUtc = null,
-    string Sort = "registeredAtUtc-desc,userId-asc");
+    string Sort = "registeredAtUtc-desc,userId-asc",
+    bool IncludeUsage = false,
+    DateTimeOffset? QuestionFromUtc = null,
+    DateTimeOffset? QuestionToUtc = null,
+    long? MinQuestions = null,
+    long? MaxQuestions = null,
+    string? CurrentPlanCode = null);
 
 public sealed record AdminUserDirectoryPage(
     IReadOnlyCollection<AdminUserDirectoryItem> Items,
@@ -35,7 +43,15 @@ public sealed record AdminUserDirectoryItem(
     IReadOnlyCollection<string> LinkedProviderCodes,
     AdminOptionalSection<AdminUserSubscriptionSummary> Subscription,
     AdminOptionalSection<AdminUserCreditSummary> Credits,
-    Guid? CustomerAccountId = null);
+    Guid? CustomerAccountId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    AdminUserRecordedUsage? RecordedUsage = null);
+
+public sealed record AdminUserRecordedUsage(
+    long QuestionCount,
+    DateTimeOffset? LastQuestionAtUtc,
+    string? CurrentPlanCode,
+    decimal? CreditsChargedBeforeRefunds);
 
 public sealed record AdminSubscriptionUsersQuery(int PageSize = 20, string? Cursor = null);
 

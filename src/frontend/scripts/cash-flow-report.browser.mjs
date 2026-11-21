@@ -65,9 +65,6 @@ async function siteThemeSurface(page, theme) {
     const targets = [...card.querySelectorAll("*")].filter(
       (element) =>
         !element.closest("svg") &&
-        // BUG-039: Recharts colors legend text with the series color (amber 2.15:1 in both themes);
-        // a separate defect, so the legend is excluded until it is fixed.
-        !element.closest(".recharts-legend-wrapper") &&
         element.checkVisibility() &&
         [...element.childNodes].some(
           (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0,

@@ -48,6 +48,30 @@ public sealed class AdminManagementEndpointTests : IClassFixture<AdminManagement
     }
 
     [Fact]
+    public async Task DirectoryUsage_PreservesLegacyShapeAndProtectsPlanFilters()
+    {
+        await _factory.ResetAsync();
+        const string directory = "/api/v1/admin/users/directory";
+        using var usersOnly = UserClient(FinancialCopilotPermissions.AdminUsersRead);
+        using var legacy = await usersOnly.GetAsync(directory);
+        using var legacyJson = await ReadJsonAsync(legacy);
+        Assert.Equal(HttpStatusCode.OK, legacy.StatusCode);
+        Assert.NotEmpty(legacyJson.RootElement.GetProperty("items").EnumerateArray());
+        Assert.All(legacyJson.RootElement.GetProperty("items").EnumerateArray(),
+            item => Assert.False(item.TryGetProperty("recordedUsage", out _)));
+
+        using var planDenied = await usersOnly.GetAsync(directory + "?currentPlanCode=Max");
+        Assert.Equal(HttpStatusCode.Forbidden, planDenied.StatusCode);
+
+        using var subscriptionsOnly = UserClient(FinancialCopilotPermissions.AdminSubscriptionsRead);
+        using var usageDenied = await subscriptionsOnly.GetAsync(directory + "?includeUsage=true");
+        Assert.Equal(HttpStatusCode.Forbidden, usageDenied.StatusCode);
+
+        using var invalidRange = await usersOnly.GetAsync(directory + "?includeUsage=true&minQuestions=2&maxQuestions=1");
+        Assert.Equal(HttpStatusCode.BadRequest, invalidRange.StatusCode);
+    }
+
+    [Fact]
     public async Task SubscriptionUsers_RequiresBothReadPermissions_AndValidPlan()
     {
         await _factory.ResetAsync();

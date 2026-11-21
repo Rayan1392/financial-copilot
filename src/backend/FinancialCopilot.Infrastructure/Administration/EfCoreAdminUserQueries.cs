@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
@@ -15,6 +16,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
 {
     private const int MaximumPageSize = 100;
     private const string DefaultSort = "registeredAtUtc-desc,userId-asc";
+    private const string QuestionCountAscending = "questionCount-asc,userId-asc";
+    private const string QuestionCountDescending = "questionCount-desc,userId-asc";
     private const string ActiveStatus = "Active";
     private readonly AuthDbContext auth;
     private readonly BillingDbContext billing;
@@ -45,9 +48,12 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         CancellationToken cancellationToken)
     {
         var filters = NormalizeAndValidate(query);
-        var filterHash = HashFilters(filters);
+        var usage = NormalizeUsage(query, filters.Sort, canReadSubscription);
+        var filterHash = usage is null ? HashFilters(filters) : HashFilters(new { filters, usage });
         var cursor = ReadCursor(query.Cursor, "directory", tenantId, Guid.Empty, filters.PageSize, filters.Sort, filterHash);
         var asOfUtc = cursor?.AsOfUtc ?? timeProvider.GetUtcNow().ToUniversalTime();
+        var fromUtc = usage?.FromUtc ?? asOfUtc.AddDays(-30);
+        var toUtc = usage?.ToUtc ?? DateTimeOffset.MaxValue;
 
         await using var transaction = IsPostgres(auth)
             ? await auth.Database.BeginTransactionAsync(cancellationToken)
@@ -144,7 +150,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             pageQuery = pageQuery.Where(row => row.Metadata != null && row.Metadata.LastSuccessfulLoginAtUtc <= loginTo);
         }
 
-        if (cursor is not null)
+        if (cursor is not null && filters.Sort == DefaultSort)
         {
             if (cursor.RegisteredAtUtc is null)
             {
@@ -161,32 +167,78 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             }
         }
 
-        var rows = await pageQuery
-            .OrderBy(row => row.Metadata == null || row.Metadata.RegisteredAtUtc == null)
-            .ThenByDescending(row => row.Metadata == null ? null : row.Metadata.RegisteredAtUtc)
-            .ThenBy(row => row.User.Id)
-            .Take(filters.PageSize + 1)
-            .Select(row => new DirectoryRow(
-                row.User.Id,
-                row.User.Email,
-                row.Profile == null ? null : row.Profile.DisplayName,
-                row.Profile == null ? null : row.Profile.FirstName,
-                row.Profile == null ? null : row.Profile.LastName,
-                row.User.IsEnabled,
-                row.User.LockoutEnd,
-                row.Metadata == null ? null : row.Metadata.RegisteredAtUtc,
-                row.Metadata == null ? UserOperationalMetadataCodes.Unknown : row.Metadata.AcquisitionSourceCode,
-                row.Metadata == null ? null : row.Metadata.LastSuccessfulLoginAtUtc,
-                row.Metadata == null ? null : row.Metadata.LastLoginProviderCode))
-            .ToArrayAsync(cancellationToken);
+        var directoryRows = pageQuery.Select(row => new
+        {
+            UserId = row.User.Id,
+            row.User.Email,
+            DisplayName = row.Profile == null ? null : row.Profile.DisplayName,
+            FirstName = row.Profile == null ? null : row.Profile.FirstName,
+            LastName = row.Profile == null ? null : row.Profile.LastName,
+            row.User.IsEnabled,
+            row.User.LockoutEnd,
+            RegisteredAtUtc = row.Metadata == null ? null : row.Metadata.RegisteredAtUtc,
+            AcquisitionSource = row.Metadata == null ? UserOperationalMetadataCodes.Unknown : row.Metadata.AcquisitionSourceCode,
+            LastLoginAtUtc = row.Metadata == null ? null : row.Metadata.LastSuccessfulLoginAtUtc,
+            LastLoginProvider = row.Metadata == null ? null : row.Metadata.LastLoginProviderCode
+        });
+
+        var orderedRows = directoryRows.OrderBy(row => row.RegisteredAtUtc == null)
+            .ThenByDescending(row => row.RegisteredAtUtc).ThenBy(row => row.UserId);
+        DirectoryRow[] rows;
+        if (usage is null)
+        {
+            rows = await orderedRows.Take(filters.PageSize + 1).Select(row => new DirectoryRow(
+                row.UserId, row.Email, row.DisplayName, row.FirstName, row.LastName, row.IsEnabled,
+                row.LockoutEnd, row.RegisteredAtUtc, row.AcquisitionSource, row.LastLoginAtUtc,
+                row.LastLoginProvider, null, null)).ToArrayAsync(cancellationToken);
+        }
+        else
+        {
+            var usageRows = QueryDirectoryUsage(tenantId, fromUtc, toUtc, asOfUtc, canReadSubscription);
+            var matches = from row in directoryRows
+                          join metrics in usageRows on row.UserId equals metrics.UserId
+                          select new { Identity = row, Metrics = metrics };
+            if (usage.Minimum is long minimum)
+                matches = matches.Where(row => row.Metrics.QuestionCount >= minimum);
+            if (usage.Maximum is long maximum)
+                matches = matches.Where(row => row.Metrics.QuestionCount <= maximum);
+            if (usage.PlanCode is string planCode)
+                matches = matches.Where(row => row.Metrics.CurrentPlanCode == planCode);
+
+            if (cursor?.QuestionCount is long previousCount && filters.Sort != DefaultSort)
+            {
+                var lastUserId = cursor.LastUserId;
+                var ascending = filters.Sort == QuestionCountAscending;
+                matches = matches.Where(row =>
+                    (ascending ? row.Metrics.QuestionCount > previousCount : row.Metrics.QuestionCount < previousCount) ||
+                    (row.Metrics.QuestionCount == previousCount && row.Identity.UserId.CompareTo(lastUserId) > 0));
+            }
+
+            var sorted = filters.Sort switch
+            {
+                QuestionCountAscending => matches.OrderBy(row => row.Metrics.QuestionCount).ThenBy(row => row.Identity.UserId),
+                QuestionCountDescending => matches.OrderByDescending(row => row.Metrics.QuestionCount).ThenBy(row => row.Identity.UserId),
+                _ => matches.OrderBy(row => row.Identity.RegisteredAtUtc == null)
+                    .ThenByDescending(row => row.Identity.RegisteredAtUtc).ThenBy(row => row.Identity.UserId)
+            };
+            rows = await sorted.Take(filters.PageSize + 1).Select(row => new DirectoryRow(
+                row.Identity.UserId, row.Identity.Email, row.Identity.DisplayName, row.Identity.FirstName,
+                row.Identity.LastName, row.Identity.IsEnabled, row.Identity.LockoutEnd, row.Identity.RegisteredAtUtc,
+                row.Identity.AcquisitionSource, row.Identity.LastLoginAtUtc, row.Identity.LastLoginProvider,
+                row.Metrics.QuestionCount, row.Metrics.CurrentPlanCode)).ToArrayAsync(cancellationToken);
+        }
+
+        var hasMore = rows.Length > filters.PageSize;
+        var pageRows = rows.Take(filters.PageSize).ToArray();
+        var lastQuestions = usage is not null && pageRows.Length > 0
+            ? await QueryLastRecordedQuestionsAsync(tenantId, asOfUtc, pageRows.Select(row => row.UserId).ToArray(), cancellationToken)
+            : new Dictionary<Guid, DateTimeOffset?>();
 
         if (transaction is not null)
         {
             await transaction.CommitAsync(cancellationToken);
         }
 
-        var hasMore = rows.Length > filters.PageSize;
-        var pageRows = rows.Take(filters.PageSize).ToArray();
         var items = pageRows.Select(row => new AdminUserDirectoryItem(
             row.UserId,
             row.Email,
@@ -200,7 +252,10 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             row.LastLoginProviderCode,
             Array.Empty<string>(),
             NotAuthorized<AdminUserSubscriptionSummary>(),
-            NotAuthorized<AdminUserCreditSummary>())).ToArray();
+            NotAuthorized<AdminUserCreditSummary>(),
+            RecordedUsage: row.QuestionCount is long count
+                ? new AdminUserRecordedUsage(count, lastQuestions.GetValueOrDefault(row.UserId), row.CurrentPlanCode, null)
+                : null)).ToArray();
 
         if (items.Length > 0)
         {
@@ -211,6 +266,10 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         {
             await AddDirectoryBillingSummariesAsync(tenantId, asOfUtc, items, canReadSubscription, canReadCredits, cancellationToken);
         }
+        if (usage is not null && canReadCredits)
+        {
+            await AddChargedCreditsAsync(tenantId, fromUtc, toUtc, asOfUtc, items, cancellationToken);
+        }
 
         string? nextCursor = null;
         if (hasMore && pageRows.Length > 0)
@@ -218,10 +277,88 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             var last = pageRows[^1];
             nextCursor = WriteCursor(new CursorPayload(
                 1, "directory", tenantId, Guid.Empty, filters.PageSize, filters.Sort, filterHash,
-                asOfUtc, last.RegisteredAtUtc, last.UserId, null, null));
+                asOfUtc, last.RegisteredAtUtc, last.UserId, null, null, QuestionCount: last.QuestionCount));
         }
 
         return new AdminUserDirectoryPage(items, nextCursor, hasMore, asOfUtc);
+    }
+
+    private IQueryable<DirectoryUsageSqlRow> QueryDirectoryUsage(
+        Guid tenantId, DateTimeOffset fromUtc, DateTimeOffset toUtc, DateTimeOffset asOfUtc, bool canReadSubscription)
+    {
+        // Mirrors Billing's effective plan rules. The same projection drives filtering and display.
+        return auth.Database.SqlQuery<DirectoryUsageSqlRow>($"""
+            SELECT member."UserId",
+                   COALESCE(usage."QuestionCount", 0::bigint) AS "QuestionCount",
+                   CASE
+                     WHEN account."Id" IS NULL THEN NULL
+                     WHEN account."ExternalSubscriptionManaged" THEN COALESCE(external_plan."PlanCode", 'Free')
+                     WHEN account."SubscriptionEffectiveFrom" > {asOfUtc} THEN NULL
+                     WHEN account."SubscriptionEffectiveTo" <= {asOfUtc}
+                          AND account."SubscriptionPlanCode" IS NOT NULL THEN 'Free'
+                     ELSE account."SubscriptionPlanCode"
+                   END AS "CurrentPlanCode"
+            FROM auth_user_tenants AS member
+            LEFT JOIN (
+                SELECT c."ActorId", count(*) AS "QuestionCount"
+                FROM "Messages" AS m
+                INNER JOIN "Conversations" AS c ON m."ConversationId" = c."Id"
+                WHERE c."TenantId" = {tenantId}
+                  AND m."Role" = 'User'
+                  AND m."CreatedAt" >= {fromUtc} AND m."CreatedAt" < {toUtc} AND m."CreatedAt" <= {asOfUtc}
+                GROUP BY c."ActorId"
+            ) AS usage ON usage."ActorId" = member."UserId"
+            LEFT JOIN billing_customer_accounts AS account
+                ON {canReadSubscription} AND account."TenantId" = member."TenantId" AND account."UserId" = member."UserId"
+            LEFT JOIN (
+                SELECT DISTINCT ON (s."CustomerAccountId") s."CustomerAccountId", s."PlanCode"
+                FROM billing_external_plan_subscriptions AS s
+                INNER JOIN billing_customer_accounts AS external_account ON external_account."Id" = s."CustomerAccountId"
+                WHERE {canReadSubscription} AND external_account."TenantId" = {tenantId}
+                  AND external_account."ExternalSubscriptionManaged"
+                  AND NOT s."IsRevoked" AND s."StartsAtUtc" < s."ExpiresAtUtc"
+                  AND s."StartsAtUtc" <= {asOfUtc} AND s."ExpiresAtUtc" > {asOfUtc}
+                ORDER BY s."CustomerAccountId", (s."PlanCode" = 'Max') DESC, s."ExpiresAtUtc" DESC,
+                         CASE s."PlanCode" WHEN 'Pro' THEN 0 WHEN 'Plus' THEN 1 ELSE 2 END, s."IdentityKey"
+            ) AS external_plan ON external_plan."CustomerAccountId" = account."Id"
+            WHERE member."TenantId" = {tenantId}
+            """);
+    }
+
+    private Task<Dictionary<Guid, DateTimeOffset?>> QueryLastRecordedQuestionsAsync(
+        Guid tenantId, DateTimeOffset asOfUtc, Guid[] userIds, CancellationToken cancellationToken) =>
+        auth.Database.SqlQuery<LastRecordedQuestionSqlRow>($"""
+            SELECT c."ActorId" AS "UserId", max(m."CreatedAt") AS "LastQuestionAtUtc"
+            FROM "Conversations" AS c
+            INNER JOIN "Messages" AS m ON m."ConversationId" = c."Id"
+            WHERE c."TenantId" = {tenantId} AND c."ActorId" = ANY({userIds})
+              AND m."Role" = 'User' AND m."CreatedAt" <= {asOfUtc}
+            GROUP BY c."ActorId"
+            """).ToDictionaryAsync(row => row.UserId, row => row.LastQuestionAtUtc, cancellationToken);
+
+    private async Task AddChargedCreditsAsync(
+        Guid tenantId, DateTimeOffset fromUtc, DateTimeOffset toUtc, DateTimeOffset asOfUtc,
+        AdminUserDirectoryItem[] items, CancellationToken cancellationToken)
+    {
+        var accountIds = items.Where(item => item.CustomerAccountId.HasValue)
+            .Select(item => item.CustomerAccountId!.Value).ToArray();
+        if (accountIds.Length == 0)
+            return;
+
+        var charges = await billing.UsageLedgerEntries.AsNoTracking()
+            .Where(row => row.TenantId == tenantId && accountIds.Contains(row.CustomerAccountId) &&
+                          row.EntryType == nameof(UsageLedgerEntryType.Charge) &&
+                          row.OccurredAt >= fromUtc && row.OccurredAt < toUtc && row.OccurredAt <= asOfUtc)
+            .GroupBy(row => row.CustomerAccountId)
+            .Select(group => new { Id = group.Key, Credits = group.Sum(row => row.CreditsCharged) })
+            .ToDictionaryAsync(row => row.Id, row => row.Credits, cancellationToken);
+
+        for (var i = 0; i < items.Length; i++)
+        {
+            var item = items[i];
+            if (item.CustomerAccountId is Guid accountId && item.RecordedUsage is { } metrics)
+                items[i] = item with { RecordedUsage = metrics with { CreditsChargedBeforeRefunds = charges.GetValueOrDefault(accountId) } };
+        }
     }
 
     public async Task<AdminSubscriptionUsersPage> GetSubscriptionUsersAsync(
@@ -1149,9 +1286,9 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             throw Invalid("Date range start must not be later than its end.");
         }
         var sort = string.IsNullOrWhiteSpace(query.Sort) ? DefaultSort : query.Sort.Trim();
-        if (sort != DefaultSort)
+        if (sort is not (DefaultSort or QuestionCountAscending or QuestionCountDescending))
         {
-            throw Invalid($"Sort must be {DefaultSort}.");
+            throw Invalid("Sort must be by registration date or recorded question count.");
         }
 
         return new DirectoryFilters(
@@ -1166,6 +1303,27 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             NormalizeDate(query.LastLoginFromUtc),
             NormalizeDate(query.LastLoginToUtc),
             sort);
+    }
+
+    private static DirectoryUsageFilters? NormalizeUsage(
+        AdminUserDirectoryQuery query, string sort, bool canReadSubscription)
+    {
+        var plan = string.IsNullOrWhiteSpace(query.CurrentPlanCode) ? null : query.CurrentPlanCode.Trim();
+        if (plan is not null && !canReadSubscription)
+            throw new AdminManagementException("permission-denied", "Subscription read permission is required.", 403);
+        if (plan is not (null or "Free" or "Plus" or "Pro" or "Max"))
+            throw Invalid("Current plan must be Free, Plus, Pro, or Max.");
+        if (query.MinQuestions < 0 || query.MaxQuestions < 0 || query.MinQuestions > query.MaxQuestions)
+            throw Invalid("Question count bounds must be nonnegative and in order.");
+        if (query.QuestionFromUtc.HasValue != query.QuestionToUtc.HasValue ||
+            query.QuestionFromUtc >= query.QuestionToUtc)
+            throw Invalid("Supply both question range dates with the start before the end.");
+
+        return query.IncludeUsage || plan is not null || sort != DefaultSort ||
+            query.QuestionFromUtc.HasValue || query.MinQuestions.HasValue || query.MaxQuestions.HasValue
+            ? new DirectoryUsageFilters(NormalizeDate(query.QuestionFromUtc), NormalizeDate(query.QuestionToUtc),
+                query.MinQuestions, query.MaxQuestions, plan)
+            : null;
     }
 
     private static DateTimeOffset? NormalizeDate(DateTimeOffset? value) => value?.ToUniversalTime();
@@ -1268,7 +1426,25 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         DateTimeOffset? RegisteredAtUtc,
         string AcquisitionSourceCode,
         DateTimeOffset? LastSuccessfulLoginAtUtc,
-        string? LastLoginProviderCode);
+        string? LastLoginProviderCode,
+        long? QuestionCount,
+        string? CurrentPlanCode);
+
+    private sealed record DirectoryUsageFilters(
+        DateTimeOffset? FromUtc, DateTimeOffset? ToUtc, long? Minimum, long? Maximum, string? PlanCode);
+
+    private sealed class DirectoryUsageSqlRow
+    {
+        public Guid UserId { get; set; }
+        public long QuestionCount { get; set; }
+        public string? CurrentPlanCode { get; set; }
+    }
+
+    private sealed class LastRecordedQuestionSqlRow
+    {
+        public Guid UserId { get; set; }
+        public DateTimeOffset? LastQuestionAtUtc { get; set; }
+    }
 
     private sealed record IdentityDetails(
         Guid Id,
@@ -1323,7 +1499,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         Guid? LastItemId,
         DateTimeOffset? OccurredAtUtc,
         string? RecordType,
-        DateTimeOffset? EffectiveFromUtc = null)
+        DateTimeOffset? EffectiveFromUtc = null,
+        long? QuestionCount = null)
     {
         public Guid LastUserId => LastItemId ?? Guid.Empty;
     }

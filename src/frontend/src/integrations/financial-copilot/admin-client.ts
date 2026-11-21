@@ -28,6 +28,12 @@ export type AdminUserDirectoryQuery = {
   lastLoginFromUtc?: string;
   lastLoginToUtc?: string;
   sort?: string;
+  includeUsage?: boolean;
+  questionFromUtc?: string;
+  questionToUtc?: string;
+  minQuestions?: number;
+  maxQuestions?: number;
+  currentPlanCode?: string;
 };
 export type AdminUserDirectoryItem = {
   userId: string;
@@ -44,6 +50,12 @@ export type AdminUserDirectoryItem = {
   subscription: AdminSection<AdminUserSubscriptionSummary>;
   credits: AdminSection<AdminUserCreditSummary>;
   customerAccountId?: string | null;
+  recordedUsage?: {
+    questionCount: number;
+    lastQuestionAtUtc: string | null;
+    currentPlanCode: string | null;
+    creditsChargedBeforeRefunds: number | null;
+  };
 };
 export type AdminUserDirectoryPage = {
   items: AdminUserDirectoryItem[];

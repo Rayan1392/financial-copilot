@@ -36,6 +36,9 @@ import { showError } from "@/components/admin/admin-errors";
 import { UserAnalyticsPanel } from "@/components/admin/user-analytics-panel";
 import { AiConversationLogsPanel } from "@/components/admin/ai-conversation-logs-panel";
 import { TahlilAppTopUpReconciliationPanel } from "@/components/admin/tahlilapp-top-up-reconciliation-panel";
+import { JalaliDateFilter } from "@/components/app/jalali-date-filter";
+import { formatTehranDateTime } from "@/components/admin/ai-conversation-log-format";
+import { lastTehranDays, tehranDayRangeToUtc } from "@/lib/format/tehran-day-range";
 import {
   Table,
   TableBody,
@@ -61,6 +64,7 @@ import {
   type AdminUser,
   type AdminUserDirectoryItem,
   type AdminUserDirectoryPage,
+  type AdminUserDirectoryQuery,
 } from "@/integrations/financial-copilot/admin-client";
 import {
   adminPermissions,
@@ -590,6 +594,16 @@ function UsersPanel({ user }: { user: AuthUser }) {
   const [registeredTo, setRegisteredTo] = useState("");
   const [lastLoginFrom, setLastLoginFrom] = useState("");
   const [lastLoginTo, setLastLoginTo] = useState("");
+  const [includeUsage, setIncludeUsage] = useState(false);
+  const [usagePeriod, setUsagePeriod] = useState("30");
+  const [questionFrom, setQuestionFrom] = useState("");
+  const [questionTo, setQuestionTo] = useState("");
+  const [minimumQuestions, setMinimumQuestions] = useState("");
+  const [maximumQuestions, setMaximumQuestions] = useState("");
+  const [zeroQuestions, setZeroQuestions] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState("");
+  const [questionSort, setQuestionSort] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState<AdminUserDirectoryQuery>({ status: "any" });
   const [directory, setDirectory] = useState<AdminUserDirectoryPage | null>(null);
   const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -620,6 +634,8 @@ function UsersPanel({ user }: { user: AuthUser }) {
   const canManage = hasPermission(user, adminPermissions.usersManage);
   const canManageRoles = hasPermission(user, adminPermissions.rolesManage);
   const canReadCredits = hasPermission(user, adminPermissions.usageLedgerRead);
+  const canReadSubscriptions = hasPermission(user, adminPermissions.subscriptionsRead);
+  const showingUsage = directory?.items.some((item) => item.recordedUsage != null) ?? false;
   const canReadPurchases = hasPermission(user, adminPermissions.billingAuditRead);
   const currentCursor = pageCursors[pageIndex] ?? null;
   const currentPageActiveUsers =
@@ -629,27 +645,14 @@ function UsersPanel({ user }: { user: AuthUser }) {
     currentPageActiveUsers.every((item) => selectedUsers.has(item.userId));
   const dateFilter = (value: string) => (value ? new Date(value).toISOString() : undefined);
 
-  async function load(cursor: string | null = currentCursor) {
+  async function load(cursor: string | null = currentCursor, filters = appliedFilters) {
     setLoading(true);
     setError(null);
     try {
       const nextDirectory = await adminApi.userDirectory({
+        ...filters,
         pageSize: 10,
         cursor,
-        search: search.trim() || undefined,
-        status: statusFilter as "any" | "enabled" | "disabled" | "locked",
-        acquisitionSource: (sourceFilter || undefined) as
-          | "native"
-          | "tahlilapp"
-          | "unknown"
-          | undefined,
-        linkedProvider: (providerFilter || undefined) as "tahlilapp" | "telegram" | undefined,
-        externalProvider: externalId.trim() ? "tahlilapp" : undefined,
-        externalUserId: externalId.trim() || undefined,
-        registeredFromUtc: dateFilter(registeredFrom),
-        registeredToUtc: dateFilter(registeredTo),
-        lastLoginFromUtc: dateFilter(lastLoginFrom),
-        lastLoginToUtc: dateFilter(lastLoginTo),
       });
       setDirectory(nextDirectory);
       setSelectedUsers((previous) => {
@@ -671,11 +674,43 @@ function UsersPanel({ user }: { user: AuthUser }) {
     void load(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- load the initial admin snapshot once
 
-  function applyFilters() {
+  function applyFilters(withUsage = includeUsage) {
+    const filters: AdminUserDirectoryQuery = {
+      search: search.trim() || undefined,
+      status: statusFilter as AdminUserDirectoryQuery["status"],
+      acquisitionSource: (sourceFilter || undefined) as AdminUserDirectoryQuery["acquisitionSource"],
+      linkedProvider: (providerFilter || undefined) as AdminUserDirectoryQuery["linkedProvider"],
+      externalProvider: externalId.trim() ? "tahlilapp" : undefined,
+      externalUserId: externalId.trim() || undefined,
+      registeredFromUtc: dateFilter(registeredFrom),
+      registeredToUtc: dateFilter(registeredTo),
+      lastLoginFromUtc: dateFilter(lastLoginFrom),
+      lastLoginToUtc: dateFilter(lastLoginTo),
+    };
+    if (withUsage) {
+      const days = usagePeriod === "custom"
+        ? { from: questionFrom, to: questionTo }
+        : lastTehranDays(Number(usagePeriod));
+      const { fromUtc, toUtc } = tehranDayRangeToUtc(days.from, days.to);
+      if (!fromUtc || !toUtc || days.from > days.to) {
+        setError("تاریخ شروع و پایان بازهٔ پرسش‌ها را به ترتیب انتخاب کنید.");
+        return;
+      }
+      Object.assign(filters, {
+        includeUsage: true,
+        questionFromUtc: fromUtc,
+        questionToUtc: toUtc,
+        minQuestions: !zeroQuestions && minimumQuestions !== "" ? Number(minimumQuestions) : undefined,
+        maxQuestions: zeroQuestions ? 0 : maximumQuestions !== "" ? Number(maximumQuestions) : undefined,
+        currentPlanCode: canReadSubscriptions ? currentPlan || undefined : undefined,
+        sort: questionSort || undefined,
+      });
+    }
+    setAppliedFilters(filters);
     setPageCursors([null]);
     setPageIndex(0);
     setSelectedUsers(new Map());
-    void load(null);
+    void load(null, filters);
   }
 
   function toggleCurrentPageSelection(checked: boolean) {
@@ -919,7 +954,7 @@ function UsersPanel({ user }: { user: AuthUser }) {
               <option value="tahlilapp">TahlilApp</option>
               <option value="telegram">Telegram</option>
             </select>
-            <Button type="submit" className="rounded-xl">
+            <Button type="submit" className="rounded-xl" disabled={loading}>
               <RefreshCw className="ml-2 size-4" /> اعمال فیلترها
             </Button>
             <label className="space-y-1 text-xs text-muted-foreground">
@@ -958,6 +993,79 @@ function UsersPanel({ user }: { user: AuthUser }) {
                 className="rounded-xl border-slate-200 bg-white"
               />
             </label>
+            <label className="flex items-center gap-2 text-sm md:col-span-2 xl:col-span-3">
+              <input
+                type="checkbox"
+                className="size-4 accent-emerald-600"
+                checked={includeUsage}
+                disabled={loading}
+                onChange={(event) => {
+                  const enabled = event.target.checked;
+                  setIncludeUsage(enabled);
+                  applyFilters(enabled);
+                }}
+              />
+              نمایش پرسش‌های ثبت‌شده
+            </label>
+            {includeUsage && (
+              <>
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  بازهٔ پرسش‌ها
+                  <select className="h-10 rounded-xl border bg-white px-3 text-sm" value={usagePeriod}
+                    onChange={(event) => setUsagePeriod(event.target.value)}>
+                    <option value="30">۳۰ روز اخیر</option>
+                    <option value="7">۷ روز اخیر</option>
+                    <option value="90">۹۰ روز اخیر</option>
+                    <option value="custom">بازهٔ دلخواه</option>
+                  </select>
+                </label>
+                {usagePeriod === "custom" && (
+                  <>
+                    <JalaliDateFilter label="از تاریخ" ariaLabel="شروع بازهٔ پرسش‌ها"
+                      value={questionFrom} onChange={setQuestionFrom} />
+                    <JalaliDateFilter label="تا تاریخ" ariaLabel="پایان بازهٔ پرسش‌ها"
+                      value={questionTo} onChange={setQuestionTo} />
+                  </>
+                )}
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  حداقل تعداد پرسش
+                  <Input type="number" min={0} disabled={zeroQuestions} value={minimumQuestions}
+                    onChange={(event) => setMinimumQuestions(event.target.value)} />
+                </label>
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  حداکثر تعداد پرسش
+                  <Input type="number" min={0} disabled={zeroQuestions} value={maximumQuestions}
+                    onChange={(event) => setMaximumQuestions(event.target.value)} />
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={zeroQuestions} onChange={(event) => setZeroQuestions(event.target.checked)} />
+                  بدون پرسش ثبت‌شده در بازهٔ انتخابی
+                </label>
+                {canReadSubscriptions && (
+                  <label className="grid gap-1 text-xs text-muted-foreground">
+                    طرح فعلی
+                    <select className="h-10 rounded-xl border bg-white px-3 text-sm" value={currentPlan}
+                      onChange={(event) => setCurrentPlan(event.target.value)}>
+                      <option value="">همه طرح‌ها</option>
+                      {["Free", "Plus", "Pro", "Max"].map((plan) => <option key={plan}>{plan}</option>)}
+                    </select>
+                  </label>
+                )}
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  مرتب‌سازی
+                  <select className="h-10 rounded-xl border bg-white px-3 text-sm" value={questionSort}
+                    onChange={(event) => setQuestionSort(event.target.value)}>
+                    <option value="">تازه‌ترین ثبت‌نام</option>
+                    <option value="questionCount-desc,userId-asc">بیشترین تعداد پرسش</option>
+                    <option value="questionCount-asc,userId-asc">کمترین تعداد پرسش</option>
+                  </select>
+                </label>
+                <p className="text-xs text-muted-foreground md:col-span-2 xl:col-span-3">
+                  شمارش بر اساس گفت‌وگوهای موجود است. ارسال دوباره و برخی دکمه‌های تلگرام ممکن است شمرده شوند.
+                  گفت‌وگوهای حذف‌شده و درخواست‌هایی که پیش از ثبت ناموفق بوده‌اند در شمارش دیده نمی‌شوند.
+                </p>
+              </>
+            )}
           </form>
           <Loading active={loading} />
           {canManage && (
@@ -1014,6 +1122,10 @@ function UsersPanel({ user }: { user: AuthUser }) {
                   <TableHead>اتصال‌ها</TableHead>
                   <TableHead>ثبت‌نام</TableHead>
                   <TableHead>آخرین ورود موفق</TableHead>
+                  {showingUsage && <TableHead>پرسش‌های ثبت‌شده در بازه</TableHead>}
+                  {showingUsage && <TableHead>آخرین پرسش ثبت‌شده</TableHead>}
+                  {showingUsage && canReadSubscriptions && <TableHead>طرح فعلی</TableHead>}
+                  {showingUsage && canReadCredits && <TableHead>اعتبار کسرشده پیش از بازپرداخت</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1073,6 +1185,18 @@ function UsersPanel({ user }: { user: AuthUser }) {
                     <TableCell>{item.linkedProviderCodes.join("، ") || "-"}</TableCell>
                     <TableCell>{dateLabel(item.registeredAtUtc)}</TableCell>
                     <TableCell>{dateLabel(item.lastSuccessfulLoginAtUtc)}</TableCell>
+                    {showingUsage && <TableCell>{item.recordedUsage?.questionCount.toLocaleString("fa-IR") ?? "—"}</TableCell>}
+                    {showingUsage && (
+                      <TableCell>
+                        {item.recordedUsage?.lastQuestionAtUtc
+                          ? formatTehranDateTime(item.recordedUsage.lastQuestionAtUtc)
+                          : "—"}
+                      </TableCell>
+                    )}
+                    {showingUsage && canReadSubscriptions && <TableCell>{item.recordedUsage?.currentPlanCode ?? "—"}</TableCell>}
+                    {showingUsage && canReadCredits && (
+                      <TableCell>{item.recordedUsage?.creditsChargedBeforeRefunds?.toLocaleString("fa-IR") ?? "—"}</TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

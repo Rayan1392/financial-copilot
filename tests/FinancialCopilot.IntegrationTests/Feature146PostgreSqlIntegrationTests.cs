@@ -9,6 +9,7 @@ using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Administration;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -171,6 +172,156 @@ public sealed class Feature146PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
         var otherTenantPage = await queries.GetDirectoryAsync(otherTenantId, filter with { PageSize = 100, Cursor = null }, false, false, false, CancellationToken.None);
         Assert.Single(otherTenantPage.Items);
         Assert.Equal("not_authorized", otherTenantPage.Items.Single().Subscription.Status);
+    }
+
+    [SkippableFact]
+    public async Task Recorded_usage_applies_range_count_plan_and_sort_before_paging()
+    {
+        await using var database = await fixture.CreateBillingDatabaseAsync();
+        await using var auth = database.CreateAuthContext();
+        await using var conversations = database.CreateConversationContext();
+        await using var billing = database.CreateBillingContext();
+        await auth.Database.MigrateAsync();
+        await conversations.Database.MigrateAsync();
+
+        var tenant = Guid.NewGuid();
+        var otherTenant = Guid.NewGuid();
+        var from = new DateTimeOffset(2025, 11, 3, 20, 30, 0, TimeSpan.Zero);
+        var to = from.AddDays(1);
+        var busy = NewUser("usage-busy@example.test");
+        var tieA = NewUser("usage-tie-a@example.test");
+        var tieB = NewUser("usage-tie-b@example.test");
+        var zero = NewUser("usage-zero@example.test");
+        var never = NewUser("usage-never@example.test");
+        auth.Tenants.AddRange(new TenantRow { Id = tenant, Name = "Usage" },
+            new TenantRow { Id = otherTenant, Name = "Other usage" });
+        foreach (var user in new[] { busy, tieA, tieB, zero, never })
+            AddMember(auth, tenant, user, UserOperationalMetadataCodes.Native, from, null);
+        await auth.SaveChangesAsync();
+
+        AddConversation(tenant, busy.Id, (from, "User"), (from, "Assistant"), (from, "System"));
+        AddConversation(tenant, busy.Id, (to.AddTicks(-10), "User"), (to, "User"));
+        AddConversation(otherTenant, busy.Id, (from, "User"), (from, "User"));
+        AddConversation(tenant, tieA.Id, (from, "User"));
+        AddConversation(tenant, tieB.Id, (from, "User"));
+        AddConversation(tenant, zero.Id, (from.AddDays(-1), "User"));
+        await conversations.SaveChangesAsync();
+
+        var busyAccount = AddAccount(busy, "Pro", external: true);
+        var tieAccount = AddAccount(tieA, "Pro", external: true);
+        var zeroAccount = AddAccount(zero, "Plus");
+        zeroAccount.SubscriptionEffectiveTo = to;
+        var maxWindow = AddWindow(busyAccount, "Max", DateTimeOffset.UtcNow.AddDays(2));
+        AddWindow(busyAccount, "Pro", DateTimeOffset.UtcNow.AddDays(7));
+        var expiry = DateTimeOffset.UtcNow.AddDays(7);
+        AddWindow(tieAccount, "Pro", expiry);
+        AddWindow(tieAccount, "Plus", expiry);
+        AddWindow(tieAccount, "Max", expiry.AddDays(1), revoked: true);
+        AddLedger(busyAccount, "Charge", 0, from, maxWindow);
+        AddLedger(zeroAccount, "Charge", 5, from);
+        AddLedger(zeroAccount, "Refund", 2, from.AddMinutes(10));
+        AddLedger(zeroAccount, "Adjustment", 12, from.AddMinutes(20));
+        AddLedger(zeroAccount, "Charge", 20, to);
+        await billing.SaveChangesAsync();
+
+        var directory = CreateQueries(auth, billing);
+        var query = new AdminUserDirectoryQuery(PageSize: 1, IncludeUsage: true,
+            QuestionFromUtc: from, QuestionToUtc: to, Sort: "questionCount-desc,userId-asc");
+        Task<AdminUserDirectoryPage> Get(AdminUserDirectoryQuery request, bool plans = true, bool credits = true) =>
+            directory.GetDirectoryAsync(tenant, request, plans, credits, plans || credits, CancellationToken.None);
+
+        var firstPage = await Get(query);
+        var first = Assert.Single(firstPage.Items);
+        Assert.Equal(busy.Id, first.UserId);
+        Assert.Equal(2L, first.RecordedUsage!.QuestionCount);
+        Assert.Equal(to, first.RecordedUsage.LastQuestionAtUtc);
+        Assert.Equal("Max", first.RecordedUsage.CurrentPlanCode);
+        Assert.Equal(0m, first.RecordedUsage.CreditsChargedBeforeRefunds);
+        Assert.NotNull(firstPage.NextCursor);
+
+        var secondPage = await Get(query with { Cursor = firstPage.NextCursor });
+        var thirdPage = await Get(query with { Cursor = secondPage.NextCursor });
+        Assert.Equal(firstPage.AsOfUtc, thirdPage.AsOfUtc);
+        Assert.Equal(new[] { tieA.Id, tieB.Id }.Order(),
+            new[] { Assert.Single(secondPage.Items).UserId, Assert.Single(thirdPage.Items).UserId });
+        await Assert.ThrowsAsync<AdminManagementException>(() => Get(query with
+            { Cursor = firstPage.NextCursor, MaxQuestions = 0 }));
+
+        var ascending = await Get(query with { PageSize = 10, Sort = "questionCount-asc,userId-asc" });
+        Assert.Equal(new long[] { 0, 0, 1, 1, 2 },
+            ascending.Items.Select(item => item.RecordedUsage!.QuestionCount));
+        var combined = await Get(query with { Search = "usage-zero", MinQuestions = 0, MaxQuestions = 0, CurrentPlanCode = "Free" });
+        var inactive = Assert.Single(combined.Items);
+        Assert.Equal(zero.Id, inactive.UserId);
+        Assert.False(combined.HasMore);
+        Assert.Equal(from.AddDays(-1), inactive.RecordedUsage!.LastQuestionAtUtc);
+        Assert.Equal("Free", inactive.RecordedUsage.CurrentPlanCode);
+        Assert.Equal(5m, inactive.RecordedUsage.CreditsChargedBeforeRefunds);
+
+        var tiedPlans = await Get(query with { CurrentPlanCode = "Pro" });
+        Assert.Equal(tieA.Id, Assert.Single(tiedPlans.Items).UserId);
+        var billingPlans = new SubscriptionPlanRepository(billing);
+        Assert.Equal((await billingPlans.FindForCustomerAsync(busyAccount.Id, CancellationToken.None))!.Code,
+            first.RecordedUsage.CurrentPlanCode);
+        Assert.Equal((await billingPlans.FindForCustomerAsync(tieAccount.Id, CancellationToken.None))!.Code,
+            Assert.Single(tiedPlans.Items).RecordedUsage!.CurrentPlanCode);
+        Assert.Equal((await billingPlans.FindForCustomerAsync(zeroAccount.Id, CancellationToken.None))!.Code,
+            inactive.RecordedUsage.CurrentPlanCode);
+
+        var restricted = await Get(query with { Search = "usage-busy" }, plans: false, credits: false);
+        var restrictedUsage = Assert.Single(restricted.Items).RecordedUsage!;
+        Assert.Equal(2L, restrictedUsage.QuestionCount);
+        Assert.Null(restrictedUsage.CurrentPlanCode);
+        Assert.Null(restrictedUsage.CreditsChargedBeforeRefunds);
+        var missingHistory = await Get(query with { Search = "usage-never", MaxQuestions = 0 }, plans: false, credits: false);
+        var neverRecorded = Assert.Single(missingHistory.Items).RecordedUsage!;
+        Assert.Equal(0L, neverRecorded.QuestionCount);
+        Assert.Null(neverRecorded.LastQuestionAtUtc);
+        Assert.Null(neverRecorded.CurrentPlanCode);
+        Assert.Null(neverRecorded.CreditsChargedBeforeRefunds);
+        await Assert.ThrowsAsync<AdminManagementException>(() => Get(query with { CurrentPlanCode = "Max" }, plans: false));
+
+        void AddConversation(Guid scope, Guid actorId, params (DateTimeOffset CreatedAt, string Role)[] messages)
+        {
+            var id = Guid.NewGuid();
+            conversations.Conversations.Add(new ConversationRow
+            {
+                Id = id, TenantId = scope, ActorId = actorId, StartedAt = from, UpdatedAt = to, Title = "Usage"
+            });
+            conversations.Messages.AddRange(messages.Select(message => new MessageRow
+            {
+                Id = Guid.NewGuid(), ConversationId = id, Role = message.Role, CreatedAt = message.CreatedAt
+            }));
+        }
+
+        CustomerAccountRow AddAccount(FinancialCopilotUser user, string plan, bool external = false)
+        {
+            var account = new CustomerAccountRow
+            {
+                Id = Guid.NewGuid(), TenantId = tenant, UserId = user.Id, AccountType = "user", BillingMode = "wallet",
+                SubscriptionPlanCode = plan, ExternalSubscriptionManaged = external, SubscriptionEffectiveFrom = from
+            };
+            billing.CustomerAccounts.Add(account);
+            return account;
+        }
+
+        ExternalPlanSubscriptionRow AddWindow(CustomerAccountRow account, string plan, DateTimeOffset expires, bool revoked = false) =>
+            billing.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
+            {
+                Id = Guid.NewGuid(), CustomerAccountId = account.Id, IdentityKey = plan, PlanCode = plan,
+                StartsAtUtc = from, ExpiresAtUtc = expires, IsRevoked = revoked
+            }).Entity;
+
+        void AddLedger(CustomerAccountRow account, string kind, decimal credits, DateTimeOffset occurred,
+            ExternalPlanSubscriptionRow? unlimitedWindow = null) =>
+            billing.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+            {
+                Id = Guid.NewGuid(), TenantId = tenant, CustomerAccountId = account.Id, ActorId = account.UserId!.Value,
+                EntryType = kind, CreditsCharged = credits, OccurredAt = occurred,
+                QuotaMode = unlimitedWindow is null ? "Finite" : "Unlimited",
+                SourceSubscriptionId = unlimitedWindow?.Id, SourceSubscriptionExpiresAtUtc = unlimitedWindow?.ExpiresAtUtc,
+                IdempotencyKey = Guid.NewGuid().ToString("N"), PricingPolicyVersion = "test", OperationCode = "AiQuery.Scanner"
+            });
     }
 
     [SkippableFact]

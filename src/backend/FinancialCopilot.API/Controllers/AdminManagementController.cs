@@ -40,9 +40,13 @@ public sealed class AdminManagementController(
 
     [HttpGet("users/directory")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
-    public async Task<AdminUserDirectoryPage> GetUserDirectory([FromQuery] AdminUserDirectoryQuery query, CancellationToken cancellationToken)
+    public async Task<ActionResult<AdminUserDirectoryPage>> GetUserDirectory([FromQuery] AdminUserDirectoryQuery query, CancellationToken cancellationToken)
     {
         var canReadSubscription = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded;
+        if (!canReadSubscription && !string.IsNullOrWhiteSpace(query.CurrentPlanCode))
+        {
+            return Forbid();
+        }
         var canReadCredits = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminUsageLedgerRead)).Succeeded;
         var canManageSubscription = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsManage)).Succeeded;
         var canAdjustCredits = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminCreditsAdjust)).Succeeded;

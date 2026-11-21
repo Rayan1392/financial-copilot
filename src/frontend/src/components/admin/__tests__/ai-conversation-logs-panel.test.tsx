@@ -9,10 +9,11 @@ import {
 } from "@/integrations/financial-copilot/admin-client";
 import { formatDisclosureReceiptDate } from "@/lib/format/disclosure";
 
-// Every other admin call stays pending: only the conversation-log calls are observed here.
+// Other admin calls stay pending unless the test gives them a response.
 const api = vi.hoisted(() => ({
   aiConversationLogs: vi.fn(),
   aiConversationLogTurn: vi.fn(),
+  userDirectory: vi.fn(),
 }));
 vi.mock("@/integrations/financial-copilot/admin-client", async (importOriginal) => {
   const actual =
@@ -61,9 +62,43 @@ beforeEach(() => {
   vi.setSystemTime(now);
   api.aiConversationLogs.mockReset();
   api.aiConversationLogTurn.mockReset();
+  api.userDirectory.mockReset();
+  api.userDirectory.mockReturnValue(new Promise(() => {}));
   api.aiConversationLogTurn.mockReturnValue(new Promise(() => {}));
 });
 afterEach(() => vi.useRealTimers());
+
+describe("Admin Users directory usage filters", () => {
+  it("keeps the initial directory request unchanged and applies a period-specific zero filter", async () => {
+    api.userDirectory.mockResolvedValue({ items: [], nextCursor: null, hasMore: false, asOfUtc: now.toISOString() });
+    render(<AdminPage user={{
+      userId: "admin", email: "admin@example.test", tenantId: "t", roles: [], permissions: ["admin.users.read"],
+    }} />);
+
+    const toggle = screen.getByRole("checkbox", { name: "نمایش پرسش‌های ثبت‌شده" });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(api.userDirectory).toHaveBeenLastCalledWith({ pageSize: 10, cursor: null, status: "any" });
+    fireEvent.click(toggle);
+    await waitFor(() => expect(api.userDirectory).toHaveBeenLastCalledWith(expect.objectContaining({
+      includeUsage: true,
+      questionFromUtc: "2026-10-03T20:30:00.000Z",
+      questionToUtc: "2026-11-02T20:30:00.000Z",
+    })));
+
+    fireEvent.change(screen.getByRole("combobox", { name: "بازهٔ پرسش‌ها" }), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "بدون پرسش ثبت‌شده در بازهٔ انتخابی" }));
+    const apply = screen.getByRole("button", { name: "اعمال فیلترها" });
+    await waitFor(() => expect(apply).toBeEnabled());
+    fireEvent.click(apply);
+    await waitFor(() => expect(api.userDirectory).toHaveBeenLastCalledWith(expect.objectContaining({
+      cursor: null,
+      questionFromUtc: "2026-10-26T20:30:00.000Z",
+      questionToUtc: "2026-11-02T20:30:00.000Z",
+      maxQuestions: 0,
+    })));
+    expect(screen.queryByRole("combobox", { name: "طرح فعلی" })).not.toBeInTheDocument();
+  });
+});
 
 describe("AiConversationLogsPanel", () => {
   it("shows the tab only to administrators who can read users", () => {

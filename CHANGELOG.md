@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-21
+
+### Added
+
+- در فهرست کاربران پنل مدیریت، مدیران می‌توانند کاربران را بر اساس تعداد پرسش‌های ثبت‌شده در بازهٔ انتخابی و طرح اشتراک فعلی فیلتر کنند و آخرین پرسش ثبت‌شده را ببینند.
+
 ### Fixed
 
 - در نمودار «روند جریان نقد» صورت جریان وجوه نقد، نام سری‌ها در راهنمای نمودار (مثل «سرمایه‌گذاری» که پیش‌تر به رنگ کهربایی روی زمینهٔ سفید بود) با رنگ تیره و خوانا نوشته می‌شود و رنگ هر سری روی مربع کوچک کنار نامش می‌ماند، همانند تصویر دانلودشده.
@@ -426,7 +432,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.0...develop
+[1.21.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.1...v1.21.0
 [1.20.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.0...v1.20.1
 [1.20.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.18.0...v1.19.0

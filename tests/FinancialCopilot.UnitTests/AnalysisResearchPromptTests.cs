@@ -79,7 +79,7 @@ public sealed class AnalysisResearchPromptTests
     {
         foreach (var prompt in PromptsFor(new AnalysisChoice(depth, false)))
         {
-            Assert.Contains(ReportGroundedAnalysis.NoWebRules, prompt);
+            Assert.Contains(ReportGroundedAnalysis.ForCompanyData(ReportGroundedAnalysis.NoWebRules), prompt);
             Assert.Contains("well-established knowledge of how the company's industry works", prompt);
             Assert.Contains("Do not add news, events, dates or figures from outside the report", prompt);
             Assert.Contains("never say or imply that you checked online or current information", prompt);

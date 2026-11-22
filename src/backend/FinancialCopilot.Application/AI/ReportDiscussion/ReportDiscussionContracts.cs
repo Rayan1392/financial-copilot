@@ -13,7 +13,12 @@ public enum ReportFamily
 {
     QuarterlyIncomeStatement,
     BalanceSheet,
-    MonthlySales
+    MonthlySales,
+    /// <summary>
+    /// Change «local-company-data-context»: only a supporting section of the company data pack. It is never an active
+    /// report: <see cref="ActiveReportResolver"/> does not return it (OQ-110 keeps the discussable cash-flow family open).
+    /// </summary>
+    CashFlowStatement
 }
 
 /// <summary>What the single discussion model call decided for the turn (D3).</summary>
@@ -99,11 +104,14 @@ public sealed record ReportDataSet(
 
 public sealed record ReportDiscussionHistoryMessage(MessageRole Role, string Content);
 
+/// <param name="Data">What the numeric grounding check compares against: the report, or the union of the pack sections sent.</param>
+/// <param name="DataFacts">Change «local-company-data-context»: what the budget sent; null on the legacy and routing prompts.</param>
 public sealed record ReportDiscussionPrompt(
     string SystemPrompt,
     string UserContent,
     ReportDataSet Data,
-    int EstimatedInputTokens);
+    int EstimatedInputTokens,
+    CompanyDataBudgetFacts? DataFacts = null);
 
 public sealed record ReportDiscussionModelReply(
     ReportDiscussionDisposition Disposition,
@@ -151,7 +159,9 @@ public sealed record ReportDiscussionDiagnostics(
     // Change «sol-deep-analysis-web-search»: the routing step's decision and the external evidence counts.
     string? DispositionStep = null,
     int ExternalMarkers = 0,
-    int ExternalItemsRemoved = 0);
+    int ExternalItemsRemoved = 0,
+    // Change «local-company-data-context» (FR-12): the sections sent and left out, and the budget step reached.
+    CompanyDataBudgetFacts? DataFacts = null);
 
 public static class ReportDiscussionReasonCodes
 {

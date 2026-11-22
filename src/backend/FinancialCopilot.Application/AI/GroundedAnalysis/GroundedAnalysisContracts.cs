@@ -59,11 +59,16 @@ public sealed record GroundedAnalysisOffer(
     DateTimeOffset ExpiresAt);
 
 /// <summary>Persisted on an answered analysis: what ran and at which tier (no amount, no token count).</summary>
+/// <param name="SectionsUsed">
+/// Change «local-company-data-context» (T18): the data pack sections sent, primary first. Null on runs stored before
+/// the change.
+/// </param>
 public sealed record GroundedAnalysisRun(
     string Depth,
     bool WebSearch,
     string Tier,
-    string Model);
+    string Model,
+    IReadOnlyList<string>? SectionsUsed = null);
 
 /// <summary>
 /// The facts of one analysis call for cost telemetry (FR-13): monitoring only, never an input to billing (PO-7).

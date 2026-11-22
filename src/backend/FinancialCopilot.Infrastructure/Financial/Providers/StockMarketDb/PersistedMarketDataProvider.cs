@@ -93,6 +93,24 @@ public sealed class PersistedMarketDataProvider(
         return new BatchMarketQuoteResult(observations.Values.ToArray(), unavailable);
     }
 
+    public async Task<IReadOnlyList<MarketQuoteObservation>> GetCanonicalTradePricesAsync(
+        IReadOnlyCollection<string> requestedIsins,
+        DateTimeOffset now,
+        TimeSpan intradayFreshness,
+        CancellationToken cancellationToken)
+    {
+        if (requestedIsins.Count == 0) return [];
+        var isins = requestedIsins.Distinct(StringComparer.Ordinal).ToArray();
+        var instruments = await dbContext.TradingInstruments.AsNoTracking()
+            .Where(row => row.IsActive && isins.Contains(row.InstrumentIsin.Trim().ToUpper()))
+            .Select(row => new { row.Id, Isin = row.InstrumentIsin.Trim().ToUpper() })
+            .ToListAsync(cancellationToken);
+        var idsByIsin = instruments.ToLookup(row => row.Isin, row => row.Id, StringComparer.Ordinal);
+        var idsBySymbol = isins.ToDictionary(isin => isin, isin => idsByIsin[isin].ToList(), StringComparer.Ordinal);
+        var today = DateOnly.FromDateTime(now.ToOffset(TimeSpan.FromHours(3.5)).DateTime);
+        return await ResolveFromCanonicalTradeTablesAsync(idsBySymbol, today, cancellationToken, now, now - intradayFreshness);
+    }
+
     /// <summary>
     /// Latest canonical trade per symbol, for all symbols in two aggregate queries: today's latest intraday
     /// snapshot per instrument, else the latest daily trade per instrument. Same precedence as before (intraday
@@ -102,7 +120,9 @@ public sealed class PersistedMarketDataProvider(
     private async Task<IReadOnlyList<MarketQuoteObservation>> ResolveFromCanonicalTradeTablesAsync(
         IReadOnlyDictionary<string, List<Guid>> instrumentIdsBySymbol,
         DateOnly today,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateTimeOffset? asOf = null,
+        DateTimeOffset? intradayFreshSince = null)
     {
         var allIds = instrumentIdsBySymbol.Values.SelectMany(ids => ids).Distinct().ToList();
         if (allIds.Count == 0)
@@ -112,6 +132,11 @@ public sealed class PersistedMarketDataProvider(
 
         var todays = dbContext.IntradayTradeSnapshots.AsNoTracking()
             .Where(row => allIds.Contains(row.TradingInstrumentId) && row.TradingDate == today);
+        if (asOf.HasValue && intradayFreshSince.HasValue)
+        {
+            todays = todays.Where(row => row.LastTradedPrice > 0 && row.TradingTime != null &&
+                row.ReceivedAt > intradayFreshSince.Value && row.ReceivedAt <= asOf.Value);
+        }
         var latestIntradayTimes = todays
             .GroupBy(row => row.TradingInstrumentId)
             .Select(group => new { InstrumentId = group.Key, TradingTime = group.Max(row => row.TradingTime) });
@@ -133,6 +158,11 @@ public sealed class PersistedMarketDataProvider(
         {
             var trades = dbContext.DailyInstrumentTrades.AsNoTracking()
                 .Where(row => needDaily.Contains(row.TradingInstrumentId));
+            if (asOf.HasValue)
+            {
+                trades = trades.Where(row => row.LastTradedPrice > 0 && row.TradingDate <= today &&
+                    row.SourceInsertedAt <= asOf.Value);
+            }
             var latestDates = trades
                 .GroupBy(row => row.TradingInstrumentId)
                 .Select(group => new { InstrumentId = group.Key, TradingDate = group.Max(row => row.TradingDate) });
@@ -163,7 +193,8 @@ public sealed class PersistedMarketDataProvider(
                     MarketQuoteSource.LiveQuote,
                     new FinancialSourceEvidence(intraday.ProviderName, intraday.ReceivedAt, intraday.ReceivedAt),
                     intraday.TradingDate,
-                    "IntradayToday"));
+                    "IntradayToday",
+                    intraday.TradingInstrumentId));
                 continue;
             }
 
@@ -185,7 +216,8 @@ public sealed class PersistedMarketDataProvider(
                 MarketQuoteSource.PreviousTradingDay,
                 new FinancialSourceEvidence(daily.ProviderName, daily.SourceInsertedAt, daily.SourceInsertedAt),
                 daily.TradingDate,
-                "LatestDailyFallback"));
+                "LatestDailyFallback",
+                daily.TradingInstrumentId));
         }
 
         return result;

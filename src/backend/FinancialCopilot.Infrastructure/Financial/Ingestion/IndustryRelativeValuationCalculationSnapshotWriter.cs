@@ -49,26 +49,25 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
             if (db.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
                 await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);
 
-            var existing = await db.IndustryRelativeValuationCalculations
-                .SingleOrDefaultAsync(row => row.CalculationDate == calculationDate &&
-                                             row.GroupId == input.GroupId &&
-                                             row.SourceBarrierHash == input.SourceBarrier.SourceBarrierHash,
-                    cancellationToken);
-            if (existing is not null)
+            var isVersionedInput = input.InputSourceVersion is not null;
+            var sameGroupDay = db.IndustryRelativeValuationCalculations
+                .Where(row => row.CalculationDate == calculationDate && row.GroupId == input.GroupId);
+            var sameSource = sameGroupDay.Where(row => row.InputSourceVersion == input.InputSourceVersion);
+            var existing = isVersionedInput
+                ? await sameSource.OrderByDescending(row => row.CalculationVersion).FirstOrDefaultAsync(cancellationToken)
+                : await sameSource.SingleOrDefaultAsync(row => row.SourceBarrierHash == input.SourceBarrier.SourceBarrierHash, cancellationToken);
+            if (existing is not null && existing.SourceBarrierHash == input.SourceBarrier.SourceBarrierHash &&
+                (!isVersionedInput || (existing.GroupTitleSnapshot == input.GroupTitle && existing.ValidUntilUtc == input.ValidUntilUtc)))
             {
                 logger?.LogInformation("Feature 125 calculation retry is idempotent for group {GroupId}, date {CalculationDate}, calculation {CalculationId}, version {Version}.", input.GroupId, calculationDate, existing.Id, existing.CalculationVersion);
                 return new(existing.Id, existing.CalculationVersion, existing.Status, true);
             }
 
-            var benchmarkReady = input.SourceBarrier.IsComplete && input.Result.Benchmarks.All(x => x.IsAvailable);
+            var benchmarkReady = input.SourceBarrier.IsComplete && input.Result.Benchmarks.All(x => x.IsAvailable) &&
+                                 (input.InputSourceVersion is null || input.ValidUntilUtc > calculatedAtUtc);
             var status = benchmarkReady ? "Published" : "Inconclusive";
-            var latest = await db.IndustryRelativeValuationCalculations
-                .SingleOrDefaultAsync(row => row.CalculationDate == calculationDate &&
-                                             row.GroupId == input.GroupId &&
-                                             row.IsLatestEvaluation,
-                    cancellationToken);
-            var nextVersion = await db.IndustryRelativeValuationCalculations
-                .Where(row => row.CalculationDate == calculationDate && row.GroupId == input.GroupId)
+            var latest = isVersionedInput ? null : await sameSource.SingleOrDefaultAsync(row => row.IsLatestEvaluation, cancellationToken);
+            var nextVersion = await sameGroupDay
                 .Select(row => (int?)row.CalculationVersion)
                 .MaxAsync(cancellationToken) ?? 0;
 
@@ -99,10 +98,12 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
                     selection.PersistedAtUtc,
                     selection.SourceWatermark
                 })),
+                InputSourceVersion = input.InputSourceVersion,
+                ValidUntilUtc = input.ValidUntilUtc,
                 CalculatedAtUtc = calculatedAtUtc,
                 PublishedAtUtc = status == "Published" ? calculatedAtUtc : null,
-                IsLatestEvaluation = true,
-                IsSelectedCurrent = status == "Published"
+                IsLatestEvaluation = !isVersionedInput,
+                IsSelectedCurrent = !isVersionedInput && status == "Published"
             };
 
             // Only a successful Published commit may replace the published pointer.
@@ -148,7 +149,7 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
         }
 
             await db.SaveChangesAsync(cancellationToken);
-            if (status == "Published")
+            if (status == "Published" && !isVersionedInput)
                 await (watchEvaluationService ?? new IndustryWatchEvaluationService(db, new()))
                     .EvaluateAsync(input.GroupId, calculation.Id, "Daily", calculatedAtUtc, cancellationToken, manageTransaction: false);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);

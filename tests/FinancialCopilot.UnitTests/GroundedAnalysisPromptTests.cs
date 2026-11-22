@@ -143,23 +143,42 @@ public sealed class GroundedAnalysisPromptTests
 
     private static void AssertCommonSections(string prompt, AnalysisDepth depth, bool web)
     {
+        // Change «local-company-data-context» (FR-5, FR-6): every analysis prompt names <company_data>, never <report>.
+        static string Data(string section) => ReportGroundedAnalysis.ForCompanyData(section);
+        Assert.DoesNotContain("<report>", prompt);
+        Assert.Contains("<company_data> is Sapio's own copy of this company's financial data", prompt);
         Assert.Contains(ReportGroundedAnalysis.AnalystRole, prompt);
         Assert.Contains(ReportGroundedAnalysis.ResearchMindset, prompt);
         Assert.Contains(ReportGroundedAnalysis.AnalysisDimensions, prompt);
-        Assert.Contains(ReportGroundedAnalysis.UnitRules, prompt);
+        Assert.Contains(Data(ReportGroundedAnalysis.UnitRules), prompt);
         Assert.Contains(ReportGroundedAnalysis.NoValuationRules, prompt);
-        Assert.Contains(ReportGroundedAnalysis.EvidenceClasses(web), prompt);
+        Assert.Contains(Data(ReportGroundedAnalysis.EvidenceClasses(web)), prompt);
         Assert.Contains(GroundedAnswerLayout.AnalysisPromptRules(depth), prompt);
         if (web)
         {
-            Assert.Contains(ReportGroundedAnalysis.WebSearchUseRule(depth) + ReportGroundedAnalysis.WebRules, prompt);
-            Assert.DoesNotContain(ReportGroundedAnalysis.NoWebRules, prompt);
+            Assert.Contains(Data(ReportGroundedAnalysis.WebSearchUseRule(depth) + ReportGroundedAnalysis.WebRules), prompt);
+            Assert.DoesNotContain(Data(ReportGroundedAnalysis.NoWebRules), prompt);
+            // AC-6: no search for figures Sapio holds; the other search targets stay (G1, G2).
+            Assert.Contains("Never search the web for this company's financial statements, its monthly activity report totals", prompt);
+            Assert.Contains("Product-level detail (sales, quantities and rates of each product) is not in <company_data> and may be searched", prompt);
+            Assert.Contains("the company's disclosures on codal.ir", prompt);
+            if (depth == AnalysisDepth.Deep)
+            {
+                Assert.Contains("raw-material and product prices", prompt);
+                Assert.Contains("and the company's own disclosures", prompt);
+            }
+            else
+            {
+                Assert.Contains("a price or rate change", prompt);
+                Assert.Contains("the company's own disclosure about this period", prompt);
+            }
         }
         else
         {
-            Assert.Contains(ReportGroundedAnalysis.NoWebRules, prompt);
+            Assert.Contains(Data(ReportGroundedAnalysis.NoWebRules), prompt);
             Assert.DoesNotContain("[W1]", prompt);
             Assert.DoesNotContain("codal.ir", prompt);
+            Assert.DoesNotContain("Never search the web", prompt);
         }
     }
 

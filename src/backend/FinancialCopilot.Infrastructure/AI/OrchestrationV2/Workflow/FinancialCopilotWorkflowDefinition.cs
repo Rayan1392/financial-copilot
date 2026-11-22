@@ -301,6 +301,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var reservation = await billingFunctions.TryReserveAsync(request, ct);
         try
         {
+            if (PeerComparisonIntentRules.ShouldRouteEarly(request, capabilityAvailability))
+            {
+                var peerComparison = await dialogueGate.PrepareForV2Async(request, conversationId, ct);
+                return new WorkflowStartMessage(
+                    peerComparison.Request, conversationId, createConversation, timeProvider.GetUtcNow(), reservation);
+            }
+
             // Feature 162: a question about the conversation's active report is answered without the dialogue gate;
             // a hand-back runs the gate and the normal route exactly as before, carrying the marker to persistence.
             var discussion = await TryReportDiscussionAsync(
@@ -322,7 +329,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     request, conversationId, createConversation, timeProvider.GetUtcNow(), reservation, discussion);
             }
 
-            var prepared = await dialogueGate.PrepareAsync(request, conversationId, ct);
+            var prepared = await dialogueGate.PrepareForV2Async(request, conversationId, ct);
             var preparedRequest = discussion.Kind == ReportDiscussionTurnKind.HandBack
                 ? prepared.Request with { ReportDiscussionHandBack = discussion.Marker }
                 : prepared.Request;
@@ -376,6 +383,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 if (turn.AnalysisFacts is { } facts)
                     groundedAnalysisTelemetry?.Record(facts, turn.BillingCompletionStatus, diagnostics?.Disposition,
                         Stopwatch.GetElapsedTime(started), request.CorrelationId);
+                groundedAnalysisTelemetry?.RecordDataPack("162", diagnostics?.DataFacts, turn.Sources, request.CorrelationId);
             }
             return turn;
         }
@@ -570,7 +578,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId,
                     request.Context?.MonthlyActivityTrendReportYear,
                     request.Context?.MonthlyActivityTrendReportMonth,
-                    request),
+                    request,
+                    IsAgentWorkflowV2: true),
                 request,
                 msg.Reservation,
                 deferSettlementForFallback: true,
@@ -619,6 +628,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             var canUseFeature141 = directFeature141 is null && !policyBlocked && !IsCyclicalWavesMode
                 && !IsSourceOverridden(semanticFrame.CapabilityCode)
                 && semanticFrame.CapabilityCode != SymbolSnapshotCapability.Code
+                && semanticFrame.CapabilityCode != ChatCapabilityAvailability.PeerComparisonCapabilityCode
                 && semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired
                 or CapabilityExecutionStatus.DisambiguationRequired
                 or CapabilityExecutionStatus.Unsupported
@@ -1828,6 +1838,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (result.AnalysisFacts is { } facts)
             groundedAnalysisTelemetry?.Record(facts, completionStatus, result.Diagnostics?.Disposition ?? result.Kind.ToString(),
                 Stopwatch.GetElapsedTime(started), request.CorrelationId);
+        groundedAnalysisTelemetry?.RecordDataPack("163", result.Diagnostics?.DataFacts, result.Sources, request.CorrelationId);
 
         var turn = result.Kind switch
         {

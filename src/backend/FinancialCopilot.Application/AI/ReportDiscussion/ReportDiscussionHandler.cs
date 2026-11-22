@@ -19,7 +19,10 @@ public sealed class ReportDiscussionHandler(
     // registered) the existing single-call path runs unchanged (rollback, design-proposal §15).
     IReportDiscussionAnalysisModel? analysisModel = null,
     GroundedAnalysisOptions? analysisOptions = null,
-    GroundedAnalysisPricing? analysisPricing = null)
+    GroundedAnalysisPricing? analysisPricing = null,
+    // Change «local-company-data-context»: the company's other statements and monthly activity (FR-1 … FR-4). Null or
+    // DataPack:Enabled false = only the active report, as before the change (FR-13).
+    CompanyAnalysisDataPackLoader? dataPack = null)
 {
     /// <summary>Same lifetime as every other suggestion selection (ConversationTaskStateService).</summary>
     private static readonly TimeSpan SuggestionLifetime = TimeSpan.FromMinutes(30);
@@ -187,18 +190,25 @@ public sealed class ReportDiscussionHandler(
 
         var choice = request.AnalysisOptions?.Resolve(analysisOptions!.DefaultChoice) ?? analysisOptions!.DefaultChoice;
         var profile = new GroundedAnalysisProfiles(analysisOptions).For(choice.Depth);
-        if (_contextBuilder.BuildAnalysis(data, messages, question, choice, profile.InputTokenTarget) is not { } prompt)
+        // FR-3: the pack is read only for a turn the routing step answers; a hand-back has returned above.
+        var pack = dataPack is { Enabled: true }
+            ? await dataPack.LoadAsync(data, cancellationToken)
+            : CompanyDataPack.PrimaryOnly(data);
+        // FR-8, FR-9 (BUG-042): over the target the data is trimmed; only the hard ceiling refuses.
+        if (_contextBuilder.BuildAnalysis(pack, messages, question, choice, profile.InputTokenTarget,
+                analysisOptions!.MaxInputTokens) is not { } prompt)
         {
             return Reply(report, ReportDiscussionDisposition.NarrowRequired, ReportDiscussionMessages.NarrowRequired(report),
                 DialogueOutcome.NoData, ReportDiscussionReasonCodes.NarrowRequired, SemanticBillingCompletionStatus.NoData,
-                routed with { Disposition = nameof(ReportDiscussionDisposition.NarrowRequired) });
+                routed with { Disposition = nameof(ReportDiscussionDisposition.NarrowRequired), Reason = "over_max_input_tokens" });
         }
 
         // FR-11: the hold covers the fixed tier before the model call; a short balance stops here (no model call).
         if (ensureBillingCapacity is not null)
             await ensureBillingCapacity(pricing.CreditsFor(choice), cancellationToken);
 
-        var run = new GroundedAnalysisRun(choice.Depth.ToString(), choice.WebSearch, choice.Tier, profile.Model);
+        var run = new GroundedAnalysisRun(choice.Depth.ToString(), choice.WebSearch, choice.Tier, profile.Model,
+            prompt.DataFacts?.SectionsSent);
         ReportDiscussionAnalysisReply reply;
         try
         {
@@ -206,9 +216,11 @@ public sealed class ReportDiscussionHandler(
         }
         catch (ReportDiscussionModelUnavailableException exception)
         {
-            return ProviderUnavailable(report, family, prompt.EstimatedInputTokens, prompt.Data.Facts.Count, exception.Reason) with
+            var unavailable = ProviderUnavailable(report, family, prompt.EstimatedInputTokens, prompt.Data.Facts.Count, exception.Reason);
+            return unavailable with
             {
-                AnalysisRun = run
+                AnalysisRun = run,
+                Diagnostics = unavailable.Diagnostics! with { DataFacts = prompt.DataFacts }
             };
         }
 
@@ -216,7 +228,8 @@ public sealed class ReportDiscussionHandler(
         {
             Disposition = reply.Disposition.ToString(),
             EstimatedInputTokens = prompt.EstimatedInputTokens,
-            FactCount = prompt.Data.Facts.Count
+            FactCount = prompt.Data.Facts.Count,
+            DataFacts = prompt.DataFacts
         };
         var facts = new GroundedAnalysisCallFacts(choice, reply.Usage, reply.ConsultedSources.Count);
         if (reply.Disposition == ReportDiscussionDisposition.MissingInReport)

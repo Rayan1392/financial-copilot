@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.FinancialData.BalanceSheetReport;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.CashFlowReport;
 
 namespace FinancialCopilot.Application.AI.ReportDiscussion;
 
@@ -26,13 +27,93 @@ public static class ReportDataSetBuilder
             ? Quarterly(report, quarterly)
             : null,
         ReportFamily.BalanceSheet => report.Payload.FinancialStatementTableResult?.BalanceSheetReport is { } balance
-            ? BalanceSheet(report, balance)
+            ? BalanceSheet(Describe(report), balance)
             : null,
         ReportFamily.MonthlySales => report.Payload.MonthlyActivityTrendResult is { } monthly
-            ? Monthly(report, monthly)
+            ? Monthly(Describe(report), monthly)
             : null,
         _ => null
     };
+
+    // ---- Change «local-company-data-context» (T05, T06): the same projections from a plain query result, for the
+    // supporting sections of the company data pack. Null when the result is not usable or has no fact. ----
+
+    /// <summary>A Feature 154 balance sheet result as a section.</summary>
+    public static ReportDataSet? BuildBalanceSheet(BalanceSheetReportResult? balance) =>
+        balance is { Outcome: BalanceSheetOutcomes.Available, Snapshots.Count: > 0 }
+            ? WithFacts(BalanceSheet(new DiscussableReport(ReportFamily.BalanceSheet, balance.Company.Symbol, balance.Company.Name,
+                balance.Company.ProviderName), balance))
+            : null;
+
+    /// <summary>A Feature 120 monthly activity trend (company totals) as a section.</summary>
+    public static ReportDataSet? BuildMonthly(MonthlyActivityTrendResponse? trend) =>
+        trend is not null && (trend.LatestMonthlySalesAmount is not null || trend.ChartPoints.Count > 0)
+            ? WithFacts(Monthly(new DiscussableReport(ReportFamily.MonthlySales, trend.CompanySymbol, trend.CompanyName,
+                trend.SourceProviderName), trend))
+            : null;
+
+    /// <summary>
+    /// A Feature 161 cash flow statement as a section: every reported cell of every available column as a fact, and the
+    /// report's own available or unverified metrics as calculations (copied, never recomputed).
+    /// </summary>
+    public static ReportDataSet? BuildCashFlow(CashFlowReportResult? report)
+    {
+        if (report is null || !string.Equals(report.Outcome, CashFlowAvailable, StringComparison.Ordinal)) return null;
+        var columns = report.Columns
+            .Where(column => string.Equals(column.State, CashFlowAvailable, StringComparison.Ordinal))
+            .OrderByDescending(column => column.PeriodEnd ?? DateOnly.MinValue)
+            .ThenByDescending(column => column.PeriodMonths)
+            .ToArray();
+        if (columns.Length == 0) return null;
+
+        var unit = report.Metadata?.Unit ?? report.Statements.Values.FirstOrDefault()?.Unit ?? "million_irr";
+        var ids = new EvidenceIds();
+        var periodLabels = columns.Select(column => Clean(column.Label)).ToArray();
+        var rankByColumn = columns.Select((column, rank) => (column.ColumnId, rank))
+            .ToDictionary(item => item.ColumnId, item => item.rank, StringComparer.Ordinal);
+        var facts = new List<ReportFact>();
+        foreach (var row in report.Sections.SelectMany(section => section.Rows))
+        {
+            for (var rank = 0; rank < columns.Length; rank++)
+            {
+                if (!row.Cells.TryGetValue(columns[rank].ColumnId, out var cell) || cell.Value is not { } value) continue;
+                if (!IsUsableCashFlowState(cell.State)) continue;
+                facts.Add(new ReportFact(ids.NextFact(), CashFlowLabel(row.Label, cell.State), periodLabels[rank], value, unit, rank));
+            }
+        }
+
+        var calculations = new List<ReportCalculation>();
+        foreach (var kpi in report.Kpis)
+        {
+            if (kpi.Value is not { } value || !IsUsableCashFlowState(kpi.State) ||
+                !rankByColumn.TryGetValue(kpi.ColumnId, out var rank))
+                continue;
+            calculations.Add(new ReportCalculation(ids.NextCalculation(), CashFlowLabel(kpi.Label, kpi.State),
+                periodLabels[rank], Round(value), kpi.Unit, kpi.Formula, [], rank));
+        }
+
+        if (facts.Count == 0) return null;
+        return new ReportDataSet(ReportFamily.CashFlowStatement, report.Company.Symbol ?? string.Empty, report.Company.Name,
+            report.Metadata?.BasisLabel ?? "جداگانه (شرکت اصلی)", report.Company.ProviderName, periodLabels, facts, calculations);
+    }
+
+    private const string CashFlowAvailable = "available";
+    private const string CashFlowUnverified = "unverified";
+
+    private static bool IsUsableCashFlowState(string state) =>
+        string.Equals(state, CashFlowAvailable, StringComparison.Ordinal) ||
+        string.Equals(state, CashFlowUnverified, StringComparison.Ordinal);
+
+    /// <summary>The report's own caveat (CashFlowAnalysisFacts) travels with an unverified value.</summary>
+    private static string CashFlowLabel(string label, string state) =>
+        string.Equals(state, CashFlowUnverified, StringComparison.Ordinal) ? $"{label} (تطبیق کامل ممکن نیست)" : label;
+
+    private static string Clean(string text) => text.ReplaceLineEndings(" ").Trim();
+
+    private static ReportDataSet? WithFacts(ReportDataSet data) => data.Facts.Count > 0 ? data : null;
+
+    private static DiscussableReport Describe(ActiveReport report) =>
+        new(report.Family, report.CompanySymbol, report.CompanyName, report.ProviderName);
 
     public static string UnitLabel(string unit) => unit switch
     {
@@ -53,6 +134,7 @@ public static class ReportDataSetBuilder
         ReportFamily.QuarterlyIncomeStatement => "صورت سود و زیان فصلی",
         ReportFamily.BalanceSheet => "ترازنامه",
         ReportFamily.MonthlySales => "گزارش فروش ماهانه",
+        ReportFamily.CashFlowStatement => "صورت جریان وجوه نقد",
         _ => "گزارش"
     };
 
@@ -142,7 +224,7 @@ public static class ReportDataSetBuilder
             periodLabels, facts, calculations);
     }
 
-    private static ReportDataSet BalanceSheet(ActiveReport report, BalanceSheetReportResult balance)
+    private static ReportDataSet BalanceSheet(DiscussableReport report, BalanceSheetReportResult balance)
     {
         var ids = new EvidenceIds();
         var snapshots = balance.Snapshots.Values
@@ -202,7 +284,7 @@ public static class ReportDataSetBuilder
             "جداگانه (شرکت اصلی)", balance.Company.ProviderName, periodLabels, facts, calculations);
     }
 
-    private static ReportDataSet Monthly(ActiveReport report, MonthlyActivityTrendResponse trend)
+    private static ReportDataSet Monthly(DiscussableReport report, MonthlyActivityTrendResponse trend)
     {
         var ids = new EvidenceIds();
         var unit = trend.UnitLabelFa;

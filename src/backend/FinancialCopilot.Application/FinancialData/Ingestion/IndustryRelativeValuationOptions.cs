@@ -5,6 +5,8 @@ public sealed class IndustryRelativeValuationOptions
 {
     public const string SectionName = "IndustryRelativeValuation";
     public bool Enabled { get; init; }
+    public bool CyclicalWavesV2Enabled { get; init; }
+    public int CyclicalWavesV2CadenceMinutes { get; init; } = 5;
     public int DailyCadenceMinutes { get; init; } = 1440;
     public int SourceFreshnessHours { get; init; } = 26;
     public decimal IqrMultiplier { get; init; } = 1.5m;
@@ -16,6 +18,7 @@ public sealed class IndustryRelativeValuationOptions
     public bool IsValid(out string error)
     {
         if (DailyCadenceMinutes is < 1440 or > 10080) return Invalid("DailyCadenceMinutes must be between 1440 and 10080.", out error);
+        if (CyclicalWavesV2CadenceMinutes is < 1 or > 60) return Invalid("CyclicalWavesV2CadenceMinutes must be between 1 and 60.", out error);
         if (SourceFreshnessHours is < 1 or > 168) return Invalid("SourceFreshnessHours must be between 1 and 168.", out error);
         if (IqrMultiplier < 1.5m || IqrMultiplier > 5m) return Invalid("IqrMultiplier must be between 1.5 and 5.", out error);
         if (DefaultResultLimit is < 1 or > 100) return Invalid("DefaultResultLimit must be between 1 and 100.", out error);

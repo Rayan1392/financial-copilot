@@ -36,6 +36,30 @@ public sealed class GroundedAnalysisProductionConfigurationTests
             (production.Credits.SimpleNoWeb, production.Credits.SimpleWeb, production.Credits.DeepNoWeb, production.Credits.DeepWeb));
     }
 
+    /// <summary>
+    /// Change «local-company-data-context» (AC-9): the input budgets, the hard ceiling and the data pack reach production
+    /// with the same values as appsettings.json (through code defaults or the production files), and match OQ-123.
+    /// </summary>
+    [Fact]
+    public void Production_input_budgets_and_data_pack_equal_appsettings_and_the_approved_values()
+    {
+        var production = BindAnalysis(BuildProductionConfiguration());
+        var approved = BindAnalysis(new ConfigurationBuilder()
+            .AddJsonFile(RepositoryPath("src", "backend", "FinancialCopilot.API", "appsettings.json"), optional: false)
+            .Build());
+
+        foreach (var options in new[] { production, approved })
+        {
+            Assert.Equal(24000, options.Profiles.Simple.InputTokenTarget);
+            Assert.Equal(40000, options.Profiles.Deep.InputTokenTarget);
+            Assert.Equal(120000, options.MaxInputTokens);
+            Assert.True(options.DataPack.Enabled);
+            Assert.Equal(3, options.DataPack.SectionTimeoutSeconds);
+            Assert.Equal(8, options.DataPack.TotalTimeoutSeconds);
+            options.Validate();
+        }
+    }
+
     [Fact]
     public void Production_grounded_analysis_provider_has_the_web_search_capability()
     {
@@ -83,6 +107,10 @@ public sealed class GroundedAnalysisProductionConfigurationTests
     private static GroundedAnalysisPricingOptions BindPricing(IConfiguration configuration) =>
         configuration.GetSection(GroundedAnalysisPricingOptions.SectionName).Get<GroundedAnalysisPricingOptions>()
         ?? new GroundedAnalysisPricingOptions();
+
+    private static GroundedAnalysisOptions BindAnalysis(IConfiguration configuration) =>
+        configuration.GetSection(GroundedAnalysisOptions.SectionName).Get<GroundedAnalysisOptions>()
+        ?? new GroundedAnalysisOptions();
 
     private static string[] ProviderCapabilities(IConfiguration configuration)
     {

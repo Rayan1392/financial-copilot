@@ -199,6 +199,7 @@ public sealed class CyclicalWavesV2EquilibriumRangeRow
 {
     public Guid TickerId { get; set; }
     public bool HasRange { get; set; }
+    public DateTimeOffset? DetailsFetchedAtUtc { get; set; }
     public BigInteger? MinHigh { get; set; }
     public BigInteger? MinMiddle { get; set; }
     public BigInteger? MinLow { get; set; }

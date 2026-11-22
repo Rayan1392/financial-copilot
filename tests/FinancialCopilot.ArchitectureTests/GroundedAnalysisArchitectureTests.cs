@@ -65,6 +65,23 @@ public sealed class GroundedAnalysisArchitectureTests
         Assert.Empty(failures);
     }
 
+    [Fact] // Change «local-company-data-context» T23 (refinement R1): the data pack loader reads only through Application ports.
+    public void DataPackLoader_DependsOnlyOnApplicationTypes()
+    {
+        var loader = typeof(FinancialCopilot.Application.AI.GroundedAnalysis.CompanyAnalysisDataPackLoader);
+        var application = loader.Assembly;
+
+        var constructor = Assert.Single(loader.GetConstructors());
+        var failures = constructor.GetParameters()
+            .Where(parameter => parameter.ParameterType != typeof(bool))
+            .Where(parameter => parameter.ParameterType.Assembly != application ||
+                                !(parameter.ParameterType.IsInterface || parameter.ParameterType.Name.EndsWith("Options", StringComparison.Ordinal)))
+            .Select(parameter => $"{parameter.Name}: {parameter.ParameterType.FullName} is not an Application port or options type.")
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
     /// <summary>The file's code without comment lines, so rationale comments may name the other owner.</summary>
     private static string Code(string path) =>
         string.Join('\n', File.ReadAllLines(path).Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal)));

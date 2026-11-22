@@ -35,7 +35,8 @@ public sealed record QueryExecutionContext(
     Guid? ApiClientId = null,
     int? MonthlyActivityTrendReportYear = null,
     int? MonthlyActivityTrendReportMonth = null,
-    AiQueryRequest? Request = null);
+    AiQueryRequest? Request = null,
+    bool IsAgentWorkflowV2 = false);
 
 public sealed record CapabilityExecutionResult(
     string CapabilityCode,
@@ -77,6 +78,7 @@ public interface IConversationalCapabilityExecutor
 public interface ISemanticCapabilityDispatcher
 {
     CapabilityExecutionResult? Validate(ValidatedQueryFrame frame);
+    CapabilityExecutionResult? ValidateForExecution(ValidatedQueryFrame frame, QueryExecutionContext context) => Validate(frame);
     Task<CapabilityExecutionResult> DispatchAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken);
 }
 
@@ -88,12 +90,20 @@ public sealed class SemanticCapabilityDispatcher(
 {
     private readonly IReadOnlyDictionary<string, IConversationalCapabilityExecutor> executors = executors.ToDictionary(item => item.CapabilityCode, StringComparer.Ordinal);
 
-    public CapabilityExecutionResult? Validate(ValidatedQueryFrame frame)
+    public CapabilityExecutionResult? Validate(ValidatedQueryFrame frame) => Validate(frame, false);
+
+    public CapabilityExecutionResult? ValidateForExecution(ValidatedQueryFrame frame, QueryExecutionContext context) =>
+        Validate(frame, context.IsAgentWorkflowV2);
+
+    private CapabilityExecutionResult? Validate(ValidatedQueryFrame frame, bool isAgentWorkflowV2)
     {
         if (registry.Find(frame.CapabilityCode) is not { Enabled: true } definition || definition.Version != frame.RegistryVersion)
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, DialogueOutcomeReasonCodes.CapabilityNotRecognized);
         // Feature 148: the provider policy decides before any executor (and so any data read) runs.
-        if (availability?.Evaluate(definition.ExecutionRoute) is { IsAvailable: false } unavailable)
+        var policy = isAgentWorkflowV2
+            ? availability?.EvaluateForV2(definition.ExecutionRoute, definition.Code)
+            : availability?.Evaluate(definition.ExecutionRoute);
+        if (policy is { IsAvailable: false } unavailable)
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, unavailable.ReasonCode!);
         if (!executors.ContainsKey(frame.CapabilityCode))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, "executor_not_registered");
@@ -136,7 +146,7 @@ public sealed class SemanticCapabilityDispatcher(
 
     public async Task<CapabilityExecutionResult> DispatchAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
     {
-        if (Validate(frame) is { } invalid) return invalid;
+        if (ValidateForExecution(frame, context) is { } invalid) return invalid;
         var executor = executors[frame.CapabilityCode];
         try
         {
@@ -203,7 +213,7 @@ public sealed class SemanticExecutionCoordinator(
         bool deferSettlementForFallback,
         CancellationToken cancellationToken)
     {
-        if (dispatcher.Validate(frame) is { } invalid)
+        if (dispatcher.ValidateForExecution(frame, context) is { } invalid)
         {
             RecordOutcomeEvent(frame, context, invalid);
             await feedbackCollector.TryCollectAsync(request, frame, invalid, context.Now, CancellationToken.None);

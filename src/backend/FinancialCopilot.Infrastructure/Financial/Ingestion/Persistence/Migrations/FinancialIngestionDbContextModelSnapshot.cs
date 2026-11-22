@@ -1714,6 +1714,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<short?>("AvgSign")
                         .HasColumnType("smallint");
 
+                    b.Property<DateTimeOffset?>("DetailsFetchedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("FetchedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -3348,6 +3351,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("InputSourceVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<bool>("IsLatestEvaluation")
                         .HasColumnType("boolean");
 
@@ -3375,6 +3382,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("ValidUntilUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -3411,6 +3421,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasIndex("IndustryId", "CalculationDate", "Status")
                         .HasDatabaseName("IX_IndustryRelativeValuationCalculations_IndustryId_Calculati~2")
                         .HasFilter("\"GroupId\" IS NULL");
+
+                    b.HasIndex("GroupId", "InputSourceVersion", "CalculationDate", "CalculationVersion")
+                        .HasDatabaseName("IX_RelativeValuation_GroupSourceVersionDate")
+                        .HasFilter("\"InputSourceVersion\" IS NOT NULL");
 
                     b.ToTable("IndustryRelativeValuationCalculations", (string)null);
                 });

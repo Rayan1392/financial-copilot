@@ -188,6 +188,7 @@ builder.Services
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(RateLimitPolicies.InAppMessageWrite, RateLimitPolicies.MessageWrite);
     options.AddPolicy(
         RateLimitPolicies.AuthenticatedActor,
         context => RateLimitPolicies.Partition(

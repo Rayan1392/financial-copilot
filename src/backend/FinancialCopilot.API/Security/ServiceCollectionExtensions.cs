@@ -159,6 +159,8 @@ public static class ServiceCollectionExtensions
                 policy.RequireAssertion(context => HasValidActorContext(context.User));
             });
             AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminUsersRead, FinancialCopilotPermissions.AdminUsersRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminInAppMessagesSend, FinancialCopilotPermissions.AdminInAppMessagesSend);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminInAppMessagesSupport, FinancialCopilotPermissions.AdminInAppMessagesSupport);
             AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminUsersManage, FinancialCopilotPermissions.AdminUsersManage);
             AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminRolesRead, FinancialCopilotPermissions.AdminRolesRead);
             AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminRolesManage, FinancialCopilotPermissions.AdminRolesManage);

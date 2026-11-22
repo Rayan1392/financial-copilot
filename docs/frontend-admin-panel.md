@@ -31,6 +31,8 @@ security boundary for every request.
 
 - Search and inspect users, update status, unlock accounts, revoke refresh sessions, and assign
   roles.
+- Open a user in Customer 360 and use «ارسال پیام» to preview and confirm a one-way notice or a reply-enabled support conversation. Requires `admin.users.read` and `admin.in-app-messages.send`.
+- Open «پیام‌های کاربران» to handle replies in the shared pending queue. Requires `admin.users.read` and `admin.in-app-messages.support`. The oldest unanswered reply appears first. Reading the thread preserves its pending status, sending a staff response clears it, and a new user reply returns it to the queue.
 - Inspect roles, create roles, change role status, and assign stable permission codes.
 - Inspect tenant membership, add members, and remove members.
 - Inspect and publish plans, inspect capabilities, inspect and update subscriptions, read usage

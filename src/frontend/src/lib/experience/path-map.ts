@@ -23,6 +23,8 @@ function splitHref(href: string): { pathname: string; suffix: string } {
 function autoMobilePathname(pathname: string): string | null {
   if (pathname === "/chat") return "/m";
   if (pathname === "/followed-symbols") return "/m/watchlist";
+  if (pathname === "/messages" || /^\/messages\/[^/]+$/.test(pathname))
+    return `/m/account${pathname}`;
   const thread = pathname.match(/^\/c\/(.+)$/);
   if (thread && THREAD_ID.test(thread[1])) return `/m/c/${thread[1]}`;
   return null;
@@ -52,6 +54,8 @@ export function toDesktopPath(href: string): string {
   const thread = pathname.match(/^\/m\/c\/(.+)$/);
   if (thread && THREAD_ID.test(thread[1])) return `/c/${thread[1]}${suffix}`;
   if (pathname === "/m/watchlist") return `/followed-symbols${suffix}`;
+  if (pathname === "/m/account/messages" || /^\/m\/account\/messages\/[^/]+$/.test(pathname))
+    return pathname.slice("/m/account".length) + suffix;
   if (pathname === "/m/account" || pathname === "/m/account/profile") return "/profile";
   return "/chat";
 }

@@ -40,6 +40,7 @@ export { FileText as QuarterlyReportIcon } from "@phosphor-icons/react/dist/csr/
 export { Scales as BalanceSheetIcon } from "@phosphor-icons/react/dist/csr/Scales";
 
 // Account
+export { EnvelopeSimple as MessagesIcon } from "@phosphor-icons/react/dist/csr/EnvelopeSimple";
 export { ShieldCheck as SecurityIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 export { TelegramLogo as TelegramIcon } from "@phosphor-icons/react/dist/csr/TelegramLogo";
 export { Moon as DarkThemeIcon } from "@phosphor-icons/react/dist/csr/Moon";

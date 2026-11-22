@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useUnreadMessages } from "@/components/app/in-app-message-queries";
 import { MobileScreen } from "@/components/mobile/mobile-screen";
 import { AccountInitial } from "@/components/mobile/account-initial";
 import { AdminPanelLink } from "@/components/mobile/admin-panel-link";
@@ -11,6 +12,7 @@ import {
   DarkThemeIcon,
   DesktopIcon,
   DownloadIcon,
+  MessagesIcon,
   SecurityIcon,
   SignOutIcon,
   TelegramIcon,
@@ -42,6 +44,7 @@ function MobileAccount() {
   const router = useRouter();
   const qc = useQueryClient();
   const { data: profile } = useOwnProfile();
+  const unread = useUnreadMessages();
   const account = useQuery({
     queryKey: ["account-summary"],
     queryFn: getAccountSummary,
@@ -94,6 +97,21 @@ function MobileAccount() {
             <Link to="/m/account/profile" className={ROW}>
               <IconTile icon={SecurityIcon} />
               <span className="flex-1">پروفایل و امنیت حساب</span>
+              {chevron}
+            </Link>
+          </li>
+          <li>
+            <Link to="/m/account/messages" className={ROW}>
+              <IconTile icon={MessagesIcon} />
+              <span className="flex-1">پیام‌ها</span>
+              {unread.count > 0 && (
+                <span
+                  aria-label={`${unread.label} پیام خوانده‌نشده`}
+                  className="rounded-full bg-emerald-soft px-2 text-emerald"
+                >
+                  {unread.label}
+                </span>
+              )}
               {chevron}
             </Link>
           </li>

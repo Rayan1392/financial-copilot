@@ -259,8 +259,18 @@ public sealed class SymbolGroundedFallback163EndpointTests : IClassFixture<Symbo
         // The question is the user message of the offer's exchange, not the button text.
         Assert.Contains($"<question>\n{AdviceQuestion}\n</question>", prompt.UserContent, StringComparison.Ordinal);
         Assert.Contains("<offers>\nروند فروش ماهانه وبملت\nصورت وضعیت مالی وبملت\nصورت جریان وجوه نقد وبملت\n</offers>", prompt.UserContent, StringComparison.Ordinal);
+        // Change «local-company-data-context» T22 (FR-1, AC-5): the company data pack, the statement as primary section.
+        Assert.DoesNotContain("<report>", prompt.SystemPrompt, StringComparison.Ordinal);
+        Assert.Contains("<company_data>", prompt.UserContent, StringComparison.Ordinal);
+        var primary = prompt.UserContent.Split('\n').Single(line => line.StartsWith("<section kind=\"IncomeStatement\"", StringComparison.Ordinal));
+        Assert.Contains("primary=\"true\"", primary, StringComparison.Ordinal);
+        var facts = prompt.DataFacts!;
+        Assert.Equal("IncomeStatement", facts.SectionsSent[0]);
+        foreach (var kind in Enum.GetNames<CompanyDataSectionKind>())
+            Assert.True(facts.SectionsSent.Contains(kind) ^ facts.NotAvailable.Any(gap => gap.Kind.ToString() == kind), kind);
 
         var payload = Payload(answer);
+        Assert.Equal(facts.SectionsSent, payload.GroundedAnalysisRun!.SectionsUsed);
         Assert.NotNull(payload.GroundingReport?.QuarterlyResult);
         Assert.Null(payload.GroundingReport!.RenderedAnswer);
         Assert.Null(payload.FinancialStatementTableResult);

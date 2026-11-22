@@ -70,7 +70,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var reservation = await billingFunctions.TryReserveAsync(request, cancellationToken);
         try
         {
-            request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+            request = (await dialogueGate.PrepareForV2Async(request, conversationId, cancellationToken)).Request;
             if (reservation is not null)
                 reservation = await billingFunctions.EnsureCurrentUsageCapacityAsync(reservation, cancellationToken);
         }
@@ -107,7 +107,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                     request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
                     request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId,
                     request.Context?.MonthlyActivityTrendReportYear,
-                    request.Context?.MonthlyActivityTrendReportMonth),
+                    request.Context?.MonthlyActivityTrendReportMonth,
+                    IsAgentWorkflowV2: true),
                 request,
                 reservation,
                 deferSettlementForFallback: false,

@@ -44,7 +44,11 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
             .ValidateOnStart();
         // Feature 159: an invalid capability source map fails composition, so the host never starts with it.
         var capabilitySources = ChatCapabilitySourceMap.Create(financialData);
-        services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(financialData.ChatProvider, capabilitySources));
+        var relativeValuationEnabled = configuration.GetValue<bool>(
+            $"{IndustryRelativeValuationOptions.SectionName}:CyclicalWavesV2Enabled");
+        services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(
+            financialData.ChatProvider, capabilitySources, relativeValuationEnabled));
+        services.AddScoped<CyclicalWavesV2RelativeValuationInputReader>();
         services.AddOptions<ComprehensiveAnalysisPresentationOptions>()
             .BindConfiguration(ComprehensiveAnalysisPresentationOptions.SectionName)
             .Validate(options => options.IsValid(out _), "ComprehensiveAnalysis settings are invalid: TahlilAppAnalysesUrl must be absolute https, TeaserPercent 1-50, TeaserMaxCharacters 20-1000, TeaserMinimumSourceCharacters 0-2000, MaxAgeDays 1-365.")

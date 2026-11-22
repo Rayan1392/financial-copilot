@@ -98,8 +98,8 @@ public sealed class GroundedAnalysisPricingTests
 
         var simple = profiles.For(AnalysisDepth.Simple);
         var deep = profiles.For(AnalysisDepth.Deep);
-        Assert.Equal(("low", 3000, 6000, 45, 1), (simple.ReasoningEffort, simple.MaxOutputTokens, simple.InputTokenTarget, simple.TimeoutSeconds, simple.MaxWebSearchCalls));
-        Assert.Equal(("medium", 8000, 10000, 90, 2), (deep.ReasoningEffort, deep.MaxOutputTokens, deep.InputTokenTarget, deep.TimeoutSeconds, deep.MaxWebSearchCalls));
+        Assert.Equal(("low", 3000, 24000, 45, 1), (simple.ReasoningEffort, simple.MaxOutputTokens, simple.InputTokenTarget, simple.TimeoutSeconds, simple.MaxWebSearchCalls));
+        Assert.Equal(("medium", 8000, 40000, 90, 2), (deep.ReasoningEffort, deep.MaxOutputTokens, deep.InputTokenTarget, deep.TimeoutSeconds, deep.MaxWebSearchCalls));
         Assert.Equal("gpt-6.2-sol", deep.Model);
         Assert.Equal(new AnalysisChoice(AnalysisDepth.Deep, true), options.DefaultChoice);
     }

@@ -159,6 +159,33 @@ public sealed class GroundedAnalysis162EndpointTests : IClassFixture<GroundedAna
         Assert.True(answer.GetProperty("groundedAnalysis").GetProperty("available").GetBoolean());
     }
 
+    [Fact] // Change «local-company-data-context» T22 (FR-1, FR-5, AC-1): the prompt carries the company data pack.
+    public async Task Answered_SendsTheCompanyDataPack_WithTheShownReportAsPrimary()
+    {
+        using var client = Client();
+        var conversation = await ShowBalanceSheetAsync(client);
+        _factory.Model.Decision = ReportDiscussionDisposition.Answered;
+        _factory.Model.Analysis = prompt => Echo(prompt, "نسبت بدهی");
+
+        var answer = await Post(client, "نسبت بدهی این شرکت را تحلیل کن", conversation);
+
+        Assert.Equal("Answered", Outcome(answer));
+        Assert.Equal(25m, Credits(answer));
+        var prompt = _factory.Model.Prompts.Single();
+        Assert.DoesNotContain("<report>", prompt.SystemPrompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("<report>", prompt.UserContent, StringComparison.Ordinal);
+        Assert.Contains("<company_data>", prompt.UserContent, StringComparison.Ordinal);
+        var primary = prompt.UserContent.Split('\n').Single(line => line.StartsWith("<section kind=\"BalanceSheet\"", StringComparison.Ordinal));
+        Assert.Contains("primary=\"true\"", primary, StringComparison.Ordinal);
+
+        // Every section is either sent or named as not available, never silently missing (FR-4).
+        var facts = prompt.DataFacts!;
+        Assert.Equal("BalanceSheet", facts.SectionsSent[0]);
+        foreach (var kind in Enum.GetNames<CompanyDataSectionKind>())
+            Assert.True(facts.SectionsSent.Contains(kind) ^ facts.NotAvailable.Any(gap => gap.Kind.ToString() == kind), kind);
+        Assert.Equal(facts.SectionsSent, Payload(answer).GroundedAnalysisRun!.SectionsUsed);
+    }
+
     [Fact] // Amendment A2: a balance sheet is never scored, so a reason the model sends anyway is not shown.
     public async Task BalanceSheet_ShowsNoScoreReason()
     {

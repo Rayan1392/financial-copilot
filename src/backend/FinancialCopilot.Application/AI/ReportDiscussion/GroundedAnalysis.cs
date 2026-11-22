@@ -268,6 +268,37 @@ public static class GroundedAnalysis
         "- If you find nothing reliable and relevant, continue with the report data and never fill the gap with invented " +
         "information.\n";
 
+    // ---- Change «local-company-data-context» (FR-5, FR-6; owner amendments G1–G2, 2026-11-22) ----
+
+    /// <summary>
+    /// The analysis prompts were written for one <c>&lt;report&gt;</c>. With the data pack the data block is
+    /// <c>&lt;company_data&gt;</c>, so every reference in an analysis prompt names it. The legacy prompt is not passed here.
+    /// </summary>
+    public static string ForCompanyData(string analysisPrompt) =>
+        analysisPrompt.Replace("<report>", "<company_data>", StringComparison.Ordinal);
+
+    /// <summary>
+    /// What <c>&lt;company_data&gt;</c> is and how to use it. With web search on, the model must not search for figures
+    /// Sapio holds; every other search target of <see cref="WebSearchUseRule"/> and <see cref="WebRules"/> stays (G2), and
+    /// product-level detail may still be searched (G1).
+    /// </summary>
+    public static string CompanyDataRules(bool webSearch, bool userSawPrimary) =>
+        "<company_data> is Sapio's own copy of this company's financial data, one <section> per report: the quarterly " +
+        "income statement, the balance sheet, the cash flow statement and the monthly activity report (the company's " +
+        "monthly sales totals), whichever are available. The section marked primary=\"true\" is the one the question is " +
+        "about" + (userSawPrimary ? " (the report the user is looking at)" : string.Empty) + "; use the other sections to " +
+        "explain it where they help (for example working capital, debt, cash generation, or the monthly sales behind a " +
+        "quarter). Each section lists its periods once with keys (P0 is its newest period); in the answer always write " +
+        "the period's label, never its key. <not_available> lists the reports Sapio has no usable data for in this " +
+        "prompt.\n" +
+        (webSearch
+            ? "Never search the web for this company's financial statements, its monthly activity report totals, or any " +
+              "figure that <company_data> holds or lists in <not_available>: Sapio's data is the source for them, and a " +
+              "web copy of them must not be cited. Product-level detail (sales, quantities and rates of each product) is " +
+              "not in <company_data> and may be searched, like the other outside context described below.\n"
+            : "If a report in <not_available> would matter for the question, say in words that it is not available here; " +
+              "never fill it from memory.\n");
+
     /// <summary>The JSON schema property of the cited external sources (strict mode: every member is required).</summary>
     public const string ExternalSourcesSchemaProperty =
         "\"externalSources\": { \"type\": \"array\", \"maxItems\": 8, \"items\": { \"type\": \"object\", " +

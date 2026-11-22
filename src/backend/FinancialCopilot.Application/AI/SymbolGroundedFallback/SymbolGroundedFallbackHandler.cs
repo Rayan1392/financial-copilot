@@ -58,7 +58,10 @@ public sealed class SymbolGroundedFallbackHandler(
     GroundedAnalysisOptions? analysisOptions = null,
     GroundedAnalysisPricing? analysisPricing = null,
     IReportDiscussionMessageReader? messageReader = null,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    // Change «local-company-data-context»: the company's other statements and monthly activity for a confirmed run
+    // (FR-3). Null or DataPack:Enabled false = the income statement only, as before the change (FR-13).
+    CompanyAnalysisDataPackLoader? dataPack = null)
 {
     /// <summary>How far back an offer is looked up; an older offer reads as expired.</summary>
     internal const int OfferLookbackMessages = 20;
@@ -176,15 +179,22 @@ public sealed class SymbolGroundedFallbackHandler(
         var profile = new GroundedAnalysisProfiles(analysisOptions!).For(choice.Depth);
         var data = statement.Data;
         var symbol = fresh.Symbol;
-        if (_promptBuilder.BuildAnalysis(data, pending.Question, choice, profile.InputTokenTarget) is not { } prompt)
+        // FR-3, FR-4: the pack is read only for a confirmed, current offer; the statement just read is not read again.
+        var pack = dataPack is { Enabled: true }
+            ? await dataPack.LoadAsync(data, cancellationToken)
+            : CompanyDataPack.PrimaryOnly(data);
+        // FR-8, FR-9 (BUG-042): over the target the data is trimmed; only the hard ceiling refuses.
+        if (_promptBuilder.BuildAnalysis(pack, pending.Question, choice, profile.InputTokenTarget,
+                analysisOptions!.MaxInputTokens) is not { } prompt)
             return SymbolGroundedFallbackResult.NotAnsweredBecause("over_input_budget",
-                new SymbolGroundedFallbackDiagnostics(null, 0, data.Facts.Count, 0, 0, null), fresh);
+                new SymbolGroundedFallbackDiagnostics(null, 0, data.Facts.Count, 0, 0, "over_max_input_tokens"), fresh);
 
         // FR-11: the hold covers the fixed tier before the model call; a short balance stops here (no model call).
         if (ensureBillingCapacity is not null)
             await ensureBillingCapacity(pricing.CreditsFor(choice), cancellationToken);
 
-        var run = new GroundedAnalysisRun(choice.Depth.ToString(), choice.WebSearch, choice.Tier, profile.Model);
+        var run = new GroundedAnalysisRun(choice.Depth.ToString(), choice.WebSearch, choice.Tier, profile.Model,
+            prompt.DataFacts?.SectionsSent);
         SymbolGroundedFallbackModelReply reply;
         try
         {
@@ -193,13 +203,14 @@ public sealed class SymbolGroundedFallbackHandler(
         catch (ReportDiscussionModelUnavailableException exception)
         {
             return SymbolGroundedFallbackResult.NotAnsweredBecause($"model_unavailable:{exception.Reason}",
-                new SymbolGroundedFallbackDiagnostics(null, prompt.EstimatedInputTokens, prompt.Data.Facts.Count, 0, 0, null),
+                new SymbolGroundedFallbackDiagnostics(null, prompt.EstimatedInputTokens, prompt.Data.Facts.Count, 0, 0, null,
+                    prompt.DataFacts),
                 fresh) with { AnalysisRun = run };
         }
 
         var facts = new GroundedAnalysisCallFacts(choice, reply.Usage, reply.ConsultedSources?.Count ?? 0);
         var diagnostics = new SymbolGroundedFallbackDiagnostics(
-            reply.Disposition.ToString(), prompt.EstimatedInputTokens, prompt.Data.Facts.Count, 0, 0, null);
+            reply.Disposition.ToString(), prompt.EstimatedInputTokens, prompt.Data.Facts.Count, 0, 0, null, prompt.DataFacts);
         if (reply.Disposition == SymbolGroundedFallbackDisposition.NotAnswerable)
             return new SymbolGroundedFallbackResult(SymbolGroundedFallbackKind.OfferIncomeStatement,
                 SymbolGroundedFallbackMessages.IncomeStatementOffer(symbol), CompanySymbol: symbol, Diagnostics: diagnostics,

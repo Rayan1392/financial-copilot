@@ -28,11 +28,11 @@ public sealed class AnalysisWritingAndScoreReasonTests
     public void BothAnalysisPrompts_HaveTheWritingRules(AnalysisDepth depth, bool web)
     {
         var choice = new AnalysisChoice(depth, web);
-        Assert.Contains(ReportGroundedAnalysis.PersianWritingRules,
+        Assert.Contains(ReportGroundedAnalysis.ForCompanyData(ReportGroundedAnalysis.PersianWritingRules),
             ReportDiscussionContextBuilder.AnalysisSystemPromptFor(ReportFamily.QuarterlyIncomeStatement, choice));
-        Assert.Contains(ReportGroundedAnalysis.PersianWritingRules,
+        Assert.Contains(ReportGroundedAnalysis.ForCompanyData(ReportGroundedAnalysis.PersianWritingRules),
             ReportDiscussionContextBuilder.AnalysisSystemPromptFor(ReportFamily.BalanceSheet, choice));
-        Assert.Contains(ReportGroundedAnalysis.PersianWritingRules, SymbolGroundedFallbackPromptBuilder.AnalysisSystemPromptFor(choice));
+        Assert.Contains(ReportGroundedAnalysis.ForCompanyData(ReportGroundedAnalysis.PersianWritingRules), SymbolGroundedFallbackPromptBuilder.AnalysisSystemPromptFor(choice));
     }
 
     [Fact]

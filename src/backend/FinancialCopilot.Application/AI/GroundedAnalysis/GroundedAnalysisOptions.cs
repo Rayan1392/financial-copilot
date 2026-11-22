@@ -33,7 +33,11 @@ public sealed class GroundedAnalysisProfileOptions
     public string ReasoningEffort { get; set; } = "medium";
     /// <summary>Includes reasoning tokens (OpenAI <c>max_output_tokens</c>).</summary>
     public int MaxOutputTokens { get; set; } = 8000;
-    public int InputTokenTarget { get; set; } = 10000;
+    /// <summary>
+    /// Soft target of the prompt budget (change «local-company-data-context», OQ-123): over it the supporting data is
+    /// trimmed step by step; it never refuses an answer on its own (BUG-042). Code default = production value (BUG-041).
+    /// </summary>
+    public int InputTokenTarget { get; set; } = 40000;
     public int TimeoutSeconds { get; set; } = 90;
     /// <summary>Hard per-response cap on hosted search calls when web search is on.</summary>
     public int MaxWebSearchCalls { get; set; } = 2;
@@ -44,8 +48,8 @@ public sealed class GroundedAnalysisProfileOptions
             throw new InvalidOperationException($"GroundedAnalysis:Profiles:{name}:ReasoningEffort must be one of {string.Join(", ", GroundedAnalysisOptions.ReasoningEfforts)}.");
         if (MaxOutputTokens is < 500 or > 32000)
             throw new InvalidOperationException($"GroundedAnalysis:Profiles:{name}:MaxOutputTokens must be between 500 and 32000.");
-        if (InputTokenTarget is < 4000 or > 30000)
-            throw new InvalidOperationException($"GroundedAnalysis:Profiles:{name}:InputTokenTarget must be between 4000 and 30000.");
+        if (InputTokenTarget is < 4000 or > GroundedAnalysisOptions.InputTokenUpperBound)
+            throw new InvalidOperationException($"GroundedAnalysis:Profiles:{name}:InputTokenTarget must be between 4000 and {GroundedAnalysisOptions.InputTokenUpperBound}.");
         // The provider HTTP timeout (120 s) must stay above the model timeout (design-proposal §10).
         if (TimeoutSeconds is < 5 or > 115)
             throw new InvalidOperationException($"GroundedAnalysis:Profiles:{name}:TimeoutSeconds must be between 5 and 115.");
@@ -60,7 +64,7 @@ public sealed class GroundedAnalysisProfilesOptions
     {
         ReasoningEffort = "low",
         MaxOutputTokens = 3000,
-        InputTokenTarget = 6000,
+        InputTokenTarget = 24000,
         TimeoutSeconds = 45,
         MaxWebSearchCalls = 1
     };
@@ -85,6 +89,19 @@ public sealed class GroundedAnalysisDispositionOptions
     public int TimeoutSeconds { get; set; } = 15;
 }
 
+/// <summary>
+/// Change «local-company-data-context» (FR-2, FR-13): the company data pack sent with every analysis. Disabled = only the
+/// shown report, as before the change. Code defaults are the production values (the image has no appsettings.json).
+/// </summary>
+public sealed class GroundedAnalysisDataPackOptions
+{
+    public bool Enabled { get; set; } = true;
+    /// <summary>Time limit of one section read (income statement, balance sheet, cash flow, monthly activity).</summary>
+    public int SectionTimeoutSeconds { get; set; } = 3;
+    /// <summary>Time limit of all section reads together; a section not started in time is left out.</summary>
+    public int TotalTimeoutSeconds { get; set; } = 8;
+}
+
 /// <summary>Monitoring only (PO-7, FR-12): never read by billing.</summary>
 public sealed class GroundedAnalysisTelemetryOptions
 {
@@ -102,6 +119,9 @@ public sealed class GroundedAnalysisOptions
     public static readonly IReadOnlySet<string> ReasoningEfforts =
         new HashSet<string>(["low", "medium", "high", "xhigh", "max"], StringComparer.Ordinal);
 
+    /// <summary>Upper bound of every input token setting (OQ-123).</summary>
+    public const int InputTokenUpperBound = 120000;
+
     private static readonly IReadOnlySet<string> SearchContextSizes =
         new HashSet<string>(["low", "medium", "high"], StringComparer.Ordinal);
 
@@ -115,6 +135,12 @@ public sealed class GroundedAnalysisOptions
     public GroundedAnalysisWebSearchOptions WebSearch { get; set; } = new();
     public GroundedAnalysisDispositionOptions Disposition { get; set; } = new();
     public GroundedAnalysisTelemetryOptions Telemetry { get; set; } = new();
+    public GroundedAnalysisDataPackOptions DataPack { get; set; } = new();
+    /// <summary>
+    /// Hard ceiling of one analysis prompt (FR-9): only a prompt whose system text and newest shown period exceed it is
+    /// refused. A safety net far below the model's context window, not a model limit.
+    /// </summary>
+    public int MaxInputTokens { get; set; } = InputTokenUpperBound;
     /// <summary>Same conservative estimate as Report Discussion.</summary>
     public decimal CharsPerToken { get; set; } = 2.5m;
 
@@ -142,6 +168,14 @@ public sealed class GroundedAnalysisOptions
         if (Telemetry is null || Telemetry.WebSearchCallUsd < 0m || Telemetry.CostAlertUsd <= 0m)
             throw new InvalidOperationException("GroundedAnalysis:Telemetry values must be non-negative, and CostAlertUsd positive.");
         if (CharsPerToken is < 1m or > 6m) throw new InvalidOperationException("GroundedAnalysis:CharsPerToken must be between 1 and 6.");
+        if (MaxInputTokens is < 4000 or > InputTokenUpperBound)
+            throw new InvalidOperationException($"GroundedAnalysis:MaxInputTokens must be between 4000 and {InputTokenUpperBound}.");
+        if (MaxInputTokens < Profiles.Simple.InputTokenTarget || MaxInputTokens < Profiles.Deep.InputTokenTarget)
+            throw new InvalidOperationException("GroundedAnalysis:MaxInputTokens must not be below a profile's InputTokenTarget.");
+        if (DataPack is null || DataPack.SectionTimeoutSeconds is < 1 or > 30)
+            throw new InvalidOperationException("GroundedAnalysis:DataPack:SectionTimeoutSeconds must be between 1 and 30.");
+        if (DataPack.TotalTimeoutSeconds < DataPack.SectionTimeoutSeconds || DataPack.TotalTimeoutSeconds > 60)
+            throw new InvalidOperationException("GroundedAnalysis:DataPack:TotalTimeoutSeconds must be between SectionTimeoutSeconds and 60.");
     }
 }
 

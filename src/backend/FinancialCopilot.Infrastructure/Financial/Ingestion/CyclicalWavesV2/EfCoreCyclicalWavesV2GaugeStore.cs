@@ -66,6 +66,7 @@ public sealed class EfCoreCyclicalWavesV2GaugeStore(FinancialIngestionDbContext 
             var hasRange = matched.Contains(ticker.Id);
             if (row.HasRange != hasRange) updated++; else unchanged++;
             row.HasRange = hasRange; row.FetchedAtUtc = now;
+            if (!hasRange) row.DetailsFetchedAtUtc = null;
         }
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -114,13 +115,9 @@ public sealed class EfCoreCyclicalWavesV2GaugeStore(FinancialIngestionDbContext 
         if (ticker is null) return CyclicalWavesV2ApplyOutcome.NotInCatalog;
         var row = await db.CyclicalWavesV2EquilibriumRanges.SingleOrDefaultAsync(x => x.TickerId == ticker.Id, cancellationToken);
         var changed = row is null || !row.HasRange || row.Min != range.Min || row.Avg != range.Avg || row.Max != range.Max;
-        if (!changed)
-        {
-            db.ChangeTracker.Clear();
-            return CyclicalWavesV2ApplyOutcome.Unchanged;
-        }
         row ??= new CyclicalWavesV2EquilibriumRangeRow { TickerId = ticker.Id };
         row.HasRange = true; row.Min = range.Min; row.Avg = range.Avg; row.Max = range.Max; row.FetchedAtUtc = now;
+        row.DetailsFetchedAtUtc = now;
         if (db.Entry(row).State == EntityState.Detached) db.CyclicalWavesV2EquilibriumRanges.Add(row);
         await db.SaveChangesAsync(cancellationToken); db.ChangeTracker.Clear();
         return changed ? CyclicalWavesV2ApplyOutcome.Updated : CyclicalWavesV2ApplyOutcome.Unchanged;
@@ -137,7 +134,13 @@ public sealed class EfCoreCyclicalWavesV2GaugeStore(FinancialIngestionDbContext 
     {
         var ticker = await FindMatchAsync(identifier, identifier, cancellationToken); if (ticker is null) return;
         var row = await db.CyclicalWavesV2EquilibriumRanges.SingleOrDefaultAsync(x => x.TickerId == ticker.Id, cancellationToken);
-        if (row is not null) { row.HasRange = false; row.FetchedAtUtc = now; await db.SaveChangesAsync(cancellationToken); }
+        if (row is not null)
+        {
+            row.HasRange = false;
+            row.FetchedAtUtc = now;
+            row.DetailsFetchedAtUtc = null;
+            await db.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task<bool> UpsertGaugeAsync(Guid tickerId, string type, CyclicalWavesV2Gauge? gauge, DateTimeOffset now, CancellationToken cancellationToken)

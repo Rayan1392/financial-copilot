@@ -18,6 +18,10 @@ public sealed class IndustryRelativeValuationCalculationRowConfiguration : IEnti
         builder.Property(row => row.MembershipHash).HasMaxLength(64).IsRequired();
         builder.Property(row => row.SourceBarrierHash).HasMaxLength(64).IsRequired();
         builder.Property(row => row.SourceBarrierEvidenceJson).HasColumnType("text").IsRequired();
+        builder.Property(row => row.InputSourceVersion).HasMaxLength(64);
+        builder.HasIndex(row => new { row.GroupId, row.InputSourceVersion, row.CalculationDate, row.CalculationVersion })
+            .HasDatabaseName("IX_RelativeValuation_GroupSourceVersionDate")
+            .HasFilter("\"InputSourceVersion\" IS NOT NULL");
         builder.HasIndex(row => new { row.CalculationDate, row.GroupId, row.CalculationVersion })
             .IsUnique().HasFilter("\"GroupId\" IS NOT NULL");
         builder.HasIndex(row => new { row.CalculationDate, row.IndustryId, row.CalculationVersion })

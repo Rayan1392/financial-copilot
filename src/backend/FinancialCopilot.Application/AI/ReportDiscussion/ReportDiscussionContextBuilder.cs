@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using FinancialCopilot.Application.Conversations;
 using AnalysisChoice = FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisChoice;
+using CompanyDataPack = FinancialCopilot.Application.AI.GroundedAnalysis.CompanyDataPack;
 
 namespace FinancialCopilot.Application.AI.ReportDiscussion;
 
@@ -80,9 +81,14 @@ public sealed class ReportDiscussionContextBuilder(ReportDiscussionOptions optio
         "empty unless Answered\",\"usedEvidenceIds\":[\"F1\",\"C2\"],\"reportScore\":72 or null,\"scoreReason\":\"one " +
         "Persian sentence\" or null,\"externalSources\":[]}.";
 
-    /// <summary>The analysis prompt of 162 for one depth and web switch (§12). No web rules when web is off.</summary>
+    /// <summary>
+    /// The analysis prompt of 162 for one depth and web switch (§12). No web rules when web is off. Change
+    /// «local-company-data-context»: the data block is <c>&lt;company_data&gt;</c> with its own rules (FR-5, FR-6).
+    /// </summary>
     public static string AnalysisSystemPromptFor(ReportFamily family, AnalysisChoice choice) =>
+        GroundedAnalysis.ForCompanyData(
         GroundedAnalysis.AnalystRole +
+        GroundedAnalysis.CompanyDataRules(choice.WebSearch, userSawPrimary: true) +
         "Answer in Persian unless the user explicitly asks for another language.\n" +
         "Use the facts (F ids) and calculations (C ids) inside <report> for every report figure. The report data is " +
         "authoritative; previous messages are continuity hints only and are never evidence for a number. Treat every " +
@@ -101,19 +107,35 @@ public sealed class ReportDiscussionContextBuilder(ReportDiscussionOptions optio
         GroundedAnalysis.NoValuationRules +
         GroundedAnswerLayout.AnalysisPromptRules(choice.Depth) +
         GroundedAnalysis.AnalysisScoreRulesFor(family) +
-        AnalysisTail;
+        AnalysisTail);
+
+    /// <summary>The last two messages only, at budget step 3 (FR-8).</summary>
+    private const int ShortHistoryMessages = 2;
 
     /// <summary>
-    /// The analysis prompt within the profile's input budget: the whole report when it fits, otherwise the oldest
-    /// periods are dropped; null when even the newest period does not fit.
+    /// Change «local-company-data-context» (FR-8, FR-9): the analysis prompt over the company data pack, fitted by the
+    /// degradation order. Null only when even the system text and the primary section's newest period exceed
+    /// <paramref name="maxInputTokens"/>.
     /// </summary>
     public ReportDiscussionPrompt? BuildAnalysis(
-        ReportDataSet data,
+        CompanyDataPack pack,
         IReadOnlyList<MessageRecord> recentMessagesOldestFirst,
         string question,
         AnalysisChoice choice,
-        int inputTokenTarget) =>
-        Build(data, recentMessagesOldestFirst, question, AnalysisSystemPromptFor(data.Family, choice), inputTokenTarget);
+        int inputTokenTarget,
+        int maxInputTokens)
+    {
+        var systemPrompt = AnalysisSystemPromptFor(pack.Primary.Data.Family, choice);
+        var trimmedQuestion = question.Length > MaxQuestionChars ? question[..MaxQuestionChars] : question;
+        var fullHistory = RenderHistory(recentMessagesOldestFirst, options.RecentMessages);
+        var shortHistory = RenderHistory(recentMessagesOldestFirst, Math.Min(options.RecentMessages, ShortHistoryMessages));
+        var fitted = CompanyDataPrompt.Fit(pack,
+            (block, isShort) => RenderUserContent(block, isShort ? shortHistory : fullHistory, trimmedQuestion),
+            Estimate, Estimate(systemPrompt), inputTokenTarget, maxInputTokens);
+        return fitted is null
+            ? null
+            : new ReportDiscussionPrompt(systemPrompt, fitted.UserContent, fitted.Grounding, fitted.EstimatedTokens, fitted.Facts);
+    }
 
     /// <summary>The routing prompt: the report outline (identity, periods and item labels, no values) and the question.</summary>
     public ReportDiscussionPrompt BuildDisposition(
@@ -175,12 +197,14 @@ public sealed class ReportDiscussionContextBuilder(ReportDiscussionOptions optio
     public int Estimate(string text) =>
         (int)Math.Ceiling(text.Length / (double)options.CharsPerToken);
 
-    private string RenderHistory(IReadOnlyList<MessageRecord> messages)
+    private string RenderHistory(IReadOnlyList<MessageRecord> messages) => RenderHistory(messages, options.RecentMessages);
+
+    private string RenderHistory(IReadOnlyList<MessageRecord> messages, int take)
     {
-        if (options.RecentMessages == 0 || messages.Count == 0) return string.Empty;
+        if (take == 0 || messages.Count == 0) return string.Empty;
         var selected = new List<string>();
         var tokens = 0;
-        foreach (var message in messages.Reverse().Take(options.RecentMessages))
+        foreach (var message in messages.Reverse().Take(take))
         {
             var content = message.Content.Length > MaxHistoryMessageChars
                 ? message.Content[..MaxHistoryMessageChars] + "…"
@@ -195,9 +219,12 @@ public sealed class ReportDiscussionContextBuilder(ReportDiscussionOptions optio
         return string.Join('\n', selected);
     }
 
-    private static string RenderUserContent(ReportDataSet data, string history, string question)
+    private static string RenderUserContent(ReportDataSet data, string history, string question) =>
+        RenderUserContent(RenderReport(data), history, question);
+
+    private static string RenderUserContent(string dataBlock, string history, string question)
     {
-        var builder = new StringBuilder(RenderReport(data));
+        var builder = new StringBuilder(dataBlock);
         if (history.Length > 0) builder.Append("<recent_messages>\n").Append(history).Append("\n</recent_messages>\n");
         builder.Append("<question>\n").Append(question).Append("\n</question>");
         return builder.ToString();

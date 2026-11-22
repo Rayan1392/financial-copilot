@@ -161,9 +161,9 @@ public sealed class CleanArchitectureDependencyTests
             "FinancialCopilot.Worker",
             "IndustryRelativeValuationCalculationWorker.cs"));
 
-        // Feature 148 retired the legacy CyclicalWaves integration: both workers remain as classes but are unhosted.
+        // Hosted calculations must opt into the independent v2 reader; legacy acquisition stays retired.
         Assert.DoesNotContain("AddHostedService<CyclicalWavesDataAcquisitionWorker>", workerProgram, StringComparison.Ordinal);
-        Assert.DoesNotContain("AddHostedService<IndustryRelativeValuationCalculationWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.Matches("if \\(builder.Configuration.GetValue<bool>\\(\"IndustryRelativeValuation:CyclicalWavesV2Enabled\"\\)\\)\\s+builder.Services.AddHostedService<IndustryRelativeValuationCalculationWorker>\\(\\);", workerProgram);
         Assert.DoesNotContain("AddHostedService<CyclicalWavesRelativeValuationWorker>", workerProgram, StringComparison.Ordinal);
         Assert.Contains("ICyclicalWavesMetricSnapshotReader, CyclicalWavesMetricSnapshotReader", registrations, StringComparison.Ordinal);
         Assert.DoesNotContain("AddScoped<ICyclicalWavesRelativeValuationProviderClient>", registrations, StringComparison.Ordinal);
@@ -186,7 +186,7 @@ public sealed class CleanArchitectureDependencyTests
         foreach (var retired in new[]
                  {
                      "ComprehensiveAnalysisDailySyncWorker", "CyclicalWavesDataAcquisitionWorker",
-                     "IndustryRelativeValuationCalculationWorker", "CyclicalWavesPsSyncWorker", "CyclicalWavesRelativeValuationWorker"
+                     "CyclicalWavesPsSyncWorker", "CyclicalWavesRelativeValuationWorker"
                  })
         {
             Assert.DoesNotContain($"AddHostedService<{retired}>", workerProgram, StringComparison.Ordinal);

@@ -1,5 +1,6 @@
 using FinancialCopilot.Domain.Financial.RelativeValuation;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,7 +15,9 @@ public sealed record IndustryRelativeValuationCalculationInput(
     IndustryRelativeValuationResult Result,
     Guid IndustryId,
     string IndustryExternalId,
-    string IndustryTitle);
+    string IndustryTitle,
+    string? InputSourceVersion = null,
+    DateTimeOffset? ValidUntilUtc = null);
 
 /// <summary>
 /// Builds a calculation from the latest acceptable persisted snapshot for each
@@ -23,7 +26,8 @@ public sealed record IndustryRelativeValuationCalculationInput(
 /// </summary>
 public sealed class IndustryRelativeValuationCalculationInputBuilder(
     FinancialIngestionDbContext db,
-    ICyclicalWavesMetricSnapshotReader snapshotReader)
+    ICyclicalWavesMetricSnapshotReader snapshotReader,
+    CyclicalWavesV2RelativeValuationInputReader? v2Reader = null)
 {
     public IndustryRelativeValuationCalculationInputBuilder(FinancialIngestionDbContext db)
         : this(db, new CyclicalWavesMetricSnapshotReader(db))
@@ -35,6 +39,45 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
         DateTimeOffset calculatedAtUtc,
         TimeSpan freshnessWindow,
         CancellationToken cancellationToken)
+    {
+        var companies = await LoadEligibleCompaniesAsync(canonicalProviderName, cancellationToken);
+        var snapshots = await snapshotReader.ReadLatestAsync(
+            companies.Select(row => row.Id).ToArray(),
+            cancellationToken);
+        return await BuildInputsAsync(canonicalProviderName, calculatedAtUtc, freshnessWindow,
+            companies, snapshots.Select(IndustryRelativeValuationSourceMapper.Map).ToArray(), cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<IndustryRelativeValuationCalculationInput>> BuildFromCyclicalWavesV2Async(
+        string canonicalProviderName, DateTimeOffset calculatedAtUtc, TimeSpan freshnessWindow,
+        CancellationToken cancellationToken)
+    {
+        var reader = v2Reader ?? throw new InvalidOperationException("CyclicalWaves v2 valuation reader is not registered.");
+        var companies = await LoadEligibleCompaniesAsync(canonicalProviderName, cancellationToken);
+        var observations = await reader.ReadAsync(companies.Select(row => new RelativeValuationSecurity(row.Id, row.Isin)).ToArray(),
+            calculatedAtUtc, freshnessWindow, cancellationToken);
+        var inputs = (await BuildInputsAsync(canonicalProviderName, calculatedAtUtc, freshnessWindow,
+            companies, observations.Select(row => row.Fact).ToArray(), cancellationToken,
+            observations.ToDictionary(row => row.Fact, row => row.ValidUntilUtc))).ToList();
+
+        var considered = inputs.Select(input => input.GroupId).ToArray();
+        var previous = db.IndustryRelativeValuationCalculations.AsNoTracking()
+            .Where(row => row.InputSourceVersion == CyclicalWavesV2RelativeValuationInputReader.SourceVersion);
+        var removedGroups = await previous.Where(row => row.GroupId != null && !considered.Contains(row.GroupId.Value) &&
+                row.Status == "Published" && !previous.Any(newer => newer.GroupId == row.GroupId &&
+                    (newer.CalculationDate > row.CalculationDate || newer.CalculationDate == row.CalculationDate &&
+                        newer.CalculationVersion > row.CalculationVersion)))
+            .ToListAsync(cancellationToken);
+        var emptyBarrier = IndustryRelativeValuationSourceBarrierBuilder.Build([], [], calculatedAtUtc, freshnessWindow);
+        var emptyResult = IndustryRelativeValuationEngine.Calculate([], [], new(canonicalProviderName, calculatedAtUtc, freshnessWindow));
+        inputs.AddRange(removedGroups.Select(row => new IndustryRelativeValuationCalculationInput(
+            row.GroupId!.Value, row.GroupExternalId ?? string.Empty, row.GroupTitleSnapshot ?? string.Empty,
+            [], emptyBarrier, emptyResult, row.IndustryId, row.IndustryExternalId, row.IndustryTitleSnapshot,
+            CyclicalWavesV2RelativeValuationInputReader.SourceVersion)));
+        return inputs;
+    }
+
+    private async Task<CompanyMembership[]> LoadEligibleCompaniesAsync(string canonicalProviderName, CancellationToken cancellationToken)
     {
         var eligibleCompanies = await (
                 from eligible in db.NoavaranEligibleCompanies.AsNoTracking()
@@ -50,27 +93,16 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
                     industryGroup.Id,
                     industryGroup.ExternalId,
                     industryGroup.Name,
-                    company.IndustryId))
+                    company.IndustryId,
+                    company.SymbolIsin))
             .ToArrayAsync(cancellationToken);
-        var companies = eligibleCompanies
+        return eligibleCompanies
             .GroupBy(row => row.Id)
             .Where(group => group.Select(row => row.GroupId).Distinct().Count() == 1)
             .Select(group => group.First())
             .OrderBy(row => row.GroupId)
             .ThenBy(row => row.Id)
             .ToArray();
-        var snapshots = await snapshotReader.ReadLatestAsync(
-            companies.Select(row => row.Id).ToArray(),
-            cancellationToken);
-        var facts = snapshots.Select(IndustryRelativeValuationSourceMapper.Map).ToArray();
-
-        return await BuildInputsAsync(
-            canonicalProviderName,
-            calculatedAtUtc,
-            freshnessWindow,
-            companies,
-            facts,
-            cancellationToken);
     }
 
     // Retained only so historical handoff replays remain source-compatible. The registered
@@ -122,7 +154,8 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
         TimeSpan freshnessWindow,
         IReadOnlyCollection<CompanyMembership> companies,
         IReadOnlyCollection<RelativeValuationSourceFact> facts,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<RelativeValuationSourceFact, DateTimeOffset>? expiryByFact = null)
     {
         var industryIds = companies
             .Where(row => row.IndustryId.HasValue)
@@ -180,7 +213,10 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
                 calculation,
                 industry.Id,
                 industry.ExternalId,
-                industry.Name));
+                industry.Name,
+                expiryByFact is not null ? CyclicalWavesV2RelativeValuationInputReader.SourceVersion : null,
+                expiryByFact is not null && barrier.Selections.Count > 0
+                    ? barrier.Selections.Min(selection => expiryByFact[selection.Fact]) : null));
         }
 
         return results;
@@ -191,7 +227,8 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
         Guid GroupId,
         string GroupExternalId,
         string GroupTitle,
-        Guid? IndustryId);
+        Guid? IndustryId,
+        string? Isin = null);
 }
 
 public static class IndustryRelativeValuationSourceFactMapper

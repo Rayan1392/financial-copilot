@@ -50,13 +50,16 @@ public interface IChatCapabilityAvailability
 
     /// <param name="executionRoute">A <see cref="CapabilityExecutionRoutes"/> code.</param>
     ChatCapabilityAvailabilityOutcome Evaluate(string executionRoute);
+
+    ChatCapabilityAvailabilityOutcome EvaluateForV2(string executionRoute, string capabilityCode) => Evaluate(executionRoute);
 }
 
 /// <summary>
 /// The single owner of which Chat capabilities each provider mode may answer (design §10.1).
 /// There is no fallback between providers: an unavailable capability gets an explicit answer.
 /// </summary>
-public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provider, ChatCapabilitySourceMap sources)
+public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provider, ChatCapabilitySourceMap sources,
+    bool cyclicalWavesV2RelativeValuationEnabled = false)
     : IChatCapabilityAvailability
 {
     public ChatCapabilityAvailability(FinancialDataChatProvider provider)
@@ -67,6 +70,7 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
     public const string RetiredReasonCode = "capability_retired";
     public const string UnavailableForProviderReasonCode = "capability_unavailable_for_provider";
     public const string ComprehensiveAnalysisUnavailableReasonCode = "comprehensive_analysis_unavailable";
+    public const string PeerComparisonCapabilityCode = "symbol_vs_industry_relative_valuation";
 
     public const string RetiredMessageFa = "این قابلیت به‌دلیل توقف منبع دادهٔ قبلی غیرفعال شده است.";
     public const string UnavailableForProviderMessageFa = "این پرسش با دادهٔ منبع فعال (CyclicalWaves) قابل پاسخ نیست.";
@@ -136,6 +140,12 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
             _ => UnavailableForCyclicalWaves
         };
     }
+
+    public ChatCapabilityAvailabilityOutcome EvaluateForV2(string executionRoute, string capabilityCode) =>
+        cyclicalWavesV2RelativeValuationEnabled && Provider == FinancialDataChatProvider.NoavaranAmin &&
+        executionRoute == CapabilityExecutionRoutes.IndustryRelativeValuation && capabilityCode == PeerComparisonCapabilityCode
+            ? ChatCapabilityAvailabilityOutcome.Available
+            : Evaluate(executionRoute);
 
     /// <summary>Maps an availability reason code to its fixed message, or <c>null</c> for other codes.</summary>
     public static string? MessageForReasonCode(string? reasonCode, bool persian) => reasonCode switch

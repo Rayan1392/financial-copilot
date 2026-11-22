@@ -478,3 +478,141 @@ Any of these requires a separate reviewed specification and task plan.
 | Preserve locked formulas and decision logic while correcting identity contracts | T00, T02–T04, T06 |
 | Runtime naming prohibition | T05, T06 |
 | No unrelated persistence or semantic scope | T00, T03–T06 |
+
+## Implementation plan — Restore peer valuation using CyclicalWaves v2
+
+**Status:** Gate A: Approved by the owner on 2026-11-22. The owner subsequently specified
+`DailyInstrumentTrades` as the fallback when there is no fresh same-day intraday price.
+Gate B: Approved by the owner on 2026-11-22. Tasks 00–06 document the earlier Feature 127 transition.
+
+**Implementation status:** Comparison implemented behind the default-off switch. Synced-data
+coverage verification remains open in V2-06.
+
+### Current behavior and data gaps
+
+- [Feature 148](../148-cyclicalwaves-v2-independent-financial-data-provider/impact-analysis.md)
+  unhosted `IndustryRelativeValuationCalculationWorker` and retired
+  `industry_relative_valuation_read` in both Chat provider modes. The Feature 125 calculator,
+  snapshot writer, repository, capability codes, and Chat table renderer are still in the codebase.
+  The Feature 125 input builder reads Feature 127 snapshots; resuming the worker alone would
+  leave that input dependency in place.
+- The [v2 gauge and equilibrium contract](../../docs/providers/cyclicalwaves-v2/gauge-equilibrium-api-contract.md)
+  provides per-ticker observations. `GaugeDetails`/`GaugeAvailability` supply each gauge's `Close`
+  and `Avg`, and `EquilibriumRanges` supplies `Min`, `Avg`, and `Max` in IRR. Gauge `Close` is
+  a ratio. Feature 125 can obtain the market share price through the existing database-backed
+  watchlist quote path.
+- The Chat context panel and mobile watchlist both use `useWatchlistWithNames` and read
+  `GET /api/v1/watchlists/me`. `WatchlistService` resolves quotes through
+  `IMarketDataProvider.GetLatestQuotesAsync`, registered as `PersistedMarketDataProvider`.
+  That provider resolves market instruments and selects today's latest `IntradayTradeSnapshots`
+  row by `TradingTime`, then `ReceivedAt`, using the Tehran trading date. It returns
+  `LastTradedPrice` as `LatestPrice` with `IntradayToday` provenance and `ReceivedAt` as `AsOf`.
+  The same reader can return persisted daily trades or a persisted quote projection when the
+  canonical intraday row is missing. It makes no external provider call. Existing integration
+  coverage includes `Watchlist_UpdateThenRead_UsesCanonicalIntradayResolver`.
+- The v2 ticker catalog has ticker/ISIN identity and active status but no peer classification.
+  The v2 Chat resolver returns its own ticker ID and cannot resolve groups. Feature 125 currently
+  uses `NoavaranEligibleCompanies` and canonical `Companies`/`IndustryGroups` for eligibility and
+  exact `GroupId` membership. A capability-scoped identity mapping is needed to reuse that roster.
+
+### Ordered implementation tasks
+
+- [x] **V2-01 — Resolve eligible peers.** In Infrastructure financial ingestion, batch join active
+  v2 `Tickers.Enticker` to `NoavaranEligibleCompanies` and canonical `Companies`/`IndustryGroups`
+  using a unique normalized ISIN. Count missing, ambiguous and conflicting matches. Use exact
+  `GroupId` and canonical `GroupTitle`. Preserve feature eligibility and exclude companies with
+  zero usable metrics. Validate the requested company belongs to the same cohort used by the
+  snapshot. See [acceptance criteria](user-story.md#cyclicalwaves-v2-restoration).
+- [x] **V2-02 — Reuse persisted market-price resolution.** Extend the `IMarketDataProvider` quote
+  contract or add a scoped persisted reader on top of `PersistedMarketDataProvider`'s shared
+  instrument and trade queries. Use canonical stock matches and batch reads. Select the latest
+  positive `IntradayTradeSnapshots.LastTradedPrice` for the Tehran trading date by `TradingTime`,
+  then `ReceivedAt`, when its age is within `MarketViews:StaleAfterMinutes` (default 15).
+  If no fresh intraday price is available, select the latest valid `DailyInstrumentTrades.LastTradedPrice`
+  on or before that date, ordered by `TradingDate` then `SourceInsertedAt`. Apply the daily
+  fallback on holidays, before the first trade, and when today's intraday price goes stale.
+  Verify source units and express both price and equilibrium in IRR. Carry the table of origin,
+  provider, instrument ID, trading date and observation timestamp so a quote projection cannot
+  be mistaken for intraday evidence. Reuse the backend queries directly, independent of actor
+  watchlist membership. Add regression coverage for the existing watchlist quote behavior.
+- [x] **V2-03 — Build calculation inputs** (after V2-01 and V2-02). Build from persisted
+  `GaugeAvailability`, `GaugeDetails`, and `EquilibriumRanges` via the v2 data read boundary.
+  Use `Close / Avg` for P/E and P/S with the existing percent normalization. Use the selected
+  market price divided by equilibrium `Avg` with the existing percent normalization. Check
+  catalog flags and detail timestamps against `SourceFreshnessHours` (default 26). Treat
+  unrepresentable decimals, non-positive baselines and absent sources as unavailable. Round
+  representable v2 operands to the calculation tables' existing 14-place scale. Preserve
+  separate source evidence for the two inputs of the equilibrium ratio. Include membership,
+  selected price/date/source and v2 observation identifiers in the watermark/SourceBarrier so
+  fallback and price changes produce a new calculation. Leave the engine, R7/IQR, ranking and
+  minimum clean counts intact. Scope tests to in-memory mapping plus PostgreSQL query fixtures.
+- [x] **V2-04 — Publish and read versioned snapshots** (after V2-03). Reuse the existing worker,
+  orchestration, snapshot writer and read repository. Add a default-off
+  `IndustryRelativeValuation:CyclicalWavesV2Enabled` switch for the API and Worker. Re-evaluate
+  on a configurable five-minute default cadence while enabled, preserving locking and idempotency
+  for an unchanged watermark. Use the existing `Published`/`Inconclusive` benchmark rule. Add
+  nullable source-version and validity-expiry fields to calculation rows via an additive EF
+  migration. Leave existing rows and group identities intact. Set expiry from accepted source
+  freshness evidence, capped at Tehran date rollover for snapshots containing intraday prices.
+  The V2 read selects the newest evaluation for the group in this source version and serves it
+  only when fresh and `Published`; stale, `Inconclusive` or legacy data yield `NoData`. This also
+  prevents reading a prior calculation while a current input has become unavailable. Record an
+  `Inconclusive` evaluation for previously published groups that lose all admissible inputs.
+  Suppress `IndustryWatch` evaluation and outbox writes for the restored comparison. Check the migration
+  on a disposable database with historical rows and verify that disabling the switch retires
+  the comparison even when v2 snapshots exist.
+- [x] **V2-05 — Restore the Chat table** (after V2-04). Expose
+  `symbol_vs_industry_relative_valuation` only in V2 with base `NoavaranAmin` and the explicit
+  feature switch enabled. Scope changes to capability filtering/availability, the Feature 125
+  semantic resolver/executor, the native and fallback V2 paths, and the existing presentation
+  and frontend table renderer where required. Keep the other three codes on the retired route
+  unavailable in this rollout. Render the requested symbol and ranked peers, group title,
+  P/E, P/S and equilibrium comparisons with their benchmarks and values, and the intraday or
+  daily price date in the existing Persian table. A single-ticker gauge query and a peer
+  comparison must continue to route independently. Detect explicit single-symbol peer comparisons
+  at V2 dialogue entry, before hybrid model interpretation and report discussion. Keep V1 and the
+  global capability-source override allowlist unchanged. Compose maps
+  `INDUSTRY_RELATIVE_VALUATION_CYCLICALWAVES_V2_ENABLED` into the same default-off switch for API
+  and Worker. The existing capability rollout setting defaults to `SemanticPrimary` in Compose.
+- [ ] **V2-06 — Verify and prepare enablement** (after V2-05). Run targeted .NET domain,
+  market-view, repository, routing and PostgreSQL migration/integration suites and the relevant
+  frontend tests. Exercise `POST /api/ai/v1/query` in both V2 paths against a known snapshot.
+  On a representative synced database, report ticker mapping failures, gauge coverage,
+  intraday/daily price coverage and how many exact groups meet all three benchmark thresholds.
+  Verify `شگل` resolves to `تولید محصولات آرایشی و بهداشتی` and excludes same-industry companies in
+  other groups. If the synced environment cannot publish that group's snapshot, record the
+  precise coverage gap and keep the switch disabled. Verify that a disabled switch, stale or
+  `Inconclusive` snapshot, ambiguous identity, partial data and repeated refresh behave as
+  specified before handing off enablement.
+
+### Dependencies and change boundaries
+
+- Feature 148 supplies synced v2 observations. Market-data ingestion supplies persisted intraday
+  and daily trades. The restore adds no acquisition jobs or external calls and uses no retired
+  Feature 114/126/127 inputs. Verify those dependencies with database fixtures and call-path tests.
+- Expected changes are limited to FinancialData provider contracts/options, persisted market quote
+  services, relative-valuation ingestion/persistence and one additive migration, Worker wiring,
+  V2 capability routing/presentation, the existing Chat table if needed, and relevant tests.
+- The additive fields isolate snapshots from historical rows and let read expiry be checked in
+  the database. No source table backfill is needed. Disabling the switch in API and Worker is
+  the rollback. Release and production enablement are outside Gate B.
+- After applying the migration, the existing equilibrium detail sync must run before coverage
+  verification. `EquilibriumRanges.DetailsFetchedAtUtc` is set on a successful detail fetch,
+  including an unchanged range. A catalog-only fetch cannot establish range freshness. Historical
+  range rows start with a null detail timestamp because the earlier timestamp tracked both kinds
+  of fetch. The comparison switch stays off until the synced-data check is complete.
+
+### Verification evidence
+
+- The isolated PostgreSQL fixture exercises the watchlist-equivalent intraday price, the daily
+  fallback, exact ISIN/group membership, legacy snapshot isolation, and a Persian `شگل` answer
+  through both native and fallback V2. The frontend regression checks the daily price source and
+  trading date in the comparison table.
+- The targeted .NET runs passed 100 unit, 17 integration and 2 architecture tests. The frontend
+  peer-table test passed. The broader Markdown suite reported a failure in the quarterly table
+  text expectation.
+- The early-routing follow-up passed 17 semantic unit cases and the API integration case in both
+  V2 runners, with zero model proposal calls for the explicit peer requests. Compose rendered
+  both switch values correctly for API and Worker.
+- The configured read-only synced-data connection could not be used in this workspace. The
+  `شگل` case above uses fixture data. Live coverage and production enablement remain pending.

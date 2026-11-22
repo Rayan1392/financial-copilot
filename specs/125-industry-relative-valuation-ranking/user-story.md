@@ -388,3 +388,24 @@ The implementation plan must include tests for:
 The specifications are implementation-ready when every task maps to these acceptance criteria, the
 group identity/persistence impact is explicitly reviewed, and all unrelated formula or provider
 redesign work is absent from the active task plan.
+
+## CyclicalWaves v2 restoration
+
+**Status:** Gate A approved by the owner on 2026-11-22. The owner specified the daily price
+fallback. Gate B approved by the owner on 2026-11-22. These criteria govern the v2 restoration; the earlier
+Feature 127 criteria document the previous data path.
+
+As a Chat user, I can compare a stock with eligible peers in its own group using the current
+CyclicalWaves v2 P/E, P/S, and equilibrium observations and the persisted market price.
+
+| ID | Acceptance criterion |
+|---|---|
+| V2-AC-01 | Only eligible stocks uniquely matched to active v2 tickers by ISIN participate. The requested stock and its peers share the same canonical `GroupId`. The table displays the canonical `GroupTitle`. |
+| V2-AC-02 | P/E and P/S use the persisted v2 gauge `(Close / Avg) × 100`. The equilibrium comparison uses `(market price / equilibrium Avg) × 100`, with both amounts in IRR. The existing engine applies its input validation, benchmark and ranking rules. |
+| V2-AC-03 | A positive and fresh same-day intraday `LastTradedPrice` takes priority and matches the watchlist for the same canonical stock and observation. When absent or stale, the latest valid daily `LastTradedPrice` on or before the Tehran trading date is used, including before the first trade and on non-trading days. The table identifies the price source kind and trading date. If both sources have no valid price, only the affected equilibrium metric is unavailable, subject to group benchmark readiness. |
+| V2-AC-04 | A group is published only when all required benchmarks pass. Reads show the current fresh v2-backed results and return `NoData` for an expired, `Inconclusive` or legacy calculation. Repeated processing of the same inputs is idempotent. This restoration sends no watch or outbox events. |
+| V2-AC-05 | With the switch enabled in `NoavaranAmin` Chat mode, a single-symbol peer comparison in native or fallback V2 returns the Persian group table with the requested symbol, ranked peers, and valuation figures and benchmarks. A direct gauge query still resolves on its own route. The comparison is unavailable when disabled or outside the enabled mode. |
+| V2-AC-06 | Tests prove database-only price resolution, the intraday-to-daily transition, exclusion of same-industry/different-group peers and rejection of legacy results. A synced-data check records the `شگل` group result or a concrete coverage blocker before enablement. |
+
+The [implementation tasks](tasks.md#implementation-plan--restore-peer-valuation-using-cyclicalwaves-v2)
+define the rollout and verification sequence.

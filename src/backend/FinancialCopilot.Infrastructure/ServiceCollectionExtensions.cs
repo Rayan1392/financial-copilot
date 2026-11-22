@@ -74,6 +74,7 @@ using FinancialCopilot.Infrastructure.Financial.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Application.InAppMessages;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Infrastructure.Administration;
@@ -352,6 +353,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
         services.AddScoped<IAdminUserQueries, EfCoreAdminUserQueries>();
+        services.AddScoped<IInAppMessageStore, EfCoreInAppMessageStore>();
+        services.AddScoped<InAppMessageUseCases>();
         services.AddScoped<IAdminChatHistoryQueries, EfCoreAdminChatHistoryQueries>();
         services.AddScoped<IAdminConversationLogQueries, EfCoreAdminConversationLogQueries>();
 
@@ -1020,6 +1023,13 @@ public static class ServiceCollectionExtensions
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionAnalysisModel, FinancialCopilot.Application.AI.ReportDiscussion.LlmReportDiscussionAnalysisModel>();
             services.AddScoped<IGroundedAnalysisBalanceReader, FinancialCopilot.Infrastructure.Billing.GroundedAnalysisBalanceReader>();
             services.AddScoped<GroundedAnalysisHintFactory>();
+            // Change «local-company-data-context»: the company data pack of 162 and 163 analyses, read through the
+            // existing chat query use cases on the request scope.
+            services.AddScoped(provider => new CompanyAnalysisDataPackLoader(
+                provider.GetRequiredService<IFinancialStatementTableQueryUseCase>(),
+                provider.GetRequiredService<IMonthlyActivityTrendQueryUseCase>(),
+                provider.GetRequiredService<GroundedAnalysisOptions>(),
+                configuration.GetValue<bool>($"{CashFlowReportOptions.SectionName}:Enabled")));
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionHandler>();
             // Feature 163 Symbol-Grounded Fallback: V2 only, off unless SymbolGroundedFallback:Enabled is true.
             services.AddOptions<FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackOptions>()

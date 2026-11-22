@@ -1,9 +1,25 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Domain.Financial.CyclicalWavesV2;
 using FinancialCopilot.Domain.Financial.RelativeValuation;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
+using FinancialCopilot.Infrastructure.Financial.MarketViews;
+using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
+using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Config;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace FinancialCopilot.IntegrationTests;
 
@@ -15,6 +31,214 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionPostgreSqlTests(
     private const string CanonicalProvider = ProviderSources.NoavaranCurrentApiName;
     private static readonly Guid EligibleMarketId =
         Guid.Parse("037c69ad-f519-419f-ae62-59003b6b2428");
+
+    [SkippableFact]
+    public async Task V2Comparison_UsesIntradayThenDaily_PricesOnlyEligiblePeers_AndHidesOlderSnapshots()
+    {
+        await using var database = await fixture.CreateDatabaseAsync();
+        await using var db = database.CreateContext();
+        var (_, companies) = await SeedCatalogAsync(db, 4);
+        var roster = await db.Companies.Where(row => companies.Contains(row.Id)).OrderBy(row => row.ExternalCompanyId).ToListAsync();
+        var groupId = roster[0].GroupId!.Value;
+        roster[0].Ticker = roster[0].TseSymbol = "شگل";
+        var group = await db.IndustryGroups.SingleAsync(row => row.Id == groupId);
+        group.Name = "تولید محصولات آرایشی و بهداشتی";
+        var otherGroup = new NormalizedIndustryGroupRow
+        {
+            Id = Guid.NewGuid(), ProviderName = CanonicalProvider, ExternalId = "other", Name = "Other Group",
+            LastSynchronizedAt = Now
+        };
+        db.IndustryGroups.Add(otherGroup);
+        roster[2].GroupId = otherGroup.Id;
+        roster[3].SymbolIsin = "NO_MATCH";
+        var today = DateOnly.FromDateTime(Now.ToOffset(TimeSpan.FromHours(3.5)).DateTime);
+        var time = new ValuationTime(Now);
+        foreach (var company in roster.Take(3))
+        {
+            var tickerId = Guid.NewGuid();
+            var ticker = company.Ticker ?? $"TEST{company.ExternalCompanyId}";
+            var instrument = new TradingInstrumentRow
+            {
+                Id = Guid.NewGuid(), ProviderName = "TestMarket", ExternalInstrumentId = Guid.NewGuid(),
+                InstrumentCode = 100 + int.Parse(company.ExternalCompanyId), InstrumentIsin = company.SymbolIsin!,
+                Symbol = ticker, Name = ticker, IsActive = true, NormalizedCompanyId = company.Id
+            };
+            db.TradingInstruments.Add(instrument);
+            db.CyclicalWavesV2Tickers.Add(new()
+            {
+                Id = tickerId, Ticker = ticker, NormalizedTicker = ticker,
+                Enticker = company.SymbolIsin!.ToLowerInvariant(), IsActive = true, CreatedAt = Now, UpdatedAt = Now, LastSeenInCatalogAt = Now
+            });
+            db.CyclicalWavesV2GaugeAvailability.Add(new() { TickerId = tickerId, HasPe = true, HasPs = true, LastFetchedAtUtc = Now });
+            foreach (var gaugeType in new[] { "PE", "PS" })
+                db.CyclicalWavesV2GaugeDetails.Add(new()
+                {
+                    TickerId = tickerId, GaugeType = gaugeType, Close = ExactDecimal.Parse("4.0000000000000001"), Avg = ExactDecimal.Parse("2"),
+                    Min = ExactDecimal.Parse("1"), Max = ExactDecimal.Parse("6"), Start = ExactDecimal.Parse("1"),
+                    End = ExactDecimal.Parse("6"), FetchedAtUtc = Now
+                });
+            db.CyclicalWavesV2EquilibriumRanges.Add(new()
+            {
+                TickerId = tickerId, HasRange = true, Avg = ExactDecimal.Parse("1000"),
+                FetchedAtUtc = Now, DetailsFetchedAtUtc = Now
+            });
+            db.IntradayTradeSnapshots.Add(new()
+            {
+                Id = Guid.NewGuid(), ProviderName = "TestMarket", ExternalSnapshotId = Guid.NewGuid(), TradingInstrumentId = instrument.Id,
+                TradingDate = today, TradingTime = new(13, 29), ReceivedAt = Now.AddMinutes(-1), LastTradedPrice = 1200, ClosingPrice = 9000
+            });
+            db.IntradayTradeSnapshots.Add(new()
+            {
+                Id = Guid.NewGuid(), ProviderName = "TestMarket", ExternalSnapshotId = Guid.NewGuid(), TradingInstrumentId = instrument.Id,
+                TradingDate = today, TradingTime = new(13, 28), ReceivedAt = Now, LastTradedPrice = 9900, ClosingPrice = 9000
+            });
+            db.LatestMarketQuotes.Add(new()
+            {
+                Id = Guid.NewGuid(), ProviderName = "TestMarket", TradingInstrumentId = instrument.Id,
+                TradingDate = today, SourceKind = "Intraday", LatestPrice = 5000, AsOf = Now
+            });
+            db.DailyInstrumentTrades.Add(new()
+            {
+                Id = Guid.NewGuid(), ProviderName = "TestMarket", ExternalTradeId = Guid.NewGuid(), TradingInstrumentId = instrument.Id,
+                TradingDate = today.AddDays(-1), SourceInsertedAt = Now.AddDays(-1), LastTradedPrice = 800, ClosingPrice = 7000
+            });
+        }
+        await db.SaveChangesAsync();
+
+        var market = new PersistedMarketDataProvider(db, time);
+        var reader = new CyclicalWavesV2RelativeValuationInputReader(db, market,
+            Options.Create(new MarketViewOptions()), NullLogger<CyclicalWavesV2RelativeValuationInputReader>.Instance);
+        var builder = new IndustryRelativeValuationCalculationInputBuilder(db, new CyclicalWavesMetricSnapshotReader(db), reader);
+        var writer = new IndustryRelativeValuationCalculationSnapshotWriter(db);
+        var repository = new IndustryRelativeValuationReadRepository(db,
+            options: Options.Create(new IndustryRelativeValuationOptions { CyclicalWavesV2Enabled = true }), timeProvider: time);
+        var request = new IndustryRelativeValuationReadRequest(groupId, [companies[0]], ChatCapabilityAvailability.PeerComparisonCapabilityCode);
+
+        var legacy = new IndustryRelativeValuationCalculationRow
+        {
+            Id = Guid.NewGuid(), GroupId = groupId, IndustryId = roster[0].IndustryId!.Value, CalculationDate = today,
+            CalculationVersion = 1, Status = "Published", IsSelectedCurrent = true, IsLatestEvaluation = true
+        };
+        db.IndustryRelativeValuationCalculations.Add(legacy);
+        await db.SaveChangesAsync();
+        Assert.Null(await repository.ReadAsync(request));
+
+        var live = await BuildGroupAsync();
+        Assert.Equal(2, live.Members.Count);
+        Assert.DoesNotContain(live.Members, member => member.CompanyId == companies[2] || member.CompanyId == companies[3]);
+        var watchQuote = Assert.Single((await market.GetLatestQuotesAsync([new("شگل")], default)).Observations);
+        Assert.Equal(watchQuote.LatestPrice, live.SourceBarrier.Selections.Single(selection =>
+            selection.CompanyId == companies[0] && selection.Metric == RelativeValuationMetric.Equilibrium).Fact.CurrentValue);
+        Assert.Equal("Published", (await writer.WriteAsync(today, live, time.Now, default)).Status);
+        Assert.True((await writer.WriteAsync(today, live, time.Now, default)).NoOp);
+        Assert.True((await db.IndustryRelativeValuationCalculations.AsNoTracking().SingleAsync(row => row.Id == legacy.Id)).IsSelectedCurrent);
+        var liveRead = Assert.IsType<IndustryRelativeValuationReadModel>(await repository.ReadAsync(request));
+        Assert.All(liveRead.Members, row => Assert.Equal(120m, row.Equilibrium.Percent));
+
+        time.Now = Now.AddMinutes(20);
+        Assert.Null(await repository.ReadAsync(request));
+        var daily = await BuildGroupAsync();
+        Assert.Equal("Published", (await writer.WriteAsync(today, daily, time.Now, default)).Status);
+        var dailyRead = Assert.IsType<IndustryRelativeValuationReadModel>(await repository.ReadAsync(request));
+        Assert.All(dailyRead.Members, row =>
+        {
+            Assert.Equal(80m, row.Equilibrium.Percent);
+            Assert.Equal("LatestDailyFallback", row.MarketPriceSource);
+            Assert.Equal(today.AddDays(-1), row.MarketTradingDate);
+            Assert.Equal(200m, row.PE.Percent);
+            Assert.Equal(200m, row.PS.Percent);
+        });
+        Assert.Contains("روزانه", IndustryRelativeValuationPresentation.Explain(dailyRead));
+        foreach (var useNativeWorkflow in new[] { true, false })
+        {
+            await using var factory = new RelativeValuationApiFactory(database.ConnectionString, time, useNativeWorkflow);
+            factory.EnsureBillingSeeded();
+            using var client = factory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+            var message = useNativeWorkflow ? "شگل نسبت به شرکت‌های هم‌گروه چطوره؟" : "نماد شگل را با صنعت خودش مقایسه کن";
+            using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message });
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.True(response.IsSuccessStatusCode, body);
+            using var answer = JsonDocument.Parse(body);
+            Assert.Equal(ChatCapabilityAvailability.PeerComparisonCapabilityCode,
+                answer.RootElement.GetProperty("semanticCapabilityCode").GetString());
+            var text = answer.RootElement.GetProperty("textAnswer").GetString();
+            Assert.Contains(group.Name, text);
+            Assert.Contains("میانگین گروه", text);
+            Assert.Contains("۸۰٪", text);
+            Assert.Contains("روزانه", text);
+            Assert.True(factory.ProposalProvider.Calls == 0,
+                $"V2 {(useNativeWorkflow ? "native" : "fallback")} requested model interpretation for '{message}'.");
+        }
+
+        await db.DailyInstrumentTrades.ExecuteDeleteAsync();
+        var missing = await BuildGroupAsync();
+        Assert.Equal("Inconclusive", (await writer.WriteAsync(today, missing, time.Now, default)).Status);
+        Assert.Null(await repository.ReadAsync(request));
+        Assert.Empty(await db.IndustryWatchStates.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.IndustryRelativeValuationOutbox.AsNoTracking().ToListAsync());
+
+        async Task<IndustryRelativeValuationCalculationInput> BuildGroupAsync() =>
+            (await builder.BuildFromCyclicalWavesV2Async(CanonicalProvider, time.Now, TimeSpan.FromHours(26), default))
+            .Single(input => input.GroupId == groupId);
+    }
+
+    private sealed class ValuationTime(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    private sealed class RelativeValuationApiFactory(string connectionString, TimeProvider time, bool useNativeWorkflow)
+        : AiFacadeApiFactory
+    {
+        protected override bool ForceV1Orchestration => false;
+        public CountingProposalProvider ProposalProvider { get; } = new();
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            base.ConfigureWebHost(builder);
+            builder.UseSetting("AiOrchestration:Mode", "MicrosoftAgentFrameworkV2");
+            builder.UseSetting("FinancialData:ChatProvider", "NoavaranAmin");
+            builder.UseSetting("IndustryRelativeValuation:CyclicalWavesV2Enabled", "true");
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
+                    ["FinancialData:ChatProvider"] = "NoavaranAmin",
+                    ["IndustryRelativeValuation:CyclicalWavesV2Enabled"] = "true",
+                    ["SemanticRouting:Capabilities:symbol_vs_industry_relative_valuation"] = "SemanticPrimary"
+                }));
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IQueryInterpretationProposalProvider>();
+                services.AddSingleton<IQueryInterpretationProposalProvider>(ProposalProvider);
+                services.RemoveAll<FinancialIngestionDbContext>();
+                services.RemoveAll<DbContextOptions<FinancialIngestionDbContext>>();
+                services.RemoveAll<IDbContextOptionsConfiguration<FinancialIngestionDbContext>>();
+                services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
+                // Keep authentication and billing on their real test clock; only the persisted answer is time-fixed.
+                services.RemoveAll<IIndustryRelativeValuationReadRepository>();
+                services.AddScoped<IIndustryRelativeValuationReadRepository>(provider => new IndustryRelativeValuationReadRepository(
+                    provider.GetRequiredService<FinancialIngestionDbContext>(),
+                    options: Options.Create(new IndustryRelativeValuationOptions { CyclicalWavesV2Enabled = true }), timeProvider: time));
+                if (!useNativeWorkflow)
+                    services.AddSingleton<IOptions<AiOrchestrationOptions>>(Options.Create(new AiOrchestrationOptions { Mode = AiOrchestrationMode.V1 }));
+            });
+        }
+    }
+
+    private sealed class CountingProposalProvider : IQueryInterpretationProposalProvider
+    {
+        public int Calls { get; private set; }
+
+        public Task<QueryInterpretationProposal?> ProposeAsync(string originalText, Guid tenantId, string correlationId,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult<QueryInterpretationProposal?>(null);
+        }
+    }
 
     [SkippableFact]
     public async Task Reader_SelectsLatestSnapshot_ThenOrdersMatchingSuccessfulChecksDeterministically()

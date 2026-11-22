@@ -30,6 +30,7 @@ import { Route as AdminGetCompanyIdRouteImport } from './routes/admin_.getCompan
 import { Route as AppTopUpRouteImport } from './routes/_app.top-up'
 import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppMessagesRouteImport } from './routes/_app.messages'
 import { Route as AppGetCompanyIdRouteImport } from './routes/_app.getCompanyId'
 import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
 import { Route as AppDisclosuresRouteImport } from './routes/_app.disclosures'
@@ -39,6 +40,7 @@ import { Route as AdminDataIndexRouteImport } from './routes/admin_.data.index'
 import { Route as TelegramLinkConfirmRouteImport } from './routes/telegram.link.confirm'
 import { Route as MCThreadIdRouteImport } from './routes/m.c.$threadId'
 import { Route as MAccountProfileRouteImport } from './routes/m.account.profile'
+import { Route as MAccountMessagesRouteImport } from './routes/m.account.messages'
 import { Route as AdminDataStockmarketRouteImport } from './routes/admin_.data.stockmarket'
 import { Route as AdminDataReconciliationRouteImport } from './routes/admin_.data.reconciliation'
 import { Route as AdminDataNoavaranRouteImport } from './routes/admin_.data.noavaran'
@@ -46,7 +48,9 @@ import { Route as AdminDataMonitorRouteImport } from './routes/admin_.data.monit
 import { Route as AdminDataCyclicalwavesV2RouteImport } from './routes/admin_.data.cyclicalwaves-v2'
 import { Route as AdminDataArchiveRouteImport } from './routes/admin_.data.archive'
 import { Route as AdminDataManagementFundReportsRouteImport } from './routes/admin_.data-management.fund-reports'
+import { Route as AppMessagesConversationIdRouteImport } from './routes/_app.messages_.$conversationId'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
+import { Route as MAccountMessagesConversationIdRouteImport } from './routes/m.account.messages_.$conversationId'
 
 const VerifyEnrollmentRoute = VerifyEnrollmentRouteImport.update({
   id: '/verify-enrollment',
@@ -152,6 +156,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMessagesRoute = AppMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGetCompanyIdRoute = AppGetCompanyIdRouteImport.update({
   id: '/getCompanyId',
   path: '/getCompanyId',
@@ -197,6 +206,11 @@ const MAccountProfileRoute = MAccountProfileRouteImport.update({
   path: '/account/profile',
   getParentRoute: () => MRoute,
 } as any)
+const MAccountMessagesRoute = MAccountMessagesRouteImport.update({
+  id: '/account/messages',
+  path: '/account/messages',
+  getParentRoute: () => MRoute,
+} as any)
 const AdminDataStockmarketRoute = AdminDataStockmarketRouteImport.update({
   id: '/admin_/data/stockmarket',
   path: '/admin/data/stockmarket',
@@ -234,11 +248,23 @@ const AdminDataManagementFundReportsRoute =
     path: '/admin/data-management/fund-reports',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppMessagesConversationIdRoute =
+  AppMessagesConversationIdRouteImport.update({
+    id: '/messages_/$conversationId',
+    path: '/messages/$conversationId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppCThreadIdRoute = AppCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
   getParentRoute: () => AppRoute,
 } as any)
+const MAccountMessagesConversationIdRoute =
+  MAccountMessagesConversationIdRouteImport.update({
+    id: '/account/messages_/$conversationId',
+    path: '/account/messages/$conversationId',
+    getParentRoute: () => MRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -257,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/getCompanyId': typeof AppGetCompanyIdRoute
+  '/messages': typeof AppMessagesRoute
   '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/top-up': typeof AppTopUpRoute
@@ -266,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/m/watchlist': typeof MWatchlistRoute
   '/m/': typeof MIndexRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/messages/$conversationId': typeof AppMessagesConversationIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
@@ -273,11 +301,13 @@ export interface FileRoutesByFullPath {
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/m/account/messages': typeof MAccountMessagesRoute
   '/m/account/profile': typeof MAccountProfileRoute
   '/m/c/$threadId': typeof MCThreadIdRoute
   '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin/data/': typeof AdminDataIndexRoute
   '/m/account/': typeof MAccountIndexRoute
+  '/m/account/messages/$conversationId': typeof MAccountMessagesConversationIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -295,6 +325,7 @@ export interface FileRoutesByTo {
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/getCompanyId': typeof AppGetCompanyIdRoute
+  '/messages': typeof AppMessagesRoute
   '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/top-up': typeof AppTopUpRoute
@@ -304,6 +335,7 @@ export interface FileRoutesByTo {
   '/m/watchlist': typeof MWatchlistRoute
   '/m': typeof MIndexRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/messages/$conversationId': typeof AppMessagesConversationIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
@@ -311,11 +343,13 @@ export interface FileRoutesByTo {
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/m/account/messages': typeof MAccountMessagesRoute
   '/m/account/profile': typeof MAccountProfileRoute
   '/m/c/$threadId': typeof MCThreadIdRoute
   '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin/data': typeof AdminDataIndexRoute
   '/m/account': typeof MAccountIndexRoute
+  '/m/account/messages/$conversationId': typeof MAccountMessagesConversationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -336,6 +370,7 @@ export interface FileRoutesById {
   '/_app/disclosures': typeof AppDisclosuresRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
   '/_app/getCompanyId': typeof AppGetCompanyIdRoute
+  '/_app/messages': typeof AppMessagesRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
   '/_app/top-up': typeof AppTopUpRoute
@@ -345,6 +380,7 @@ export interface FileRoutesById {
   '/m/watchlist': typeof MWatchlistRoute
   '/m/': typeof MIndexRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
+  '/_app/messages_/$conversationId': typeof AppMessagesConversationIdRoute
   '/admin_/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin_/data/archive': typeof AdminDataArchiveRoute
   '/admin_/data/cyclicalwaves-v2': typeof AdminDataCyclicalwavesV2Route
@@ -352,11 +388,13 @@ export interface FileRoutesById {
   '/admin_/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin_/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin_/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/m/account/messages': typeof MAccountMessagesRoute
   '/m/account/profile': typeof MAccountProfileRoute
   '/m/c/$threadId': typeof MCThreadIdRoute
   '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin_/data/': typeof AdminDataIndexRoute
   '/m/account/': typeof MAccountIndexRoute
+  '/m/account/messages_/$conversationId': typeof MAccountMessagesConversationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -377,6 +415,7 @@ export interface FileRouteTypes {
     | '/disclosures'
     | '/followed-symbols'
     | '/getCompanyId'
+    | '/messages'
     | '/profile'
     | '/telegram-link'
     | '/top-up'
@@ -386,6 +425,7 @@ export interface FileRouteTypes {
     | '/m/watchlist'
     | '/m/'
     | '/c/$threadId'
+    | '/messages/$conversationId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
     | '/admin/data/cyclicalwaves-v2'
@@ -393,11 +433,13 @@ export interface FileRouteTypes {
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
     | '/admin/data/stockmarket'
+    | '/m/account/messages'
     | '/m/account/profile'
     | '/m/c/$threadId'
     | '/telegram/link/confirm'
     | '/admin/data/'
     | '/m/account/'
+    | '/m/account/messages/$conversationId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -415,6 +457,7 @@ export interface FileRouteTypes {
     | '/disclosures'
     | '/followed-symbols'
     | '/getCompanyId'
+    | '/messages'
     | '/profile'
     | '/telegram-link'
     | '/top-up'
@@ -424,6 +467,7 @@ export interface FileRouteTypes {
     | '/m/watchlist'
     | '/m'
     | '/c/$threadId'
+    | '/messages/$conversationId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
     | '/admin/data/cyclicalwaves-v2'
@@ -431,11 +475,13 @@ export interface FileRouteTypes {
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
     | '/admin/data/stockmarket'
+    | '/m/account/messages'
     | '/m/account/profile'
     | '/m/c/$threadId'
     | '/telegram/link/confirm'
     | '/admin/data'
     | '/m/account'
+    | '/m/account/messages/$conversationId'
   id:
     | '__root__'
     | '/'
@@ -455,6 +501,7 @@ export interface FileRouteTypes {
     | '/_app/disclosures'
     | '/_app/followed-symbols'
     | '/_app/getCompanyId'
+    | '/_app/messages'
     | '/_app/profile'
     | '/_app/telegram-link'
     | '/_app/top-up'
@@ -464,6 +511,7 @@ export interface FileRouteTypes {
     | '/m/watchlist'
     | '/m/'
     | '/_app/c/$threadId'
+    | '/_app/messages_/$conversationId'
     | '/admin_/data-management/fund-reports'
     | '/admin_/data/archive'
     | '/admin_/data/cyclicalwaves-v2'
@@ -471,11 +519,13 @@ export interface FileRouteTypes {
     | '/admin_/data/noavaran'
     | '/admin_/data/reconciliation'
     | '/admin_/data/stockmarket'
+    | '/m/account/messages'
     | '/m/account/profile'
     | '/m/c/$threadId'
     | '/telegram/link/confirm'
     | '/admin_/data/'
     | '/m/account/'
+    | '/m/account/messages_/$conversationId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -653,6 +703,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/messages': {
+      id: '/_app/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/getCompanyId': {
       id: '/_app/getCompanyId'
       path: '/getCompanyId'
@@ -716,6 +773,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MAccountProfileRouteImport
       parentRoute: typeof MRoute
     }
+    '/m/account/messages': {
+      id: '/m/account/messages'
+      path: '/account/messages'
+      fullPath: '/m/account/messages'
+      preLoaderRoute: typeof MAccountMessagesRouteImport
+      parentRoute: typeof MRoute
+    }
     '/admin_/data/stockmarket': {
       id: '/admin_/data/stockmarket'
       path: '/admin/data/stockmarket'
@@ -765,12 +829,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDataManagementFundReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/messages_/$conversationId': {
+      id: '/_app/messages_/$conversationId'
+      path: '/messages/$conversationId'
+      fullPath: '/messages/$conversationId'
+      preLoaderRoute: typeof AppMessagesConversationIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/c/$threadId': {
       id: '/_app/c/$threadId'
       path: '/c/$threadId'
       fullPath: '/c/$threadId'
       preLoaderRoute: typeof AppCThreadIdRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/m/account/messages_/$conversationId': {
+      id: '/m/account/messages_/$conversationId'
+      path: '/account/messages/$conversationId'
+      fullPath: '/m/account/messages/$conversationId'
+      preLoaderRoute: typeof MAccountMessagesConversationIdRouteImport
+      parentRoute: typeof MRoute
     }
   }
 }
@@ -780,10 +858,12 @@ interface AppRouteChildren {
   AppDisclosuresRoute: typeof AppDisclosuresRoute
   AppFollowedSymbolsRoute: typeof AppFollowedSymbolsRoute
   AppGetCompanyIdRoute: typeof AppGetCompanyIdRoute
+  AppMessagesRoute: typeof AppMessagesRoute
   AppProfileRoute: typeof AppProfileRoute
   AppTelegramLinkRoute: typeof AppTelegramLinkRoute
   AppTopUpRoute: typeof AppTopUpRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
+  AppMessagesConversationIdRoute: typeof AppMessagesConversationIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -791,10 +871,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppDisclosuresRoute: AppDisclosuresRoute,
   AppFollowedSymbolsRoute: AppFollowedSymbolsRoute,
   AppGetCompanyIdRoute: AppGetCompanyIdRoute,
+  AppMessagesRoute: AppMessagesRoute,
   AppProfileRoute: AppProfileRoute,
   AppTelegramLinkRoute: AppTelegramLinkRoute,
   AppTopUpRoute: AppTopUpRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,
+  AppMessagesConversationIdRoute: AppMessagesConversationIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -804,9 +886,11 @@ interface MRouteChildren {
   MMarketRoute: typeof MMarketRoute
   MWatchlistRoute: typeof MWatchlistRoute
   MIndexRoute: typeof MIndexRoute
+  MAccountMessagesRoute: typeof MAccountMessagesRoute
   MAccountProfileRoute: typeof MAccountProfileRoute
   MCThreadIdRoute: typeof MCThreadIdRoute
   MAccountIndexRoute: typeof MAccountIndexRoute
+  MAccountMessagesConversationIdRoute: typeof MAccountMessagesConversationIdRoute
 }
 
 const MRouteChildren: MRouteChildren = {
@@ -814,9 +898,11 @@ const MRouteChildren: MRouteChildren = {
   MMarketRoute: MMarketRoute,
   MWatchlistRoute: MWatchlistRoute,
   MIndexRoute: MIndexRoute,
+  MAccountMessagesRoute: MAccountMessagesRoute,
   MAccountProfileRoute: MAccountProfileRoute,
   MCThreadIdRoute: MCThreadIdRoute,
   MAccountIndexRoute: MAccountIndexRoute,
+  MAccountMessagesConversationIdRoute: MAccountMessagesConversationIdRoute,
 }
 
 const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)

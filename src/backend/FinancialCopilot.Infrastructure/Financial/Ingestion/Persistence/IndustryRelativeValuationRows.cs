@@ -16,6 +16,8 @@ public sealed class IndustryRelativeValuationCalculationRow
     public string MembershipHash { get; set; } = string.Empty;
     public string SourceBarrierHash { get; set; } = string.Empty;
     public string SourceBarrierEvidenceJson { get; set; } = string.Empty;
+    public string? InputSourceVersion { get; set; }
+    public DateTimeOffset? ValidUntilUtc { get; set; }
     public DateTimeOffset CalculatedAtUtc { get; set; }
     public DateTimeOffset? PublishedAtUtc { get; set; }
     public bool IsLatestEvaluation { get; set; }

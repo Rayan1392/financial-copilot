@@ -102,13 +102,18 @@ public sealed record SymbolGroundedFallbackDiagnostics(
     int FactCount,
     int NumbersChecked,
     int UngroundedNumbers,
-    string? Reason);
+    string? Reason,
+    // Change «local-company-data-context» (FR-12): what the data pack budget sent; null before the analysis prompt.
+    CompanyDataBudgetFacts? DataFacts = null);
 
+/// <param name="Data">What the numeric grounding check compares against: the statement, or the union of the pack sections sent.</param>
+/// <param name="DataFacts">Change «local-company-data-context»: what the budget sent; null on the legacy prompt.</param>
 public sealed record SymbolGroundedFallbackPrompt(
     string SystemPrompt,
     string UserContent,
     ReportDataSet Data,
-    int EstimatedInputTokens);
+    int EstimatedInputTokens,
+    CompanyDataBudgetFacts? DataFacts = null);
 
 public sealed record SymbolGroundedFallbackModelReply(
     SymbolGroundedFallbackDisposition Disposition,

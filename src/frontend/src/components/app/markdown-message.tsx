@@ -22,11 +22,14 @@ function isFinancialStatementMarkdown(content: string): boolean {
 const INVESTMENT_DISCLAIMER = "این اطلاعات توصیه به سرمایه گذاری نیست";
 
 const INDUSTRY_RELATIVE_VALUATION_HEADER = "| نماد | P/E | P/S | قیمت به تعادلی |";
+const INDUSTRY_RELATIVE_VALUATION_PRICE_HEADER =
+  `${INDUSTRY_RELATIVE_VALUATION_HEADER} رتبه | قیمت و تاریخ معامله |`;
 
 interface IndustryRelativeValuationTable {
   before: string;
   after: string;
-  rows: Array<{ company: string; metrics: string[]; benchmark: boolean }>;
+  hasPriceEvidence: boolean;
+  rows: Array<{ company: string; metrics: string[]; benchmark: boolean; rank?: string; price?: string }>;
 }
 
 function isIndustryRelativeValuationMarkdown(content: string): boolean {
@@ -37,8 +40,11 @@ function parseIndustryRelativeValuationTable(
   content: string,
 ): IndustryRelativeValuationTable | null {
   const lines = content.split("\n");
-  const headerIndex = lines.findIndex((line) => line.trim() === INDUSTRY_RELATIVE_VALUATION_HEADER);
+  const headerIndex = lines.findIndex((line) =>
+    [INDUSTRY_RELATIVE_VALUATION_HEADER, INDUSTRY_RELATIVE_VALUATION_PRICE_HEADER].includes(line.trim()),
+  );
   if (headerIndex < 0 || !lines[headerIndex + 1]?.trim().startsWith("|")) return null;
+  const hasPriceEvidence = lines[headerIndex].trim() === INDUSTRY_RELATIVE_VALUATION_PRICE_HEADER;
 
   const rows: IndustryRelativeValuationTable["rows"] = [];
   let endIndex = headerIndex + 2;
@@ -49,12 +55,15 @@ function parseIndustryRelativeValuationTable(
       rows.push({
         company: cells[0],
         metrics: cells.slice(1, 4),
-        benchmark: cells[0].includes("میانگین صنعت"),
+        benchmark: cells[0] === "میانگین گروه" || cells[0].includes("میانگین صنعت"),
+        rank: cells[4],
+        price: cells[5],
       });
     endIndex++;
   }
 
   return {
+    hasPriceEvidence,
     before: lines.slice(0, headerIndex).join("\n").trim(),
     after: lines.slice(endIndex).join("\n").trim(),
     rows,
@@ -63,8 +72,10 @@ function parseIndustryRelativeValuationTable(
 
 function IndustryRelativeValuationTable({
   rows,
+  hasPriceEvidence,
 }: {
   rows: IndustryRelativeValuationTable["rows"];
+  hasPriceEvidence: boolean;
 }) {
   const benchmark = rows.find((row) => row.benchmark)?.metrics ?? [];
   const members = rows.filter((row) => !row.benchmark);
@@ -84,13 +95,13 @@ function IndustryRelativeValuationTable({
       role="region"
       aria-label="جدول"
     >
-      <table className="w-full min-w-[460px] table-fixed border-collapse text-sm">
-        <colgroup>
+      <table className={`w-full border-collapse text-sm ${hasPriceEvidence ? "min-w-[720px]" : "min-w-[460px] table-fixed"}`}>
+        {!hasPriceEvidence && <colgroup>
           <col className="w-[42%]" />
           <col className="w-[19%]" />
           <col className="w-[19%]" />
           <col className="w-[20%]" />
-        </colgroup>
+        </colgroup>}
         <thead className="bg-white/5">
           <tr>
             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">نماد</th>
@@ -99,6 +110,10 @@ function IndustryRelativeValuationTable({
             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
               قیمت به تعادلی
             </th>
+            {hasPriceEvidence && <>
+              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">رتبه</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">قیمت و تاریخ معامله</th>
+            </>}
           </tr>
         </thead>
         <tbody>
@@ -113,6 +128,10 @@ function IndustryRelativeValuationTable({
                   {value}
                 </td>
               ))}
+              {hasPriceEvidence && <>
+                <td className="bg-surface px-3 py-2 align-top font-fanum">{row.rank ?? "—"}</td>
+                <td className="bg-surface px-3 py-2 align-top font-fanum">{row.price ?? "—"}</td>
+              </>}
             </tr>
           ))}
           {rows
@@ -128,6 +147,7 @@ function IndustryRelativeValuationTable({
                     {value}
                   </td>
                 ))}
+                {hasPriceEvidence && <td colSpan={2} />}
               </tr>
             ))}
         </tbody>
@@ -552,7 +572,7 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
               {industryTable.before}
             </Markdown>
           )}
-          <IndustryRelativeValuationTable rows={industryTable.rows} />
+          <IndustryRelativeValuationTable rows={industryTable.rows} hasPriceEvidence={industryTable.hasPriceEvidence} />
           {industryTable.after && (
             <MarkdownMessage content={industryTable.after} direction={isRtl ? "rtl" : "ltr"} />
           )}

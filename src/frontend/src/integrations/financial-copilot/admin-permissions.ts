@@ -5,6 +5,8 @@ export const adminPermissions = {
   noavaranMonthlyBackfillExecute: "noavaran.monthly-backfill.execute",
   orchestrationDiagnostics: "admin.orchestration.diagnostics",
   usersRead: "admin.users.read",
+  messagesSend: "admin.in-app-messages.send",
+  messagesSupport: "admin.in-app-messages.support",
   usersManage: "admin.users.manage",
   rolesRead: "admin.roles.read",
   rolesManage: "admin.roles.manage",

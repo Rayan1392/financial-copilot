@@ -17,8 +17,11 @@ public static partial class NumericGroundingValidator
     [GeneratedRegex(@"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?", RegexOptions.CultureInvariant)]
     private static partial Regex NumberPattern();
 
-    /// <summary>Evidence ids (F12, C3, F۴۵) cited inline are references, not numbers (BUG-031).</summary>
-    [GeneratedRegex(@"\b[FC][0-9۰-۹٠-٩]+\b", RegexOptions.CultureInvariant)]
+    /// <summary>
+    /// Evidence ids (F12, C3, F۴۵) cited inline are references, not numbers (BUG-031). Change «local-company-data-context»:
+    /// so are the period keys of <c>&lt;company_data&gt;</c> (P0, P1).
+    /// </summary>
+    [GeneratedRegex(@"\b[FCP][0-9۰-۹٠-٩]+\b", RegexOptions.CultureInvariant)]
     private static partial Regex EvidenceIdPattern();
 
     /// <param name="serverNumbers">Numbers the server itself wrote into the text (the report score and 100).</param>

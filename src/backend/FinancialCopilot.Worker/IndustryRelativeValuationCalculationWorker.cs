@@ -11,7 +11,7 @@ public sealed class IndustryRelativeValuationCalculationWorker(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!options.Value.Enabled)
+        if (!options.Value.Enabled && !options.Value.CyclicalWavesV2Enabled)
         {
             logger.LogInformation("Industry-relative valuation calculation is disabled.");
             return;
@@ -23,7 +23,8 @@ public sealed class IndustryRelativeValuationCalculationWorker(
             try
             {
                 await Task.Delay(
-                    TimeSpan.FromMinutes(options.Value.DailyCadenceMinutes),
+                    TimeSpan.FromMinutes(options.Value.CyclicalWavesV2Enabled
+                        ? options.Value.CyclicalWavesV2CadenceMinutes : options.Value.DailyCadenceMinutes),
                     timeProvider,
                     stoppingToken);
             }
@@ -36,7 +37,7 @@ public sealed class IndustryRelativeValuationCalculationWorker(
 
     public async Task ExecuteTickAsync(CancellationToken cancellationToken)
     {
-        if (cancellationToken.IsCancellationRequested || !options.Value.Enabled)
+        if (cancellationToken.IsCancellationRequested || (!options.Value.Enabled && !options.Value.CyclicalWavesV2Enabled))
             return;
 
         try

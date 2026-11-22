@@ -115,7 +115,7 @@ public sealed class ReportDiscussion162Tests
     internal static FinancialStatementTableResult Table(QuarterlyFinancialReportTableResult? quarterly = null, BalanceSheetReportResult? balance = null) =>
         new(null, [], [], [], "rendered", Now, quarterly, balance);
 
-    private static List<MessageRecord> History(params AssistantMessagePayload?[] assistantPayloads)
+    internal static List<MessageRecord> History(params AssistantMessagePayload?[] assistantPayloads)
     {
         var messages = new List<MessageRecord>();
         var time = Now.AddMinutes(-60);
@@ -346,7 +346,7 @@ public sealed class ReportDiscussion162Tests
 
     // ── Handler (FR-1, FR-8, FR-9) ─────────────────────────────────────────────────────
 
-    private sealed class FakeReader(IReadOnlyList<MessageRecord> messages) : IReportDiscussionMessageReader
+    internal sealed class FakeReader(IReadOnlyList<MessageRecord> messages) : IReportDiscussionMessageReader
     {
         public Task<IReadOnlyList<MessageRecord>> ListRecentAsync(Guid conversationId, Guid tenantId, Guid actorId, int take, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<MessageRecord>>(messages.TakeLast(take).ToArray());
@@ -364,7 +364,7 @@ public sealed class ReportDiscussion162Tests
         }
     }
 
-    private sealed class FakeTaskState(ConversationTaskState? state) : IConversationTaskStateService
+    internal sealed class FakeTaskState(ConversationTaskState? state) : IConversationTaskStateService
     {
         public Task<ConversationTaskState?> GetActiveAsync(ConversationTaskStateScope scope, CancellationToken cancellationToken) => Task.FromResult(state);
         public Task<ConversationTaskStateTransition> RecordAnsweredAsync(ConversationTaskStateScope scope, string capabilityCode, IReadOnlyCollection<ConversationTaskSlot> validatedSlots, Guid messageId, string correlationId, CancellationToken cancellationToken) => throw new NotSupportedException();

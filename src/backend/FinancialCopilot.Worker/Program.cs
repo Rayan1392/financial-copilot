@@ -131,9 +131,11 @@ builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
 // Feature 148 retired the legacy CyclicalWaves integration: ComprehensiveAnalysisDailySyncWorker,
-// CyclicalWavesDataAcquisitionWorker and IndustryRelativeValuationCalculationWorker are no longer hosted
-// (their classes stay for history). CyclicalWaves v2 synchronization replaces them.
+// CyclicalWavesDataAcquisitionWorker remains unhosted. This calculation worker
+// is restored only when configured to consume the independent v2 data.
 builder.Services.AddHostedService<CyclicalWavesV2SyncWorker>();
+if (builder.Configuration.GetValue<bool>("IndustryRelativeValuation:CyclicalWavesV2Enabled"))
+    builder.Services.AddHostedService<IndustryRelativeValuationCalculationWorker>();
 
 var host = builder.Build();
 host.Run();

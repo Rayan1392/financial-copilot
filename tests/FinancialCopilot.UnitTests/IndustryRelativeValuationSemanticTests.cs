@@ -5,6 +5,17 @@ namespace FinancialCopilot.UnitTests;
 public sealed class IndustryRelativeValuationSemanticTests
 {
     [Theory]
+    [InlineData("کگهر نسبت به شرکت‌های هم‌گروه چطوره؟", true)]
+    [InlineData("P/E شگل رو با همگروهی‌هاش مقایسه کن", true)]
+    [InlineData("compare SHGOL with its peers", true)]
+    [InlineData("تحلیل جامع تحلیل اپ برای شگل", false)]
+    [InlineData("P/E شگل چنده؟", false)]
+    [InlineData("دو نماد شگل و کگهر را با صنعت مقایسه کن", false)]
+    [InlineData("کدام سهام نسبت به هم‌گروهی‌هایشان P/E پایین‌تری دارند؟", false)]
+    public void ExplicitPeerComparison_RecognizesPeerRequestsWithoutTakingOtherRoutes(string message, bool expected) =>
+        Assert.Equal(expected, PeerComparisonIntentRules.IsExplicitComparison(message));
+
+    [Theory]
     [InlineData("compare symbol with its industry", "symbol_vs_industry_relative_valuation")]
     [InlineData("industry relative valuation ranking", "industry_relative_valuation_ranking")]
     [InlineData("industry relative valuation summary", "industry_relative_valuation_summary")]

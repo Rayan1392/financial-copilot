@@ -81,7 +81,11 @@ public sealed record RelativeValuationMemberReadModel(
     RelativeValuationMetricReadModel PE,
     RelativeValuationMetricReadModel PS,
     RelativeValuationMetricReadModel Equilibrium,
-    IReadOnlyList<RelativeValuationSourceEvidence>? SourceEvidence = null);
+    IReadOnlyList<RelativeValuationSourceEvidence>? SourceEvidence = null,
+    string? MarketPriceSource = null,
+    DateOnly? MarketTradingDate = null,
+    decimal? MarketPrice = null,
+    decimal? EquilibriumPrice = null);
 
 public sealed record IndustryRelativeValuationReadModel(
     string CapabilityCode,
@@ -107,7 +111,8 @@ public sealed record IndustryRelativeValuationReadModel(
     string InsufficientBenchmarkReason = "",
     Guid? IndustryId = null,
     string? IndustryExternalId = null,
-    string? IndustryTitle = null);
+    string? IndustryTitle = null,
+    string? InputSourceVersion = null);
 
 public interface IIndustryRelativeValuationReadRepository
 {
@@ -149,8 +154,10 @@ public static class IndustryRelativeValuationPresentation
 
     private static string ExplainPersian(IndustryRelativeValuationReadModel model)
     {
+        var hasPriceEvidence = model.InputSourceVersion is not null;
         var title = model.CapabilityCode switch
         {
+            ChatCapabilityAvailability.PeerComparisonCapabilityCode when hasPriceEvidence => "مقایسه نماد با هم‌گروهی‌ها",
             "symbol_vs_industry_relative_valuation" => "\u0645\u0642\u0627\u06cc\u0633\u0647 \u0646\u0645\u0627\u062f \u0628\u0627 \u0635\u0646\u0639\u062a",
             "industry_relative_valuation_ranking" => "\u0631\u062a\u0628\u0647\u200c\u0628\u0646\u062f\u06cc \u0627\u0631\u0632\u0634\u200c\u06af\u0630\u0627\u0631\u06cc \u0646\u0633\u0628\u06cc \u0635\u0646\u0639\u062a",
             "industry_relative_valuation_summary" => "\u062e\u0644\u0627\u0635\u0647 \u0627\u0631\u0632\u0634\u200c\u06af\u0630\u0627\u0631\u06cc \u0646\u0633\u0628\u06cc \u0635\u0646\u0639\u062a",
@@ -164,18 +171,32 @@ public static class IndustryRelativeValuationPresentation
             $"**\u0627\u0646\u062f\u0627\u0632\u0647 \u06af\u0631\u0648\u0647:** {FormatPersianInteger(model.TotalMembers)} \u0646\u0645\u0627\u062f",
             string.Empty
         };
-        lines.Add("| \u0646\u0645\u0627\u062f | P/E | P/S | \u0642\u06cc\u0645\u062a \u0628\u0647 \u062a\u0639\u0627\u062f\u0644\u06cc |");
-        lines.Add("|---|---:|---:|---:|");
+        var evidenceHeader = hasPriceEvidence ? " رتبه | قیمت و تاریخ معامله |" : string.Empty;
+        lines.Add("| \u0646\u0645\u0627\u062f | P/E | P/S | \u0642\u06cc\u0645\u062a \u0628\u0647 \u062a\u0639\u0627\u062f\u0644\u06cc |" + evidenceHeader);
+        lines.Add(hasPriceEvidence ? "|---|---:|---:|---:|---:|---|" : "|---|---:|---:|---:|");
         foreach (var member in model.Members)
-            lines.Add($"| {member.Symbol} | {FormatPercent(member.PE.Percent)} | {FormatPercent(member.PS.Percent)} | {FormatPercent(member.Equilibrium.Percent)} |");
+        {
+            var evidence = hasPriceEvidence ? $" {FormatRank(member.Rank, model.TotalMembers)} | {PriceEvidence(member)} |" : string.Empty;
+            lines.Add($"| {member.Symbol} | {FormatPercent(member.PE.Percent)} | {FormatPercent(member.PS.Percent)} | {FormatPercent(member.Equilibrium.Percent)} |{evidence}");
+        }
         var peBenchmark = FormatPercent(Benchmark(model, "PE"));
         var psBenchmark = FormatPercent(Benchmark(model, "PS"));
         var equilibriumBenchmark = FormatPercent(Benchmark(model, "Equilibrium"));
-        lines.Add($"| \u0645\u06cc\u0627\u0646\u06af\u06cc\u0646 \u0635\u0646\u0639\u062a | {peBenchmark} | {psBenchmark} | {equilibriumBenchmark} |");
+        var benchmarkLabel = hasPriceEvidence ? "میانگین گروه" : "\u0645\u06cc\u0627\u0646\u06af\u06cc\u0646 \u0635\u0646\u0639\u062a";
+        var emptyEvidence = hasPriceEvidence ? " — | — |" : string.Empty;
+        lines.Add($"| {benchmarkLabel} | {peBenchmark} | {psBenchmark} | {equilibriumBenchmark} |{emptyEvidence}");
         if (!string.IsNullOrWhiteSpace(model.InsufficientBenchmarkReason))
             lines.Add("**\u062a\u0648\u062c\u0647:** \u0628\u0631\u0627\u06cc \u0628\u062e\u0634\u06cc \u0627\u0632 \u062f\u0627\u062f\u0647\u200c\u0647\u0627 \u0645\u0639\u06cc\u0627\u0631 \u0642\u0627\u0628\u0644 \u0627\u062a\u06a9\u0627 \u062f\u0631 \u062f\u0633\u062a\u0631\u0633 \u0646\u06cc\u0633\u062a\u061b \u0628\u0646\u0627\u0628\u0631\u0627\u06cc\u0646 \u0622\u0646 \u0628\u062e\u0634 \u0642\u0627\u0628\u0644 \u0645\u0642\u0627\u06cc\u0633\u0647 \u0646\u06cc\u0633\u062a.");
         lines.Add("\u0627\u06cc\u0646 \u0627\u0637\u0644\u0627\u0639\u0627\u062a \u062a\u0648\u0635\u06cc\u0647 \u0628\u0647 \u0633\u0631\u0645\u0627\u06cc\u0647 \u06af\u0630\u0627\u0631\u06cc \u0646\u06cc\u0633\u062a");
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string PriceEvidence(RelativeValuationMemberReadModel member)
+    {
+        if (member.MarketTradingDate is not { } date || member.MarketPrice is not { } price ||
+            member.EquilibriumPrice is not { } equilibrium) return "—";
+        var source = member.MarketPriceSource == "IntradayToday" ? "درون‌روزی" : "روزانه";
+        return $"{FormatPersianNumber(price)} ریال ({source}، {FormatJalaliDate(new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero))})، تعادلی {FormatPersianNumber(equilibrium)} ریال";
     }
 
     private static decimal? Benchmark(IndustryRelativeValuationReadModel model, string metricKind) =>

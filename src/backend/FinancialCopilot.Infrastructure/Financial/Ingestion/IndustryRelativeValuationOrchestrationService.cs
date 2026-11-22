@@ -66,16 +66,16 @@ public sealed class IndustryRelativeValuationOrchestrationService
             ? Guid.NewGuid().ToString("N")
             : correlationId.Trim();
         var settings = featureOptions.Value;
-        if (!settings.Enabled)
+        if (!settings.Enabled && !settings.CyclicalWavesV2Enabled)
             return new(normalizedCorrelationId, 0, 0, 0, 0, 0, 0, 0);
 
         var calculatedAtUtc = timeProvider.GetUtcNow();
         var calculationDate = TehranCalculationDate(calculatedAtUtc);
-        var inputs = await inputBuilder.BuildAsync(
-            sourceOptions.Value.CanonicalProviderName,
-            calculatedAtUtc,
-            TimeSpan.FromHours(settings.SourceFreshnessHours),
-            cancellationToken);
+        var canonicalProvider = sourceOptions.Value.CanonicalProviderName;
+        var freshness = TimeSpan.FromHours(settings.SourceFreshnessHours);
+        var inputs = settings.CyclicalWavesV2Enabled
+            ? await inputBuilder.BuildFromCyclicalWavesV2Async(canonicalProvider, calculatedAtUtc, freshness, cancellationToken)
+            : await inputBuilder.BuildAsync(canonicalProvider, calculatedAtUtc, freshness, cancellationToken);
 
         var published = 0;
         var inconclusive = 0;

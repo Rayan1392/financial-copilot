@@ -1023,6 +1023,13 @@ public static class ServiceCollectionExtensions
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.IReportDiscussionAnalysisModel, FinancialCopilot.Application.AI.ReportDiscussion.LlmReportDiscussionAnalysisModel>();
             services.AddScoped<IGroundedAnalysisBalanceReader, FinancialCopilot.Infrastructure.Billing.GroundedAnalysisBalanceReader>();
             services.AddScoped<GroundedAnalysisHintFactory>();
+            // Change «local-company-data-context»: the company data pack of 162 and 163 analyses, read through the
+            // existing chat query use cases on the request scope.
+            services.AddScoped(provider => new CompanyAnalysisDataPackLoader(
+                provider.GetRequiredService<IFinancialStatementTableQueryUseCase>(),
+                provider.GetRequiredService<IMonthlyActivityTrendQueryUseCase>(),
+                provider.GetRequiredService<GroundedAnalysisOptions>(),
+                configuration.GetValue<bool>($"{CashFlowReportOptions.SectionName}:Enabled")));
             services.AddScoped<FinancialCopilot.Application.AI.ReportDiscussion.ReportDiscussionHandler>();
             // Feature 163 Symbol-Grounded Fallback: V2 only, off unless SymbolGroundedFallback:Enabled is true.
             services.AddOptions<FinancialCopilot.Application.AI.SymbolGroundedFallback.SymbolGroundedFallbackOptions>()

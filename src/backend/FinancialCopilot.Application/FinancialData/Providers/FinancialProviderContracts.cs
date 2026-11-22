@@ -124,7 +124,8 @@ public sealed record MarketQuoteObservation(
     MarketQuoteSource Source,
     FinancialSourceEvidence SourceEvidence,
     DateOnly TradingDate = default,
-    string SourceLabel = "");
+    string SourceLabel = "",
+    Guid? TradingInstrumentId = null);
 
 public sealed record BatchMarketQuoteResult(
     IReadOnlyCollection<MarketQuoteObservation> Observations,

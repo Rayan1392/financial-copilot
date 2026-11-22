@@ -96,6 +96,9 @@ public sealed record ConversationDialogueGateResult(AiQueryRequest Request, Conv
 public interface IConversationDialogueGate
 {
     Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken);
+
+    Task<ConversationDialogueGateResult> PrepareForV2Async(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken) =>
+        PrepareAsync(request, conversationId, cancellationToken);
     Task RecordOutcomeAsync(AiQueryRequest request, Guid conversationId, bool clarificationRequired, string? clarificationReason, CancellationToken cancellationToken);
 }
 
@@ -127,21 +130,29 @@ public sealed class ConversationDialogueGate(
     private readonly Feature161CashFlowRoutingScope _cashFlowScope = feature161 ?? new(false, Feature154RoutingScope.V2);
     private bool _feature161 => _cashFlowScope.IsActive;
 
-    public async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken)
+    public Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken) =>
+        PrepareAsync(request, conversationId, isV2: false, cancellationToken);
+
+    public Task<ConversationDialogueGateResult> PrepareForV2Async(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken) =>
+        PrepareAsync(request, conversationId, isV2: true, cancellationToken);
+
+    private async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, bool isV2,
+        CancellationToken cancellationToken)
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
-        var symbolSnapshotInterpretation = await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken)
+        var earlyInterpretation = (isV2 ? TryInterpretPeerComparison(request) : null)
+            ?? await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken)
             ?? await TryInterpretTechnicalAnalysisAsync(request, scope, cancellationToken);
-        if (symbolSnapshotInterpretation is null &&
+        if (earlyInterpretation is null &&
             await TryPrepareUnavailableTopicAsync(request, scope, cancellationToken) is { } unavailableTopic)
             return unavailableTopic;
-        if (symbolSnapshotInterpretation is null &&
+        if (earlyInterpretation is null &&
             await TryPrepareAssistantHelpAsync(request, scope, cancellationToken) is { } assistantHelp)
             return assistantHelp;
-        var hybridResult = hybridInterpreter is null || symbolSnapshotInterpretation is not null
+        var hybridResult = hybridInterpreter is null || earlyInterpretation is not null
             ? null
             : await hybridInterpreter.InterpretAsync(request.Message, request.TenantId, request.CorrelationId, cancellationToken);
-        var interpretation = symbolSnapshotInterpretation ?? hybridResult?.Interpretation ?? interpreter.Interpret(request.Message);
+        var interpretation = earlyInterpretation ?? hybridResult?.Interpretation ?? interpreter.Interpret(request.Message);
         var active = await stateService.GetActiveAsync(scope, cancellationToken);
         var detectedCapability = request.Context?.InsightEventId is not null
             ? "personalized_insight_explanation"
@@ -599,6 +610,23 @@ public sealed class ConversationDialogueGate(
             routedRequest,
             transition,
             effectiveSlots);
+    }
+
+    private QueryInterpretation? TryInterpretPeerComparison(AiQueryRequest request)
+    {
+        const string capability = ChatCapabilityAvailability.PeerComparisonCapabilityCode;
+        if (!PeerComparisonIntentRules.ShouldRouteEarly(request, capabilityAvailability))
+            return null;
+
+        var interpretation = interpreter.Interpret(request.Message);
+        var evidence = new InterpretationEvidence(capability, "explicit-peer-comparison", QueryValueProvenance.UserExplicit);
+        return interpretation with
+        {
+            CapabilityCandidates = [new(capability, interpretation.RegistryVersion, 1m, [evidence])],
+            Confidence = 1m,
+            ConfidenceBand = InterpretationConfidenceBand.High,
+            Evidence = [.. interpretation.Evidence, evidence]
+        };
     }
 
     /// <summary>Feature 156: a message that is only an eligible ticker, unless it answers a pending question.</summary>

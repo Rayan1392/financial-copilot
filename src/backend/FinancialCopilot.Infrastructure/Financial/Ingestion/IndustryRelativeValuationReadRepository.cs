@@ -1,12 +1,19 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Text.Json;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
-public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDbContext db, ILogger<IndustryRelativeValuationReadRepository>? logger = null) : IIndustryRelativeValuationReadRepository
+public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDbContext db,
+    ILogger<IndustryRelativeValuationReadRepository>? logger = null,
+    IOptions<IndustryRelativeValuationOptions>? options = null,
+    TimeProvider? timeProvider = null) : IIndustryRelativeValuationReadRepository
 {
     public async Task<IndustryRelativeValuationReadModel?> ReadAsync(IndustryRelativeValuationReadRequest request, CancellationToken cancellationToken = default)
     {
@@ -24,12 +31,22 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
         }
         if (groupId is null) { logger?.LogInformation("Feature 125 read unavailable: comparison group could not be resolved."); return null; }
 
-        var calculation = await db.IndustryRelativeValuationCalculations.AsNoTracking()
-            .Where(x => x.GroupId == groupId && x.Status == "Published" && x.IsSelectedCurrent)
+        var v2Enabled = options?.Value.CyclicalWavesV2Enabled == true;
+        var candidates = db.IndustryRelativeValuationCalculations.AsNoTracking().Where(row => row.GroupId == groupId);
+        var calculation = await (v2Enabled
+                ? candidates.Where(row => row.InputSourceVersion == CyclicalWavesV2RelativeValuationInputReader.SourceVersion)
+                : candidates.Where(row => row.InputSourceVersion == null && row.Status == "Published" && row.IsSelectedCurrent))
             .OrderByDescending(x => x.CalculationDate).ThenByDescending(x => x.CalculationVersion)
             .FirstOrDefaultAsync(cancellationToken);
-        if (calculation is null) { logger?.LogInformation("Feature 125 read unavailable for group {GroupId}: no selected Published snapshot.", groupId); return null; }
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        if (calculation is null || calculation.Status != "Published" ||
+            (v2Enabled && (calculation.ValidUntilUtc is null || calculation.ValidUntilUtc <= now)))
+        {
+            logger?.LogInformation("Feature 125 read unavailable for group {GroupId}: no current Published snapshot.", groupId);
+            return null;
+        }
         var members = await db.CompanyIndustryRelativeValuations.AsNoTracking().Where(x => x.CalculationId == calculation.Id).ToArrayAsync(cancellationToken);
+        if (v2Enabled && request.CompanyIds.Any(id => !members.Any(member => member.CompanyId == id))) return null;
         var companies = await db.Companies.AsNoTracking().Where(x => members.Select(m => m.CompanyId).Contains(x.Id)).ToDictionaryAsync(x => x.Id, cancellationToken);
         var metrics = await db.IndustryRelativeValuationMetrics.AsNoTracking().Where(x => x.CalculationId == calculation.Id).ToArrayAsync(cancellationToken);
         var totalRanked = members.Count(x => x.GlobalRank.HasValue);
@@ -58,7 +75,10 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
             : [];
         var ordered = topN.Concat(requestedOutsideTopN).ToArray();
         var totalMembers = members.Length;
-        var resultMembers = ordered.Select(row => new RelativeValuationMemberReadModel(
+        var resultMembers = ordered.Select(row =>
+        {
+            var price = v2Enabled ? ReadPriceEvidence(row) : null;
+            return new RelativeValuationMemberReadModel(
             row.CompanyId,
             companies.TryGetValue(row.CompanyId, out var company) ? company.Ticker ?? company.TseSymbol ?? company.CompanySymbol ?? company.Name : row.CompanyId.ToString("D"),
             company?.Name ?? string.Empty,
@@ -67,7 +87,8 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
             Metric(row.PEPercent, row.PEClassification, row.PEIsOutlier, row.PEReason, metrics, "PE", Evidence(row, "PE")),
             Metric(row.PSPercent, row.PSClassification, row.PSIsOutlier, row.PSReason, metrics, "PS", Evidence(row, "PS")),
             Metric(row.EquilibriumPercent, row.EquilibriumClassification, row.EquilibriumIsOutlier, row.EquilibriumReason, metrics, "Equilibrium", Evidence(row, "Equilibrium")),
-            Evidence(row))).ToArray();
+            Evidence(row), price?.Kind, price?.TradingDate, row.CurrentMarketPrice, row.EquilibriumPrice);
+        }).ToArray();
         var benchmarks = metrics.Select(x => new RelativeValuationMetricReadModel(
             x.CleanAverage,
             x.CleanAverage,
@@ -112,9 +133,18 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
             insufficientReason,
             calculation.IndustryId,
             calculation.IndustryExternalId,
-            calculation.IndustryTitleSnapshot);
+            calculation.IndustryTitleSnapshot,
+            calculation.InputSourceVersion);
         logger?.LogInformation("Feature 125 read completed for group {GroupId}, calculation {CalculationId}, returned {ReturnedMembers}/{TotalMembers} members in {ElapsedMs} ms; status {Status}.", groupId, calculation.Id, result.Members.Count, result.TotalMembers, Stopwatch.GetElapsedTime(started).TotalMilliseconds, result.PublicationStatus);
         return result;
+    }
+
+    private sealed record PriceEvidence(string Kind, DateOnly TradingDate);
+
+    private static PriceEvidence? ReadPriceEvidence(CompanyIndustryRelativeValuationRow row)
+    {
+        var parts = row.EquilibriumSourceWatermark.Split('|', 3);
+        return parts.Length == 3 && parts[2].Length > 0 ? JsonSerializer.Deserialize<PriceEvidence>(parts[2]) : null;
     }
 
     private static RelativeValuationMetricReadModel Metric(decimal? percent, string classification, bool outlier, string reason, IReadOnlyCollection<IndustryRelativeValuationMetricRow> metrics, string kind, IReadOnlyList<RelativeValuationSourceEvidence> evidence)

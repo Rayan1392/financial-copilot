@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using FinancialCopilot.Application.AI.GroundedAnalysis;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
 using FinancialCopilot.Infrastructure.Billing;
@@ -80,6 +81,54 @@ public sealed class GroundedAnalysisTelemetry(
                 exception.GetType().Name, correlationId);
         }
     }
+
+    private static readonly Counter<long> DataPackSections = Meter.CreateCounter<long>("grounded_analysis.data_pack_sections");
+    private static readonly Counter<long> CodalCitations = Meter.CreateCounter<long>("grounded_analysis.codal_citations");
+
+    /// <summary>
+    /// Change «local-company-data-context» (FR-12, G3): which sections of the company data pack were sent or left out
+    /// and why, the budget step reached, the read latency per section, and how many verified web sources are on
+    /// codal.ir. Kinds, reason codes, counts and milliseconds only; never a value.
+    /// </summary>
+    public void RecordDataPack(
+        string feature,
+        CompanyDataBudgetFacts? budget,
+        IReadOnlyList<ExternalSource>? sources,
+        string correlationId)
+    {
+        if (budget is null) return;
+        try
+        {
+            var codal = CountCodal(sources);
+            foreach (var section in budget.SectionsSent)
+                DataPackSections.Add(1, new TagList { { "feature", feature }, { "section", section }, { "outcome", "sent" } });
+            foreach (var gap in budget.NotAvailable)
+                DataPackSections.Add(1, new TagList { { "feature", feature }, { "section", gap.Kind.ToString() }, { "outcome", gap.Reason } });
+            CodalCitations.Add(codal, new TagList { { "feature", feature } });
+
+            logger.LogInformation(
+                "Grounded analysis data pack. Feature={Feature} SectionsSent={SectionsSent} NotAvailable={NotAvailable} " +
+                "DegradationStep={DegradationStep} ShortHistory={ShortHistory} SectionReads={SectionReads} " +
+                "CodalCitations={CodalCitations} CorrelationId={CorrelationId}",
+                feature, string.Join(',', budget.SectionsSent),
+                string.Join(',', budget.NotAvailable.Select(gap => $"{gap.Kind}:{gap.Reason}")),
+                budget.DegradationStep, budget.ShortHistory,
+                string.Join(',', budget.Reads.Select(read => $"{read.Kind}:{read.Outcome}:{read.ElapsedMilliseconds}ms")),
+                codal, correlationId);
+        }
+        catch (Exception exception)
+        {
+            // Monitoring must never affect the turn.
+            logger.LogWarning("Grounded analysis data pack telemetry failed. FailureType={FailureType} CorrelationId={CorrelationId}",
+                exception.GetType().Name, correlationId);
+        }
+    }
+
+    /// <summary>Verified sources whose host is codal.ir or one of its subdomains (G3: counted, never removed).</summary>
+    internal static int CountCodal(IReadOnlyList<ExternalSource>? sources) =>
+        sources?.Count(source => Uri.TryCreate(source.Url, UriKind.Absolute, out var uri) &&
+            (uri.Host.Equals("codal.ir", StringComparison.OrdinalIgnoreCase) ||
+             uri.Host.EndsWith(".codal.ir", StringComparison.OrdinalIgnoreCase))) ?? 0;
 
     /// <summary>
     /// Token cost from the configured <c>ModelPrices</c> (the same calculation the usage-based path uses) plus the

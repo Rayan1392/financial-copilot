@@ -105,6 +105,26 @@ concurrency-conflict
 administrator-lockout-protection
 ```
 
+## In-App Messages
+
+Feature 165 exposes admin send and support routes documented in
+[`user-story.md`](../specs/165-admin-in-app-messages/user-story.md). Both require
+`admin.users.read` plus the respective `admin.in-app-messages.send` or
+`admin.in-app-messages.support` permission. The Auth migration assigns both to
+`SuperAdmin`. Role administrators can delegate the permissions independently. Operators receive the updated claims when their web token is refreshed.
+
+The recipient can view messages from «پیام‌ها» on desktop or mobile and reply to a
+reply-enabled conversation. The account badge shows unread staff messages. Every message is
+tenant-scoped to the recipient's membership. Membership removal deletes the history immediately.
+Temporary account locks block access and preserve history. Security audit metadata has its own
+retention and contains identifiers and timestamps without message content. An authorized support
+operator reading message bodies creates an audit record. A staff send or reply and its audit commit together.
+
+Apply the Feature 165 Auth migration before serving the new routes. Roll back the application
+version while retaining the migration if messages have already been stored. Rolling back the
+migration drops the feature's tables and is intended for verification on disposable databases.
+Before opening the queue to operators, assign its owner and target response time in OQ-129.
+
 ## Database Update
 
 Apply the Auth and Billing migrations:

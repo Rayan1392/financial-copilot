@@ -74,6 +74,7 @@ using FinancialCopilot.Infrastructure.Financial.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Application.InAppMessages;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Infrastructure.Administration;
@@ -352,6 +353,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
         services.AddScoped<IAdminUserQueries, EfCoreAdminUserQueries>();
+        services.AddScoped<IInAppMessageStore, EfCoreInAppMessageStore>();
+        services.AddScoped<InAppMessageUseCases>();
         services.AddScoped<IAdminChatHistoryQueries, EfCoreAdminChatHistoryQueries>();
         services.AddScoped<IAdminConversationLogQueries, EfCoreAdminConversationLogQueries>();
 

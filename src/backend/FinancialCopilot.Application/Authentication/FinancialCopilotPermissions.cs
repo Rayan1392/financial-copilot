@@ -27,6 +27,8 @@ public static class FinancialCopilotPermissions
     public const string DataSyncManage = "data.sync.manage";
     public const string NoavaranMonthlyBackfillExecute = "noavaran.monthly-backfill.execute";
     public const string BillingManage = "billing.manage";
+    public const string AdminInAppMessagesSend = "admin.in-app-messages.send";
+    public const string AdminInAppMessagesSupport = "admin.in-app-messages.support";
     public const string AdminUsersRead = "admin.users.read";
     public const string AdminUsersManage = "admin.users.manage";
     public const string AdminRolesRead = "admin.roles.read";
@@ -72,6 +74,8 @@ public static class FinancialCopilotPermissions
         DataSyncManage,
         NoavaranMonthlyBackfillExecute,
         BillingManage,
+        AdminInAppMessagesSend,
+        AdminInAppMessagesSupport,
         AdminUsersRead,
         AdminUsersManage,
         AdminRolesRead,
@@ -93,6 +97,8 @@ public static class FinancialCopilotPermissions
 
     public static readonly IReadOnlyCollection<string> AdminAll =
     [
+        AdminInAppMessagesSend,
+        AdminInAppMessagesSupport,
         AdminUsersRead,
         AdminUsersManage,
         AdminRolesRead,

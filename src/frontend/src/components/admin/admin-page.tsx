@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { AdminCustomerChatHistory } from "@/components/admin/admin-customer-chat-history";
+import { AdminMessageComposer, AdminMessageQueue } from "@/components/admin/admin-in-app-messages";
 import { Loading, Message, Panel } from "@/components/admin/admin-ui";
 import { showError } from "@/components/admin/admin-errors";
 import { UserAnalyticsPanel } from "@/components/admin/user-analytics-panel";
@@ -72,7 +73,15 @@ import {
 } from "@/integrations/financial-copilot/admin-permissions";
 import type { AuthUser } from "@/integrations/financial-copilot/auth";
 
-type AdminTab = "users" | "user-analytics" | "ai-logs" | "roles" | "tenants" | "billing" | "audits";
+type AdminTab =
+  | "messages"
+  | "users"
+  | "user-analytics"
+  | "ai-logs"
+  | "roles"
+  | "tenants"
+  | "billing"
+  | "audits";
 const splitCsv = (value: string) =>
   value
     .split(",")
@@ -122,6 +131,14 @@ const permissionLabels: Record<string, { label: string; description: string }> =
   },
 };
 
+permissionLabels[adminPermissions.messagesSend] = {
+  label: "ارسال پیام به کاربر",
+  description: "شروع یک گفتگو یا ارسال اطلاعیه از صفحهٔ کاربران.",
+};
+permissionLabels[adminPermissions.messagesSupport] = {
+  label: "رسیدگی به پیام‌های کاربران",
+  description: "مشاهده و پاسخ به گفتگوهای صف پشتیبانی.",
+};
 permissionLabels["Page.Disclosures"] = {
   label:
     "\u0635\u0641\u062d\u0647 \u0641\u0647\u0631\u0633\u062a \u0627\u0637\u0644\u0627\u0639\u06cc\u0647\u200c\u0647\u0627\u06cc \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647",
@@ -158,6 +175,13 @@ export function AdminPage({ user }: { user: AuthUser }) {
       description: "پرسش‌ها و پاسخ‌های ثبت‌شده",
       icon: MessagesSquare,
     },
+    hasPermission(user, adminPermissions.usersRead) &&
+      hasPermission(user, adminPermissions.messagesSupport) && {
+        value: "messages" as const,
+        label: "پیام‌های کاربران",
+        description: "پیگیری پاسخ‌های پشتیبانی",
+        icon: MessagesSquare,
+      },
     hasPermission(user, adminPermissions.rolesRead) && {
       value: "roles" as const,
       label: "نقش‌ها و مجوزها",
@@ -297,6 +321,11 @@ export function AdminPage({ user }: { user: AuthUser }) {
             </div>
 
             {tab === "users" && <UsersPanel user={user} />}
+            {tab === "messages" &&
+              hasPermission(user, adminPermissions.usersRead) &&
+              hasPermission(user, adminPermissions.messagesSupport) && (
+                <AdminMessageQueue key={`${user.tenantId}:${user.userId}`} />
+              )}
             {tab === "user-analytics" && <UserAnalyticsPanel />}
             {tab === "ai-logs" && <AiConversationLogsPanel />}
             {tab === "roles" && <RolesPanel user={user} />}
@@ -1274,6 +1303,16 @@ function UsersPanel({ user }: { user: AuthUser }) {
                 </span>
               </DialogDescription>
             </DialogHeader>
+            {selectedDirectoryItem &&
+              selected?.isEnabled &&
+              !selected.isLockedOut &&
+              selectedDirectoryItem.userId === selected.userId &&
+              hasPermission(user, adminPermissions.messagesSend) && (
+                <AdminMessageComposer
+                  key={`${user.tenantId}:${user.userId}:${selected.userId}`}
+                  recipient={selectedDirectoryItem}
+                />
+              )}
             <div
               id="customer-360-tabpanel"
               role="tabpanel"

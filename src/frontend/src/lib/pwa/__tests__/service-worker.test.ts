@@ -41,6 +41,8 @@ describe("service worker routing (spec §9.3, §9.7)", () => {
     expect(route(`${ORIGIN}/_serverFn/abc?payload=1`)).toBe("passthrough");
     expect(route(`${ORIGIN}/_serverFn/abc`, { method: "POST" })).toBe("passthrough");
     expect(route(`${ORIGIN}/api/auth/v1/refresh`)).toBe("passthrough");
+    expect(route(`${ORIGIN}/api/v1/in-app-messages/me/summary`)).toBe("passthrough");
+    expect(route(`${ORIGIN}/api/v1/admin/in-app-messages/support`)).toBe("passthrough");
     expect(route("https://api.sapioai.ir/api/v1/usage/me")).toBe("passthrough");
     expect(route("https://api.sapioai.ir/api/auth/v1/refresh", { method: "POST" })).toBe(
       "passthrough",

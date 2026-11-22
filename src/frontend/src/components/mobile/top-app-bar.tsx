@@ -1,6 +1,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AccountInitial } from "@/components/mobile/account-initial";
+import { useUnreadMessages } from "@/components/app/in-app-message-queries";
 import { CreditIcon, NewChatIcon, SendIcon } from "@/components/mobile/icons";
 import { computeCreditProgress } from "@/lib/credit-progress";
 import { formatNumber } from "@/lib/format/persian";
@@ -14,9 +15,20 @@ export const APP_BAR_ICON_BUTTON =
 function AccountAvatar() {
   const { data: profile } = useOwnProfile();
   const name = officialDisplayName(profile?.displayName ?? null);
+  const unread = useUnreadMessages();
   return (
-    <Link to="/m/account" aria-label="حساب کاربری" className={APP_BAR_ICON_BUTTON}>
+    <Link
+      to="/m/account"
+      aria-label={unread.count ? `حساب کاربری، ${unread.label} پیام خوانده‌نشده` : "حساب کاربری"}
+      className={`relative ${APP_BAR_ICON_BUTTON}`}
+    >
       <AccountInitial name={name} className="size-9 text-m-title" />
+      {unread.count > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute end-1 top-1 size-2.5 rounded-full bg-emerald ring-2 ring-background"
+        />
+      )}
     </Link>
   );
 }

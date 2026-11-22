@@ -9,6 +9,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const onSignOut = vi.fn();
+const { summary } = vi.hoisted(() => ({ summary: vi.fn() }));
+
+vi.mock("@/integrations/financial-copilot/in-app-messages", () => ({ messageApi: { summary } }));
 
 vi.mock("@/integrations/financial-copilot/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/integrations/financial-copilot/auth")>()),
@@ -25,14 +28,14 @@ vi.mock("@/integrations/financial-copilot/auth", async (importOriginal) => ({
 
 const { AccountMenu } = await import("../account-menu");
 
-function renderMenu() {
+function renderMenu(variant: "full" | "rail" = "full") {
   const router = createRouter({
     routeTree: createRootRoute({
       component: () => (
         <>
           <span data-testid="router-ready" />
           <AccountMenu
-            variant="full"
+            variant={variant}
             creditSummary="۶۶۴ از ۲٬۶۰۰"
             showAdmin={false}
             onSignOut={onSignOut}
@@ -51,6 +54,7 @@ function renderMenu() {
 
 describe("AccountMenu", () => {
   it("keeps profile, Telegram, credit and sign-out reachable without a TahlilApp display name", async () => {
+    summary.mockResolvedValue({ unreadCount: 0 });
     renderMenu();
     await screen.findByTestId("router-ready");
 
@@ -77,4 +81,20 @@ describe("AccountMenu", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "خروج از حساب" }));
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });
+
+  it.each(["full", "rail"] as const)(
+    "shows a quiet unread badge in the %s account menu",
+    async (variant) => {
+      summary.mockResolvedValue({ unreadCount: 100 });
+      renderMenu(variant);
+      const trigger = await screen.findByRole("button", { name: /پیام خوانده‌نشده/ });
+      fireEvent.keyDown(trigger, { key: "Enter" });
+      expect(await screen.findByRole("menuitem", { name: /پیام‌ها/ })).toHaveAttribute(
+        "href",
+        "/messages",
+      );
+      expect(screen.getByText("۹۹+")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
 });

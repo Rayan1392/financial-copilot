@@ -19,6 +19,8 @@ public static class AuthorizationPolicies
     public const string MarketSummaryRead = "MarketSummaryRead";
     public const string TelegramLinkManageSelf = "TelegramLinkManageSelf";
     public const string TelegramMembershipReadSelf = "TelegramMembershipReadSelf";
+    public const string AdminInAppMessagesSend = "AdminInAppMessagesSend";
+    public const string AdminInAppMessagesSupport = "AdminInAppMessagesSupport";
     public const string AdminUsersRead = "AdminUsersRead";
     public const string AdminUsersManage = "AdminUsersManage";
     public const string AdminRolesRead = "AdminRolesRead";

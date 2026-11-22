@@ -7,6 +7,21 @@ namespace FinancialCopilot.API.Security;
 public static class RateLimitPolicies
 {
     public const string AuthenticatedActor = "AuthenticatedActor";
+    public const string InAppMessageWrite = "InAppMessageWrite";
+
+    public static RateLimitPartition<string> MessageWrite(HttpContext context)
+    {
+        var tenant = context.User.FindFirstValue(FinancialCopilotClaimTypes.TenantId);
+        var user = context.User.FindFirstValue("sub") ?? context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return RateLimitPartition.GetFixedWindowLimiter($"{tenant}:{user}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1),
+                AutoReplenishment = true
+            });
+    }
     public const string PublicAuthentication = "PublicAuthentication";
     public const string TahlilAppTopUpPartner = "TahlilAppTopUpPartner";
     public const string TahlilAppCreditBalance = "TahlilAppCreditBalance";

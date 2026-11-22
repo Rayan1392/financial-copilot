@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ChevronDown, LogOut, Send, Settings, UserRound, Wallet } from "lucide-react";
+import { ChevronDown, LogOut, Mail, Send, Settings, UserRound, Wallet } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,7 @@ import {
 } from "@/integrations/financial-copilot/auth";
 import { officialDisplayName } from "@/lib/profile-display-name";
 import { OWN_PROFILE_QUERY_KEY } from "@/lib/workspace/query-keys";
+import { useUnreadMessages } from "./in-app-message-queries";
 
 const ITEM_CLASS =
   "flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13px] focus:bg-emerald-soft/50 focus:text-foreground";
@@ -39,6 +40,7 @@ export function AccountMenu({
   onSignOut: () => void;
 }) {
   const [email, setEmail] = useState<string | null>(null);
+  const unread = useUnreadMessages();
   useEffect(() => {
     const update = () => setEmail(getStoredAuthenticatedUser()?.email ?? null);
     update();
@@ -59,9 +61,12 @@ export function AccountMenu({
   const avatar = (size: string) => (
     <span
       aria-hidden="true"
-      className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-emerald-soft text-sm font-semibold text-emerald ring-1 ring-emerald/30`}
+      className={`relative flex ${size} shrink-0 items-center justify-center rounded-full bg-emerald-soft text-sm font-semibold text-emerald ring-1 ring-emerald/30`}
     >
       {initial}
+      {unread.count > 0 && (
+        <span className="absolute -end-0.5 -top-0.5 size-2.5 rounded-full bg-emerald ring-2 ring-background" />
+      )}
     </span>
   );
 
@@ -72,7 +77,7 @@ export function AccountMenu({
           <button
             type="button"
             className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-right transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 data-[state=open]:bg-white/5"
-            aria-label={`منوی حساب: ${primary}`}
+            aria-label={`منوی حساب: ${primary}${unread.count ? `، ${unread.label} پیام خوانده‌نشده` : ""}`}
           >
             {avatar("size-9")}
             <span className="min-w-0 flex-1">
@@ -92,7 +97,7 @@ export function AccountMenu({
           <button
             type="button"
             className="flex size-11 items-center justify-center rounded-xl transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 data-[state=open]:bg-white/5"
-            aria-label={`منوی حساب: ${primary}`}
+            aria-label={`منوی حساب: ${primary}${unread.count ? `، ${unread.label} پیام خوانده‌نشده` : ""}`}
             title="حساب کاربری"
           >
             {avatar("size-8")}
@@ -133,7 +138,9 @@ export function AccountMenu({
                 <Wallet className="size-3.5" aria-hidden="true" />
                 اعتبار هوش مصنوعی
               </span>
-              <span className="font-semibold tabular-nums font-fanum text-foreground">{creditSummary}</span>
+              <span className="font-semibold tabular-nums font-fanum text-foreground">
+                {creditSummary}
+              </span>
             </Link>
           </DropdownMenuItem>
         )}
@@ -142,6 +149,20 @@ export function AccountMenu({
           <Link to="/profile">
             <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
             پروفایل حساب
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className={ITEM_CLASS}>
+          <Link to="/messages">
+            <Mail className="size-4 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">پیام‌ها</span>
+            {unread.count > 0 && (
+              <span
+                aria-label={`${unread.label} پیام خوانده‌نشده`}
+                className="rounded-full bg-emerald-soft px-2 text-emerald"
+              >
+                {unread.label}
+              </span>
+            )}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className={ITEM_CLASS}>

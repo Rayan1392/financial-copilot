@@ -38,6 +38,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        InAppMessageMapping.Configure(builder);
 
         builder.Entity<FinancialCopilotUser>().ToTable("auth_users");
         builder.Entity<FinancialCopilotUser>().HasIndex(user => new { user.IsEnabled, user.LockoutEnd, user.Id });

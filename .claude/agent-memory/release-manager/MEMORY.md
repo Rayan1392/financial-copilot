@@ -2,6 +2,11 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
+## Release 1.21.0
+
+- Published on 2026-11-21. Annotated tag `v1.21.0` points to prod merge `5beaa9b4`.
+- Deploy run 44945400621 succeeded in 9m46s. The public release page returned the new version. The 23 release-note and cash-flow tests passed.
+
 ## Current state (2026-11-18)
 
 - Latest released version: **1.17.1** (PATCH: Fixed only), annotated tag `v1.17.1` (tag object

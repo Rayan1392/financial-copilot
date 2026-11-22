@@ -17,6 +17,29 @@ Rollback is a flag change and a restart. Stored conversations stay readable. An 
 cannot run after the flag is turned off: pressing «تحلیل کن» returns the expired-offer reply at 0 credits, and the
 user asks again.
 
+## Production configuration
+
+The production image has no `appsettings.json`: `docker/api.Dockerfile` removes it. Production reads only
+`docker/appsettings.Production.json` and the server `.env`, which the api container receives through `env_file`. So the
+flag and the prices must be in the server `.env` (BUG-041):
+
+```
+GroundedAnalysis__Enabled=true
+GroundedAnalysisPricing__Credits__SimpleNoWeb=8
+GroundedAnalysisPricing__Credits__SimpleWeb=12
+GroundedAnalysisPricing__Credits__DeepNoWeb=16
+GroundedAnalysisPricing__Credits__DeepWeb=25
+AiModelProviders__Providers__0__Capabilities=ChatCompletion,StructuredOutput,ToolCalling,Streaming,UsageReporting,WebSearch
+```
+
+- The technical options (model, profiles, web search, disposition, telemetry) default in code to the values in
+  `appsettings.json`. Set them in `.env` only to change them, for example `GroundedAnalysis__Profiles__Deep__TimeoutSeconds`.
+- The prices have no code default. With the flag on and a price missing or 0, the api refuses to start and restarts
+  in a loop (BUG-041, 2026-11-22). Set the prices before the flag.
+- Check what the container received: `docker compose exec api printenv | grep -E 'GroundedAnalysis|Providers__0__Capabilities'`.
+- `GroundedAnalysisProductionConfigurationTests` checks that `.env.example` and the image defaults stay valid and keep
+  the prices of `appsettings.json`. It cannot see the server `.env`.
+
 ## Before turning `GroundedAnalysis:Enabled` on in production
 
 1. Run the provider spike (T00) and the live evaluation (T15). Their results are in `spike-notes.md` and
@@ -28,8 +51,9 @@ user asks again.
    - Web: the production reverse proxy in front of the frontend and the API (not in this repository) must allow at
      least 120 s for a request. The frontend and its server functions set no lower limit.
    - The OpenAI provider timeout (120 s) stays above the Deep profile timeout (90 s).
-3. Check that `GroundedAnalysisPricing:Credits` holds the approved amounts (8 / 12 / 16 / 25).
-4. Check that the OpenAI registration lists the `WebSearch` capability and that the key has access to `gpt-6.2-sol`.
+3. Check that `GroundedAnalysisPricing:Credits` holds the approved amounts (8 / 12 / 16 / 25) in the server `.env`.
+4. Check that the OpenAI registration lists the `WebSearch` capability (`AiModelProviders__Providers__0__Capabilities`)
+   and that the key has access to `gpt-6.2-sol`.
 
 The Telegram gateway still handles updates one at a time. While an analysis runs, other Telegram users wait. Per-chat
 concurrent processing is in `specs/backlog.md`.

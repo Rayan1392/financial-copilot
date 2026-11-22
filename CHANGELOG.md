@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.21.1] - 2026-11-22
+
+تحلیل با انتخاب عمق و جست‌وجوی وب اکنون واقعاً در دسترس است.
+
+### Fixed
+
+- انتخاب عمق تحلیل («ساده» یا «عمیق») و جست‌وجوی وب که در نسخهٔ 1.19.0 معرفی شد، اکنون واقعاً فعال است: در پرسش دربارهٔ گزارشی که در گفت‌وگو نمایش داده شده یا دربارهٔ یک شرکت، پیشنهاد تحلیل با چهار سطح و هزینهٔ ثابت هرکدام (۸، ۱۲، ۱۶ و ۲۵ اعتبار) نمایش داده می‌شود. پیش‌تر به‌دلیل کامل‌نبودن تنظیمات سرور، این پرسش‌ها مانند قبل با تحلیل ساده‌تر پاسخ داده می‌شدند.
+
 ## [1.21.0] - 2026-11-21
 
 ### Added
@@ -432,7 +440,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.1...develop
+[1.21.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.1...v1.21.0
 [1.20.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.0...v1.20.1
 [1.20.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.19.0...v1.20.0

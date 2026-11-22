@@ -239,7 +239,7 @@ services:
         NoavaranArchiveSql__ConnectionString: ${NOAVARAN_ARCHIVE_SQL_CONNECTION_STRING:-}
         StockMarketDb__ConnectionString: ${STOCK_MARKET_DB_CONNECTION_STRING:-}
         AiModelProviders__Providers__0__Adapter: "${AiModelProviders__Providers__0__Adapter:-OpenAI}"
-        AiModelProviders__Providers__0__Capabilities: "${AiModelProviders__Providers__0__Capabilities:-ChatCompletion,StructuredOutput,ToolCalling,Streaming,UsageReporting}"
+        AiModelProviders__Providers__0__Capabilities: "${AiModelProviders__Providers__0__Capabilities:-ChatCompletion,StructuredOutput,ToolCalling,Streaming,UsageReporting,WebSearch}"
         AiModelProviders__Providers__0__CredentialSecretReference: "${AiModelProviders__Providers__0__CredentialSecretReference:-}"
         AiModelProviders__Providers__0__Enabled: "${AiModelProviders__Providers__0__Enabled:-True}"
         AiModelProviders__Providers__0__Endpoint: "${AiModelProviders__Providers__0__Endpoint:-https://api.openai.com/v1/}"

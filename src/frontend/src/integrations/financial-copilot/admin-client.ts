@@ -302,6 +302,7 @@ export type AdminConversationLogUser = {
   displayName: string | null;
   email: string | null;
   maskedMobile: string | null;
+  hasUserAccount?: boolean;
 };
 export type AdminConversationLogItem = {
   turnId: string;

@@ -111,7 +111,7 @@ public sealed class AdminAiConversationLogsController(
             item.Channel.ToString());
 
     private static AdminConversationLogUserHttpResponse MapUser(AdminConversationLogUser user) =>
-        new(user.UserId, user.DisplayName, user.Email, user.MaskedMobile);
+        new(user.UserId, user.DisplayName, user.Email, user.MaskedMobile, user.HasUserAccount);
 
     private static AdminConversationLogAnswerHttpResponse MapAnswer(AdminConversationLogAnswer answer) =>
         new(

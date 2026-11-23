@@ -87,6 +87,11 @@ The nullable `creditAdjustmentAccountId` identifies an existing Billing account 
 `admin.credits.adjust`. The subscription, credit and purchase sections remain governed by their
 own read permissions. The UI submits grants through the existing credit-adjustment route.
 
+The conversation-log list and turn detail include `user.hasUserAccount`. The flag is true when
+the conversation actor resolves to an Identity user with membership in the effective tenant.
+Otherwise, the log retains the actor ID and the turn, with display name, email, and masked
+mobile set to null. The UI offers Customer 360 for confirmed accounts.
+
 Published plan codes and plan-capability policy versions are immutable. Included credit is the
 only mutable plan field and uses the dedicated audited endpoint above; capability changes still
 require a new policy version.

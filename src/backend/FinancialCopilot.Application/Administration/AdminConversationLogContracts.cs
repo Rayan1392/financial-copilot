@@ -42,7 +42,8 @@ public sealed record AdminConversationLogUser(
     Guid UserId,
     string? DisplayName,
     string? Email,
-    string? MaskedMobile);
+    string? MaskedMobile,
+    bool HasUserAccount);
 
 public sealed record AdminConversationLogItem(
     Guid TurnId,

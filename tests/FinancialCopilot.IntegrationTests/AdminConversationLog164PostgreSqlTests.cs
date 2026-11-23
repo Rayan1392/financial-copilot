@@ -79,6 +79,63 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
     }
 
     [SkippableFact]
+    public async Task Account_availability_and_profile_fields_require_membership_in_the_active_tenant()
+    {
+        await using var database = await CreateDatabaseAsync();
+        var local = NewUser("unnamed@example.test");
+        local.Email = null;
+        local.NormalizedEmail = null;
+        var outsider = NewUser("outside@example.test");
+        var gatewayId = Guid.NewGuid();
+
+        await using var auth = database.CreateAuthContext();
+        auth.Tenants.AddRange(
+            new TenantRow { Id = TenantId, Name = "Tenant" },
+            new TenantRow { Id = OtherTenantId, Name = "Other" });
+        AddMember(auth, TenantId, local);
+        AddMember(auth, OtherTenantId, outsider);
+        auth.UserProfiles.Add(new UserProfileRow
+        {
+            UserId = outsider.Id, DisplayName = "Other tenant profile", MobileLast4 = "9876"
+        });
+        await auth.SaveChangesAsync();
+
+        await using var conversations = database.CreateConversationContext();
+        var cases = new[]
+        {
+            (ActorId: local.Id, QuestionId: Guid.NewGuid(), HasUserAccount: true),
+            (ActorId: outsider.Id, QuestionId: Guid.NewGuid(), HasUserAccount: false),
+            (ActorId: gatewayId, QuestionId: Guid.NewGuid(), HasUserAccount: false)
+        };
+        foreach (var entry in cases)
+        {
+            var conversation = AddConversation(conversations, entry.ActorId, TenantId);
+            AddMessage(conversations, conversation, entry.QuestionId, "User", "retained question", T0);
+            AddMessage(conversations, conversation, Guid.NewGuid(), "Assistant", "retained answer", T0.AddSeconds(1));
+        }
+        await conversations.SaveChangesAsync();
+
+        var queries = Queries(conversations, auth);
+        var page = await queries.GetPageAsync(TenantId, new AdminConversationLogQuery(), CancellationToken.None);
+        Assert.Equal(cases.Length, page.TotalCount);
+        Assert.Equal(cases.Length, page.Items.Count);
+        foreach (var entry in cases)
+        {
+            var item = Assert.Single(page.Items, item => item.TurnId == entry.QuestionId);
+            var expected = new AdminConversationLogUser(entry.ActorId, null, null, null, entry.HasUserAccount);
+            Assert.Equal(expected, item.User);
+            Assert.Equal("retained answer", item.AnswerPreview);
+
+            var detail = await queries.GetTurnAsync(
+                TenantId, local.Id, "User", "account-availability", entry.QuestionId, CancellationToken.None);
+            Assert.NotNull(detail);
+            Assert.Equal(expected, detail.User);
+            Assert.Equal("retained question", detail.Question);
+            Assert.Equal("retained answer", Assert.Single(detail.Answers).Content);
+        }
+    }
+
+    [SkippableFact]
     public async Task Filters_select_exactly_the_matching_turns()
     {
         await using var database = await CreateDatabaseAsync();

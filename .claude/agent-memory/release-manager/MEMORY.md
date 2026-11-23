@@ -2,6 +2,15 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
+## Release 1.23.0
+
+- Published on 2026-11-23 (MINOR: Added). Feature commit `81525218`, develop release commit `4fb27a7f`, prod
+  merge `50c652c7`, annotated tag `v1.23.0` (tag object `a8c2198`). Deploy run 45211036100 passed and
+  `/releases` was verified to show 1.23.0 as current.
+- The admin conversation log opens Customer 360 from the user cell. The shared dialog supports manual credit
+  grants for authorized administrators and has a responsive RTL layout. No database migration or Telegram
+  gateway change. Release-note tests passed 12/12 and the tag/changelog check passed.
+
 ## Release 1.22.0
 
 - Published on 2026-11-22 (MINOR: Added). Develop release commit `4e7a4cfc`, prod merge `32810830`, annotated tag

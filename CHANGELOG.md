@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-11-23
+
+دسترسی به اطلاعات حساب از تاریخچهٔ پرسش و پاسخ و افزودن اعتبار در پنجرهٔ اطلاعات کاربر.
+
 ### Added
 
 - در «تاریخچه پرسش و پاسخ کاربران»، مدیران با کلیک روی کاربر می‌توانند اطلاعات حساب او را ببینند. مدیران دارای مجوز می‌توانند از بخش «اعتبارها» در همان پنجره، با ثبت دلیل به حساب کاربر اعتبار اضافه کنند.
@@ -464,7 +468,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.22.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.0...develop
+[1.23.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.1...v1.22.0
 [1.21.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.20.1...v1.21.0

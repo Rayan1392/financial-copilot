@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [1.23.1] - 2026-11-23
+
 ### Fixed
 
 - در «تاریخچه پرسش و پاسخ کاربران»، پنجرهٔ اطلاعات حساب فقط برای ردیف‌هایی باز می‌شود که به یک حساب کاربری در همان سازمان متصل‌اند. کاربران بدون نام همچنان قابل انتخاب‌اند و پرسش و پاسخ ردیف‌های بدون حساب هم قابل مشاهده است.
@@ -472,7 +474,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.1...develop
+[1.23.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.0...v1.23.1
 [1.23.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.1...v1.22.0
 [1.21.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.0...v1.21.1

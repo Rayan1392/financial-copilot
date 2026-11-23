@@ -8,6 +8,7 @@ import {
   type AdminConversationLogPage,
   type AdminCustomer360,
 } from "@/integrations/financial-copilot/admin-client";
+import { FinancialCopilotApiError } from "@/integrations/financial-copilot/api-client";
 import { formatDisclosureReceiptDate } from "@/lib/format/disclosure";
 
 // Other admin calls stay pending unless the test gives them a response.
@@ -43,6 +44,7 @@ function item(overrides: Partial<AdminConversationLogItem> = {}): AdminConversat
       displayName: "سارا",
       email: "sara@example.test",
       maskedMobile: "•••2222",
+      hasUserAccount: true,
     },
     questionPreview: "سود فولاد چقدر است؟",
     answerPreview: "سود خالص فولاد ...",
@@ -138,7 +140,9 @@ describe("Shared Customer 360", () => {
     api.aiConversationLogs.mockResolvedValue(
       page({
         items: [
-          item({ user: { userId: "user-1", displayName: null, email: null, maskedMobile: null } }),
+          item({
+            user: { ...item().user, displayName: null, email: null, maskedMobile: null },
+          }),
         ],
       }),
     );
@@ -172,7 +176,13 @@ describe("Shared Customer 360", () => {
   }, 15_000);
 
   it("ignores a previous account response and requires an existing Billing account", async () => {
-    const second = { userId: "user-2", displayName: "مریم", email: null, maskedMobile: null };
+    const second = {
+      ...item().user,
+      userId: "user-2",
+      displayName: "مریم",
+      email: null,
+      maskedMobile: null,
+    };
     api.aiConversationLogs.mockResolvedValue(
       page({
         items: [item(), item({ turnId: "turn-2", user: second })],
@@ -208,6 +218,51 @@ describe("Shared Customer 360", () => {
     expect(within(dialog).getByText("user-2")).toBeInTheDocument();
     expect(within(dialog).queryByText("user-1")).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "افزودن اعتبار" })).not.toBeInTheDocument();
+  });
+
+  it.each([false, undefined])(
+    "keeps the turn detail available without opening an unverified customer account (%s)",
+    async (hasUserAccount) => {
+      api.aiConversationLogs.mockResolvedValue(
+        page({
+          items: [item({ user: { ...item().user, hasUserAccount } })],
+        }),
+      );
+      render(<AdminPage user={admin} />);
+      openLogs();
+
+      const unavailable = await screen.findByText("حساب کاربری در دسترس نیست");
+      const row = within(unavailable.closest("tr")!);
+      expect(row.queryByRole("button", { name: "سارا" })).not.toBeInTheDocument();
+      expect(row.queryByText("sara@example.test")).not.toBeInTheDocument();
+      expect(row.getByText("سود فولاد چقدر است؟")).toBeInTheDocument();
+      fireEvent.click(row.getByRole("button", { name: "مشاهده" }));
+      expect(api.aiConversationLogTurn).toHaveBeenCalledWith("turn-1");
+      expect(api.user).not.toHaveBeenCalled();
+      expect(api.customer360).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["user", 403, "tenant-scope-violation", "حساب این کاربر دیگر در دسترس نیست."],
+    ["customer360", 404, "resource-not-found", "حساب این کاربر دیگر در دسترس نیست."],
+    ["user", 403, "permission-denied", "Original error"],
+  ] as const)("handles a %s error after listing (%s)", async (endpoint, status, type, message) => {
+    api.aiConversationLogs.mockResolvedValue(page());
+    api.user.mockResolvedValue(identity);
+    api.customer360.mockResolvedValue(details);
+    api[endpoint].mockRejectedValue(
+      new FinancialCopilotApiError(
+        "Original error",
+        status,
+        "https://financialcopilot/errors/" + type,
+      ),
+    );
+    render(<AdminPage user={admin} />);
+    openLogs();
+    fireEvent.click(await screen.findByRole("button", { name: "سارا" }));
+    const alert = await within(screen.getByRole("dialog", { name: /سارا/ })).findByRole("alert");
+    expect(alert).toHaveTextContent(message);
   });
 
   it("reuses the idempotency key on retry and reloads credit history after success", async () => {
@@ -249,11 +304,11 @@ describe("Shared Customer 360", () => {
     fireEvent.click(await screen.findByRole("button", { name: "سارا" }));
     const customerDialog = screen.getByRole("dialog", { name: /سارا/ });
     const action = await within(customerDialog).findByRole("button", { name: "افزودن اعتبار" });
-      await act(async () => {
-        fireEvent.click(
-          within(customerDialog).getByRole("button", { name: "بارگذاری تاریخچه اعتبار" }),
-        );
-      });
+    await act(async () => {
+      fireEvent.click(
+        within(customerDialog).getByRole("button", { name: "بارگذاری تاریخچه اعتبار" }),
+      );
+    });
     await waitFor(() => expect(action).toBeEnabled());
 
     async function submit(amount: string) {
@@ -261,9 +316,9 @@ describe("Shared Customer 360", () => {
       const form = await screen.findByRole("dialog", { name: "افزودن اعتبار به مشتری" });
       fireEvent.change(within(form).getByRole("spinbutton"), { target: { value: amount } });
       fireEvent.change(within(form).getByRole("textbox"), { target: { value: "جبران" } });
-        await act(async () => {
-          fireEvent.submit(form.querySelector("form")!);
-        });
+      await act(async () => {
+        fireEvent.submit(form.querySelector("form")!);
+      });
     }
     await submit("1.5");
     await within(customerDialog).findByText(/مقدار اعتبار باید عدد صحیح/);

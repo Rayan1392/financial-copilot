@@ -65,11 +65,54 @@ function toQuery(
   };
 }
 
+type OpenLogUser = (user: AdminConversationLogUser, trigger: HTMLButtonElement) => void;
+
+function ConversationLogAccount({
+  user,
+  onOpenUser,
+}: {
+  user: AdminConversationLogUser;
+  onOpenUser?: OpenLogUser;
+}) {
+  if (user.hasUserAccount !== true) {
+    return <span className="text-slate-600">حساب کاربری در دسترس نیست</span>;
+  }
+
+  const label = user.displayName || user.email || user.maskedMobile || "بدون نام";
+  return (
+    <>
+      {onOpenUser ? (
+        <button
+          type="button"
+          className="block max-w-full truncate rounded-sm text-start font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+          onClick={(event) => onOpenUser(user, event.currentTarget)}
+        >
+          <bdi>{label}</bdi>
+        </button>
+      ) : (
+        <span className="block truncate font-medium text-slate-800">
+          <bdi>{label}</bdi>
+        </span>
+      )}
+      {user.displayName && user.email && (
+        <span className="block truncate text-slate-500" dir="ltr">
+          {user.email}
+        </span>
+      )}
+      {user.maskedMobile && (user.displayName || user.email) && (
+        <span className="block text-slate-500" dir="ltr">
+          {user.maskedMobile}
+        </span>
+      )}
+    </>
+  );
+}
+
 /** Feature 164: «تاریخچه پرسش و پاسخ کاربران» — every user's questions and the AI answers, read-only. */
 export function AiConversationLogsPanel({
   onOpenUser,
 }: {
-  onOpenUser?: (user: AdminConversationLogUser, trigger: HTMLButtonElement) => void;
+  onOpenUser?: OpenLogUser;
 } = {}) {
   const [draft, setDraft] = useState<Filters>(defaultFilters);
   const [applied, setApplied] = useState<Filters>(() => draft);
@@ -247,37 +290,7 @@ export function AiConversationLogsPanel({
                     {formatTehranDateTime(item.questionCreatedAtUtc)}
                   </TableCell>
                   <TableCell className="max-w-[200px] text-xs">
-                    {onOpenUser ? (
-                      <button
-                        type="button"
-                        className="block max-w-full truncate rounded-sm text-start font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-                        onClick={(event) => onOpenUser(item.user, event.currentTarget)}
-                      >
-                        <bdi>
-                          {item.user.displayName ||
-                            item.user.email ||
-                            item.user.maskedMobile ||
-                            "بدون نام"}
-                        </bdi>
-                      </button>
-                    ) : (
-                      <span className="block truncate font-medium text-slate-800">
-                        {item.user.displayName ||
-                          item.user.email ||
-                          item.user.maskedMobile ||
-                          "بدون نام"}
-                      </span>
-                    )}
-                    {item.user.displayName && item.user.email && (
-                      <span className="block truncate text-slate-500" dir="ltr">
-                        {item.user.email}
-                      </span>
-                    )}
-                    {item.user.maskedMobile && (item.user.displayName || item.user.email) && (
-                      <span className="block text-slate-500" dir="ltr">
-                        {item.user.maskedMobile}
-                      </span>
-                    )}
+                    <ConversationLogAccount user={item.user} onOpenUser={onOpenUser} />
                   </TableCell>
                   <TableCell className="max-w-[320px] text-sm">
                     <span className="line-clamp-3 break-words text-slate-900" dir="auto">

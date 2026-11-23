@@ -35,6 +35,7 @@ import { AdminCustomerChatHistory } from "@/components/admin/admin-customer-chat
 import { AdminMessageComposer, AdminMessageQueue } from "@/components/admin/admin-in-app-messages";
 import { Loading, Message, Panel } from "@/components/admin/admin-ui";
 import { showError } from "@/components/admin/admin-errors";
+import { FinancialCopilotApiError } from "@/integrations/financial-copilot/api-client";
 import { UserAnalyticsPanel } from "@/components/admin/user-analytics-panel";
 import { AiConversationLogsPanel } from "@/components/admin/ai-conversation-logs-panel";
 import { TahlilAppTopUpReconciliationPanel } from "@/components/admin/tahlilapp-top-up-reconciliation-panel";
@@ -1219,7 +1220,14 @@ function Customer360Dialog({
         setCustomer(details);
       })
       .catch((reason: unknown) => {
-        if (active) setError(showError(reason));
+        if (!active) return;
+        const accountUnavailable =
+          reason instanceof FinancialCopilotApiError &&
+          ((reason.status === 403 &&
+            reason.type === "https://financialcopilot/errors/tenant-scope-violation") ||
+            (reason.status === 404 &&
+              reason.type === "https://financialcopilot/errors/resource-not-found"));
+        setError(accountUnavailable ? "حساب این کاربر دیگر در دسترس نیست." : showError(reason));
       })
       .finally(() => {
         if (active) setDetailLoading(false);

@@ -7,7 +7,8 @@ public sealed record AdminConversationLogUserHttpResponse(
     Guid UserId,
     string? DisplayName,
     string? Email,
-    string? MaskedMobile);
+    string? MaskedMobile,
+    bool HasUserAccount);
 
 public sealed record AdminConversationLogItemHttpResponse(
     Guid TurnId,

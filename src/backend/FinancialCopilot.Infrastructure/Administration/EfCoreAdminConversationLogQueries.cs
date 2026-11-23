@@ -169,13 +169,13 @@ public sealed class EfCoreAdminConversationLogQueries(
             await transaction.CommitAsync(cancellationToken);
         }
 
-        var users = await LoadUsersAsync(rows.Select(row => row.UserId), cancellationToken);
+        var users = await LoadUsersAsync(tenantId, rows.Select(row => row.UserId), cancellationToken);
         var telegram = await LoadTelegramConversationsAsync(tenantId, rows.Select(row => row.ConversationId), cancellationToken);
         var items = rows.Select(row => new AdminConversationLogItem(
             row.TurnId,
             row.ConversationId,
             NormalizeTitle(row.ConversationTitle),
-            users.GetValueOrDefault(row.UserId) ?? new AdminConversationLogUser(row.UserId, null, null, null),
+            users.GetValueOrDefault(row.UserId) ?? new AdminConversationLogUser(row.UserId, null, null, null, HasUserAccount: false),
             row.QuestionPreview,
             row.AnswerPreview,
             row.QuestionCreatedAt,
@@ -266,14 +266,14 @@ public sealed class EfCoreAdminConversationLogQueries(
                 payload);
         }).ToArray();
 
-        var users = await LoadUsersAsync([anchor.ActorId], cancellationToken);
+        var users = await LoadUsersAsync(tenantId, [anchor.ActorId], cancellationToken);
         var telegram = await LoadTelegramConversationsAsync(tenantId, [anchor.ConversationId], cancellationToken);
         return new AdminConversationLogTurn(
             anchor.Id,
             anchor.ConversationId,
             NormalizeTitle(anchor.Title),
             telegram.Contains(anchor.ConversationId) ? AdminConversationLogChannel.Telegram : AdminConversationLogChannel.Web,
-            users.GetValueOrDefault(anchor.ActorId) ?? new AdminConversationLogUser(anchor.ActorId, null, null, null),
+            users.GetValueOrDefault(anchor.ActorId) ?? new AdminConversationLogUser(anchor.ActorId, null, null, null, HasUserAccount: false),
             question,
             anchor.CreatedAt,
             answers.Length == 0 ? AdminConversationLogStatus.NoResponse : answers[0].Status,
@@ -348,15 +348,17 @@ public sealed class EfCoreAdminConversationLogQueries(
     }
 
     private async Task<Dictionary<Guid, AdminConversationLogUser>> LoadUsersAsync(
+        Guid tenantId,
         IEnumerable<Guid> userIds,
         CancellationToken cancellationToken)
     {
         var ids = userIds.Distinct().ToArray();
         if (ids.Length == 0) return [];
-        var rows = await (from user in auth.Users.AsNoTracking()
+        var rows = await (from membership in auth.UserTenants.AsNoTracking()
+                          join user in auth.Users.AsNoTracking() on membership.UserId equals user.Id
                           join profileRow in auth.UserProfiles.AsNoTracking() on user.Id equals profileRow.UserId into profileRows
                           from profile in profileRows.DefaultIfEmpty()
-                          where ids.Contains(user.Id)
+                          where membership.TenantId == tenantId && ids.Contains(user.Id)
                           select new
                           {
                               user.Id,
@@ -373,7 +375,8 @@ public sealed class EfCoreAdminConversationLogQueries(
                 row.Id,
                 EfCoreAdminUserQueries.ResolveDisplayName(row.DisplayName, row.FirstName, row.LastName),
                 row.Email,
-                string.IsNullOrEmpty(row.MobileLast4) ? null : "•••" + row.MobileLast4));
+                string.IsNullOrEmpty(row.MobileLast4) ? null : "•••" + row.MobileLast4,
+                HasUserAccount: true));
     }
 
     private async Task<HashSet<Guid>> LoadTelegramConversationsAsync(

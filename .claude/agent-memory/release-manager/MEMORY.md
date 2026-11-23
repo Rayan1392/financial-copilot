@@ -2,6 +2,18 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
+## Release 1.22.0
+
+- Published on 2026-11-22 (MINOR: Added). Develop release commit `4e7a4cfc`, prod merge `32810830`, annotated tag
+  `v1.22.0`. Deploy run 45065263416 succeeded in about 9m40s. `/releases` returned HTTP 200 and lists 1.22.0.
+- Ships Feature 165 in-app messages (`3ac47a08`) and the 162 change `local-company-data-context` (`136a131a`, which
+  also carries Feature 125 CyclicalWaves v2 relative valuation, off in production by default).
+- Migrations ran with no backup, acknowledged by the owner: `Feature165InAppMessages` (Auth) and
+  `AddCyclicalWavesV2RelativeValuation` (FinancialIngestion, nullable columns and an index only).
+- Open: 165 verification tasks (browser walkthrough, access tests, rollout docs; OQ-129); 162 owner live check AC-12
+  (T25); 4 frontend 165 tests timed out locally; unit tests `AnalyticalAnswerAndReportScoreTests` and
+  `NavigatorEvaluationReliabilityTests` failed outside the baseline and are uninvestigated. No Telegram gateway changes.
+
 ## Release 1.21.0
 
 - Published on 2026-11-21. Annotated tag `v1.21.0` points to prod merge `5beaa9b4`.

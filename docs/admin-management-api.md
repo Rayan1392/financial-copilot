@@ -41,6 +41,7 @@ role, or removing required admin permissions from its role path. Rejected attemp
 ```http
 GET    /api/v1/admin/users
 GET    /api/v1/admin/users/{userId}
+GET    /api/v1/admin/users/{userId}/customer-360
 PATCH  /api/v1/admin/users/{userId}/status
 POST   /api/v1/admin/users/{userId}/sessions/revoke
 PUT    /api/v1/admin/users/{userId}/roles
@@ -80,6 +81,11 @@ Tenant identifiers are checked against the effective JWT tenant. Subscription ch
 `expectedRevision`; stale writes return `409`. Credit adjustments require a reason and
 idempotency key and delegate to Billing, which appends ledger evidence and updates the wallet
 projection atomically. Wallet projections are never edited directly.
+
+Customer 360 requires `admin.users.read` and resolves the user in the effective tenant.
+The nullable `creditAdjustmentAccountId` identifies an existing Billing account for callers with
+`admin.credits.adjust`. The subscription, credit and purchase sections remain governed by their
+own read permissions. The UI submits grants through the existing credit-adjustment route.
 
 Published plan codes and plan-capability policy versions are immutable. Included credit is the
 only mutable plan field and uses the dedicated audited endpoint above; capability changes still

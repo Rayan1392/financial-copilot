@@ -27,6 +27,7 @@ import {
   type AdminConversationLogPageSize,
   type AdminConversationLogQuery,
   type AdminConversationLogStatus,
+  type AdminConversationLogUser,
 } from "@/integrations/financial-copilot/admin-client";
 import { lastTehranDays, tehranDayRangeToUtc } from "@/lib/format/tehran-day-range";
 import { toPersianDigits } from "@/lib/format/persian";
@@ -65,7 +66,11 @@ function toQuery(
 }
 
 /** Feature 164: «تاریخچه پرسش و پاسخ کاربران» — every user's questions and the AI answers, read-only. */
-export function AiConversationLogsPanel() {
+export function AiConversationLogsPanel({
+  onOpenUser,
+}: {
+  onOpenUser?: (user: AdminConversationLogUser, trigger: HTMLButtonElement) => void;
+} = {}) {
   const [draft, setDraft] = useState<Filters>(defaultFilters);
   const [applied, setApplied] = useState<Filters>(() => draft);
   const [page, setPage] = useState(1);
@@ -242,15 +247,33 @@ export function AiConversationLogsPanel() {
                     {formatTehranDateTime(item.questionCreatedAtUtc)}
                   </TableCell>
                   <TableCell className="max-w-[200px] text-xs">
-                    <span className="block truncate font-medium text-slate-800">
-                      {item.user.displayName ?? item.user.email ?? "بدون نام"}
-                    </span>
+                    {onOpenUser ? (
+                      <button
+                        type="button"
+                        className="block max-w-full truncate rounded-sm text-start font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                        onClick={(event) => onOpenUser(item.user, event.currentTarget)}
+                      >
+                        <bdi>
+                          {item.user.displayName ||
+                            item.user.email ||
+                            item.user.maskedMobile ||
+                            "بدون نام"}
+                        </bdi>
+                      </button>
+                    ) : (
+                      <span className="block truncate font-medium text-slate-800">
+                        {item.user.displayName ||
+                          item.user.email ||
+                          item.user.maskedMobile ||
+                          "بدون نام"}
+                      </span>
+                    )}
                     {item.user.displayName && item.user.email && (
                       <span className="block truncate text-slate-500" dir="ltr">
                         {item.user.email}
                       </span>
                     )}
-                    {item.user.maskedMobile && (
+                    {item.user.maskedMobile && (item.user.displayName || item.user.email) && (
                       <span className="block text-slate-500" dir="ltr">
                         {item.user.maskedMobile}
                       </span>

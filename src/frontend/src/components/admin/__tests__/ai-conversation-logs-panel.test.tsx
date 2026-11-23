@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminPage } from "../admin-page";
 import { AiConversationLogsPanel } from "../ai-conversation-logs-panel";
@@ -6,6 +6,7 @@ import {
   adminApi,
   type AdminConversationLogItem,
   type AdminConversationLogPage,
+  type AdminCustomer360,
 } from "@/integrations/financial-copilot/admin-client";
 import { formatDisclosureReceiptDate } from "@/lib/format/disclosure";
 
@@ -14,6 +15,10 @@ const api = vi.hoisted(() => ({
   aiConversationLogs: vi.fn(),
   aiConversationLogTurn: vi.fn(),
   userDirectory: vi.fn(),
+  user: vi.fn(),
+  customer360: vi.fn(),
+  customerCreditHistory: vi.fn(),
+  adjustCredits: vi.fn(),
 }));
 vi.mock("@/integrations/financial-copilot/admin-client", async (importOriginal) => {
   const actual =
@@ -63,10 +68,227 @@ beforeEach(() => {
   api.aiConversationLogs.mockReset();
   api.aiConversationLogTurn.mockReset();
   api.userDirectory.mockReset();
+  api.user.mockReset();
+  api.customer360.mockReset();
+  api.customerCreditHistory.mockReset();
+  api.adjustCredits.mockReset();
   api.userDirectory.mockReturnValue(new Promise(() => {}));
   api.aiConversationLogTurn.mockReturnValue(new Promise(() => {}));
 });
 afterEach(() => vi.useRealTimers());
+
+describe("Shared Customer 360", () => {
+  const admin = {
+    userId: "admin",
+    email: "admin@example.test",
+    tenantId: "t",
+    roles: [],
+    permissions: ["admin.users.read"],
+  };
+  const hidden = { status: "not_authorized", data: null } as const;
+  const identity = {
+    userId: "user-1",
+    email: "sara@example.test",
+    isEnabled: true,
+    isLockedOut: false,
+    roles: [],
+    tenantIds: ["t"],
+  };
+  const details: AdminCustomer360 = {
+    userId: "user-1",
+    tenantId: "t",
+    isEnabled: true,
+    isLockedOut: false,
+    acquisitionSourceCode: "native",
+    registeredAtUtc: null,
+    lastSuccessfulLoginAtUtc: null,
+    lastLoginProviderCode: null,
+    hasNativeCredential: true,
+    emailConfirmed: true,
+    activeRefreshSessions: 2,
+    tenantMemberships: ["t"],
+    linkedProviders: [],
+    subscription: hidden,
+    credits: hidden,
+    purchases: hidden,
+    asOfUtc: now.toISOString(),
+    creditAdjustmentAccountId: "billing-1",
+  };
+
+  function openLogs() {
+    fireEvent.click(screen.getByRole("button", { name: /تاریخچه پرسش و پاسخ کاربران/ }));
+  }
+
+  it("uses the same view from both lists and restores focus for an unnamed log user", async () => {
+    api.user.mockResolvedValue(identity);
+    api.customer360.mockResolvedValue(details);
+    api.userDirectory.mockResolvedValue({
+      items: [
+        {
+          ...item().user,
+          status: "enabled",
+          linkedProviderCodes: [],
+          subscription: hidden,
+          credits: hidden,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    });
+    api.aiConversationLogs.mockResolvedValue(
+      page({
+        items: [
+          item({ user: { userId: "user-1", displayName: null, email: null, maskedMobile: null } }),
+        ],
+      }),
+    );
+    render(<AdminPage user={admin} />);
+
+    const directoryUser = await screen.findByRole("button", {
+      name: "نمایش جزئیات sara@example.test",
+    });
+    fireEvent.click(directoryUser);
+    const directoryDialog = screen.getByRole("dialog", { name: /سارا/ });
+    await within(directoryDialog).findByText("مشخصات حساب");
+    expect(
+      within(directoryDialog).queryByRole("button", { name: "افزودن اعتبار" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(directoryDialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(directoryUser).toHaveFocus());
+
+    openLogs();
+    const logUser = await screen.findByRole("button", { name: "بدون نام" });
+    fireEvent.click(logUser);
+    const logDialog = screen.getByRole("dialog", { name: /بدون نام/ });
+    await within(logDialog).findByText("مشخصات حساب");
+    expect(within(logDialog).getByRole("tab", { name: "اطلاعات حساب" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(api.customer360.mock.calls).toEqual([["user-1"], ["user-1"]]);
+    fireEvent.keyDown(logDialog, { key: "Escape" });
+    await waitFor(() => expect(logUser).toHaveFocus());
+    expect(api.aiConversationLogs).toHaveBeenCalledTimes(1);
+  }, 15_000);
+
+  it("ignores a previous account response and requires an existing Billing account", async () => {
+    const second = { userId: "user-2", displayName: "مریم", email: null, maskedMobile: null };
+    api.aiConversationLogs.mockResolvedValue(
+      page({
+        items: [item(), item({ turnId: "turn-2", user: second })],
+      }),
+    );
+    let resolvePrevious!: (value: AdminCustomer360) => void;
+    api.user.mockResolvedValue(identity);
+    api.customer360
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePrevious = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        ...details,
+        userId: second.userId,
+        creditAdjustmentAccountId: null,
+      });
+    render(
+      <AdminPage
+        user={{ ...admin, permissions: [...admin.permissions, "admin.credits.adjust"] }}
+      />,
+    );
+
+    openLogs();
+    fireEvent.click(await screen.findByRole("button", { name: "سارا" }));
+    fireEvent.keyDown(screen.getByRole("dialog", { name: /سارا/ }), { key: "Escape" });
+    fireEvent.click(await screen.findByRole("button", { name: "مریم" }));
+    const dialog = screen.getByRole("dialog", { name: /مریم/ });
+    await within(dialog).findByText("مشخصات حساب");
+    await act(async () => resolvePrevious(details));
+    expect(within(dialog).getByText("user-2")).toBeInTheDocument();
+    expect(within(dialog).queryByText("user-1")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "افزودن اعتبار" })).not.toBeInTheDocument();
+  });
+
+  it("reuses the idempotency key on retry and reloads credit history after success", async () => {
+    api.aiConversationLogs.mockResolvedValue(page());
+    api.user.mockResolvedValue(identity);
+    api.customer360.mockResolvedValue({
+      ...details,
+      credits: {
+        status: "available",
+        data: {
+          activePeriods: [],
+          spendableCredits: 12,
+          reservedCredits: 0,
+          approvedCreditLine: null,
+          activeSubscriptionCredits: 0,
+          nextExpiryUtc: null,
+          sourceSystem: "Billing",
+          asOfUtc: now.toISOString(),
+        },
+      },
+    });
+    api.customerCreditHistory.mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
+    let finishRetry!: (value: { alreadyApplied: boolean; updatedBalance: number }) => void;
+    api.adjustCredits.mockRejectedValueOnce(new Error("اتصال قطع شد")).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRetry = resolve;
+        }),
+    );
+    render(
+      <AdminPage
+        user={{
+          ...admin,
+          permissions: [...admin.permissions, "admin.credits.adjust", "admin.usage-ledger.read"],
+        }}
+      />,
+    );
+    openLogs();
+    fireEvent.click(await screen.findByRole("button", { name: "سارا" }));
+    const customerDialog = screen.getByRole("dialog", { name: /سارا/ });
+    const action = await within(customerDialog).findByRole("button", { name: "افزودن اعتبار" });
+      await act(async () => {
+        fireEvent.click(
+          within(customerDialog).getByRole("button", { name: "بارگذاری تاریخچه اعتبار" }),
+        );
+      });
+    await waitFor(() => expect(action).toBeEnabled());
+
+    async function submit(amount: string) {
+      fireEvent.click(action);
+      const form = await screen.findByRole("dialog", { name: "افزودن اعتبار به مشتری" });
+      fireEvent.change(within(form).getByRole("spinbutton"), { target: { value: amount } });
+      fireEvent.change(within(form).getByRole("textbox"), { target: { value: "جبران" } });
+        await act(async () => {
+          fireEvent.submit(form.querySelector("form")!);
+        });
+    }
+    await submit("1.5");
+    await within(customerDialog).findByText(/مقدار اعتبار باید عدد صحیح/);
+    expect(api.adjustCredits).not.toHaveBeenCalled();
+
+    await submit("5");
+    await within(customerDialog).findByText("اتصال قطع شد");
+    await submit("5");
+    await waitFor(() => expect(action).toBeDisabled());
+    fireEvent.click(action);
+    expect(api.adjustCredits).toHaveBeenCalledTimes(2);
+    await act(async () => finishRetry({ alreadyApplied: true, updatedBalance: 17 }));
+    await within(customerDialog).findByText(/ثبت ۵ اعتبار تأیید شد/);
+    await waitFor(() =>
+      expect(api.customerCreditHistory.mock.calls).toEqual([
+        ["user-1", 10, undefined],
+        ["user-1", 10],
+      ]),
+    );
+    expect(api.adjustCredits).toHaveBeenCalledTimes(2);
+    expect(api.adjustCredits.mock.calls[0]).toEqual(["billing-1", 5, "جبران", expect.any(String)]);
+    expect(api.adjustCredits.mock.calls[1]).toEqual(api.adjustCredits.mock.calls[0]);
+    expect(api.customer360).toHaveBeenCalledTimes(2);
+  }, 15_000);
+});
 
 describe("Admin Users directory usage filters", () => {
   it("keeps the initial directory request unchanged and applies a period-specific zero filter", async () => {

@@ -70,7 +70,8 @@ public sealed class AdminManagementController(
         var permissions = new AdminCustomer360Permissions(
             (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded,
             (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminUsageLedgerRead)).Succeeded,
-            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminBillingAuditRead)).Succeeded);
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminBillingAuditRead)).Succeeded,
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminCreditsAdjust)).Succeeded);
         return await userQueries.GetCustomer360Async(Actor.TenantId, userId, permissions, cancellationToken);
     }
 

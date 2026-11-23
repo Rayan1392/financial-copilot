@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-11-23
+
+شناسایی پرسش‌کننده‌های بدون حساب کاربری در تاریخچهٔ پرسش و پاسخ.
+
 ### Changed
 
 - در «تاریخچه پرسش و پاسخ کاربران»، ردیف‌هایی که به حساب کاربری متصل نیستند حالا شناسهٔ پرسش‌کننده و نوع آن (کلاینت API با نامش، یا شناسهٔ ناشناخته) را نشان می‌دهند. با کلیک روی آن، پنجره‌ای با شناسهٔ کامل، امکان کپی و دکمهٔ «نمایش همهٔ پرسش‌های این شناسه» باز می‌شود.
@@ -478,7 +482,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.0...develop
+[1.24.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.1...v1.24.0
 [1.23.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.0...v1.23.1
 [1.23.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.21.1...v1.22.0

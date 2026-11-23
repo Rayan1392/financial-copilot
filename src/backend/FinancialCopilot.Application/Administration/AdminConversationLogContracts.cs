@@ -37,13 +37,34 @@ public sealed record AdminConversationLogQuery(
     DateTimeOffset? ToUtc = null,
     AdminConversationLogStatus? Status = null);
 
-/// <summary>The user who asked. The mobile number is always masked.</summary>
+/// <summary>What a conversation's actor ID resolves to in the active tenant.</summary>
+public enum AdminConversationLogActorKind
+{
+    /// <summary>A user account that is a member of the tenant; Customer 360 is available.</summary>
+    User,
+
+    /// <summary>An API client configured for the tenant; it has no customer profile.</summary>
+    ApiClient,
+
+    /// <summary>Neither a tenant member nor a configured API client of the tenant.</summary>
+    Unknown
+}
+
+/// <summary>
+/// The actor who asked. <see cref="UserId"/> is the conversation's actor ID whatever its kind. Profile fields are set
+/// only for <see cref="AdminConversationLogActorKind.User"/>; <see cref="ApiClientName"/> only for
+/// <see cref="AdminConversationLogActorKind.ApiClient"/>. The mobile number is always masked.
+/// </summary>
 public sealed record AdminConversationLogUser(
     Guid UserId,
     string? DisplayName,
     string? Email,
     string? MaskedMobile,
-    bool HasUserAccount);
+    AdminConversationLogActorKind ActorKind,
+    string? ApiClientName = null)
+{
+    public bool HasUserAccount => ActorKind == AdminConversationLogActorKind.User;
+}
 
 public sealed record AdminConversationLogItem(
     Guid TurnId,

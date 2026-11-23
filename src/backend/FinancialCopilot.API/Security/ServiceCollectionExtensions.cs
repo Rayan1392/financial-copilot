@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler, AdminAuthorizationResultHandler>();
         services.Configure<ApiKeyAuthenticationOptions>(
             configuration.GetSection(ApiKeyAuthenticationOptions.SectionName));
+        services.AddSingleton<IApiClientDirectory, ConfiguredApiClientDirectory>();
 
         services
             .AddAuthentication(options =>

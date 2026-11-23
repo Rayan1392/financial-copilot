@@ -220,28 +220,90 @@ describe("Shared Customer 360", () => {
     expect(within(dialog).queryByRole("button", { name: "افزودن اعتبار" })).not.toBeInTheDocument();
   });
 
-  it.each([false, undefined])(
-    "keeps the turn detail available without opening an unverified customer account (%s)",
-    async (hasUserAccount) => {
+  it.each([
+    [false, "ApiClient", "Telegram gateway", "کلاینت API: Telegram gateway"],
+    [false, "ApiClient", null, "کلاینت API"],
+    [false, "Unknown", null, "شناسهٔ ناشناخته"],
+    // An API older than this change sends no actor kind; an unverified row stays unknown (BUG-045).
+    [undefined, undefined, undefined, "شناسهٔ ناشناخته"],
+  ] as const)(
+    "identifies an actor without a user account by its id (%s, %s, %s)",
+    async (hasUserAccount, actorKind, apiClientName, label) => {
+      const actorId = "6c1f0a52-0000-4000-8000-000000000001";
       api.aiConversationLogs.mockResolvedValue(
         page({
-          items: [item({ user: { ...item().user, hasUserAccount } })],
+          items: [
+            item({
+              user: {
+                ...item().user,
+                userId: actorId,
+                hasUserAccount,
+                actorKind,
+                apiClientName,
+              },
+            }),
+          ],
         }),
       );
       render(<AdminPage user={admin} />);
       openLogs();
 
-      const unavailable = await screen.findByText("حساب کاربری در دسترس نیست");
-      const row = within(unavailable.closest("tr")!);
-      expect(row.queryByRole("button", { name: "سارا" })).not.toBeInTheDocument();
+      const cell = await screen.findByRole("button", { name: new RegExp(label) });
+      expect(cell).toHaveAttribute("title", actorId);
+      expect(within(cell).getByText("6c1f0a52…")).toBeInTheDocument();
+      const row = within(cell.closest("tr")!);
+      expect(row.queryByText("سارا")).not.toBeInTheDocument();
       expect(row.queryByText("sara@example.test")).not.toBeInTheDocument();
-      expect(row.getByText("سود فولاد چقدر است؟")).toBeInTheDocument();
       fireEvent.click(row.getByRole("button", { name: "مشاهده" }));
       expect(api.aiConversationLogTurn).toHaveBeenCalledWith("turn-1");
+
+      fireEvent.click(cell);
+      const dialog = await screen.findByRole("dialog", { name: "شناسهٔ پرسش‌کننده" });
+      expect(within(dialog).getByText(actorId)).toBeInTheDocument();
+      expect(
+        within(dialog).getByText(actorKind === "ApiClient" ? "کلاینت API" : "شناسهٔ ناشناخته"),
+      ).toBeInTheDocument();
       expect(api.user).not.toHaveBeenCalled();
       expect(api.customer360).not.toHaveBeenCalled();
     },
   );
+
+  it("copies the actor id and filters the log by it from page 1", async () => {
+    const actorId = "6c1f0a52-0000-4000-8000-000000000001";
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    api.aiConversationLogs.mockResolvedValue(
+      page({
+        items: [
+          item({
+            user: {
+              userId: actorId,
+              displayName: null,
+              email: null,
+              maskedMobile: null,
+              hasUserAccount: false,
+              actorKind: "Unknown",
+              apiClientName: null,
+            },
+          }),
+        ],
+      }),
+    );
+    render(<AdminPage user={admin} />);
+    openLogs();
+    fireEvent.click(await screen.findByRole("button", { name: /شناسهٔ ناشناخته/ }));
+    const dialog = await screen.findByRole("dialog", { name: "شناسهٔ پرسش‌کننده" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "کپی شناسه" }));
+    expect(await within(dialog).findByText("شناسه کپی شد.")).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith(actorId);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "نمایش همهٔ پرسش‌های این شناسه" }));
+    await waitFor(() => expect(lastQuery()).toMatchObject({ user: actorId, page: 1 }));
+    expect(screen.queryByRole("dialog", { name: "شناسهٔ پرسش‌کننده" })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("شناسه، ایمیل، نام یا شماره همراه")).toHaveValue(actorId);
+    expect(api.customer360).not.toHaveBeenCalled();
+  });
 
   it.each([
     ["user", 403, "tenant-scope-violation", "حساب این کاربر دیگر در دسترس نیست."],

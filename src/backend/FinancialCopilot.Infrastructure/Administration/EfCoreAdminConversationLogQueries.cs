@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -33,6 +34,7 @@ public sealed class EfCoreAdminConversationLogQueries(
     AuthDbContext auth,
     TahlilAppProfileProtector profileProtector,
     IDataProtectionProvider dataProtection,
+    IApiClientDirectory apiClients,
     TimeProvider timeProvider,
     ILogger<EfCoreAdminConversationLogQueries> logger) : IAdminConversationLogQueries
 {
@@ -175,7 +177,7 @@ public sealed class EfCoreAdminConversationLogQueries(
             row.TurnId,
             row.ConversationId,
             NormalizeTitle(row.ConversationTitle),
-            users.GetValueOrDefault(row.UserId) ?? new AdminConversationLogUser(row.UserId, null, null, null, HasUserAccount: false),
+            users.GetValueOrDefault(row.UserId) ?? UnresolvedActor(tenantId, row.UserId),
             row.QuestionPreview,
             row.AnswerPreview,
             row.QuestionCreatedAt,
@@ -273,15 +275,22 @@ public sealed class EfCoreAdminConversationLogQueries(
             anchor.ConversationId,
             NormalizeTitle(anchor.Title),
             telegram.Contains(anchor.ConversationId) ? AdminConversationLogChannel.Telegram : AdminConversationLogChannel.Web,
-            users.GetValueOrDefault(anchor.ActorId) ?? new AdminConversationLogUser(anchor.ActorId, null, null, null, HasUserAccount: false),
+            users.GetValueOrDefault(anchor.ActorId) ?? UnresolvedActor(tenantId, anchor.ActorId),
             question,
             anchor.CreatedAt,
             answers.Length == 0 ? AdminConversationLogStatus.NoResponse : answers[0].Status,
             answers);
     }
 
+    /// <summary>An actor with no account in the tenant: a configured API client of the tenant, or unknown.</summary>
+    private AdminConversationLogUser UnresolvedActor(Guid tenantId, Guid actorId) =>
+        apiClients.Find(tenantId, actorId) is { } client
+            ? new AdminConversationLogUser(actorId, null, null, null, AdminConversationLogActorKind.ApiClient, client.Name)
+            : new AdminConversationLogUser(actorId, null, null, null, AdminConversationLogActorKind.Unknown);
+
     /// <summary>
-    /// Null when there is no user filter; otherwise the matching user ids of the tenant (possibly empty).
+    /// Null when there is no user filter; otherwise the matching actor ids (possibly empty). An id is used as given, so
+    /// it also finds actors without a user account; the list's tenant condition keeps it inside the tenant.
     /// </summary>
     private async Task<Guid[]?> ResolveUsersAsync(Guid tenantId, string? search, CancellationToken cancellationToken)
     {
@@ -291,8 +300,8 @@ public sealed class EfCoreAdminConversationLogQueries(
             .Where(membership => membership.TenantId == tenantId)
             .Select(membership => membership.UserId);
 
-        if (Guid.TryParse(term, out var userId))
-            return await tenantUsers.Where(id => id == userId).Distinct().ToArrayAsync(cancellationToken);
+        if (Guid.TryParse(term, out var actorId))
+            return [actorId];
 
         Guid[] matches;
         if (IranianMobile.TryCreate(term, out var mobile) && mobile is not null)
@@ -376,7 +385,7 @@ public sealed class EfCoreAdminConversationLogQueries(
                 EfCoreAdminUserQueries.ResolveDisplayName(row.DisplayName, row.FirstName, row.LastName),
                 row.Email,
                 string.IsNullOrEmpty(row.MobileLast4) ? null : "•••" + row.MobileLast4,
-                HasUserAccount: true));
+                AdminConversationLogActorKind.User));
     }
 
     private async Task<HashSet<Guid>> LoadTelegramConversationsAsync(

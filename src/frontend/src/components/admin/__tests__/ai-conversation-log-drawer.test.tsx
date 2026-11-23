@@ -105,6 +105,8 @@ const turn: AdminConversationLogTurn = {
     displayName: "سارا",
     email: "sara@example.test",
     maskedMobile: "•••2222",
+    hasUserAccount: true,
+    actorKind: "User",
   },
   question: "روند فروش فولاد را نشان بده",
   questionCreatedAtUtc: questionTime,
@@ -192,6 +194,27 @@ describe("AiConversationLogDrawer", { timeout: 20_000 }, () => {
     ).toBeInTheDocument();
     expect(within(dialog).getByText("بدون عنوان")).toBeInTheDocument();
     expect(within(dialog).getAllByText("gpt-test").length).toBeGreaterThan(0);
+  });
+
+  it("names an API client actor instead of a missing user name", async () => {
+    vi.mocked(adminApi.aiConversationLogTurn).mockResolvedValue({
+      ...turn,
+      user: {
+        userId: "6c1f0a52-0000-4000-8000-000000000001",
+        displayName: null,
+        email: null,
+        maskedMobile: null,
+        hasUserAccount: false,
+        actorKind: "ApiClient",
+        apiClientName: "Telegram gateway",
+      },
+    });
+    renderDrawer();
+    const dialog = await screen.findByRole("dialog");
+
+    expect(await within(dialog).findByText("کلاینت API: Telegram gateway")).toBeInTheDocument();
+    expect(within(dialog).getByText("6c1f0a52-0000-4000-8000-000000000001")).toBeInTheDocument();
+    expect(within(dialog).queryByText("بدون نام")).not.toBeInTheDocument();
   });
 
   it("shows the error with its correlation id", async () => {

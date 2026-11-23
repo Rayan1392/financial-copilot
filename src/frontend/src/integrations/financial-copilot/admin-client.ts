@@ -297,12 +297,17 @@ export type AdminConversationLogQuery = {
   toUtc?: string;
   status?: AdminConversationLogStatus;
 };
+/** What the actor ID resolves to in the active tenant; omitted by APIs older than this change. */
+export type AdminConversationLogActorKind = "User" | "ApiClient" | "Unknown";
 export type AdminConversationLogUser = {
+  /** The conversation's actor ID, also when it is not a user account. */
   userId: string;
   displayName: string | null;
   email: string | null;
   maskedMobile: string | null;
   hasUserAccount?: boolean;
+  actorKind?: AdminConversationLogActorKind;
+  apiClientName?: string | null;
 };
 export type AdminConversationLogItem = {
   turnId: string;

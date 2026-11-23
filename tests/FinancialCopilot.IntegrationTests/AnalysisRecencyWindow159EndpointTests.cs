@@ -162,6 +162,8 @@ public sealed class AnalysisRecencyWindow159ApiFactory : BalanceSheetReport154Ap
         builder.ConfigureAppConfiguration((_, config) =>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                // BUG-043: stated here, not inherited from appsettings.json (the base factory turns it off).
+                ["ReportDiscussion:Enabled"] = "true",
                 ["SymbolGroundedFallback:Enabled"] = "true",
                 ["GroundedAnalysis:Enabled"] = "true"
             }));

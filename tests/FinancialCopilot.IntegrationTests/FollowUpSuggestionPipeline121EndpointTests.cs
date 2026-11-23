@@ -41,7 +41,8 @@ public sealed class FollowUpSuggestionPipeline121EndpointTests : IClassFixture<B
         var root = await Ask(question);
 
         Assert.Equal("available", root.GetProperty("financialStatementTableResult").GetProperty("balanceSheetReport").GetProperty("outcome").GetString());
-        Assert.Equal([$"گزارش فصلی {symbol}", $"روند فروش ماهانه {symbol} را نشان بده"], Messages(root));
+        // BUG-043: Feature 161 (cash flow) is live, so its follow-up comes first.
+        Assert.Equal([$"جریان وجوه نقد {symbol}", $"گزارش فصلی {symbol}", $"روند فروش ماهانه {symbol} را نشان بده"], Messages(root));
         Assert.All(root.GetProperty("suggestedActions").EnumerateArray(),
             action => Assert.Equal("balance_sheet_report_follow_up", action.GetProperty("relevanceReason").GetString()));
     }
@@ -78,7 +79,8 @@ public sealed class FollowUpSuggestionPipeline121EndpointTests : IClassFixture<B
         var root = await Ask("سلام");
 
         Assert.Equal(
-            ["روند فروش ماهانه کگل را نشان بده", "گزارش فصلی کگل را نشان بده", "ترازنامه کگل را نشان بده", "ترکیب فروش محصولات کگل"],
+            // BUG-043: Feature 161 (cash flow) is live, so its sample question is listed.
+            ["روند فروش ماهانه کگل را نشان بده", "گزارش فصلی کگل را نشان بده", "ترازنامه کگل را نشان بده", "جریان وجوه نقد کگل", "ترکیب فروش محصولات کگل"],
             Messages(root));
     }
 }

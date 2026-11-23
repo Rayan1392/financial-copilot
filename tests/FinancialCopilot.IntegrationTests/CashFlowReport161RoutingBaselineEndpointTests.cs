@@ -176,6 +176,11 @@ public sealed class CashFlow161BaselineFactory : AiFacadeApiFactory
         base.ConfigureWebHost(builder);
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            // BUG-043: the flags the pre-161 snapshot was captured under, pinned so a later appsettings.json change
+            // cannot change what the snapshot proves (that Feature 161 changes no other route).
+            ["ReportDiscussion:Enabled"] = "false",
+            ["SymbolGroundedFallback:Enabled"] = "false",
+            ["FinancialStatementPeriodAnalysis:Enabled"] = "true",
             ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
             ["CashFlowReport:Enabled"] = "false",
             ["SemanticRouting:DefaultMode"] = "SemanticPrimary",
@@ -234,6 +239,11 @@ public sealed class CashFlow161V1BaselineFactory : AiFacadeApiFactory
         base.ConfigureWebHost(builder);
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            // BUG-043: the flags the pre-161 snapshot was captured under, pinned so a later appsettings.json change
+            // cannot change what the snapshot proves (that Feature 161 changes no other route).
+            ["ReportDiscussion:Enabled"] = "false",
+            ["SymbolGroundedFallback:Enabled"] = "false",
+            ["FinancialStatementPeriodAnalysis:Enabled"] = "true",
             ["CashFlowReport:Enabled"] = "false", ["RateLimiting:AuthenticatedActor:PermitLimit"] = "1000"
         }));
         builder.ConfigureTestServices(services =>

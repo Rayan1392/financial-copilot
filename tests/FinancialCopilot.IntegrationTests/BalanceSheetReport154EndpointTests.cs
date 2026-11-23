@@ -161,7 +161,12 @@ public class BalanceSheetReport154ApiFactory : AiFacadeApiFactory
             {
                 ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
                 // The routing-regression tests issue many requests from one test actor (test-only override).
-                ["RateLimiting:AuthenticatedActor:PermitLimit"] = "1000"
+                ["RateLimiting:AuthenticatedActor:PermitLimit"] = "1000",
+                // BUG-043: these tests measure the capability routes, so they do not inherit the 162 and 163 flags of
+                // appsettings.json (the routing fake cannot answer the 162 disposition prompt). A derived factory that
+                // tests 162 or 163 turns them on in its own configuration, which is added later and wins.
+                ["ReportDiscussion:Enabled"] = "false",
+                ["SymbolGroundedFallback:Enabled"] = "false"
             }));
         builder.ConfigureTestServices(services =>
         {

@@ -2,6 +2,27 @@
 
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 
+## Release 1.24.0
+
+- Published on 2026-11-23 (MINOR: Changed with new capability and additive API fields). Feature commit
+  `0b5f3014`, develop release commit `9936c234`, prod merge `3f2d361a`, annotated tag `v1.24.0` (tag object
+  `80df2845`). Deploy run 45256376423 succeeded in about 10m20s. `/releases` returned the new build and lists
+  1.24.0 first.
+- Admin conversation log: rows without a tenant user account show the actor kind (configured API client name or
+  unknown) and ID, with an actor dialog (copy, filter by ID). No database migration or Telegram gateway change.
+  Release-note tests passed 12/12 and the tag/changelog check passed.
+- Open: confirm on production that these rows resolve to API client names (client list is server configuration
+  only). Backlog: API-client conversations are labelled «وب».
+
+## Release 1.23.1
+
+- Tagged on 2026-11-23 (PATCH: Fixed). Fix commit `998a1082`, develop release commit `79187b89`, prod
+  merge `59bce290`, annotated tag `v1.23.1` (tag object `a5757658`). Deploy run 45226817725 succeeded
+  (outcome confirmed while releasing 1.24.0).
+- BUG-045: the admin conversation log opens Customer 360 for accounts in the effective tenant and retains
+  the question and answer for rows with no account. No database migration or Telegram gateway change.
+  Release-note tests passed 12/12 and the tag/changelog check passed.
+
 ## Release 1.23.0
 
 - Published on 2026-11-23 (MINOR: Added). Feature commit `81525218`, develop release commit `4fb27a7f`, prod

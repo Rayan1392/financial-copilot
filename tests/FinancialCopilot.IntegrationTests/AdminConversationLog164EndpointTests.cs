@@ -89,7 +89,7 @@ public sealed class AdminConversationLog164EndpointTests(AdminConversationLogApi
         factory.Queries.Page = new AdminConversationLogPage(
             [
                 new AdminConversationLogItem(turnId, Guid.NewGuid(), "عنوان",
-                    new AdminConversationLogUser(Guid.NewGuid(), "سارا", "sara@example.test", "•••2222", HasUserAccount: true),
+                    new AdminConversationLogUser(Guid.NewGuid(), "سارا", "sara@example.test", "•••2222", AdminConversationLogActorKind.User),
                     "سؤال", "پاسخ", DateTimeOffset.Parse("2026-11-01T08:00:00Z"), DateTimeOffset.Parse("2026-11-01T08:00:00Z"),
                     AdminConversationLogStatus.Failed, AdminConversationLogChannel.Telegram)
             ],
@@ -115,6 +115,8 @@ public sealed class AdminConversationLog164EndpointTests(AdminConversationLogApi
         Assert.Equal("Telegram", item.GetProperty("channel").GetString());
         Assert.Equal("•••2222", item.GetProperty("user").GetProperty("maskedMobile").GetString());
         Assert.True(item.GetProperty("user").GetProperty("hasUserAccount").GetBoolean());
+        Assert.Equal("User", item.GetProperty("user").GetProperty("actorKind").GetString());
+        Assert.Equal(JsonValueKind.Null, item.GetProperty("user").GetProperty("apiClientName").ValueKind);
     }
 
     [Fact]
@@ -156,7 +158,7 @@ public sealed class AdminConversationLog164EndpointTests(AdminConversationLogApi
         factory.Queries.Reset();
         factory.Queries.Turn = new AdminConversationLogTurn(
             turnId, Guid.NewGuid(), null, AdminConversationLogChannel.Web,
-            new AdminConversationLogUser(Guid.NewGuid(), null, null, null, HasUserAccount: false),
+            new AdminConversationLogUser(Guid.NewGuid(), null, null, null, AdminConversationLogActorKind.ApiClient, "Telegram gateway"),
             "سؤال کامل", DateTimeOffset.Parse("2026-11-01T08:00:00Z"), AdminConversationLogStatus.Failed,
             [
                 new AdminConversationLogAnswer(Guid.NewGuid(), "متن پاسخ", DateTimeOffset.Parse("2026-11-01T08:00:00Z"),
@@ -175,7 +177,10 @@ public sealed class AdminConversationLog164EndpointTests(AdminConversationLogApi
         var root = json.RootElement;
         Assert.Equal("Failed", root.GetProperty("status").GetString());
         Assert.Equal("Web", root.GetProperty("channel").GetString());
-        Assert.False(root.GetProperty("user").GetProperty("hasUserAccount").GetBoolean());
+        var user = root.GetProperty("user");
+        Assert.False(user.GetProperty("hasUserAccount").GetBoolean());
+        Assert.Equal("ApiClient", user.GetProperty("actorKind").GetString());
+        Assert.Equal("Telegram gateway", user.GetProperty("apiClientName").GetString());
         var answer = Assert.Single(root.GetProperty("answers").EnumerateArray());
         Assert.Equal("gpt-test", answer.GetProperty("usage").GetProperty("modelName").GetString());
         Assert.Equal(120, answer.GetProperty("usage").GetProperty("totalTokens").GetInt32());

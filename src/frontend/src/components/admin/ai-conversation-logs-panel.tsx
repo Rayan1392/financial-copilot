@@ -13,12 +13,18 @@ import {
 import { JalaliDateFilter } from "@/components/app/jalali-date-filter";
 import { Loading, Message, Panel } from "@/components/admin/admin-ui";
 import { showError } from "@/components/admin/admin-errors";
+import {
+  ConversationLogActorDialog,
+  type ActorSelection,
+} from "@/components/admin/ai-conversation-log-actor-dialog";
 import { AiConversationLogDrawer } from "@/components/admin/ai-conversation-log-drawer";
 import { AdminConversationStatusBadge } from "@/components/admin/ai-conversation-log-labels";
 import {
   channelLabels,
   conversationLogStatusLabels,
   formatTehranDateTime,
+  shortActorId,
+  unresolvedActorLabel,
 } from "@/components/admin/ai-conversation-log-format";
 import {
   adminApi,
@@ -70,12 +76,29 @@ type OpenLogUser = (user: AdminConversationLogUser, trigger: HTMLButtonElement) 
 function ConversationLogAccount({
   user,
   onOpenUser,
+  onOpenActor,
 }: {
   user: AdminConversationLogUser;
   onOpenUser?: OpenLogUser;
+  onOpenActor: OpenLogUser;
 }) {
+  // No user account in the tenant (BUG-045): show the actor ID; its dialog makes no Customer 360 request.
   if (user.hasUserAccount !== true) {
-    return <span className="text-slate-600">حساب کاربری در دسترس نیست</span>;
+    return (
+      <button
+        type="button"
+        title={user.userId}
+        className="block max-w-full rounded-sm text-start underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+        onClick={(event) => onOpenActor(user, event.currentTarget)}
+      >
+        <span className="block truncate font-medium text-slate-700">
+          <bdi>{unresolvedActorLabel(user)}</bdi>
+        </span>
+        <bdi dir="ltr" className="block font-mono text-[11px] text-slate-500">
+          {shortActorId(user.userId)}
+        </bdi>
+      </button>
+    );
   }
 
   const label = user.displayName || user.email || user.maskedMobile || "بدون نام";
@@ -123,6 +146,7 @@ export function AiConversationLogsPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null);
+  const [selectedActor, setSelectedActor] = useState<ActorSelection | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -148,6 +172,14 @@ export function AiConversationLogsPanel({
     event.preventDefault();
     setApplied(draft);
     setPage(1);
+  }
+
+  function showActorQuestions(actorId: string) {
+    const next = { ...draft, user: actorId };
+    setDraft(next);
+    setApplied(next);
+    setPage(1);
+    setSelectedActor(null);
   }
 
   function reset() {
@@ -290,7 +322,11 @@ export function AiConversationLogsPanel({
                     {formatTehranDateTime(item.questionCreatedAtUtc)}
                   </TableCell>
                   <TableCell className="max-w-[200px] text-xs">
-                    <ConversationLogAccount user={item.user} onOpenUser={onOpenUser} />
+                    <ConversationLogAccount
+                      user={item.user}
+                      onOpenUser={onOpenUser}
+                      onOpenActor={(user, trigger) => setSelectedActor({ user, trigger })}
+                    />
                   </TableCell>
                   <TableCell className="max-w-[320px] text-sm">
                     <span className="line-clamp-3 break-words text-slate-900" dir="auto">
@@ -357,6 +393,14 @@ export function AiConversationLogsPanel({
       )}
 
       <AiConversationLogDrawer turnId={selectedTurnId} onClose={() => setSelectedTurnId(null)} />
+      {selectedActor && (
+        <ConversationLogActorDialog
+          key={selectedActor.user.userId}
+          selection={selectedActor}
+          onShowQuestions={showActorQuestions}
+          onClose={() => setSelectedActor(null)}
+        />
+      )}
     </Panel>
   );
 }

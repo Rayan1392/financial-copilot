@@ -3,12 +3,18 @@ namespace FinancialCopilot.API.Contracts;
 // Feature 164: admin AI conversation logs. Status and channel are strings (see AdminConversationLogStatus and
 // AdminConversationLogChannel); times are UTC.
 
+/// <summary>
+/// <see cref="ActorKind"/> is <c>User</c>, <c>ApiClient</c> or <c>Unknown</c> (see AdminConversationLogActorKind);
+/// <see cref="HasUserAccount"/> is true exactly for <c>User</c> and is kept for older clients.
+/// </summary>
 public sealed record AdminConversationLogUserHttpResponse(
     Guid UserId,
     string? DisplayName,
     string? Email,
     string? MaskedMobile,
-    bool HasUserAccount);
+    bool HasUserAccount,
+    string ActorKind,
+    string? ApiClientName);
 
 public sealed record AdminConversationLogItemHttpResponse(
     Guid TurnId,

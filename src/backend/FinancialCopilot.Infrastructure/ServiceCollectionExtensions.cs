@@ -88,6 +88,7 @@ using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -357,6 +358,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<InAppMessageUseCases>();
         services.AddScoped<IAdminChatHistoryQueries, EfCoreAdminChatHistoryQueries>();
         services.AddScoped<IAdminConversationLogQueries, EfCoreAdminConversationLogQueries>();
+        // The API host replaces this with its configured API key clients.
+        services.TryAddSingleton<IApiClientDirectory, EmptyApiClientDirectory>();
 
         services.AddOptions<SalesGrowthScannerOptions>()
             .BindConfiguration(SalesGrowthScannerOptions.SectionName)

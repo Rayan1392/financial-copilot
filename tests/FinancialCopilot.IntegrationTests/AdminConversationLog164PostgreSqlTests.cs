@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Infrastructure.Administration;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Authentication.Profile;
@@ -21,6 +22,8 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-11-01T08:00:00Z");
     private static readonly Guid TenantId = Guid.NewGuid();
     private static readonly Guid OtherTenantId = Guid.NewGuid();
+    private static readonly Guid GatewayClientId = Guid.NewGuid();
+    private static readonly Guid OtherTenantClientId = Guid.NewGuid();
     private readonly EphemeralDataProtectionProvider dataProtection = new();
 
     [SkippableFact]
@@ -79,14 +82,14 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
     }
 
     [SkippableFact]
-    public async Task Account_availability_and_profile_fields_require_membership_in_the_active_tenant()
+    public async Task Actor_kind_and_profile_fields_follow_membership_and_api_clients_of_the_active_tenant()
     {
         await using var database = await CreateDatabaseAsync();
         var local = NewUser("unnamed@example.test");
         local.Email = null;
         local.NormalizedEmail = null;
         var outsider = NewUser("outside@example.test");
-        var gatewayId = Guid.NewGuid();
+        var unknownId = Guid.NewGuid();
 
         await using var auth = database.CreateAuthContext();
         auth.Tenants.AddRange(
@@ -103,9 +106,17 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
         await using var conversations = database.CreateConversationContext();
         var cases = new[]
         {
-            (ActorId: local.Id, QuestionId: Guid.NewGuid(), HasUserAccount: true),
-            (ActorId: outsider.Id, QuestionId: Guid.NewGuid(), HasUserAccount: false),
-            (ActorId: gatewayId, QuestionId: Guid.NewGuid(), HasUserAccount: false)
+            (ActorId: local.Id, QuestionId: Guid.NewGuid(), Expected: new AdminConversationLogUser(
+                local.Id, null, null, null, AdminConversationLogActorKind.User)),
+            (ActorId: outsider.Id, QuestionId: Guid.NewGuid(), Expected: new AdminConversationLogUser(
+                outsider.Id, null, null, null, AdminConversationLogActorKind.Unknown)),
+            (ActorId: GatewayClientId, QuestionId: Guid.NewGuid(), Expected: new AdminConversationLogUser(
+                GatewayClientId, null, null, null, AdminConversationLogActorKind.ApiClient, "Telegram gateway")),
+            // A client configured for another tenant is not identified here.
+            (ActorId: OtherTenantClientId, QuestionId: Guid.NewGuid(), Expected: new AdminConversationLogUser(
+                OtherTenantClientId, null, null, null, AdminConversationLogActorKind.Unknown)),
+            (ActorId: unknownId, QuestionId: Guid.NewGuid(), Expected: new AdminConversationLogUser(
+                unknownId, null, null, null, AdminConversationLogActorKind.Unknown))
         };
         foreach (var entry in cases)
         {
@@ -122,7 +133,7 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
         foreach (var entry in cases)
         {
             var item = Assert.Single(page.Items, item => item.TurnId == entry.QuestionId);
-            var expected = new AdminConversationLogUser(entry.ActorId, null, null, null, entry.HasUserAccount);
+            var expected = entry.Expected;
             Assert.Equal(expected, item.User);
             Assert.Equal("retained answer", item.AnswerPreview);
 
@@ -132,6 +143,11 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
             Assert.Equal(expected, detail.User);
             Assert.Equal("retained question", detail.Question);
             Assert.Equal("retained answer", Assert.Single(detail.Answers).Content);
+
+            // An actor ID as the user filter finds the actor's turns whether or not it has an account.
+            var filtered = await queries.GetPageAsync(
+                TenantId, new AdminConversationLogQuery(User: entry.ActorId.ToString()), CancellationToken.None);
+            Assert.Equal(entry.QuestionId, Assert.Single(filtered.Items).TurnId);
         }
     }
 
@@ -260,7 +276,8 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
     }
 
     private EfCoreAdminConversationLogQueries Queries(ConversationDbContext conversations, AuthDbContext auth) =>
-        new(conversations, auth, new TahlilAppProfileProtector(dataProtection), dataProtection, TimeProvider.System,
+        new(conversations, auth, new TahlilAppProfileProtector(dataProtection), dataProtection, new FixedApiClientDirectory(),
+            TimeProvider.System,
             NullLogger<EfCoreAdminConversationLogQueries>.Instance);
 
     private async Task<List<AdminConversationLogItem>> AllAsync(
@@ -513,5 +530,19 @@ public sealed class AdminConversationLog164PostgreSqlTests(PostgreSqlIntegration
             command.CommandText.Contains("auth_security_admin_audits", StringComparison.Ordinal)
                 ? throw new InvalidOperationException("Feature 164 audit write failure.")
                 : ValueTask.FromResult(result);
+    }
+
+    /// <summary>The gateway client is configured for the tenant, the other client for the other tenant.</summary>
+    private sealed class FixedApiClientDirectory : IApiClientDirectory
+    {
+        public ApiClientDescriptor? Find(Guid tenantId, Guid clientId) =>
+            (clientId, tenantId) switch
+            {
+                var (client, tenant) when client == GatewayClientId && tenant == TenantId =>
+                    new ApiClientDescriptor(clientId, "Telegram gateway"),
+                var (client, tenant) when client == OtherTenantClientId && tenant == OtherTenantId =>
+                    new ApiClientDescriptor(clientId, "Other tenant client"),
+                _ => null
+            };
     }
 }

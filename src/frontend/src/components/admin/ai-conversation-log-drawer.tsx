@@ -11,7 +11,11 @@ import { ReadOnlyAssistantAnswer } from "@/components/app/message-list";
 import { Loading, Message } from "@/components/admin/admin-ui";
 import { showError } from "@/components/admin/admin-errors";
 import { AdminConversationStatusBadge } from "@/components/admin/ai-conversation-log-labels";
-import { channelLabels, formatTehranDateTime } from "@/components/admin/ai-conversation-log-format";
+import {
+  channelLabels,
+  formatTehranDateTime,
+  unresolvedActorLabel,
+} from "@/components/admin/ai-conversation-log-format";
 import {
   adminApi,
   type AdminConversationLogAnswer,
@@ -98,7 +102,11 @@ function TurnDetail({ turn }: { turn: AdminConversationLogTurn }) {
     <>
       <dl className="grid gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm sm:grid-cols-2">
         <Field label="کاربر">
-          <span className="block font-medium">{user.displayName ?? "بدون نام"}</span>
+          <span className="block font-medium">
+            {user.hasUserAccount === true
+              ? (user.displayName ?? "بدون نام")
+              : unresolvedActorLabel(user)}
+          </span>
           {user.email && (
             <span className="block text-xs text-slate-500" dir="ltr">
               {user.email}

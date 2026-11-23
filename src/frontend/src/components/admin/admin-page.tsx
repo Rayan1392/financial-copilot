@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminCustomerChatHistory } from "@/components/admin/admin-customer-chat-history";
 import { AdminMessageComposer, AdminMessageQueue } from "@/components/admin/admin-in-app-messages";
@@ -52,6 +53,7 @@ import {
   adminApi,
   type AdminAudit,
   type AdminCapability,
+  type AdminCreditAdjustment,
   type AdminCreditHistoryPage,
   type AdminCustomer360,
   type AdminPlan,
@@ -216,6 +218,10 @@ export function AdminPage({ user }: { user: AuthUser }) {
     icon: typeof Users;
   }[];
   const [tab, setTab] = useState<AdminTab>(navigation[0]?.value ?? "users");
+  const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
+  const creditAttempts = useRef<CreditAttempts>(new Map());
+  const openCustomer: OpenCustomer = (identity, trigger, onUserChanged) =>
+    setCustomerSelection({ identity, trigger, onUserChanged });
   const activeItem = navigation.find((item) => item.value === tab) ?? navigation[0];
 
   return (
@@ -320,18 +326,29 @@ export function AdminPage({ user }: { user: AuthUser }) {
               </div>
             </div>
 
-            {tab === "users" && <UsersPanel user={user} />}
+            {tab === "users" && <UsersPanel user={user} openCustomer={openCustomer} />}
             {tab === "messages" &&
               hasPermission(user, adminPermissions.usersRead) &&
               hasPermission(user, adminPermissions.messagesSupport) && (
                 <AdminMessageQueue key={`${user.tenantId}:${user.userId}`} />
               )}
             {tab === "user-analytics" && <UserAnalyticsPanel />}
-            {tab === "ai-logs" && <AiConversationLogsPanel />}
+            {tab === "ai-logs" && <AiConversationLogsPanel onOpenUser={openCustomer} />}
             {tab === "roles" && <RolesPanel user={user} />}
             {tab === "tenants" && <TenantsPanel user={user} />}
-            {tab === "billing" && <BillingPanel user={user} />}
+            {tab === "billing" && (
+              <BillingPanel user={user} creditAttempts={creditAttempts.current} />
+            )}
             {tab === "audits" && <AuditsPanel user={user} />}
+            {customerSelection && (
+              <Customer360Dialog
+                key={customerSelection.identity.userId}
+                user={user}
+                selection={customerSelection}
+                creditAttempts={creditAttempts.current}
+                onClose={() => setCustomerSelection(null)}
+              />
+            )}
           </main>
         </div>
       </div>
@@ -612,7 +629,7 @@ function AdminPagination({
   );
 }
 
-function UsersPanel({ user }: { user: AuthUser }) {
+function UsersPanel({ user, openCustomer }: { user: AuthUser; openCustomer: OpenCustomer }) {
   const { ask, dialog: actionDialog } = useAdminDialog();
   const [search, setSearch] = useState("");
   const [externalId, setExternalId] = useState("");
@@ -640,32 +657,13 @@ function UsersPanel({ user }: { user: AuthUser }) {
     () => new Map(),
   );
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
-  const [roles, setRoles] = useState<AdminRole[]>([]);
-  const [selected, setSelected] = useState<AdminUser | null>(null);
-  const [selectedDirectoryItem, setSelectedDirectoryItem] = useState<AdminUserDirectoryItem | null>(
-    null,
-  );
-  const [customer, setCustomer] = useState<AdminCustomer360 | null>(null);
-  const [customerTab, setCustomerTab] = useState<"account" | "chat-history">("account");
-  const [creditHistory, setCreditHistory] = useState<AdminCreditHistoryPage | null>(null);
-  const [purchaseHistory, setPurchaseHistory] = useState<AdminPurchaseHistoryPage | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const creditHistoryRows = creditHistory?.items ?? [];
-  const purchaseHistoryRows =
-    purchaseHistory?.items ?? customer?.purchases.data?.recentLocalPurchases ?? [];
-  const creditHistoryPagination = useAdminPagination(creditHistoryRows);
-  const purchaseHistoryPagination = useAdminPagination(purchaseHistoryRows);
-  const creditPeriodsPagination = useAdminPagination(customer?.credits.data?.activePeriods ?? []);
-  const providerLinksPagination = useAdminPagination(customer?.linkedProviders ?? []);
   const canManage = hasPermission(user, adminPermissions.usersManage);
-  const canManageRoles = hasPermission(user, adminPermissions.rolesManage);
   const canReadCredits = hasPermission(user, adminPermissions.usageLedgerRead);
   const canReadSubscriptions = hasPermission(user, adminPermissions.subscriptionsRead);
   const showingUsage = directory?.items.some((item) => item.recordedUsage != null) ?? false;
-  const canReadPurchases = hasPermission(user, adminPermissions.billingAuditRead);
   const currentCursor = pageCursors[pageIndex] ?? null;
   const currentPageActiveUsers =
     directory?.items.filter((item) => item.status !== "disabled") ?? [];
@@ -692,7 +690,6 @@ function UsersPanel({ user }: { user: AuthUser }) {
         }
         return refreshed;
       });
-      if (hasPermission(user, adminPermissions.rolesRead)) setRoles(await adminApi.roles());
     } catch (e) {
       setError(showError(e));
     } finally {
@@ -795,138 +792,6 @@ function UsersPanel({ user }: { user: AuthUser }) {
       setError(showError(e));
     } finally {
       setBulkActionLoading(false);
-    }
-  }
-
-  async function selectUser(item: AdminUserDirectoryItem) {
-    setSelectedDirectoryItem(item);
-    setCustomerTab("account");
-    setSelected(null);
-    setCustomer(null);
-    setCreditHistory(null);
-    setPurchaseHistory(null);
-    setDetailLoading(true);
-    setError(null);
-    try {
-      const [legacyUser, customer360] = await Promise.all([
-        adminApi.user(item.userId),
-        adminApi.customer360(item.userId),
-      ]);
-      setSelected(legacyUser);
-      setCustomer(customer360);
-    } catch (e) {
-      setError(showError(e));
-    } finally {
-      setDetailLoading(false);
-    }
-  }
-
-  async function status(isEnabled: boolean, unlock = false) {
-    if (!selected) return;
-    const form = await ask({
-      title: unlock ? "رفع قفل کاربر" : isEnabled ? "فعال‌سازی کاربر" : "غیرفعال‌سازی کاربر",
-      description: `${selected.email} · این تغییر در رویدادهای ممیزی ثبت می‌شود.`,
-      confirmLabel: unlock ? "رفع قفل" : isEnabled ? "فعال‌سازی" : "غیرفعال‌سازی",
-      danger: !isEnabled && !unlock,
-      fields: [{ name: "reason", label: "دلیل تغییر", type: "textarea", required: true }],
-    });
-    const reason = form?.reason.trim();
-    if (!reason) return;
-    try {
-      const next = await adminApi.setUserStatus(selected.userId, isEnabled, unlock, reason);
-      setSelected(next);
-      if (!next.isEnabled) {
-        setSelectedUsers((previous) => {
-          const remaining = new Map(previous);
-          remaining.delete(next.userId);
-          return remaining;
-        });
-      }
-      await load();
-      setCustomer(await adminApi.customer360(selected.userId));
-      setSuccess("وضعیت کاربر به‌روزرسانی شد.");
-    } catch (e) {
-      setError(showError(e));
-    }
-  }
-  async function revoke() {
-    if (!selected) return;
-    const form = await ask({
-      title: "ابطال نشست‌های فعال",
-      description: `همه نشست‌های فعال ${selected.email} باطل می‌شوند و این اقدام در ممیزی ثبت خواهد شد.`,
-      confirmLabel: "ابطال نشست‌ها",
-      danger: true,
-      fields: [{ name: "reason", label: "دلیل ابطال", type: "textarea", required: true }],
-    });
-    const reason = form?.reason.trim();
-    if (!reason) return;
-    try {
-      const count = await adminApi.revokeSessions(selected.userId, reason);
-      setSuccess(`${count} نشست باطل شد.`);
-      setCustomer(await adminApi.customer360(selected.userId));
-    } catch (e) {
-      setError(showError(e));
-    }
-  }
-  async function saveRoles() {
-    if (!selected) return;
-    const selectedRoleIds = roles
-      .filter((role) => selected.roles.includes(role.name))
-      .map((role) => role.roleId);
-    const form = await ask({
-      title: "تنظیم نقش‌های کاربر",
-      description: `نقش‌های فعال برای ${selected.email} را انتخاب کنید.`,
-      confirmLabel: "ذخیره نقش‌ها",
-      fields: [
-        {
-          name: "roleIds",
-          label: "نقش‌های فعال",
-          type: "multiselect",
-          initialValue: selectedRoleIds.join(","),
-          choices: roles.map((role) => ({ value: role.roleId, label: role.name })),
-        },
-        { name: "reason", label: "دلیل تغییر", type: "textarea", required: true },
-      ],
-    });
-    const reason = form?.reason.trim();
-    if (!reason) return;
-    try {
-      const chosen = (form?.roleIds ?? "").split(",").filter(Boolean);
-      const next = await adminApi.setUserRoles(selected.userId, chosen, reason);
-      setSelected(next);
-      setSuccess("نقش‌های کاربر ثبت شد.");
-    } catch (e) {
-      setError(showError(e));
-    }
-  }
-  async function loadCreditHistory() {
-    if (!selected || !canReadCredits) return;
-    try {
-      const page = await adminApi.customerCreditHistory(
-        selected.userId,
-        10,
-        creditHistory?.nextCursor,
-      );
-      setCreditHistory((previous) =>
-        previous ? { ...page, items: [...previous.items, ...page.items] } : page,
-      );
-    } catch (e) {
-      setError(showError(e));
-    }
-  }
-  async function loadPurchaseHistory() {
-    if (!selected || !canReadPurchases) return;
-    try {
-      const page = await adminApi.customerPurchaseHistory(
-        selected.userId,
-        10,
-        purchaseHistory?.nextCursor,
-      );
-      setPurchaseHistory((previous) =>
-        previous ? { ...page, items: [...previous.items, ...page.items] } : page,
-      );
-    } catch (e) {
-      setError(showError(e));
     }
   }
 
@@ -1182,7 +1047,18 @@ function UsersPanel({ user }: { user: AuthUser }) {
                     <TableCell>
                       <button
                         type="button"
-                        onClick={() => void selectUser(item)}
+                        onClick={(event) =>
+                          openCustomer(item, event.currentTarget, async (updated) => {
+                            if (!updated.isEnabled) {
+                              setSelectedUsers((previous) => {
+                                const remaining = new Map(previous);
+                                remaining.delete(updated.userId);
+                                return remaining;
+                              });
+                            }
+                            await load();
+                          })
+                        }
                         className="group block max-w-full text-right focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                         aria-label={`نمایش جزئیات ${item.email ?? "کاربر"}`}
                       >
@@ -1272,398 +1148,636 @@ function UsersPanel({ user }: { user: AuthUser }) {
             </div>
           </div>
         </Panel>
-
-        <Dialog
-          open={Boolean(selectedDirectoryItem)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedDirectoryItem(null);
-              setCustomerTab("account");
-              setSelected(null);
-              setCustomer(null);
-              setCreditHistory(null);
-              setPurchaseHistory(null);
-              setError(null);
-              setSuccess(null);
-            }
-          }}
-        >
-          <DialogContent
-            dir="rtl"
-            className="light scheme-light max-h-[92vh] w-[calc(100vw-2rem)] overflow-y-auto bg-white p-4 sm:max-w-[min(96vw,1100px)] sm:p-6"
-          >
-            <DialogHeader className="text-right">
-              <DialogTitle>
-                {selectedDirectoryItem?.displayName ?? "نمای ۳۶۰ درجه مشتری"}
-              </DialogTitle>
-              <DialogDescription className="text-right">
-                نمای ۳۶۰ درجه مشتری ·{" "}
-                <span dir="ltr" className="inline-block">
-                  {selectedDirectoryItem?.email ?? selectedDirectoryItem?.userId}
-                </span>
-              </DialogDescription>
-            </DialogHeader>
-            {selectedDirectoryItem &&
-              selected?.isEnabled &&
-              !selected.isLockedOut &&
-              selectedDirectoryItem.userId === selected.userId &&
-              hasPermission(user, adminPermissions.messagesSend) && (
-                <AdminMessageComposer
-                  key={`${user.tenantId}:${user.userId}:${selected.userId}`}
-                  recipient={selectedDirectoryItem}
-                />
-              )}
-            <div
-              id="customer-360-tabpanel"
-              role="tabpanel"
-              aria-labelledby={
-                customerTab === "account" ? "customer-account-tab" : "customer-chat-history-tab"
-              }
-              className="space-y-4"
-            >
-              <Loading active={detailLoading} />
-              <div
-                role="tablist"
-                aria-label="بخش‌های نمای مشتری"
-                className="flex gap-2 border-b pb-2"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  id="customer-account-tab"
-                  aria-controls="customer-360-tabpanel"
-                  aria-selected={customerTab === "account"}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium ${customerTab === "account" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100"}`}
-                  onClick={() => setCustomerTab("account")}
-                >
-                  اطلاعات حساب
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  id="customer-chat-history-tab"
-                  aria-controls="customer-360-tabpanel"
-                  aria-selected={customerTab === "chat-history"}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium ${customerTab === "chat-history" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100"}`}
-                  onClick={() => setCustomerTab("chat-history")}
-                >
-                  تاریخچه گفتگوها
-                </button>
-              </div>
-              {customerTab === "account" ? (
-                customer && selected && selectedDirectoryItem ? (
-                  <div className="space-y-4 text-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                      <div className="min-w-0 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-semibold text-slate-900">
-                            {selectedDirectoryItem.displayName ??
-                              selectedDirectoryItem.email ??
-                              "بدون ایمیل"}
-                          </p>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${customer.isEnabled ? (customer.isLockedOut ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700") : "bg-slate-200 text-slate-600"}`}
-                          >
-                            {customer.isEnabled
-                              ? customer.isLockedOut
-                                ? "قفل‌شده"
-                                : "فعال"
-                              : "غیرفعال"}
-                          </span>
-                        </div>
-                        <p dir="ltr" className="text-left font-mono text-xs text-slate-400">
-                          {customer.userId}
-                        </p>
-                        <p className="text-xs leading-6 text-slate-600">
-                          وضعیت:{" "}
-                          {customer.isEnabled
-                            ? customer.isLockedOut
-                              ? "قفل‌شده"
-                              : "فعال"
-                            : "غیرفعال"}{" "}
-                          · منبع جذب: {sourceLabel(customer.acquisitionSourceCode)}
-                        </p>
-                        <p className="text-xs leading-6 text-slate-600">
-                          ثبت‌نام: {dateLabel(customer.registeredAtUtc)} · آخرین ورود موفق:{" "}
-                          {dateLabel(customer.lastSuccessfulLoginAtUtc)} (
-                          {customer.lastLoginProviderCode ?? "نامشخص"})
-                        </p>
-                        <p className="text-xs leading-6 text-slate-600">
-                          اعتبار بومی: {customer.hasNativeCredential ? "دارد" : "ندارد"} · ایمیل
-                          تأییدشده: {customer.emailConfirmed ? "بله" : "خیر"}
-                        </p>
-                        <p className="text-xs leading-6 text-slate-600">
-                          نشست‌های نوسازی فعال:{" "}
-                          {customer.activeRefreshSessions.toLocaleString("fa-IR")}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {canManage && (
-                          <>
-                            <Button
-                              size="sm"
-                              className="rounded-lg"
-                              onClick={() => void status(!selected.isEnabled)}
-                            >
-                              {selected.isEnabled ? "غیرفعال‌سازی" : "فعال‌سازی"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="rounded-lg"
-                              variant="outline"
-                              onClick={() => void status(true, true)}
-                            >
-                              رفع قفل
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="rounded-lg"
-                              variant="destructive"
-                              onClick={() => void revoke()}
-                            >
-                              ابطال نشست‌ها
-                            </Button>
-                          </>
-                        )}
-                        {canManageRoles && (
-                          <Button
-                            size="sm"
-                            className="rounded-lg"
-                            variant="outline"
-                            onClick={() => void saveRoles()}
-                          >
-                            تنظیم نقش‌ها
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                      عضویت در مستأجر: {customer.tenantMemberships.join("، ") || "عضویتی ثبت نشده"}
-                    </p>
-                    <div>
-                      <h3 className="mb-2 font-semibold text-slate-800">هویت‌های پیوندخورده</h3>
-                      {customer.linkedProviders.length ? (
-                        providerLinksPagination.pageItems.map((link) => (
-                          <p
-                            key={`${link.providerCode}:${link.maskedExternalId}`}
-                            className="mb-2 rounded-lg border border-slate-100 p-3 text-xs leading-6 text-slate-600"
-                          >
-                            {link.providerCode} · {link.status} · {link.maskedExternalId}{" "}
-                            {link.displayMetadata ? `(${link.displayMetadata})` : ""} · پیوند:{" "}
-                            {dateLabel(link.linkedAtUtc)} · تازگی پروفایل:{" "}
-                            {dateLabel(link.profileSyncedAtUtc)}
-                          </p>
-                        ))
-                      ) : (
-                        <p className="text-muted-foreground">هویت پیوندخورده‌ای ثبت نشده است.</p>
-                      )}
-                      {customer.linkedProviders.length > 10 && (
-                        <AdminPagination
-                          {...providerLinksPagination}
-                          onPageChange={providerLinksPagination.setPageIndex}
-                        />
-                      )}
-                    </div>
-                    <CustomerSection title="اشتراک" section={customer.subscription}>
-                      {(data) => (
-                        <div className="space-y-1">
-                          <p>
-                            طرح: {data.planName ?? data.planCode ?? "نامشخص"} · فعال:{" "}
-                            {data.isActive ? "بله" : "خیر"}
-                          </p>
-                          <p>سهمیه: {data.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"}</p>
-                          <p>
-                            بازه: {dateLabel(data.effectiveFromUtc)} تا{" "}
-                            {dateLabel(data.effectiveToUtc)} · بازبینی: {data.revision}
-                          </p>
-                          <p>
-                            قابلیت‌ها:{" "}
-                            {data.capabilities.map((item) => item.code).join("، ") || "-"}
-                          </p>
-                          <p>
-                            همگام‌سازی بیرونی: {data.externalSyncStatus ?? "نامشخص"} · آخرین
-                            همگام‌سازی: {dateLabel(data.externalLastSyncedAtUtc)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
-                        </div>
-                      )}
-                    </CustomerSection>
-                    <CustomerSection title="اعتبارها" section={customer.credits}>
-                      {(data) => (
-                        <div className="space-y-1">
-                          <p>
-                            ظرفیت قابل‌مصرف: {data.spendableCredits ?? "نامشخص"} · رزروشده:{" "}
-                            {data.reservedCredits ?? "نامشخص"} · سقف اعتباری:{" "}
-                            {data.approvedCreditLine ?? "ندارد"}
-                          </p>
-                          <p>
-                            مانده دوره‌های اشتراک: {data.activeSubscriptionCredits} · نزدیک‌ترین
-                            انقضا: {dateLabel(data.nextExpiryUtc)}
-                          </p>
-                          {creditPeriodsPagination.pageItems.map((period) => (
-                            <p
-                              key={period.id}
-                              className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-600"
-                            >
-                              {period.planCode}: {period.remainingCredits} از{" "}
-                              {period.grantedCredits} · انقضا {dateLabel(period.expiresAtUtc)} ·{" "}
-                              {period.status}
-                            </p>
-                          ))}
-                          {data.activePeriods.length > 0 && (
-                            <AdminPagination
-                              {...creditPeriodsPagination}
-                              onPageChange={creditPeriodsPagination.setPageIndex}
-                            />
-                          )}
-                          <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
-                          {!creditHistory && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-lg"
-                              onClick={() => void loadCreditHistory()}
-                            >
-                              بارگذاری تاریخچه اعتبار
-                            </Button>
-                          )}
-                          {creditHistoryPagination.pageItems.map((entry) => (
-                            <div
-                              key={`${entry.recordType}:${entry.id}`}
-                              className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
-                            >
-                              <p>
-                                {dateLabel(entry.occurredAtUtc)} ·{" "}
-                                {entry.operationCode === "Billing.ManualAdjustment"
-                                  ? "افزودن دستی اعتبار"
-                                  : (entry.entryType ?? entry.operationCode ?? "-")}{" "}
-                                ·{" "}
-                                <span
-                                  className={`font-semibold ${entry.credits < 0 ? "text-rose-700" : "text-emerald-700"}`}
-                                >
-                                  {entry.operationCode === "Billing.ManualAdjustment" ? "+" : ""}
-                                  {entry.credits.toLocaleString("fa-IR")}
-                                </span>
-                                {entry.allocationSource && ` · ${entry.allocationSource}`} ·{" "}
-                                {entry.operationCode === "Billing.ManualAdjustment"
-                                  ? "ثبت‌شده"
-                                  : entry.status}
-                              </p>
-                              {entry.operationCode === "Billing.ManualAdjustment" &&
-                                entry.auditDescription && (
-                                  <p className="mt-1 text-slate-500">
-                                    دلیل: {entry.auditDescription}
-                                  </p>
-                                )}
-                            </div>
-                          ))}
-                          {creditHistory?.hasMore && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-lg"
-                              onClick={() => void loadCreditHistory()}
-                            >
-                              دریافت ۱۰ مورد بعدی
-                            </Button>
-                          )}
-                          {creditHistoryRows.length > 0 && (
-                            <AdminPagination
-                              {...creditHistoryPagination}
-                              onPageChange={creditHistoryPagination.setPageIndex}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </CustomerSection>
-                    <CustomerSection title="خریدها" section={customer.purchases}>
-                      {(data) => (
-                        <div className="space-y-1">
-                          <p>
-                            تعداد خرید محلی تکمیل‌شده:{" "}
-                            {data.completedLocalPurchaseCount ?? "در دسترس نیست"} · وضعیت استحقاق
-                            بیرونی: {data.externalEntitlementsStatus}
-                          </p>
-                          {purchaseHistoryPagination.pageItems.map((purchase) => (
-                            <p
-                              key={purchase.checkoutIntentId}
-                              className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
-                            >
-                              {dateLabel(purchase.createdAtUtc)} · {purchase.productDisplayName} ·{" "}
-                              {purchase.amount} {purchase.currency} · {purchase.status} ·{" "}
-                              {purchase.channel} · {purchase.providerName ?? "بدون ارائه‌دهنده"} ·
-                              تطبیق: {purchase.reconciliationState ?? "نامشخص"}
-                            </p>
-                          ))}
-                          <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
-                          {!purchaseHistory && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-lg"
-                              onClick={() => void loadPurchaseHistory()}
-                            >
-                              بارگذاری تاریخچه خرید
-                            </Button>
-                          )}
-                          {purchaseHistory?.hasMore && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-lg"
-                              onClick={() => void loadPurchaseHistory()}
-                            >
-                              دریافت ۱۰ مورد بعدی
-                            </Button>
-                          )}
-                          {purchaseHistoryRows.length > 0 && (
-                            <AdminPagination
-                              {...purchaseHistoryPagination}
-                              onPageChange={purchaseHistoryPagination.setPageIndex}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </CustomerSection>
-                    <p className="text-xs text-muted-foreground">
-                      زمان مبنای پاسخ: {dateLabel(customer.asOfUtc)} · نشست‌های نوسازی شاخص حضور
-                      آنلاین نیستند.
-                    </p>
-                  </div>
-                ) : selectedDirectoryItem ? (
-                  <p className="text-sm text-muted-foreground">جزئیات بارگذاری نشد.</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">یک کاربر را از فهرست انتخاب کنید.</p>
-                )
-              ) : selectedDirectoryItem ? (
-                <AdminCustomerChatHistory
-                  key={selectedDirectoryItem.userId}
-                  userId={selectedDirectoryItem.userId}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">یک کاربر را از فهرست انتخاب کنید.</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
       {actionDialog}
     </>
   );
 }
 
+type CustomerIdentity = Pick<AdminUserDirectoryItem, "userId" | "displayName" | "email"> & {
+  maskedMobile?: string | null;
+};
+type CustomerSelection = {
+  identity: CustomerIdentity;
+  trigger: HTMLButtonElement;
+  onUserChanged?: (user: AdminUser) => Promise<void>;
+};
+type OpenCustomer = (
+  identity: CustomerIdentity,
+  trigger: HTMLButtonElement,
+  onUserChanged?: CustomerSelection["onUserChanged"],
+) => void;
+
+function Customer360Dialog({
+  user,
+  selection: { identity, trigger, onUserChanged },
+  creditAttempts,
+  onClose,
+}: {
+  user: AuthUser;
+  selection: CustomerSelection;
+  creditAttempts: CreditAttempts;
+  onClose: () => void;
+}) {
+  const { ask, dialog: actionDialog } = useAdminDialog();
+  const [selected, setSelected] = useState<AdminUser | null>(null);
+  const [customer, setCustomer] = useState<AdminCustomer360 | null>(null);
+  const [creditHistory, setCreditHistory] = useState<AdminCreditHistoryPage | null>(null);
+  const [purchaseHistory, setPurchaseHistory] = useState<AdminPurchaseHistoryPage | null>(null);
+  const [detailLoading, setDetailLoading] = useState(true);
+  const [creditHistoryLoading, setCreditHistoryLoading] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const creditHistoryRows = creditHistory?.items ?? [];
+  const purchaseHistoryRows =
+    purchaseHistory?.items ?? customer?.purchases.data?.recentLocalPurchases ?? [];
+  const creditHistoryPagination = useAdminPagination(creditHistoryRows);
+  const purchaseHistoryPagination = useAdminPagination(purchaseHistoryRows);
+  const creditPeriodsPagination = useAdminPagination(customer?.credits.data?.activePeriods ?? []);
+  const providerLinksPagination = useAdminPagination(customer?.linkedProviders ?? []);
+  const canManage = hasPermission(user, adminPermissions.usersManage);
+  const canManageRoles = hasPermission(user, adminPermissions.rolesManage);
+  const canReadCredits = hasPermission(user, adminPermissions.usageLedgerRead);
+
+  const canReadPurchases = hasPermission(user, adminPermissions.billingAuditRead);
+  const creditAccountId = hasPermission(user, adminPermissions.creditsAdjust)
+    ? customer?.creditAdjustmentAccountId
+    : null;
+  const { grant, saving: creditSaving } = useManualCreditGrant(ask, creditAttempts);
+  const title = identity.displayName || identity.email || identity.maskedMobile || "بدون نام";
+  const userId = identity.userId;
+
+  useEffect(() => {
+    let active = true;
+    setDetailLoading(true);
+    setError(null);
+    Promise.all([adminApi.user(userId), adminApi.customer360(userId)])
+      .then(([account, details]) => {
+        if (!active) return;
+        setSelected(account);
+        setCustomer(details);
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(showError(reason));
+      })
+      .finally(() => {
+        if (active) setDetailLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  async function addCredits() {
+    if (!creditAccountId) return;
+    setError(null);
+    setSuccess(null);
+    try {
+      await grant(creditAccountId, async (result, amount) => {
+        setSuccess(creditGrantMessage(result, amount, canReadCredits));
+        const [details, history] = await Promise.allSettled([
+          adminApi.customer360(userId),
+          creditHistory ? adminApi.customerCreditHistory(userId, 10) : Promise.resolve(null),
+        ]);
+        if (details.status === "fulfilled") setCustomer(details.value);
+        if (history.status === "fulfilled" && history.value) {
+          setCreditHistory(history.value);
+          creditHistoryPagination.setPageIndex(0);
+        }
+        if (details.status === "rejected" || history.status === "rejected") {
+          setError("اعتبار ثبت شد، اما بخشی از اطلاعات حساب به‌روز نشد. پنجره را دوباره باز کنید.");
+        }
+      });
+    } catch (reason) {
+      setError(showError(reason));
+    }
+  }
+
+  async function status(isEnabled: boolean, unlock = false) {
+    if (!selected) return;
+    const form = await ask({
+      title: unlock ? "رفع قفل کاربر" : isEnabled ? "فعال‌سازی کاربر" : "غیرفعال‌سازی کاربر",
+      description: `${selected.email} · این تغییر در رویدادهای ممیزی ثبت می‌شود.`,
+      confirmLabel: unlock ? "رفع قفل" : isEnabled ? "فعال‌سازی" : "غیرفعال‌سازی",
+      danger: !isEnabled && !unlock,
+      fields: [{ name: "reason", label: "دلیل تغییر", type: "textarea", required: true }],
+    });
+    const reason = form?.reason.trim();
+    if (!reason) return;
+    try {
+      const next = await adminApi.setUserStatus(selected.userId, isEnabled, unlock, reason);
+      setSelected(next);
+      await onUserChanged?.(next);
+      setCustomer(await adminApi.customer360(selected.userId));
+      setSuccess("وضعیت کاربر به‌روزرسانی شد.");
+    } catch (e) {
+      setError(showError(e));
+    }
+  }
+  async function revoke() {
+    if (!selected) return;
+    const form = await ask({
+      title: "ابطال نشست‌های فعال",
+      description: `همه نشست‌های فعال ${selected.email} باطل می‌شوند و این اقدام در ممیزی ثبت خواهد شد.`,
+      confirmLabel: "ابطال نشست‌ها",
+      danger: true,
+      fields: [{ name: "reason", label: "دلیل ابطال", type: "textarea", required: true }],
+    });
+    const reason = form?.reason.trim();
+    if (!reason) return;
+    try {
+      const count = await adminApi.revokeSessions(selected.userId, reason);
+      setSuccess(`${count} نشست باطل شد.`);
+      setCustomer(await adminApi.customer360(selected.userId));
+    } catch (e) {
+      setError(showError(e));
+    }
+  }
+  async function saveRoles() {
+    if (!selected) return;
+    let availableRoles: AdminRole[];
+    try {
+      availableRoles = await adminApi.roles();
+    } catch (e) {
+      setError(showError(e));
+      return;
+    }
+    const selectedRoleIds = availableRoles
+      .filter((role) => selected.roles.includes(role.name))
+      .map((role) => role.roleId);
+    const form = await ask({
+      title: "تنظیم نقش‌های کاربر",
+      description: `نقش‌های فعال برای ${selected.email} را انتخاب کنید.`,
+      confirmLabel: "ذخیره نقش‌ها",
+      fields: [
+        {
+          name: "roleIds",
+          label: "نقش‌های فعال",
+          type: "multiselect",
+          initialValue: selectedRoleIds.join(","),
+          choices: availableRoles.map((role) => ({ value: role.roleId, label: role.name })),
+        },
+        { name: "reason", label: "دلیل تغییر", type: "textarea", required: true },
+      ],
+    });
+    const reason = form?.reason.trim();
+    if (!reason) return;
+    try {
+      const chosen = (form?.roleIds ?? "").split(",").filter(Boolean);
+      const next = await adminApi.setUserRoles(selected.userId, chosen, reason);
+      setSelected(next);
+      setSuccess("نقش‌های کاربر ثبت شد.");
+    } catch (e) {
+      setError(showError(e));
+    }
+  }
+  async function loadCreditHistory() {
+    if (!selected || !canReadCredits || creditHistoryLoading || creditSaving) return;
+    setCreditHistoryLoading(true);
+    try {
+      const page = await adminApi.customerCreditHistory(
+        selected.userId,
+        10,
+        creditHistory?.nextCursor,
+      );
+      setCreditHistory((previous) =>
+        previous ? { ...page, items: [...previous.items, ...page.items] } : page,
+      );
+    } catch (e) {
+      setError(showError(e));
+    } finally {
+      setCreditHistoryLoading(false);
+    }
+  }
+  async function loadPurchaseHistory() {
+    if (!selected || !canReadPurchases) return;
+    try {
+      const page = await adminApi.customerPurchaseHistory(
+        selected.userId,
+        10,
+        purchaseHistory?.nextCursor,
+      );
+      setPurchaseHistory((previous) =>
+        previous ? { ...page, items: [...previous.items, ...page.items] } : page,
+      );
+    } catch (e) {
+      setError(showError(e));
+    }
+  }
+
+  const customerStatus = customer
+    ? statusLabel(customer.isEnabled ? (customer.isLockedOut ? "locked" : "enabled") : "disabled")
+    : null;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && !creditSaving && onClose()}>
+      <DialogContent
+        dir="rtl"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (trigger.isConnected) trigger.focus();
+        }}
+        className="light scheme-light flex max-h-[90dvh] w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl bg-white p-0 sm:max-w-[min(94vw,1050px)]"
+      >
+        <Tabs defaultValue="account" dir="rtl" className="flex min-h-0 flex-1 flex-col">
+          <div className="space-y-4 border-b border-slate-200 bg-slate-50 px-4 py-4 sm:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 ps-8">
+              <DialogHeader className="min-w-0 text-right">
+                <DialogTitle className="flex flex-wrap items-center gap-2 text-lg">
+                  <bdi className="break-all">{title}</bdi>
+                  {customer && (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${customer.isEnabled ? (customer.isLockedOut ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800") : "bg-slate-200 text-slate-700"}`}
+                    >
+                      {customerStatus}
+                    </span>
+                  )}
+                </DialogTitle>
+                <DialogDescription asChild>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span>شناسه کاربر</span>
+                    <bdi dir="ltr" className="break-all font-mono text-xs">
+                      {userId}
+                    </bdi>
+                    {identity.email && identity.email !== title && (
+                      <bdi dir="ltr">{identity.email}</bdi>
+                    )}
+                    {identity.maskedMobile && identity.maskedMobile !== title && (
+                      <bdi dir="ltr">{identity.maskedMobile}</bdi>
+                    )}
+                  </span>
+                </DialogDescription>
+              </DialogHeader>
+              {selected?.isEnabled &&
+                !selected.isLockedOut &&
+                hasPermission(user, adminPermissions.messagesSend) && (
+                  <AdminMessageComposer recipient={identity} />
+                )}
+            </div>
+            <TabsList aria-label="بخش‌های نمای مشتری">
+              <TabsTrigger value="account">اطلاعات حساب</TabsTrigger>
+              <TabsTrigger value="chat-history">تاریخچه گفتگوها</TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            <Message error={error} success={success} />
+            <TabsContent value="account" className="m-0">
+              <Loading active={detailLoading} />
+              {customer && selected ? (
+                <div className="space-y-4 text-sm">
+                  <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+                    <h3 className="font-semibold text-slate-900">مشخصات حساب</h3>
+                    <CustomerFields
+                      fields={[
+                        ["منبع جذب", sourceLabel(customer.acquisitionSourceCode)],
+                        ["ثبت‌نام", dateLabel(customer.registeredAtUtc)],
+                        ["آخرین ورود موفق", dateLabel(customer.lastSuccessfulLoginAtUtc)],
+                        ["ارائه‌دهنده آخرین ورود", customer.lastLoginProviderCode ?? "نامشخص"],
+                        ["اعتبار بومی", customer.hasNativeCredential ? "دارد" : "ندارد"],
+                        ["ایمیل تأییدشده", customer.emailConfirmed ? "بله" : "خیر"],
+                        [
+                          "نشست‌های نوسازی فعال",
+                          customer.activeRefreshSessions.toLocaleString("fa-IR"),
+                        ],
+                        [
+                          "عضویت در مستأجر",
+                          customer.tenantMemberships.length
+                            ? customer.tenantMemberships.map((tenantId) => (
+                                <bdi key={tenantId} dir="ltr" className="block break-all">
+                                  {tenantId}
+                                </bdi>
+                              ))
+                            : "عضویتی ثبت نشده",
+                        ],
+                      ]}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {canManage && (
+                        <>
+                          <Button
+                            size="sm"
+                            className="rounded-lg"
+                            onClick={() => void status(!selected.isEnabled)}
+                          >
+                            {selected.isEnabled ? "غیرفعال‌سازی" : "فعال‌سازی"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="rounded-lg"
+                            variant="outline"
+                            onClick={() => void status(true, true)}
+                          >
+                            رفع قفل
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="rounded-lg"
+                            variant="destructive"
+                            onClick={() => void revoke()}
+                          >
+                            ابطال نشست‌ها
+                          </Button>
+                        </>
+                      )}
+                      {canManageRoles && (
+                        <Button
+                          size="sm"
+                          className="rounded-lg"
+                          variant="outline"
+                          onClick={() => void saveRoles()}
+                        >
+                          تنظیم نقش‌ها
+                        </Button>
+                      )}
+                    </div>
+                  </section>
+                  <section className="space-y-3 rounded-xl border border-slate-200 p-4">
+                    <h3 className="mb-2 font-semibold text-slate-800">هویت‌های پیوندخورده</h3>
+                    {customer.linkedProviders.length ? (
+                      providerLinksPagination.pageItems.map((link) => (
+                        <div
+                          key={`${link.providerCode}:${link.maskedExternalId}`}
+                          className="mb-2 rounded-lg border border-slate-100 p-3 text-xs leading-6 text-slate-600"
+                        >
+                          <CustomerFields
+                            fields={[
+                              ["ارائه‌دهنده", <bdi>{link.providerCode}</bdi>],
+                              ["وضعیت", link.status],
+                              ["شناسه پیوند", <bdi dir="ltr">{link.maskedExternalId}</bdi>],
+                              ["زمان پیوند", dateLabel(link.linkedAtUtc)],
+                              ["تازگی پروفایل", dateLabel(link.profileSyncedAtUtc)],
+                              ...(link.displayMetadata
+                                ? [["اطلاعات تکمیلی", <bdi>{link.displayMetadata}</bdi>] as const]
+                                : []),
+                            ]}
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">هویت پیوندخورده‌ای ثبت نشده است.</p>
+                    )}
+                    {customer.linkedProviders.length > 10 && (
+                      <AdminPagination
+                        {...providerLinksPagination}
+                        onPageChange={providerLinksPagination.setPageIndex}
+                      />
+                    )}
+                  </section>
+                  <CustomerSection title="اشتراک" section={customer.subscription}>
+                    {(data) => (
+                      <div className="space-y-3">
+                        <CustomerFields
+                          fields={[
+                            ["طرح", data.planName ?? data.planCode ?? "نامشخص"],
+                            ["فعال", data.isActive ? "بله" : "خیر"],
+                            ["سهمیه", data.creditQuotaMode === "Unlimited" ? "نامحدود" : "محدود"],
+                            ["شروع بازه", dateLabel(data.effectiveFromUtc)],
+                            ["پایان بازه", dateLabel(data.effectiveToUtc)],
+                            ["بازبینی", data.revision.toLocaleString("fa-IR")],
+                            ["همگام‌سازی بیرونی", data.externalSyncStatus ?? "نامشخص"],
+                            ["آخرین همگام‌سازی", dateLabel(data.externalLastSyncedAtUtc)],
+                          ]}
+                        />
+                        <div>
+                          <h4 className="mb-2 text-xs font-medium text-slate-600">قابلیت‌ها</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {data.capabilities.map((item) => (
+                              <bdi
+                                key={item.code}
+                                className="rounded-md bg-slate-100 px-2 py-1 text-xs [overflow-wrap:anywhere]"
+                              >
+                                {item.code}
+                              </bdi>
+                            ))}
+                            {!data.capabilities.length && "—"}
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
+                      </div>
+                    )}
+                  </CustomerSection>
+                  <CustomerSection
+                    title="اعتبارها"
+                    section={customer.credits}
+                    action={
+                      creditAccountId && (
+                        <Button
+                          size="sm"
+                          disabled={creditSaving || creditHistoryLoading}
+                          onClick={() => void addCredits()}
+                        >
+                          {creditSaving ? (
+                            <LoaderCircle className="size-4 animate-spin" />
+                          ) : (
+                            <Plus className="size-4" />
+                          )}
+                          افزودن اعتبار
+                        </Button>
+                      )
+                    }
+                  >
+                    {(data) => (
+                      <div className="space-y-3">
+                        <CustomerFields
+                          fields={[
+                            [
+                              "ظرفیت قابل‌مصرف",
+                              data.spendableCredits?.toLocaleString("fa-IR") ?? "نامشخص",
+                            ],
+                            ["رزروشده", data.reservedCredits?.toLocaleString("fa-IR") ?? "نامشخص"],
+                            [
+                              "سقف اعتباری",
+                              data.approvedCreditLine?.toLocaleString("fa-IR") ?? "ندارد",
+                            ],
+                            [
+                              "مانده دوره‌های اشتراک",
+                              data.activeSubscriptionCredits.toLocaleString("fa-IR"),
+                            ],
+                            ["نزدیک‌ترین انقضا", dateLabel(data.nextExpiryUtc)],
+                          ]}
+                        />
+                        {creditPeriodsPagination.pageItems.map((period) => (
+                          <p
+                            key={period.id}
+                            className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-600"
+                          >
+                            {period.planCode}: {period.remainingCredits} از {period.grantedCredits}{" "}
+                            · انقضا {dateLabel(period.expiresAtUtc)} · {period.status}
+                          </p>
+                        ))}
+                        {data.activePeriods.length > 0 && (
+                          <AdminPagination
+                            {...creditPeriodsPagination}
+                            onPageChange={creditPeriodsPagination.setPageIndex}
+                          />
+                        )}
+                        <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
+                        {!creditHistory && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg"
+                            disabled={creditHistoryLoading || creditSaving}
+                            onClick={() => void loadCreditHistory()}
+                          >
+                            بارگذاری تاریخچه اعتبار
+                          </Button>
+                        )}
+                        {creditHistoryPagination.pageItems.map((entry) => (
+                          <div
+                            key={`${entry.recordType}:${entry.id}`}
+                            className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
+                          >
+                            <p>
+                              {dateLabel(entry.occurredAtUtc)} ·{" "}
+                              {entry.operationCode === "Billing.ManualAdjustment"
+                                ? "افزودن دستی اعتبار"
+                                : (entry.entryType ?? entry.operationCode ?? "-")}{" "}
+                              ·{" "}
+                              <span
+                                className={`font-semibold ${entry.credits < 0 ? "text-rose-700" : "text-emerald-700"}`}
+                              >
+                                {entry.operationCode === "Billing.ManualAdjustment" ? "+" : ""}
+                                {entry.credits.toLocaleString("fa-IR")}
+                              </span>
+                              {entry.allocationSource && ` · ${entry.allocationSource}`} ·{" "}
+                              {entry.operationCode === "Billing.ManualAdjustment"
+                                ? "ثبت‌شده"
+                                : entry.status}
+                            </p>
+                            {entry.operationCode === "Billing.ManualAdjustment" &&
+                              entry.auditDescription && (
+                                <p className="mt-1 text-slate-500">
+                                  دلیل: {entry.auditDescription}
+                                </p>
+                              )}
+                          </div>
+                        ))}
+                        {creditHistory?.hasMore && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg"
+                            disabled={creditHistoryLoading || creditSaving}
+                            onClick={() => void loadCreditHistory()}
+                          >
+                            دریافت ۱۰ مورد بعدی
+                          </Button>
+                        )}
+                        {creditHistoryRows.length > 0 && (
+                          <AdminPagination
+                            {...creditHistoryPagination}
+                            onPageChange={creditHistoryPagination.setPageIndex}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </CustomerSection>
+                  <CustomerSection title="خریدها" section={customer.purchases}>
+                    {(data) => (
+                      <div className="space-y-1">
+                        <CustomerFields
+                          fields={[
+                            [
+                              "خرید محلی تکمیل‌شده",
+                              data.completedLocalPurchaseCount?.toLocaleString("fa-IR") ??
+                                "در دسترس نیست",
+                            ],
+                            ["وضعیت استحقاق بیرونی", data.externalEntitlementsStatus],
+                          ]}
+                        />
+                        {purchaseHistoryPagination.pageItems.map((purchase) => (
+                          <p
+                            key={purchase.checkoutIntentId}
+                            className="rounded-lg border border-slate-100 px-3 py-2 text-xs leading-6 text-slate-600"
+                          >
+                            {dateLabel(purchase.createdAtUtc)} · {purchase.productDisplayName} ·{" "}
+                            {purchase.amount} {purchase.currency} · {purchase.status} ·{" "}
+                            {purchase.channel} · {purchase.providerName ?? "بدون ارائه‌دهنده"} ·
+                            تطبیق: {purchase.reconciliationState ?? "نامشخص"}
+                          </p>
+                        ))}
+                        <p className="text-xs text-muted-foreground">منبع: {data.sourceSystem}</p>
+                        {!purchaseHistory && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg"
+                            onClick={() => void loadPurchaseHistory()}
+                          >
+                            بارگذاری تاریخچه خرید
+                          </Button>
+                        )}
+                        {purchaseHistory?.hasMore && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg"
+                            onClick={() => void loadPurchaseHistory()}
+                          >
+                            دریافت ۱۰ مورد بعدی
+                          </Button>
+                        )}
+                        {purchaseHistoryRows.length > 0 && (
+                          <AdminPagination
+                            {...purchaseHistoryPagination}
+                            onPageChange={purchaseHistoryPagination.setPageIndex}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </CustomerSection>
+                  <p className="text-xs text-muted-foreground">
+                    زمان مبنای پاسخ: {dateLabel(customer.asOfUtc)} · نشست‌های نوسازی شاخص حضور
+                    آنلاین نیستند.
+                  </p>
+                </div>
+              ) : !detailLoading && !error ? (
+                <p className="text-sm text-muted-foreground">جزئیات بارگذاری نشد.</p>
+              ) : null}
+            </TabsContent>
+            <TabsContent value="chat-history" className="m-0">
+              <AdminCustomerChatHistory userId={userId} />
+            </TabsContent>
+          </div>
+        </Tabs>
+        {actionDialog}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CustomerFields({ fields }: { fields: ReadonlyArray<readonly [string, React.ReactNode]> }) {
+  return (
+    <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {fields.map(([label, value]) => (
+        <div key={label} className="min-w-0 rounded-lg bg-slate-50 px-3 py-2">
+          <dt className="text-xs text-slate-600">{label}</dt>
+          <dd className="mt-1 font-medium text-slate-900 [overflow-wrap:anywhere]">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function CustomerSection<T>({
   title,
   section,
+  action,
   children,
 }: {
   title: string;
+  action?: React.ReactNode;
   section: { status: string; data: T | null; reason?: string | null };
   children: (data: T) => React.ReactNode;
 }) {
   return (
-    <section className="space-y-2 border-t border-border pt-3">
-      <h3 className="font-semibold">{title}</h3>
+    <section className="space-y-3 rounded-xl border border-slate-200 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">{title}</h3>
+        {action}
+      </div>
       {section.status === "available" && section.data ? (
         children(section.data)
       ) : (
@@ -2081,10 +2195,94 @@ function TenantsPanel({ user }: { user: AuthUser }) {
   );
 }
 
-function BillingPanel({ user }: { user: AuthUser }) {
+type CreditAttempts = Map<string, { key: string; pending: boolean }>;
+
+function creditGrantMessage(result: AdminCreditAdjustment, amount: number, showBalance: boolean) {
+  const quantity = amount.toLocaleString("fa-IR");
+  const message = result.alreadyApplied
+    ? `ثبت ${quantity} اعتبار تأیید شد.`
+    : `${quantity} اعتبار به حساب افزوده شد.`;
+  return showBalance
+    ? `${message} مانده جدید: ${result.updatedBalance.toLocaleString("fa-IR")}`
+    : message;
+}
+
+function useManualCreditGrant(
+  ask: ReturnType<typeof useAdminDialog>["ask"],
+  attempts: CreditAttempts,
+) {
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
+
+  async function grant(
+    accountId: string,
+    onGranted: (result: AdminCreditAdjustment, amount: number) => Promise<void>,
+  ) {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const form = await ask({
+        title: "افزودن اعتبار به مشتری",
+        description:
+          "اعتبار به مانده مشتری افزوده می‌شود. مقدار و دلیل در تاریخچه مالی و ممیزی ثبت می‌شوند.",
+        confirmLabel: "افزودن اعتبار",
+        fields: [
+          {
+            name: "amount",
+            label: "مقدار اعتبار",
+            type: "number",
+            min: "1",
+            required: true,
+            placeholder: "مثلاً ۲۵۰",
+          },
+          { name: "reason", label: "دلیل افزودن اعتبار", type: "textarea", required: true },
+        ],
+      });
+      if (!form) return;
+      const amount = Number(form.amount);
+      const reason = form.reason.trim();
+      if (!Number.isSafeInteger(amount) || amount <= 0 || !reason) {
+        throw new Error("مقدار اعتبار باید عدد صحیح و بزرگ‌تر از صفر باشد و دلیل را هم وارد کنید.");
+      }
+
+      const fingerprint = JSON.stringify([accountId.trim().toLowerCase(), amount, reason]);
+      const attempt = attempts.get(fingerprint) ?? {
+        key: `admin-ui-credit-${crypto.randomUUID()}`,
+        pending: false,
+      };
+      if (attempt.pending) throw new Error("این درخواست افزودن اعتبار در حال ثبت است.");
+      attempts.set(fingerprint, attempt);
+      attempt.pending = true;
+      setSaving(true);
+      let result: AdminCreditAdjustment;
+      try {
+        result = await adminApi.adjustCredits(accountId, amount, reason, attempt.key);
+      } finally {
+        attempt.pending = false;
+      }
+      attempts.delete(fingerprint);
+      await onGranted(result, amount);
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
+  }
+
+  return { grant, saving };
+}
+
+function BillingPanel({
+  user,
+  creditAttempts,
+}: {
+  user: AuthUser;
+  creditAttempts: CreditAttempts;
+}) {
   const { ask, dialog: actionDialog } = useAdminDialog();
   const [plans, setPlans] = useState<AdminPlan[]>([]);
   const [customerId, setCustomerId] = useState("");
+  const currentBillingAccount = useRef(customerId);
+  const { grant, saving: creditSaving } = useManualCreditGrant(ask, creditAttempts);
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerDirectory, setCustomerDirectory] = useState<AdminUserDirectoryPage | null>(null);
   const [customerSearchCursors, setCustomerSearchCursors] = useState<(string | null)[]>([null]);
@@ -2092,7 +2290,6 @@ function BillingPanel({ user }: { user: AuthUser }) {
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<AdminUserDirectoryItem | null>(null);
-  const [creditSaving, setCreditSaving] = useState(false);
   const [subscription, setSubscription] = useState<AdminSubscription | null>(null);
   const [ledger, setLedger] = useState<AdminUsageLedger[]>([]);
   const [topUpReconciliation, setTopUpReconciliation] =
@@ -2101,7 +2298,6 @@ function BillingPanel({ user }: { user: AuthUser }) {
   const [topUpReconciliationError, setTopUpReconciliationError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [creditKey, setCreditKey] = useState(() => `admin-ui-credit-${crypto.randomUUID()}`);
   const [featureDialogOpen, setFeatureDialogOpen] = useState(false);
   const [featureDialogReadOnly, setFeatureDialogReadOnly] = useState(false);
   const [featurePlan, setFeaturePlan] = useState<AdminPlan | null>(null);
@@ -2164,6 +2360,7 @@ function BillingPanel({ user }: { user: AuthUser }) {
     setCustomerSearchCursors([null]);
     setCustomerSearchPage(0);
     setSelectedCustomer(null);
+    currentBillingAccount.current = "";
     setCustomerId("");
     setSubscription(null);
     setLedger([]);
@@ -2187,6 +2384,7 @@ function BillingPanel({ user }: { user: AuthUser }) {
   async function lookup(accountId = customerId) {
     const normalizedAccountId = accountId.trim();
     if (!normalizedAccountId) return;
+    currentBillingAccount.current = normalizedAccountId;
     setCustomerId(normalizedAccountId);
     setError(null);
     setCustomerLookupLoading(true);
@@ -2199,12 +2397,13 @@ function BillingPanel({ user }: { user: AuthUser }) {
           ? adminApi.ledger(normalizedAccountId)
           : Promise.resolve([] as AdminUsageLedger[]),
       ]);
+      if (currentBillingAccount.current !== normalizedAccountId) return;
       setSubscription(nextSubscription);
       setLedger(nextLedger);
     } catch (e) {
-      setError(showError(e));
+      if (currentBillingAccount.current === normalizedAccountId) setError(showError(e));
     } finally {
-      setCustomerLookupLoading(false);
+      if (currentBillingAccount.current === normalizedAccountId) setCustomerLookupLoading(false);
     }
   }
   async function selectCustomer(item: AdminUserDirectoryItem) {
@@ -2213,7 +2412,9 @@ function BillingPanel({ user }: { user: AuthUser }) {
     setLedger([]);
     const accountId = item.customerAccountId ?? item.subscription.data?.customerAccountId;
     if (!accountId) {
+      currentBillingAccount.current = "";
       setCustomerId("");
+      setCustomerLookupLoading(false);
       setError("برای این کاربر حساب مالی پیدا نشد یا دسترسی لازم برای بازیابی آن را ندارید.");
       return;
     }
@@ -2232,7 +2433,9 @@ function BillingPanel({ user }: { user: AuthUser }) {
         aria-label="شناسه حساب مشتری"
         value={customerId}
         onChange={(event) => {
+          currentBillingAccount.current = event.target.value;
           setCustomerId(event.target.value);
+          setCustomerLookupLoading(false);
           setSelectedCustomer(null);
           setSubscription(null);
           setLedger([]);
@@ -2255,43 +2458,18 @@ function BillingPanel({ user }: { user: AuthUser }) {
     </form>
   );
   async function addCredits() {
-    const form = await ask({
-      title: "افزودن اعتبار به مشتری",
-      description:
-        "اعتبار به مانده مشتری افزوده می‌شود. مبلغ، زمان و دلیل این افزایش در تاریخچه مالی و ممیزی ثبت خواهد شد.",
-      confirmLabel: "افزودن اعتبار",
-      fields: [
-        {
-          name: "amount",
-          label: "مقدار اعتبار برای افزودن",
-          type: "number",
-          min: "1",
-          required: true,
-          placeholder: "مثلاً ۲۵۰",
-        },
-        { name: "reason", label: "دلیل افزودن اعتبار", type: "textarea", required: true },
-      ],
-    });
-    if (!form) return;
-    const amount = Number(form.amount);
-    const reason = form.reason.trim();
-    if (!Number.isInteger(amount) || amount <= 0 || !reason) {
-      setError("مقدار اعتبار باید عدد صحیح و بزرگ‌تر از صفر باشد و دلیل را هم وارد کنید.");
-      return;
-    }
-    setCreditSaving(true);
+    const accountId = customerId;
+    setError(null);
+    setSuccess(null);
     try {
-      const result = await adminApi.adjustCredits(customerId, amount, reason, creditKey);
-      setSuccess(
-        `${amount.toLocaleString("fa-IR")} اعتبار به حساب افزوده شد. مانده جدید: ${result.updatedBalance.toLocaleString("fa-IR")}`,
-      );
-      setCreditKey(`admin-ui-credit-${crypto.randomUUID()}`);
-      ledgerPagination.setPageIndex(0);
-      await lookup(customerId);
-    } catch (e) {
-      setError(showError(e));
-    } finally {
-      setCreditSaving(false);
+      await grant(accountId, async (result, amount) => {
+        if (currentBillingAccount.current !== accountId) return;
+        setSuccess(creditGrantMessage(result, amount, true));
+        ledgerPagination.setPageIndex(0);
+        await lookup(accountId);
+      });
+    } catch (reason) {
+      if (currentBillingAccount.current === accountId) setError(showError(reason));
     }
   }
   async function changeSubscription() {

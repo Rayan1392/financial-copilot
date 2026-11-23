@@ -152,6 +152,7 @@ export type AdminCustomer360 = {
   credits: AdminSection<AdminCustomerCredits>;
   purchases: AdminSection<AdminCustomerPurchases>;
   asOfUtc: string;
+  creditAdjustmentAccountId?: string | null;
 };
 export type AdminCustomerSubscription = {
   customerAccountId: string;

@@ -614,9 +614,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             .Distinct()
             .CountAsync(cancellationToken);
 
-        var canReadAnyBilling = permissions.CanReadSubscription || permissions.CanReadCredits || permissions.CanReadPurchases;
         CustomerAccountRow? account = null;
-        if (canReadAnyBilling)
+        if (permissions.CanReadSubscription || permissions.CanReadCredits || permissions.CanReadPurchases || permissions.CanAdjustCredits)
         {
             try
             {
@@ -646,7 +645,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
 
         return BuildCustomer360Base(
             identity, tenantId, asOfUtc, activeRefreshSessions, tahlilLinks.Concat(telegramLinks).ToArray(),
-            subscription, credits, purchases);
+            subscription, credits, purchases, permissions.CanAdjustCredits ? account?.Id : null);
     }
 
     public async Task<AdminCreditHistoryPage> GetCreditHistoryAsync(
@@ -1169,7 +1168,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         IReadOnlyCollection<AdminProviderLinkView> links,
         AdminOptionalSection<AdminCustomerSubscriptionView> subscription,
         AdminOptionalSection<AdminCustomerCreditView> credits,
-        AdminOptionalSection<AdminCustomerPurchaseSummary> purchases) =>
+        AdminOptionalSection<AdminCustomerPurchaseSummary> purchases,
+        Guid? creditAdjustmentAccountId = null) =>
         new(
             identity.Id,
             tenantId,
@@ -1187,7 +1187,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             subscription,
             credits,
             purchases,
-            asOfUtc);
+            asOfUtc,
+            creditAdjustmentAccountId);
 
     private string WriteCursor(CursorPayload payload) => cursorProtector.Protect(JsonSerializer.Serialize(payload));
 

@@ -109,7 +109,8 @@ public sealed record AdminProviderLinkView(
 public sealed record AdminCustomer360Permissions(
     bool CanReadSubscription,
     bool CanReadCredits,
-    bool CanReadPurchases);
+    bool CanReadPurchases,
+    bool CanAdjustCredits = false);
 
 public sealed record AdminCustomer360View(
     Guid UserId,
@@ -128,7 +129,8 @@ public sealed record AdminCustomer360View(
     AdminOptionalSection<AdminCustomerSubscriptionView> Subscription,
     AdminOptionalSection<AdminCustomerCreditView> Credits,
     AdminOptionalSection<AdminCustomerPurchaseSummary> Purchases,
-    DateTimeOffset AsOfUtc);
+    DateTimeOffset AsOfUtc,
+    Guid? CreditAdjustmentAccountId = null);
 
 public sealed record AdminCustomerSubscriptionView(
     Guid CustomerAccountId,

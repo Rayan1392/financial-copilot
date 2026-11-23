@@ -499,6 +499,7 @@ public sealed class Feature146PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
             Assert.Null(view.Credits.Data);
             Assert.Equal("not_authorized", view.Purchases.Status);
             Assert.Null(view.Purchases.Data);
+            Assert.Null(view.CreditAdjustmentAccountId);
             Assert.Equal(0, unauthorizedBillingCommands.ReaderCount);
         }
 
@@ -506,9 +507,10 @@ public sealed class Feature146PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
         await using (var auth = database.CreateAuthContext())
         await using (var billing = database.CreateBillingContext(authorizedBillingCommands))
         {
+            var accountId = Guid.NewGuid();
             billing.CustomerAccounts.Add(new CustomerAccountRow
             {
-                Id = Guid.NewGuid(),
+                Id = accountId,
                 TenantId = tenantId,
                 UserId = user.Id,
                 AccountType = "user",
@@ -526,7 +528,26 @@ public sealed class Feature146PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
             Assert.Equal("available", view.Subscription.Status);
             Assert.Equal("not_authorized", view.Credits.Status);
             Assert.Equal("not_authorized", view.Purchases.Status);
+            Assert.Null(view.CreditAdjustmentAccountId);
             Assert.InRange(authorizedBillingCommands.ReaderCount, 1, 2);
+
+            authorizedBillingCommands.Reset();
+            var adjustmentController = CreateController(
+                tenantId, user.Id, CreateQueries(auth, billing), new[] { AuthorizationPolicies.AdminCreditsAdjust });
+            var adjustmentView = await adjustmentController.GetCustomer360(user.Id, CancellationToken.None);
+            Assert.Equal(accountId, adjustmentView.CreditAdjustmentAccountId);
+            Assert.Equal("not_authorized", adjustmentView.Subscription.Status);
+            Assert.Equal("not_authorized", adjustmentView.Credits.Status);
+            Assert.Equal("not_authorized", adjustmentView.Purchases.Status);
+            Assert.Equal(1, authorizedBillingCommands.ReaderCount);
+
+            var queries = CreateQueries(auth, billing);
+            var adjustmentPermission = new AdminCustomer360Permissions(false, false, false, true);
+            await Assert.ThrowsAsync<AdminManagementException>(() => queries.GetCustomer360Async(
+                tenantId, otherTenantUser.Id, adjustmentPermission, CancellationToken.None));
+            var withoutAccount = await queries.GetCustomer360Async(
+                otherTenantId, otherTenantUser.Id, adjustmentPermission, CancellationToken.None);
+            Assert.Null(withoutAccount.CreditAdjustmentAccountId);
         }
 
         await using (var auth = database.CreateAuthContext())

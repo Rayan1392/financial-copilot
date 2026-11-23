@@ -17,7 +17,11 @@ import type { AdminUserDirectoryItem } from "@/integrations/financial-copilot/ad
 import { messageApi } from "@/integrations/financial-copilot/in-app-messages";
 import { formatNumber } from "@/lib/format/persian";
 
-export function AdminMessageComposer({ recipient }: { recipient: AdminUserDirectoryItem }) {
+export function AdminMessageComposer({
+  recipient,
+}: {
+  recipient: Pick<AdminUserDirectoryItem, "userId" | "displayName" | "email">;
+}) {
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");

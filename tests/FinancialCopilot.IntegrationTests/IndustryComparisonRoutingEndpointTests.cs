@@ -34,27 +34,53 @@ public sealed class IndustryComparisonRoutingEndpointTests : IClassFixture<Indus
     [InlineData("کگهر نسبت به شرکت‌های هم‌گروه چطوره؟")]
     [InlineData("وضعیت کگهر در مقایسه با هم‌صنعتی‌ها")]
     [InlineData("کگهر را با شرکت‌های صنعت خودش مقایسه کن")]
-    // Feature 148: industry relative valuation (Feature 125) depends on the retired legacy CyclicalWaves
-    // integration, so the routed capability now answers with the retired-capability message in both modes.
+    // BUG-047: with the CyclicalWaves v2 relative valuation on (`IndustryRelativeValuation:CyclicalWavesV2Enabled`,
+    // the default in appsettings.json) the own-industry comparison answers again with the table. The retired
+    // message of Feature 148 remains only while that switch is off (see IndustryComparisonRetiredEndpointTests).
     public async Task Api_ResolvesExactTickerAndReturnsExistingIndustryValuationTable(string message)
+    {
+        var (capabilityCode, answer) = await IndustryComparisonQuery.AskAsync(factory, message);
+
+        Assert.Equal(ChatCapabilityAvailability.PeerComparisonCapabilityCode, capabilityCode);
+        Assert.StartsWith("### مقایسه نماد با صنعت", answer);
+        Assert.Contains("| کگهر | ۴۲٫۵٪ | ۶۷٫۵٪ | ۱۲٫۵٪ |", answer);
+        Assert.Contains("| میانگین صنعت | ۵۰٪ | ۷۰٪ | ۲۰٪ |", answer);
+        Assert.NotEqual(ChatCapabilityAvailability.RetiredMessageFa, answer);
+    }
+}
+
+public sealed class IndustryComparisonRetiredEndpointTests(IndustryComparisonRetiredApiFactory factory)
+    : IClassFixture<IndustryComparisonRetiredApiFactory>
+{
+    // Feature 148: without the CyclicalWaves v2 relative valuation the capability keeps its retired answer.
+    [Fact]
+    public async Task Api_AnswersWithTheRetiredMessageWhileTheV2RelativeValuationIsOff()
+    {
+        factory.EnsureComparisonSeeded();
+
+        var (capabilityCode, answer) = await IndustryComparisonQuery.AskAsync(factory, "کگهر را با صنعت خودش مقایسه کن");
+
+        Assert.Equal(ChatCapabilityAvailability.PeerComparisonCapabilityCode, capabilityCode);
+        Assert.Equal(ChatCapabilityAvailability.RetiredMessageFa, answer);
+        Assert.DoesNotContain("میانگین صنعت", answer);
+    }
+}
+
+internal static class IndustryComparisonQuery
+{
+    public static async Task<(string? CapabilityCode, string Answer)> AskAsync(IndustryComparisonApiFactory factory, string message)
     {
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
 
-        using var response = await client.PostAsJsonAsync(
-            "/api/ai/v1/query",
-            new { message },
-            CancellationToken.None);
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message }, CancellationToken.None);
         using var document = await JsonDocument.ParseAsync(
             await response.Content.ReadAsStreamAsync(CancellationToken.None),
             cancellationToken: CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
-        Assert.Equal("symbol_vs_industry_relative_valuation", root.GetProperty("semanticCapabilityCode").GetString());
-        var answer = root.GetProperty("textAnswer").GetString()!;
-        Assert.Equal(FinancialCopilot.Application.AI.Orchestration.ChatCapabilityAvailability.RetiredMessageFa, answer);
-        Assert.DoesNotContain("میانگین صنعت", answer);
+        return (root.GetProperty("semanticCapabilityCode").GetString(), root.GetProperty("textAnswer").GetString()!);
     }
 }
 
@@ -255,6 +281,21 @@ public class IndustryComparisonApiFactory : V2Feature128CanaryApiFactory
 
         private static RelativeValuationMetricReadModel Metric(string kind, decimal percent, string classification) =>
             new(percent, percent, classification, false, string.Empty, "Available", kind, "Ready", 2, 2);
+    }
+}
+
+/// <summary>The same host with the CyclicalWaves v2 relative valuation switched off (Feature 148 retirement).</summary>
+public sealed class IndustryComparisonRetiredApiFactory : IndustryComparisonApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IChatCapabilityAvailability>();
+            services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(
+                FinancialDataChatProvider.NoavaranAmin, ChatCapabilitySourceMap.Empty, cyclicalWavesV2RelativeValuationEnabled: false));
+        });
     }
 }
 

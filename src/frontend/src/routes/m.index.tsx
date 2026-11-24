@@ -9,6 +9,8 @@ import { InstallCard } from "@/components/mobile/install-card";
 import { IconTile } from "@/components/mobile/icon-tile";
 import {
   BalanceSheetIcon,
+  CashFlowIcon,
+  IndustryComparisonIcon,
   MonthlySalesIcon,
   ProductTrendIcon,
   QuarterlyReportIcon,
@@ -39,8 +41,10 @@ const STARTER_ICONS: Record<StarterPromptId, MobileIcon> = {
   "monthly-sales": MonthlySalesIcon,
   "product-trend": ProductTrendIcon,
   ranking: RankingIcon,
+  "industry-comparison": IndustryComparisonIcon,
   "quarterly-report": QuarterlyReportIcon,
   "balance-sheet": BalanceSheetIcon,
+  "cash-flow": CashFlowIcon,
 };
 const WATCHLIST_STRIP_LIMIT = 8;
 
@@ -81,7 +85,7 @@ function MobileNewChat() {
 
   const failure = startChat.failure;
   const exchangeText = startChat.pendingMessage ?? failure?.draft ?? null;
-  // The fixed six cards; watchlist personalization is switched off in starter-prompts.ts.
+  // The fixed starter cards; watchlist personalization is switched off in starter-prompts.ts.
   const starters = homeStarterPrompts(watchlist.followed).prompts;
   const symbols = watchlist.join?.rows ?? [];
 

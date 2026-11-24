@@ -3,6 +3,27 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.26.0
+
+- Published on 2026-11-24 (MINOR: Changed responsive industry comparison table + Fixed own-industry
+  follow-ups that 1.25.0 shipped as stock reviews). Commits `c933de52` (fix), `865fcbf7` (feat), develop
+  release commit `883d7a0f`, prod merge `409685c7` (built with merge-tree/commit-tree), annotated tag
+  `v1.26.0` (tag object `8b29496f`).
+- Release-note tests passed 12/12 and the tag/changelog check passed. Deploy run 45415321300 succeeded
+  in 16m1s. `/releases` returned HTTP 200 and lists 1.26.0 first.
+- Open (pre-existing, not caused by this release): 6 IndustryComparisonRoutingEndpointTests cases,
+  ProductRevenueMixFollowUp075Tests baseline entries, 6 frontend tests listed in the 125
+  responsive-comparison-table tasks.md.
+
+## Release 1.25.0
+
+- Published on 2026-11-24 (MINOR, added industry comparison follow-up suggestions). Feature commit
+  `ee988b8c`, develop release commit `dc0fdeaa`, prod merge `f97a6a68`, annotated tag `v1.25.0`
+  (tag object `b3b243e4`).
+- Release-note tests passed 12/12 and the tag/changelog check passed. Deploy run 45400545788 succeeded
+  in 14m25s. The public releases page lists 1.25.0 first, the API health endpoint returned Healthy,
+  and all three deployed containers use image tag `f97a6a6` with zero restarts.
+
 ## Release 1.24.1
 
 - Published on 2026-11-24 (PATCH, BUG-046). Fix commit `d1f6fd90`, develop release commit `19fc6ee0`,

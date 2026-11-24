@@ -196,7 +196,9 @@ public static class IndustryRelativeValuationPresentation
         if (member.MarketTradingDate is not { } date || member.MarketPrice is not { } price ||
             member.EquilibriumPrice is not { } equilibrium) return "—";
         var source = member.MarketPriceSource == "IntradayToday" ? "درون‌روزی" : "روزانه";
-        return $"{FormatPersianNumber(price)} ریال ({source}، {FormatJalaliDate(new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero))})، تعادلی {FormatPersianNumber(equilibrium)} ریال";
+        // Change «rounded-equilibrium-price» (owner, 2026-11-24): the equilibrium price is shown in whole rials.
+        var roundedEquilibrium = Math.Round(equilibrium, 0, MidpointRounding.AwayFromZero);
+        return $"{FormatPersianNumber(price)} ریال ({source}، {FormatJalaliDate(new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero))})، تعادلی {FormatPersianNumber(roundedEquilibrium)} ریال";
     }
 
     private static decimal? Benchmark(IndustryRelativeValuationReadModel model, string metricKind) =>

@@ -63,12 +63,37 @@ const EMPTY_CELL = /^[-—–]?$/;
 // «۳۴۴۰ ریال (روزانه، ۱۴۰۵/۰۸/۳۰)، تعادلی ۷۲۳۲٫۱۷ ریال» — written by IndustryRelativeValuationSemanticContracts.
 const PRICE_EVIDENCE = /^(.+?\sریال)\s*\((.+?)،\s*(.+?)\)،\s*تعادلی\s+(.+?\sریال)$/;
 
+const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+const PERSIAN_RIAL_AMOUNT = /^([۰-۹]+)(?:٫([۰-۹]+))?(\sریال)$/;
+
+/**
+ * Change «rounded-equilibrium-price» (owner, 2026-11-24): the equilibrium price is shown in whole rials. New answers
+ * arrive rounded from the server; this rounds answers stored before that change («۷۲۳۲٫۱۷ ریال» → «۷۲۳۲ ریال»),
+ * half away from zero like the server. Text in any other shape is returned unchanged.
+ */
+export function roundRialAmount(amount: string): string {
+  const match = PERSIAN_RIAL_AMOUNT.exec(amount.trim());
+  if (!match || !match[2]) return amount;
+  const toLatin = (digits: string) =>
+    digits.replace(/[۰-۹]/g, (digit) => String(PERSIAN_DIGITS.indexOf(digit)));
+  const whole = BigInt(toLatin(match[1]));
+  const roundsUp = Number(toLatin(match[2])[0]) >= 5;
+  const rounded = (roundsUp ? whole + 1n : whole).toString();
+  return `${rounded.replace(/[0-9]/g, (digit) => PERSIAN_DIGITS[Number(digit)])}${match[3]}`;
+}
+
 export function parsePriceEvidence(cell: string | undefined): PriceEvidence | undefined {
   const raw = cell?.trim() ?? "";
   if (EMPTY_CELL.test(raw)) return undefined;
   const match = PRICE_EVIDENCE.exec(raw);
   if (!match) return { raw };
-  return { raw, price: match[1], source: match[2], date: match[3], equilibrium: match[4] };
+  return {
+    raw,
+    price: match[1],
+    source: match[2],
+    date: match[3],
+    equilibrium: roundRialAmount(match[4]),
+  };
 }
 
 function isBenchmarkLabel(label: string): boolean {

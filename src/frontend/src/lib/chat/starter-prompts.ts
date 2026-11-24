@@ -1,4 +1,6 @@
 import {
+  ArrowLeftRight,
+  Banknote,
   BarChart3,
   FileText,
   ListOrdered,
@@ -17,8 +19,10 @@ export type StarterPromptId =
   | "monthly-sales"
   | "product-trend"
   | "ranking"
+  | "industry-comparison"
   | "quarterly-report"
-  | "balance-sheet";
+  | "balance-sheet"
+  | "cash-flow";
 
 export interface StarterPrompt {
   /** Stable key of the capability; the phone workspace picks its own icon by it. */
@@ -74,6 +78,14 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     tone: "sales",
   },
   {
+    id: "industry-comparison",
+    text: "شاراک را با صنعت خودش مقایسه کن",
+    icon: ArrowLeftRight,
+    topic: "مقایسه با صنعت",
+    tone: "sales",
+    forSymbol: (s) => `${s} را با صنعت خودش مقایسه کن`,
+  },
+  {
     id: "quarterly-report",
     text: "عملکرد مالی فصلی فولاد را بررسی کن",
     icon: FileText,
@@ -88,6 +100,14 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     topic: "ترازنامه",
     tone: "statement",
     forSymbol: (s) => `صورت وضعیت مالی ${s} را بررسی کن`,
+  },
+  {
+    id: "cash-flow",
+    text: "جریان وجه نقد اخابر",
+    icon: Banknote,
+    topic: "جریان وجوه نقد",
+    tone: "statement",
+    forSymbol: (s) => `جریان وجه نقد ${s}`,
   },
 ];
 
@@ -105,7 +125,7 @@ export interface StarterPromptSet {
  */
 export const WATCHLIST_STARTER_PROMPTS_ENABLED = false;
 
-/** The cards the new-chat pages show: the fixed six while watchlist personalization is off. */
+/** The cards the new-chat pages show: the fixed set while watchlist personalization is off. */
 export function homeStarterPrompts(
   followed: readonly { symbol: string; followedAtUtc?: string }[],
 ): StarterPromptSet {
@@ -115,7 +135,7 @@ export function homeStarterPrompts(
 }
 
 /**
- * The same six capability cards, with examples taken from the user's watchlist: symbols, newest followed
+ * The same capability cards, with examples taken from the user's watchlist: symbols, newest followed
  * first, are dealt across the cards that can take one, so different cards show different symbols. Rights
  * issues (شگلح) are skipped because they have no statements or monthly sales of their own. With no usable
  * symbol the static cards are returned as they are.

@@ -154,14 +154,26 @@ describe("TopAppBar", () => {
 });
 
 describe("starter prompts on the phone cards", () => {
-  it("sends the same six questions as before the card redesign", () => {
+  it("sends the fixed starter questions, sales cards first and statement cards last", () => {
     expect(STARTER_PROMPTS.map((prompt) => prompt.text)).toEqual([
       "ترکیب فروش محصولات کگهر را بررسی کن",
       "روند فروش ماهانه کگهر را نشان بده",
       "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
       "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
+      "شاراک را با صنعت خودش مقایسه کن",
       "عملکرد مالی فصلی فولاد را بررسی کن",
       "صورت وضعیت مالی فاذر را بررسی کن",
+      "جریان وجه نقد اخابر",
+    ]);
+    expect(STARTER_PROMPTS.map((prompt) => prompt.tone)).toEqual([
+      "sales",
+      "sales",
+      "sales",
+      "sales",
+      "sales",
+      "statement",
+      "statement",
+      "statement",
     ]);
   });
 

@@ -27,7 +27,7 @@ function NewChatPage() {
       setSeed((current) => ({ text: prefillQuestion, version: current.version + 1 }));
     if (submitQuestion) submit(submitQuestion);
   });
-  // The fixed six cards; watchlist personalization is switched off in starter-prompts.ts.
+  // The fixed starter cards; watchlist personalization is switched off in starter-prompts.ts.
   const followed = useFollowedSymbols();
   const starterSet = useMemo(
     () => homeStarterPrompts(followed.data?.symbols ?? []),
@@ -64,8 +64,9 @@ function NewChatPage() {
               گزارش‌های تولید و فروش و صورت‌های مالی شرکت‌ها را با زبان طبیعی بررسی کنید.
             </p>
             <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
-              روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه و
-              سود و زیان فصلی و ترازنامه (صورت وضعیت مالی) نمادها را بررسی کنید.
+              روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه،
+              مقایسهٔ نماد با صنعت و سود و زیان فصلی، ترازنامه (صورت وضعیت مالی) و جریان وجوه نقد
+              نمادها را بررسی کنید.
             </p>
             {starterSet.personalized && (
               <p className="mb-3 text-right text-xs text-muted-foreground">

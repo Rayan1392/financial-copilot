@@ -9,7 +9,7 @@ import {
 const followed = (symbol: string, followedAtUtc: string) => ({ symbol, followedAtUtc });
 
 describe("homeStarterPrompts", () => {
-  it("shows the fixed six cards whatever the watchlist holds while personalization is off", () => {
+  it("shows the fixed eight cards whatever the watchlist holds while personalization is off", () => {
     expect(WATCHLIST_STARTER_PROMPTS_ENABLED).toBe(false);
 
     const set = homeStarterPrompts([
@@ -19,7 +19,7 @@ describe("homeStarterPrompts", () => {
 
     expect(set.personalized).toBe(false);
     expect(set.prompts).toBe(STARTER_PROMPTS);
-    expect(set.prompts).toHaveLength(6);
+    expect(set.prompts).toHaveLength(8);
     expect(set.prompts.every((prompt) => !prompt.text.includes("ثبهساز"))).toBe(true);
   });
 });
@@ -32,7 +32,7 @@ describe("personalizedStarterPrompts", () => {
     expect(set.prompts).toBe(STARTER_PROMPTS);
   });
 
-  it("keeps the same six capability cards and only swaps in watchlist symbols, newest first", () => {
+  it("keeps the same capability cards and only swaps in watchlist symbols, newest first", () => {
     const set = personalizedStarterPrompts([
       followed("شگل", "2026-11-01T10:00:00Z"),
       followed("فاذر", "2026-11-05T10:00:00Z"),
@@ -52,8 +52,10 @@ describe("personalizedStarterPrompts", () => {
       // Product card: the product name is company-specific, so its static example stays.
       "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
       "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
-      "عملکرد مالی فصلی اخابر را بررسی کن",
-      "صورت وضعیت مالی کگهر را بررسی کن",
+      "اخابر را با صنعت خودش مقایسه کن",
+      "عملکرد مالی فصلی کگهر را بررسی کن",
+      "صورت وضعیت مالی شگل را بررسی کن",
+      "جریان وجه نقد فاذر",
     ]);
   });
 
@@ -68,8 +70,10 @@ describe("personalizedStarterPrompts", () => {
       "روند فروش ماهانه فاذر را نشان بده",
       "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
       "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
+      "فاذر را با صنعت خودش مقایسه کن",
       "عملکرد مالی فصلی فاذر را بررسی کن",
       "صورت وضعیت مالی فاذر را بررسی کن",
+      "جریان وجه نقد فاذر",
     ]);
   });
 

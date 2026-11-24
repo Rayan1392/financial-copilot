@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { render, within } from "@testing-library/react";
 import { AnswerDensityContext } from "../../answer-density";
 import { MarkdownMessage } from "../../markdown-message";
-import { parseIndustryComparison, parsePriceEvidence } from "../industry-comparison-model";
+import {
+  parseIndustryComparison,
+  parsePriceEvidence,
+  roundRialAmount,
+} from "../industry-comparison-model";
 
 const PRICE_ANSWER = [
   "### مقایسه نماد با هم‌گروهی‌ها",
@@ -53,6 +57,15 @@ describe("industry comparison model", () => {
     expect(parsePriceEvidence("—")).toBeUndefined();
   });
 
+  it("rounds an equilibrium price to whole rials, half away from zero, and leaves other text unchanged", () => {
+    expect(roundRialAmount("۷۲۳۲٫۱۷ ریال")).toBe("۷۲۳۲ ریال");
+    expect(roundRialAmount("۱۵۰۲۱٫۵ ریال")).toBe("۱۵۰۲۲ ریال");
+    expect(roundRialAmount("۹۹٫۹۹ ریال")).toBe("۱۰۰ ریال");
+    expect(roundRialAmount("۹۸۷۶۵۴۳۲۱۰۹۸۷۶۵۴٫۷ ریال")).toBe("۹۸۷۶۵۴۳۲۱۰۹۸۷۶۵۵ ریال");
+    expect(roundRialAmount("۱۰۰۰ ریال")).toBe("۱۰۰۰ ریال");
+    expect(roundRialAmount("نامشخص")).toBe("نامشخص");
+  });
+
   it("reads a stored four-column answer, leaving missing values neutral", () => {
     const model = parseIndustryComparison(LEGACY_ANSWER)!;
 
@@ -82,7 +95,9 @@ describe("IndustryComparison in a web chat answer", () => {
         .map((header) => header.textContent),
     ).toEqual(["کچاد", "کگهر", "کنور", "کگل", "میانگین گروه"]);
     expect(within(wide).getAllByText("روزانه، ۱۴۰۵/۰۸/۳۰")).toHaveLength(2);
-    expect(within(wide).getByText("تعادلی ۷۲۳۲٫۱۷ ریال")).toBeTruthy();
+    // Stored answers written before whole-rial rounding still show a rounded equilibrium price.
+    expect(within(wide).getByText("تعادلی ۷۲۳۲ ریال")).toBeTruthy();
+    expect(within(wide).queryByText(/تعادلی ۷۲۳۲٫/)).toBeNull();
 
     const compactTable = comparison.querySelector("[data-layout='compact-table']") as HTMLElement;
     expect(within(compactTable).getAllByRole("columnheader")).toHaveLength(4);

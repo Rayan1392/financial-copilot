@@ -60,6 +60,29 @@ public sealed class IndustryRelativeValuationSemanticTests
         Assert.DoesNotContain("sell", text, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("7232.17", "۷۲۳۲")]
+    [InlineData("15021.5", "۱۵۰۲۲")]
+    [InlineData("7568.42", "۷۵۶۸")]
+    [InlineData("1200", "۱۲۰۰")]
+    public void Presentation_ShowsTheEquilibriumPriceInWholeRials(string equilibrium, string expected)
+    {
+        var model = Model("symbol_vs_industry_relative_valuation", "fa");
+        var member = model.Members[0] with
+        {
+            MarketPriceSource = "Daily",
+            MarketTradingDate = new DateOnly(2026, 11, 21),
+            MarketPrice = 3440m,
+            EquilibriumPrice = decimal.Parse(equilibrium, System.Globalization.CultureInfo.InvariantCulture)
+        };
+
+        var text = IndustryRelativeValuationPresentation.Explain(
+            model with { Members = [member], InputSourceVersion = "v2" }, "fa");
+
+        Assert.Contains($"، تعادلی {expected} ریال |", text);
+        Assert.Contains("۳۴۴۰ ریال (روزانه، ", text);
+    }
+
     [Fact]
     public void Presentation_ExplainsUnavailableAndInsufficientBenchmark()
     {

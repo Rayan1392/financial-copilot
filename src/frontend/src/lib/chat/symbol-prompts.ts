@@ -4,7 +4,7 @@
  * phrasing of prompts the assistant already answers well.
  */
 export interface SymbolPrompt {
-  id: "monthly-sales" | "quarterly-report" | "balance-sheet";
+  id: "monthly-sales" | "quarterly-report" | "balance-sheet" | "industry-comparison";
   text: string;
 }
 
@@ -15,6 +15,7 @@ export function symbolAnalysisPrompts(symbol: string): SymbolPrompt[] {
     { id: "quarterly-report", text: `گزارش فصلی ${ticker}` },
     // Technical analysis is not answered yet, so the menu offers the balance sheet (Feature 154) instead.
     { id: "balance-sheet", text: `ترازنامه ${ticker}` },
+    { id: "industry-comparison", text: `${ticker} را با صنعت خودش مقایسه کن` },
   ];
 }
 

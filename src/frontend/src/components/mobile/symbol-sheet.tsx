@@ -3,6 +3,7 @@ import {
   BalanceSheetIcon,
   ChevronIcon,
   DeleteIcon,
+  IndustryComparisonIcon,
   MonthlySalesIcon,
   NavChatIcon,
   QuarterlyReportIcon,
@@ -29,6 +30,7 @@ const PROMPT_ICONS: Record<SymbolPrompt["id"], MobileIcon> = {
   "monthly-sales": MonthlySalesIcon,
   "quarterly-report": QuarterlyReportIcon,
   "balance-sheet": BalanceSheetIcon,
+  "industry-comparison": IndustryComparisonIcon,
 };
 const chevron = <ChevronIcon className="size-4 text-muted-foreground" aria-hidden="true" />;
 
@@ -75,7 +77,11 @@ export function SymbolSheet({
               <SheetAction
                 key={prompt.id}
                 icon={PROMPT_ICONS[prompt.id]}
-                iconTone={prompt.id === "monthly-sales" ? "emerald" : "gold"}
+                iconTone={
+                  prompt.id === "monthly-sales" || prompt.id === "industry-comparison"
+                    ? "emerald"
+                    : "gold"
+                }
                 onClick={() => {
                   close();
                   onAsk(prompt.text);

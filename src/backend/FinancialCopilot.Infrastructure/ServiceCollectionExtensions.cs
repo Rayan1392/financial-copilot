@@ -1506,6 +1506,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFollowUpSuggestionProvider, QuarterlyFinancialReportFollowUpProvider>();
         services.AddScoped<IFollowUpSuggestionProvider, FinancialStatementAnalysisFollowUpProvider>();
         services.AddScoped<IFollowUpSuggestionProvider, BalanceSheetReportFollowUpProvider>();
+        services.AddScoped<IFollowUpSuggestionProvider, IndustryComparisonFollowUpProvider>();
         services.AddScoped<IFollowUpSuggestionProvider, SingleSymbolFollowUpProvider>();
         // Feature 162 change «report-interpretation-suggestion»: the interpretation suggestion exists only while Report
         // Discussion is on. IOptions resolves to the unbound default (Enabled = false) outside V2 mode.

@@ -172,7 +172,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                     semantic.Execution.Payload as MonthlyProductTrendResult,
                     semantic.Execution.Payload as MonthlySalesQualityRankingResponse,
                     semantic.Execution.Payload as FinancialStatementTableResult,
-                    semantic.Execution.Payload as FinancialStatementAnalysisResponse), cancellationToken);
+                    semantic.Execution.Payload as FinancialStatementAnalysisResponse,
+                    (semantic.Execution.Payload as IndustryRelativeValuationPayload)?.ReadModel), cancellationToken);
             var persisted = await persistenceFunction.PersistAsync(
                 conversationId, request, SemanticIntent(semanticFrame.CapabilityCode), clarification,
                 semanticClarificationMessage, semanticText, scannerPayload?.Plan, scannerPayload?.Table,

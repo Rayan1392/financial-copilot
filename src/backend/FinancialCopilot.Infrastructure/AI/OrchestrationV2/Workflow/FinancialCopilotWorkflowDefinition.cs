@@ -731,7 +731,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 MonthlyProductComparisonResult: monthlyProductComparisonResult,
                 MonthlyProductTrendResult: monthlyProductTrendResult,
                 FinancialStatementValueSearchResult: financialStatementValueSearchResult,
-                SymbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult);
+                SymbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult,
+                IndustryComparison: (semantic.Execution.Payload as IndustryRelativeValuationPayload)?.ReadModel);
         }
 
         if (request.SemanticFrame is null && request.SemanticRoutingDisposition is "Unsupported" or "Clarification")
@@ -1623,7 +1624,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.MonthlyProductTrendResult,
             msg.MonthlySalesQualityRankingResult,
             msg.FinancialStatementTableResult,
-            msg.FinancialStatementAnalysisResult), ct);
+            msg.FinancialStatementAnalysisResult,
+            msg.IndustryComparison), ct);
         var deterministicActions = followUps.Actions;
         var deterministicApplied = followUps.Applied;
 

@@ -3,6 +3,16 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.24.1
+
+- Published on 2026-11-24 (PATCH, BUG-046). Fix commit `d1f6fd90`, develop release commit `19fc6ee0`,
+  prod merge `ed54795e`, annotated tag `v1.24.1` (tag object `066b8b1c`).
+- Release-note tests passed 12/12 and the tag/changelog check passed. Deploy run 45390728992 succeeded
+  in 11m43s. The public releases page lists 1.24.1 first, API health is healthy, and all three deployed
+  containers use image tag `ed54795` with restart count zero.
+- The one-time production Instruments sync and valuation coverage verification are separate operations
+  following deployment.
+
 ## Release 1.24.0
 
 - Published on 2026-11-23 (MINOR: Changed with new capability and additive API fields). Feature commit

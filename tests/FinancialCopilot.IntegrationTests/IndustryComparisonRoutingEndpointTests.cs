@@ -2,12 +2,18 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.Authentication;
+using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Infrastructure.AI.OrchestrationV2;
+using FinancialCopilot.Infrastructure.Authentication;
+using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FinancialCopilot.IntegrationTests;
 
@@ -52,7 +58,64 @@ public sealed class IndustryComparisonRoutingEndpointTests : IClassFixture<Indus
     }
 }
 
-public sealed class IndustryComparisonApiFactory : V2Feature128CanaryApiFactory
+public sealed class IndustryComparisonFollowUpEndpointTests(IndustryComparisonFollowUpApiFactory factory)
+    : IClassFixture<IndustryComparisonFollowUpApiFactory>
+{
+    private const string Question = "کگهر را با صنعت خودش مقایسه کن";
+    private static readonly string[] ExpectedMessages = ["سهم کگهر را بررسی کن", "سهم AAA را بررسی کن"];
+
+    [Fact]
+    public async Task ApiReturnsAndPersistsFollowUpsForTheVisibleRows()
+    {
+        factory.EnsureComparisonSeeded();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message = Question });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+
+        Assert.Equal(ChatCapabilityAvailability.PeerComparisonCapabilityCode, root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Contains("میانگین صنعت", root.GetProperty("textAnswer").GetString());
+        Assert.Equal(ExpectedMessages,
+            root.GetProperty("suggestedActions").EnumerateArray().Select(action => action.GetProperty("message").GetString()));
+        AssertPersisted(root.GetProperty("assistantMessageId").GetGuid());
+    }
+
+    [Fact]
+    public async Task SemanticFallbackRunnerReturnsAndPersistsTheSameFollowUps()
+    {
+        factory.EnsureComparisonSeeded();
+        using var scope = factory.Services.CreateScope();
+        var runner = scope.ServiceProvider.GetRequiredService<FinancialCopilotAgentWorkflowRunner>();
+        var result = await runner.RunAsync(new AiQueryRequest(
+            Question, AuthenticationApiFactory.TenantId, AuthenticationApiFactory.ClientId, Guid.NewGuid().ToString("N"),
+            ApiClientId: AuthenticationApiFactory.ClientId, ActorType: ActorType.ApiClient,
+            AuthenticationMode: AuthenticationMode.ApiClient), default);
+
+        Assert.Equal(DialogueOutcome.Answered, result.Outcome);
+        Assert.Equal(ExpectedMessages, result.SuggestedActions!.Select(action => action.Message));
+        AssertPersisted(result.AssistantMessageId);
+
+        var telegram = new TelegramAssistantResponseRenderer(
+            new TelegramMonthlyTrendChartRenderer(), NullLogger<TelegramAssistantResponseRenderer>.Instance);
+        var text = string.Join("\n", telegram.Render(result, "fa-IR").Select(message => message.Text));
+        Assert.Contains("بررسی سهم کگهر", text);
+        Assert.Contains("بررسی سهم AAA", text);
+    }
+
+    private void AssertPersisted(Guid assistantMessageId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ConversationDbContext>();
+        var payload = JsonSerializer.Deserialize<AssistantMessagePayload>(
+            db.Messages.Single(message => message.Id == assistantMessageId).AssistantPayloadJson!);
+        Assert.Equal(ExpectedMessages, payload!.SuggestedActions!.Select(action => action.Message));
+        Assert.Equal(["بررسی سهم کگهر", "بررسی سهم AAA"], payload.SuggestedActions!.Select(action => action.LocalizedLabel));
+    }
+}
+
+public class IndustryComparisonApiFactory : V2Feature128CanaryApiFactory
 {
     public static readonly Guid CompanyId = Guid.Parse("52000000-0000-0000-0000-000000000101");
     public static readonly Guid PeerId = Guid.Parse("52000000-0000-0000-0000-000000000102");
@@ -192,5 +255,23 @@ public sealed class IndustryComparisonApiFactory : V2Feature128CanaryApiFactory
 
         private static RelativeValuationMetricReadModel Metric(string kind, decimal percent, string classification) =>
             new(percent, percent, classification, false, string.Empty, "Available", kind, "Ready", 2, 2);
+    }
+}
+
+public sealed class IndustryComparisonFollowUpApiFactory : IndustryComparisonApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            var sources = ChatCapabilitySourceMap.Create(new FinancialDataOptions
+            {
+                CapabilitySources = { [CapabilityExecutionRoutes.ComprehensiveAnalysis] = "CyclicalWaves" }
+            });
+            services.RemoveAll<IChatCapabilityAvailability>();
+            services.AddSingleton<IChatCapabilityAvailability>(
+                new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin, sources, cyclicalWavesV2RelativeValuationEnabled: true));
+        });
     }
 }

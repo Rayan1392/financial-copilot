@@ -62,7 +62,7 @@ public sealed class IndustryComparisonFollowUpEndpointTests(IndustryComparisonFo
     : IClassFixture<IndustryComparisonFollowUpApiFactory>
 {
     private const string Question = "کگهر را با صنعت خودش مقایسه کن";
-    private static readonly string[] ExpectedMessages = ["سهم کگهر را بررسی کن", "سهم AAA را بررسی کن"];
+    private static readonly string[] ExpectedMessages = ["کگهر را با صنعت خودش مقایسه کن", "AAA را با صنعت خودش مقایسه کن"];
 
     [Fact]
     public async Task ApiReturnsAndPersistsFollowUpsForTheVisibleRows()
@@ -100,8 +100,8 @@ public sealed class IndustryComparisonFollowUpEndpointTests(IndustryComparisonFo
         var telegram = new TelegramAssistantResponseRenderer(
             new TelegramMonthlyTrendChartRenderer(), NullLogger<TelegramAssistantResponseRenderer>.Instance);
         var text = string.Join("\n", telegram.Render(result, "fa-IR").Select(message => message.Text));
-        Assert.Contains("بررسی سهم کگهر", text);
-        Assert.Contains("بررسی سهم AAA", text);
+        Assert.Contains("کگهر را با صنعت خودش مقایسه کن", text);
+        Assert.Contains("AAA را با صنعت خودش مقایسه کن", text);
     }
 
     private void AssertPersisted(Guid assistantMessageId)
@@ -111,7 +111,7 @@ public sealed class IndustryComparisonFollowUpEndpointTests(IndustryComparisonFo
         var payload = JsonSerializer.Deserialize<AssistantMessagePayload>(
             db.Messages.Single(message => message.Id == assistantMessageId).AssistantPayloadJson!);
         Assert.Equal(ExpectedMessages, payload!.SuggestedActions!.Select(action => action.Message));
-        Assert.Equal(["بررسی سهم کگهر", "بررسی سهم AAA"], payload.SuggestedActions!.Select(action => action.LocalizedLabel));
+        Assert.Equal(ExpectedMessages, payload.SuggestedActions!.Select(action => action.LocalizedLabel));
     }
 }
 

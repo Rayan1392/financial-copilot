@@ -3,18 +3,7 @@ import { fireEvent, render, waitFor } from "@testing-library/react";
 import { MarkdownMessage } from "../markdown-message";
 
 describe("MarkdownMessage", () => {
-  it("renders source and trading date in the peer valuation table", () => {
-    const answer = [
-      "| نماد | P/E | P/S | قیمت به تعادلی | رتبه | قیمت و تاریخ معامله |",
-      "|---|---:|---:|---:|---:|---|",
-      "| شگل | ۹۰٪ | ۸۰٪ | ۸۰٪ | ۱ از ۲ | ۸۰۰ ریال (روزانه، ۱۴۰۵/۰۸/۳۰)، تعادلی ۱۰۰۰ ریال |",
-      "| میانگین گروه | ۱۰۰٪ | ۱۰۰٪ | ۹۰٪ | — | — |",
-    ].join("\n");
-    const { getByRole, getByText } = render(<MarkdownMessage content={answer} direction="rtl" />);
-    expect(getByRole("columnheader", { name: "قیمت و تاریخ معامله" })).toBeTruthy();
-    expect(getByText("۸۰۰ ریال (روزانه، ۱۴۰۵/۰۸/۳۰)، تعادلی ۱۰۰۰ ریال").closest("td")).toBeTruthy();
-    expect(getByText("میانگین گروه").closest("tr")?.className).toContain("font-semibold");
-  });
+  // The own-industry comparison table is covered in industry-comparison/__tests__/industry-comparison.test.tsx.
 
   // Change «answer-readability» (Feature 163 / 162, OQ-102): readable layout for grounded report answers.
   describe("readable layout of a Persian grounded answer", () => {

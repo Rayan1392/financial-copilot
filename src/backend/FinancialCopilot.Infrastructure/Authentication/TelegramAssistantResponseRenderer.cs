@@ -123,6 +123,24 @@ public sealed class TelegramAssistantResponseRenderer(
                 {
                     var imageCaption = string.Join(Environment.NewLine,
                         comparison.Split(Environment.NewLine).Take(2));
+                    var captionWithActions = new StringBuilder(imageCaption);
+                    AppendSuggestedActions(captionWithActions, response);
+                    var escapedCaption = EscapeMarkdownV2(captionWithActions.ToString().Trim());
+                    if (escapedCaption.Length <= TelegramPhotoCaptionLimit)
+                        return [new TelegramAssistantRenderedMessage(1, 1, escapedCaption, Media: media)];
+
+                    if (response.SuggestedActions is { Count: > 0 })
+                    {
+                        var actions = new StringBuilder();
+                        AppendSuggestedActions(actions, response);
+                        var parts = Split(EscapeMarkdownV2(actions.ToString().Trim()));
+                        var totalParts = parts.Count + 1;
+                        return [
+                            new TelegramAssistantRenderedMessage(1, totalParts, EscapeMarkdownV2(imageCaption.Trim()), Media: media),
+                            .. parts.Select((part, index) => part with { PartNumber = index + 2, TotalParts = totalParts })
+                        ];
+                    }
+
                     return [new TelegramAssistantRenderedMessage(
                         1, 1, EscapeMarkdownV2(imageCaption.Trim()), Media: media)];
 

@@ -103,6 +103,48 @@ public sealed class BalanceSheetReportFollowUpProvider(RelatedFollowUpActionFact
     }
 }
 
+public sealed class IndustryComparisonFollowUpProvider(
+    RelatedFollowUpActionFactory factory,
+    IChatCapabilityAvailability capabilityAvailability) : IFollowUpSuggestionProvider
+{
+    private const string RelevanceReason = "industry_comparison_follow_up";
+    private const string AnalysisCapability = CapabilityExecutionRoutes.ComprehensiveAnalysis;
+
+    public int Order => 95;
+
+    public bool CanHandle(FollowUpSuggestionContext context) =>
+        context.IsAnsweredOrPartial && context.IndustryComparison is
+        {
+            CapabilityCode: ChatCapabilityAvailability.PeerComparisonCapabilityCode,
+            Members.Count: > 0
+        };
+
+    public Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(
+        FollowUpSuggestionContext context, CancellationToken cancellationToken)
+    {
+        if (!capabilityAvailability.EvaluateForV2(AnalysisCapability, AnalysisCapability).IsAvailable)
+            return Task.FromResult<IReadOnlyCollection<SuggestedAction>>([]);
+
+        var english = context.ReplyLanguage.Equals("en", StringComparison.OrdinalIgnoreCase);
+        var actions = new List<SuggestedAction>(3);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var member in context.IndustryComparison!.Members.Take(3))
+        {
+            var symbol = member.Symbol.Trim();
+            var normalized = RelatedFollowUpActionFactory.Canonical(symbol);
+            if (normalized.Length is 0 or > 120 || Guid.TryParse(symbol, out _) || !seen.Add(normalized))
+                continue;
+
+            var message = english ? $"Analyze {symbol}" : $"سهم {symbol} را بررسی کن";
+            var label = english ? $"Review {symbol}" : $"بررسی سهم {symbol}";
+            if (factory.TryCreate(AnalysisCapability, message, symbol, RelevanceReason) is { } action)
+                actions.Add(action with { LocalizedLabel = label });
+        }
+
+        return Task.FromResult<IReadOnlyCollection<SuggestedAction>>(actions);
+    }
+}
+
 /// <summary>
 /// Any other answered question about one company: the related capabilities it did not just run — quarterly report,
 /// monthly sales trend, balance sheet, and comprehensive analysis while that is available.

@@ -17,7 +17,8 @@ public sealed record FollowUpSuggestionContext(
     MonthlyProductTrendResult? MonthlyProductTrend = null,
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRanking = null,
     FinancialStatementTableResult? FinancialStatementTable = null,
-    FinancialStatementAnalysisResponse? FinancialStatementAnalysis = null)
+    FinancialStatementAnalysisResponse? FinancialStatementAnalysis = null,
+    IndustryRelativeValuationReadModel? IndustryComparison = null)
 {
     public bool IsAnsweredOrPartial => Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
 }

@@ -92,7 +92,8 @@ internal sealed record AgentExecutedMessage(
      ValidatedQueryFrame? ExecutedFrame = null,
      SymbolSnapshotResult? SymbolSnapshotResult = null,
      ReportDiscussionTurn? ReportDiscussion = null,
-     GroundedAnalysisOfferTurn? OfferTurn = null);
+     GroundedAnalysisOfferTurn? OfferTurn = null,
+     IndustryRelativeValuationReadModel? IndustryComparison = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,

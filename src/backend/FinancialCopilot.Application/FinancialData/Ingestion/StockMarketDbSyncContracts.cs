@@ -119,7 +119,18 @@ public sealed record TsetmcSyncResult(
     string Dataset,
     int RowsFetched,
     int RowsPersisted,
-    TimeSpan Duration);
+    TimeSpan Duration)
+{
+    public TsetmcInstrumentSyncCoverage? InstrumentCoverage { get; init; }
+}
+
+public sealed record TsetmcInstrumentSyncCoverage(
+    int SuccessfulFlows,
+    IReadOnlyList<byte> FailedFlows,
+    int RejectedInstruments)
+{
+    public bool IsComplete => SuccessfulFlows > 0 && FailedFlows.Count == 0 && RejectedInstruments == 0;
+}
 
 public sealed record StockMarketHistoryRetentionResult(
     int IntradayTradesDeleted,

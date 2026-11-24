@@ -155,6 +155,9 @@ services:
         TsetmcWebService__InstrumentFlows__0: ${TSETMC_INSTRUMENT_FLOW_0:-5}
         TsetmcWebService__InstrumentFlows__1: ${TSETMC_INSTRUMENT_FLOW_1:-6}
         TsetmcWebService__InstrumentFlows__2: ${TSETMC_INSTRUMENT_FLOW_2:-7}
+        TsetmcWebService__InstrumentFlows__3: ${TSETMC_INSTRUMENT_FLOW_3:-1}
+        TsetmcWebService__InstrumentFlows__4: ${TSETMC_INSTRUMENT_FLOW_4:-2}
+        TsetmcWebService__InstrumentFlows__5: ${TSETMC_INSTRUMENT_FLOW_5:-4}
         TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
         TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
         CyclicalWaves__BaseAddress: ${CYCLICAL_WAVES_BASE_ADDRESS:-https://back1.cyclicalwaves.com/api/}

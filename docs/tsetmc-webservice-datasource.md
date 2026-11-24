@@ -12,13 +12,16 @@ The TSETMC (Tehran Securities Exchange Technology Management Company) ASMX web s
 ## Operations Used
 
 ### `Instrument(UserName, Password, Flow)`
-Fetches instrument (symbol) dimension for a given market flow.
+Fetches the instrument (symbol) dimension for a given market flow. The API and
+scheduled worker sync flows 5, 6, 7, 1, 2, and 4 by default. The live Instrument
+responses verified on 2026-11-24 contained active equities in flows 1, 2, and 4.
 
 | Flow | Description |
 |------|-------------|
-| 5 | بورس (TSE equity) |
-| 6 | فرابورس (OTC/IFX equity) |
-| 7 | حق‌تقدم (Rights) |
+| 1 | بورس (TSE equity) |
+| 2 | فرابورس (OTC/IFX equity) |
+| 4 | بازار پایه فرابورس (IFX base market) |
+| 5, 6, 7 | Previously configured instrument flows retained for coverage |
 
 **Response DataSet columns:**
 
@@ -35,6 +38,25 @@ Fetches instrument (symbol) dimension for a given market flow.
 | Valid | string | "1" if valid/active |
 | DInMar | int | Listing date (yyyyMMdd) |
 | ZTitad | decimal | Total shares outstanding |
+
+The sync groups observations by `InsCode`. When several flows agree on
+`InstrumentID` and `Valid`, the sync applies one update and preserves the
+existing instrument ID and price references. Missing validity or conflicting
+identities are logged and excluded from the update.
+
+An unsuccessful or empty flow is reported in `instrumentCoverage.failedFlows`.
+Successful flows are still applied. The response marks incomplete coverage,
+and the successful sync watermark advances only after a complete run. An
+all-flow failure returns HTTP 503. The SOAP client retries transport failures
+within its configured retry budget. Operators can retry the Instruments sync
+from the existing admin API, and scheduled runs retry on the next market day.
+
+After installing the change, record the current mappings and valuation coverage,
+then run the Instruments sync once. Check the API coverage response or worker
+logs, verify active ISINs for eligible companies, and confirm that trade rows
+still reference their original instruments. Recheck publication by industry
+after the valuation worker has run. Report missing prices or valuation inputs
+separately from missing instrument identities.
 
 ---
 
@@ -121,7 +143,7 @@ Returns today's intraday index snapshots.
     "TimeoutSeconds": 60,
     "RetryCount": 3,
     "IntradayTradeFlows": [0, 1, 2, 3, 4, 5],
-    "InstrumentFlows": [5, 6, 7],
+    "InstrumentFlows": [5, 6, 7, 1, 2, 4],
     "DailyTradeFromDate": "20200101",
     "DailyTradeToDate": null,
     "DailyIndexFromDate": "20200101",

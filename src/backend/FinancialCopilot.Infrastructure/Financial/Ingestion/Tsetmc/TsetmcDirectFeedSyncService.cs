@@ -10,6 +10,7 @@ using FinancialCopilot.Infrastructure.Financial.Providers.Tsetmc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Tsetmc;
 
@@ -39,25 +40,98 @@ public sealed class TsetmcDirectFeedSyncService(
     public async Task<TsetmcSyncResult> SynchronizeInstrumentsAsync(CancellationToken cancellationToken)
     {
         var started = timeProvider.GetUtcNow();
-        await StampSyncStateStartAsync("Instruments", started, cancellationToken);
-        var totalFetched = 0;
-        var totalPersisted = 0;
+        var fetched = new List<TsetmcInstrumentRecord>();
+        var failedFlows = new List<byte>();
+        var successfulFlows = 0;
 
-        foreach (var flow in _options.InstrumentFlows)
+        foreach (var flow in _options.InstrumentFlows.Distinct())
         {
             logger.LogInformation("TSETMC: fetching instruments for flow {Flow}.", flow);
-            var records = await client.GetInstrumentsAsync(flow, cancellationToken);
-            totalFetched += records.Count;
-
-            if (records.Count > 0)
+            IReadOnlyList<TsetmcInstrumentRecord> records;
+            try
             {
-                await StoreRawAsync("Instruments", flow, records, cancellationToken);
-                totalPersisted += await PersistInstrumentsAsync(records, cancellationToken);
+                records = await client.GetInstrumentsAsync(flow, cancellationToken);
             }
+            catch (FinancialProviderException exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                failedFlows.Add(flow);
+                logger.LogWarning(exception, "TSETMC: instrument flow {Flow} failed.", flow);
+                continue;
+            }
+
+            if (records.Count == 0)
+            {
+                failedFlows.Add(flow);
+                logger.LogWarning("TSETMC: instrument flow {Flow} returned an empty catalog.", flow);
+                continue;
+            }
+
+            successfulFlows++;
+            fetched.AddRange(records);
+            await StoreRawAsync("Instruments", flow, records, cancellationToken);
         }
 
-        await StampSyncStateEndAsync("Instruments", timeProvider.GetUtcNow(), cancellationToken);
-        return new TsetmcSyncResult("Instruments", totalFetched, totalPersisted, timeProvider.GetUtcNow() - started);
+        cancellationToken.ThrowIfCancellationRequested();
+        var byCode = fetched.ToLookup(record => record.InsCode);
+        var candidates = byCode
+            .Select(group => group.First() with { InstrumentId = NormalizeInstrumentIsin(group.First().InstrumentId) })
+            .Where(record => record.InsCode > 0 && record.InstrumentId.Length > 0 && record.Valid.HasValue &&
+                byCode[record.InsCode].All(other =>
+                    NormalizeInstrumentIsin(other.InstrumentId) == record.InstrumentId && other.Valid == record.Valid))
+            .ToArray();
+        var duplicateActiveIsins = candidates.Where(record => record.Valid == true)
+            .GroupBy(record => record.InstrumentId, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.Ordinal);
+        candidates = candidates.Where(record => record.Valid != true || !duplicateActiveIsins.Contains(record.InstrumentId))
+            .ToArray();
+        var candidateCodes = candidates.Select(record => record.InsCode).ToHashSet();
+        if (candidateCodes.Count < byCode.Count)
+            logger.LogWarning("TSETMC: rejected {Count} invalid or conflicting instrument codes. Sample: {Codes}.",
+                byCode.Count - candidateCodes.Count,
+                string.Join(", ", byCode.Select(group => group.Key).Where(code => !candidateCodes.Contains(code)).Take(20)));
+
+        var coverage = new TsetmcInstrumentSyncCoverage(successfulFlows, failedFlows, byCode.Count - candidates.Length);
+        int persisted;
+        try
+        {
+            persisted = await SaveInstrumentSyncAsync(candidates, started, coverage, cancellationToken);
+        }
+        catch (DbUpdateException exception) when (!cancellationToken.IsCancellationRequested &&
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // A trade sync can create a stub for a new instrument between our read and insert.
+            dbContext.ChangeTracker.Clear();
+            persisted = await SaveInstrumentSyncAsync(candidates, started, coverage, cancellationToken);
+        }
+
+        return new TsetmcSyncResult("Instruments", fetched.Count, persisted, timeProvider.GetUtcNow() - started)
+        {
+            InstrumentCoverage = coverage with { RejectedInstruments = byCode.Count - persisted }
+        };
+    }
+
+    private async Task<int> SaveInstrumentSyncAsync(
+        IReadOnlyList<TsetmcInstrumentRecord> records,
+        DateTimeOffset started,
+        TsetmcInstrumentSyncCoverage coverage,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = dbContext.Database.IsNpgsql()
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (transaction is not null)
+            await dbContext.Database.ExecuteSqlRawAsync(
+                "SELECT pg_advisory_xact_lock(hashtext('tsetmc-instrument-catalog'));", cancellationToken);
+
+        await StampSyncStateStartAsync("Instruments", started, cancellationToken);
+        var persisted = records.Count == 0 ? 0 : await PersistInstrumentsAsync(records, cancellationToken);
+        await StampSyncStateEndAsync("Instruments", timeProvider.GetUtcNow(), cancellationToken,
+            advanceWatermark: coverage.IsComplete && persisted == records.Count);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+        return persisted;
     }
 
     public async Task<TsetmcSyncResult> SynchronizeIntradayTradesAsync(CancellationToken cancellationToken)
@@ -209,53 +283,71 @@ public sealed class TsetmcDirectFeedSyncService(
         CancellationToken cancellationToken)
     {
         // Resolve company linkage via InstrumentCode (InsCode as string)
-        var codes = records.Select(r => r.InsCode.ToString()).Distinct().ToList();
+        var instrumentCodes = records.Select(row => row.InsCode).ToArray();
+        var codes = instrumentCodes.Select(code => code.ToString()).ToArray();
         var companies = (await dbContext.Companies
-                .Where(row => row.InstrumentCode != null && codes.Contains(row.InstrumentCode))
+                .AsNoTracking().Where(row => row.InstrumentCode != null && codes.Contains(row.InstrumentCode))
                 .ToListAsync(cancellationToken))
-            .GroupBy(row => row.InstrumentCode!)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderByDescending(row => row.LastSynchronizedAt).ThenBy(row => row.Id).First().Id);
+            .ToLookup(row => row.InstrumentCode!);
 
-        // Build stable deterministic ExternalInstrumentId from InsCode
-        var insCodes = records.Select(r => BuildInstrumentGuid(r.InsCode)).Distinct().ToList();
-        var existing = (await dbContext.TradingInstruments
-                .Where(row => row.ProviderName == _options.ProviderName && insCodes.Contains(row.ExternalInstrumentId))
-                .ToListAsync(cancellationToken))
-            .ToDictionary(row => row.ExternalInstrumentId);
+        // Prices may already reference a stub or an instrument originally loaded from the bridge.
+        var activeIsins = records.Where(row => row.Valid == true).Select(row => row.InstrumentId).ToArray();
+        var existing = await dbContext.TradingInstruments
+            .Where(row => instrumentCodes.Contains(row.InstrumentCode) ||
+                (row.IsActive && activeIsins.Contains(row.InstrumentIsin.Trim().ToUpper())))
+            .ToListAsync(cancellationToken);
+        var existingByCode = existing.ToLookup(row => row.InstrumentCode);
+        var existingActiveByIsin = existing.Where(row => row.IsActive)
+            .ToLookup(row => NormalizeInstrumentIsin(row.InstrumentIsin), StringComparer.Ordinal);
 
         var now = timeProvider.GetUtcNow();
+        var rejected = new List<long>();
         foreach (var source in records)
         {
-            var extId = BuildInstrumentGuid(source.InsCode);
-            if (!existing.TryGetValue(extId, out var row))
+            var existingRows = existingByCode[source.InsCode];
+            var row = existingRows.FirstOrDefault();
+            var existingIsin = NormalizeInstrumentIsin(row?.InstrumentIsin ?? string.Empty);
+            if (existingRows.Count() > 1 || (existingIsin.Length > 0 && existingIsin != source.InstrumentId) ||
+                (source.Valid == true && existingActiveByIsin[source.InstrumentId].Any(other => other.InstrumentCode != source.InsCode)))
+            {
+                rejected.Add(source.InsCode);
+                continue;
+            }
+
+            if (row is null)
             {
                 row = new TradingInstrumentRow
                 {
                     Id = Guid.NewGuid(),
                     ProviderName = _options.ProviderName,
-                    ExternalInstrumentId = extId
+                    ExternalInstrumentId = BuildInstrumentGuid(source.InsCode),
+                    InstrumentCode = source.InsCode
                 };
                 dbContext.TradingInstruments.Add(row);
-                existing[extId] = row;
             }
 
-            row.InstrumentCode = source.InsCode;
             row.InstrumentIsin = source.InstrumentId;
             row.Symbol = source.Symbol;
             row.Name = source.CompanyName;
             row.MarketCode = source.MarketCode;
             row.InstrumentKind = source.InstrumentKind;
-            row.NormalizedCompanyId = companies.TryGetValue(source.InsCode.ToString(), out var cId) ? cId : null;
-            row.IsActive = source.Valid;
+            row.NormalizedCompanyId ??= companies[source.InsCode.ToString()]
+                .Where(company => NormalizeInstrumentIsin(company.SymbolIsin ?? string.Empty) == source.InstrumentId)
+                .OrderByDescending(company => company.LastSynchronizedAt).ThenBy(company => company.Id)
+                .Select(company => (Guid?)company.Id).FirstOrDefault();
+            row.IsActive = source.Valid == true;
             row.SourceChangedAt = now;
             row.LastSynchronizedAt = now;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return records.Count;
+        if (rejected.Count > 0)
+            logger.LogWarning("TSETMC: skipped {Count} instrument codes with conflicting persisted identities. Sample: {Codes}.",
+                rejected.Count, string.Join(", ", rejected.Take(20)));
+        return records.Count - rejected.Count;
     }
+
+    private static string NormalizeInstrumentIsin(string isin) => isin.Trim().ToUpperInvariant();
 
     private async Task<int> PersistIntradayTradesAsync(
         IReadOnlyList<TsetmcIntradayTradeRecord> records,
@@ -668,7 +760,8 @@ public sealed class TsetmcDirectFeedSyncService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task StampSyncStateEndAsync(string dataset, DateTimeOffset now, CancellationToken cancellationToken)
+    private async Task StampSyncStateEndAsync(
+        string dataset, DateTimeOffset now, CancellationToken cancellationToken, bool advanceWatermark = true)
     {
         var state = await dbContext.StockMarketSyncStates
             .SingleOrDefaultAsync(row => row.Dataset == $"Tsetmc_{dataset}", cancellationToken);
@@ -680,7 +773,8 @@ public sealed class TsetmcDirectFeedSyncService(
         state.LogicalVendor = ProviderSources.TsetmcWebService.Vendor.ToString();
         state.PhysicalSource = ProviderSources.TsetmcWebService.Source.ToString();
         state.SourceMode = ProviderSources.TsetmcWebService.DefaultMode.ToString();
-        state.Watermark = now;
+        if (advanceWatermark)
+            state.Watermark = now;
         state.LastRunCompletedAt = now;
         await dbContext.SaveChangesAsync(cancellationToken);
     }

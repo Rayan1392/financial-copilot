@@ -179,7 +179,7 @@ public sealed class TsetmcWebServiceClient(
                 MarketCode: ParseString(r, "YMarNSC"),
                 InstrumentKind: ParseString(r, "CGdSVal"),
                 InstrumentGroupCode: ParseString(r, "CGrValCot"),
-                Valid: ParseString(r, "Valid") == "1",
+                Valid: ParseString(r, "Valid") switch { "1" => true, "0" => false, _ => null },
                 ListingDate: ParseDateInt(r, "DInMar"),
                 TotalShares: ParseDecimal(r, "ZTitad")));
         }

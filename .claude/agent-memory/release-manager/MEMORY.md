@@ -3,6 +3,16 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.27.0
+
+- Published on 2026-11-24 (MINOR: Added new-chat starter cards for own-industry comparison and cash flow +
+  Fixed whole-rial equilibrium price in the industry comparison). Commits `4c0e7a36` (fix), `dbec5919`
+  (feat), develop release commit `ef48972a`, prod merge `f8c31cf4` (merge-tree/commit-tree), annotated tag
+  `v1.27.0` (tag object `b39ed230`).
+- Release-note tests passed 12/12 and the tag/changelog check passed. Deploy run 45424581870: success (12m8s); verified 2026-11-24 with `gh run list` and https://sapioai.ir/releases (HTTP 200).
+- Owner's uncommitted edits (054 fix-instrument-catalog-coverage tasks.md, BUG-046 row in specs/bugs.md) were
+  left out of the release.
+
 ## Release 1.26.0
 
 - Published on 2026-11-24 (MINOR: Changed responsive industry comparison table + Fixed own-industry

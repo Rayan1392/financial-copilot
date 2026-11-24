@@ -13,7 +13,7 @@ public sealed record TsetmcInstrumentRecord(
     string MarketCode,       // YMarNSC
     string InstrumentKind,   // CGdSVal (single char)
     string InstrumentGroupCode, // CGrValCot
-    bool Valid,
+    bool? Valid,
     DateOnly ListingDate,
     decimal TotalShares);
 

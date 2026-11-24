@@ -1093,11 +1093,21 @@ public sealed class AdminDataOperationsController(
             return ValidationProblem(ModelState);
         }
 
-        return Ok(new AdminTsetmcSyncResponse(
+        var coverage = result.InstrumentCoverage;
+        var response = new AdminTsetmcSyncResponse(
             result.Dataset,
             result.RowsFetched,
             result.RowsPersisted,
-            result.Duration.ToString("g")));
+            result.Duration.ToString("g"),
+            coverage is null ? null : new(
+                coverage.SuccessfulFlows,
+                coverage.FailedFlows,
+                coverage.RejectedInstruments,
+                coverage.IsComplete));
+        if (coverage is { SuccessfulFlows: 0 })
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
+
+        return Ok(response);
     }
 
     [HttpPost("tsetmc/validate")]

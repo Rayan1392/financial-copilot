@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+## [1.24.1] - 2026-11-24
+
+### Fixed
+
+- مقایسهٔ نماد با صنعت برای نمادهای بیشتری در دسترس است، چون ساپیو اطلاعات معاملاتی نمادهای بورس، فرابورس و بازار پایه را کامل‌تر دریافت می‌کند.
+
 ## [1.24.0] - 2026-11-23
 
 شناسایی پرسش‌کننده‌های بدون حساب کاربری در تاریخچهٔ پرسش و پاسخ.
@@ -482,7 +488,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.1...develop
+[1.24.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.1...v1.24.0
 [1.23.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.0...v1.23.1
 [1.23.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.22.0...v1.23.0

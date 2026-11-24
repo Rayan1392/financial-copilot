@@ -453,7 +453,14 @@ public sealed record AdminTsetmcSyncResponse(
     string Dataset,
     int RowsFetched,
     int RowsPersisted,
-    string Duration);
+    string Duration,
+    AdminTsetmcInstrumentSyncCoverage? InstrumentCoverage = null);
+
+public sealed record AdminTsetmcInstrumentSyncCoverage(
+    int SuccessfulFlows,
+    IReadOnlyList<byte> FailedFlows,
+    int RejectedInstruments,
+    bool IsComplete);
 
 // --- Spec 054 Phase 3: parallel validation ---
 

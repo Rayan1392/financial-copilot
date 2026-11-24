@@ -136,6 +136,14 @@ public sealed class TsetmcPollingWorker(
         {
             if (!svc.IsOperational) return;
             var r = await svc.SynchronizeInstrumentsAsync(ct);
+            if (r.InstrumentCoverage is { IsComplete: false } coverage)
+            {
+                logger.LogWarning(
+                    "TSETMC instruments sync incomplete: {Fetched} fetched, {Persisted} persisted, {SuccessfulFlows} successful flows, failed flows {FailedFlows}, {RejectedInstruments} rejected.",
+                    r.RowsFetched, r.RowsPersisted, coverage.SuccessfulFlows,
+                    string.Join(", ", coverage.FailedFlows), coverage.RejectedInstruments);
+                return;
+            }
             logger.LogInformation(
                 "TSETMC instruments synced: {Fetched} fetched, {Persisted} persisted in {Duration}.",
                 r.RowsFetched, r.RowsPersisted, r.Duration);

@@ -8,3 +8,11 @@ Status: Approved by the owner on 2026-11-24 (Gate B)
 - [x] Run the relevant backend and frontend tests. Verify that the implementation requires no data migration.
 
 Verified on 2026-11-24 with 37 focused unit tests, two integration tests covering V2 execution, response persistence and the Telegram table image, all 24 architecture tests, and the web test for displaying and clicking a persisted suggested action.
+
+## Revision 2026-11-24 — compare each symbol with its own industry
+
+Status: Gate B: Approved by the owner on 2026-11-24
+
+- [x] Change `IndustryComparisonFollowUpProvider` to build «‹نماد› را با صنعت خودش مقایسه کن» / "Compare ‹symbol› with its industry" as label and message, routed to `symbol_vs_industry_relative_valuation` through `RelatedFollowUpActionFactory` (the deterministic interpreter must map the text to that capability and symbol), and gate it on `EvaluateForV2(IndustryRelativeValuation, symbol_vs_industry_relative_valuation)`.
+- [x] Update the unit tests (order, wording, capability, English wording, unavailable provider) and the V2 endpoint and fallback-runner integration tests (response, persisted actions, Telegram text).
+- [x] Run the focused backend tests. `IndustryComparisonFollowUpTests` pass; the endpoint and fallback-runner tests in `IndustryComparisonFollowUpEndpointTests` pass. The only failures in the run are the listed `ProductRevenueMixFollowUp075Tests` baseline entries and the six `IndustryComparisonRoutingEndpointTests` cases, which also fail on unchanged `HEAD` (they expect the retired-capability message, but the answer is now the comparison table).

@@ -7,7 +7,8 @@ public sealed class IndustryComparisonFollowUpTests
     private const string OwnIndustry = ChatCapabilityAvailability.PeerComparisonCapabilityCode;
     private static readonly ConversationalCapabilityRegistry Registry = new(InitialConversationalCapabilityCatalog.Create());
     private static readonly RelatedFollowUpActionFactory Factory = new(Registry, new DeterministicCapabilityInterpreter(Registry));
-    private static readonly IndustryComparisonFollowUpProvider Provider = new(Factory, new ChatCapabilityAvailability(FinancialDataChatProvider.CyclicalWaves));
+    private static readonly IndustryComparisonFollowUpProvider Provider = new(Factory, new ChatCapabilityAvailability(
+        FinancialDataChatProvider.NoavaranAmin, ChatCapabilitySourceMap.Empty, cyclicalWavesV2RelativeValuationEnabled: true));
 
     [Fact]
     public async Task UsesTheFirstThreeDisplayedSymbolsEvenWhenTheRequestedSymbolIsAppended()
@@ -18,11 +19,10 @@ public sealed class IndustryComparisonFollowUpTests
         var result = await pipeline.BuildAsync(context, default);
 
         Assert.True(result.Applied);
-        Assert.Equal(["بررسی سهم قشیر", "بررسی سهم قجام", "بررسی سهم قچار"],
-            result.Actions!.Select(action => action.LocalizedLabel));
-        Assert.Equal(["سهم قشیر را بررسی کن", "سهم قجام را بررسی کن", "سهم قچار را بررسی کن"],
-            result.Actions!.Select(action => action.Message));
-        Assert.All(result.Actions!, action => Assert.Equal(CapabilityExecutionRoutes.ComprehensiveAnalysis, action.CapabilityCode));
+        string[] expected = ["قشیر را با صنعت خودش مقایسه کن", "قجام را با صنعت خودش مقایسه کن", "قچار را با صنعت خودش مقایسه کن"];
+        Assert.Equal(expected, result.Actions!.Select(action => action.LocalizedLabel));
+        Assert.Equal(expected, result.Actions!.Select(action => action.Message));
+        Assert.All(result.Actions!, action => Assert.Equal(OwnIndustry, action.CapabilityCode));
     }
 
     [Fact]
@@ -32,8 +32,8 @@ public sealed class IndustryComparisonFollowUpTests
 
         var action = Assert.Single(await Provider.BuildAsync(context, default));
 
-        Assert.Equal("Review فولاد", action.LocalizedLabel);
-        Assert.Equal("Analyze فولاد", action.Message);
+        Assert.Equal("Compare فولاد with its industry", action.LocalizedLabel);
+        Assert.Equal("Compare فولاد with its industry", action.Message);
         Assert.Equal("فولاد", action.PresetSlots["symbol"]);
     }
 
@@ -56,10 +56,10 @@ public sealed class IndustryComparisonFollowUpTests
         Assert.False(Provider.CanHandle(Context(capability, outcome, "fa", "کگهر")));
 
     [Fact]
-    public async Task SkipsAnalysisActionsWhenTheActiveProviderCannotAnswerThem()
+    public async Task SkipsComparisonActionsWhenTheActiveProviderCannotAnswerThem()
     {
         var unavailable = new IndustryComparisonFollowUpProvider(
-            Factory, new ChatCapabilityAvailability(FinancialDataChatProvider.NoavaranAmin));
+            Factory, new ChatCapabilityAvailability(FinancialDataChatProvider.CyclicalWaves));
 
         Assert.Empty(await unavailable.BuildAsync(Context(OwnIndustry, DialogueOutcome.Answered, "fa", "کگهر"), default));
     }

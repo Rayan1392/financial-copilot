@@ -108,7 +108,7 @@ public sealed class IndustryComparisonFollowUpProvider(
     IChatCapabilityAvailability capabilityAvailability) : IFollowUpSuggestionProvider
 {
     private const string RelevanceReason = "industry_comparison_follow_up";
-    private const string AnalysisCapability = CapabilityExecutionRoutes.ComprehensiveAnalysis;
+    private const string ComparisonCapability = ChatCapabilityAvailability.PeerComparisonCapabilityCode;
 
     public int Order => 95;
 
@@ -122,7 +122,7 @@ public sealed class IndustryComparisonFollowUpProvider(
     public Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(
         FollowUpSuggestionContext context, CancellationToken cancellationToken)
     {
-        if (!capabilityAvailability.EvaluateForV2(AnalysisCapability, AnalysisCapability).IsAvailable)
+        if (!capabilityAvailability.EvaluateForV2(CapabilityExecutionRoutes.IndustryRelativeValuation, ComparisonCapability).IsAvailable)
             return Task.FromResult<IReadOnlyCollection<SuggestedAction>>([]);
 
         var english = context.ReplyLanguage.Equals("en", StringComparison.OrdinalIgnoreCase);
@@ -135,10 +135,10 @@ public sealed class IndustryComparisonFollowUpProvider(
             if (normalized.Length is 0 or > 120 || Guid.TryParse(symbol, out _) || !seen.Add(normalized))
                 continue;
 
-            var message = english ? $"Analyze {symbol}" : $"سهم {symbol} را بررسی کن";
-            var label = english ? $"Review {symbol}" : $"بررسی سهم {symbol}";
-            if (factory.TryCreate(AnalysisCapability, message, symbol, RelevanceReason) is { } action)
-                actions.Add(action with { LocalizedLabel = label });
+            // Owner decision 2026-11-24: each action compares that symbol with its own industry; label and message match.
+            var message = english ? $"Compare {symbol} with its industry" : $"{symbol} را با صنعت خودش مقایسه کن";
+            if (factory.TryCreate(ComparisonCapability, message, symbol, RelevanceReason) is { } action)
+                actions.Add(action);
         }
 
         return Task.FromResult<IReadOnlyCollection<SuggestedAction>>(actions);

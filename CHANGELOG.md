@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-11-24
+
+مقایسهٔ نماد با صنعت حالا از منوی هر نماد هم در دسترس است.
+
+### Added
+
+- منوی هر نماد در دیده‌بان و ستون بازار (دسکتاپ) و برگهٔ نماد در موبایل گزینهٔ تازهٔ «‹نماد› را با صنعت خودش مقایسه کن» دارد؛ با انتخاب آن همین پرسش برای آن نماد فرستاده می‌شود.
+
 ## [1.27.0] - 2026-11-24
 
 صفحهٔ شروع گفتگو دو پرسش نمونهٔ تازه دارد و قیمت تعادلی در مقایسه با صنعت بدون اعشار نمایش داده می‌شود.
@@ -518,7 +526,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.27.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.28.0...develop
+[1.28.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.1...v1.25.0

@@ -5,6 +5,11 @@ import type { Components } from "react-markdown";
 import { Fragment, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { parseQuarterlyFinancialTable, QuarterlyFinancialTable } from "./quarterly-financial-table";
+import { IndustryComparison } from "./industry-comparison/industry-comparison";
+import {
+  isIndustryComparisonMarkdown,
+  parseIndustryComparison,
+} from "./industry-comparison/industry-comparison-model";
 
 const MONTHLY_SALES_QUALITY_RANKING_HEADER =
   "| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |";
@@ -20,152 +25,6 @@ function isFinancialStatementMarkdown(content: string): boolean {
 }
 
 const INVESTMENT_DISCLAIMER = "این اطلاعات توصیه به سرمایه گذاری نیست";
-
-const INDUSTRY_RELATIVE_VALUATION_HEADER = "| نماد | P/E | P/S | قیمت به تعادلی |";
-const INDUSTRY_RELATIVE_VALUATION_PRICE_HEADER =
-  `${INDUSTRY_RELATIVE_VALUATION_HEADER} رتبه | قیمت و تاریخ معامله |`;
-
-interface IndustryRelativeValuationTable {
-  before: string;
-  after: string;
-  hasPriceEvidence: boolean;
-  rows: Array<{ company: string; metrics: string[]; benchmark: boolean; rank?: string; price?: string }>;
-}
-
-function isIndustryRelativeValuationMarkdown(content: string): boolean {
-  return content.includes(INDUSTRY_RELATIVE_VALUATION_HEADER);
-}
-
-function parseIndustryRelativeValuationTable(
-  content: string,
-): IndustryRelativeValuationTable | null {
-  const lines = content.split("\n");
-  const headerIndex = lines.findIndex((line) =>
-    [INDUSTRY_RELATIVE_VALUATION_HEADER, INDUSTRY_RELATIVE_VALUATION_PRICE_HEADER].includes(line.trim()),
-  );
-  if (headerIndex < 0 || !lines[headerIndex + 1]?.trim().startsWith("|")) return null;
-  const hasPriceEvidence = lines[headerIndex].trim() === INDUSTRY_RELATIVE_VALUATION_PRICE_HEADER;
-
-  const rows: IndustryRelativeValuationTable["rows"] = [];
-  let endIndex = headerIndex + 2;
-  while (endIndex < lines.length && lines[endIndex].trim().startsWith("|")) {
-    const cells = splitMarkdownTableRow(lines[endIndex]);
-    if (cells.length >= 4 && !cells[0].replace(/[:-]/g, "").trim()) continue;
-    if (cells.length >= 4)
-      rows.push({
-        company: cells[0],
-        metrics: cells.slice(1, 4),
-        benchmark: cells[0] === "میانگین گروه" || cells[0].includes("میانگین صنعت"),
-        rank: cells[4],
-        price: cells[5],
-      });
-    endIndex++;
-  }
-
-  return {
-    hasPriceEvidence,
-    before: lines.slice(0, headerIndex).join("\n").trim(),
-    after: lines.slice(endIndex).join("\n").trim(),
-    rows,
-  };
-}
-
-function IndustryRelativeValuationTable({
-  rows,
-  hasPriceEvidence,
-}: {
-  rows: IndustryRelativeValuationTable["rows"];
-  hasPriceEvidence: boolean;
-}) {
-  const benchmark = rows.find((row) => row.benchmark)?.metrics ?? [];
-  const members = rows.filter((row) => !row.benchmark);
-  const status = (value: string, index: number) => {
-    const numericValue = parsePersianPercent(value);
-    const numericBenchmark = parsePersianPercent(benchmark[index] ?? "");
-    if (numericValue == null || numericBenchmark == null) return "neutral";
-    return numericValue <= numericBenchmark ? "green" : "red";
-  };
-
-  return (
-    // Focusable so keyboard users can scroll a table wider than a phone screen (WCAG 2.1.1).
-    <div
-      className="my-2 overflow-x-auto rounded-lg ring-1 ring-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40"
-      dir="rtl"
-      tabIndex={0}
-      role="region"
-      aria-label="جدول"
-    >
-      <table className={`w-full border-collapse text-sm ${hasPriceEvidence ? "min-w-[720px]" : "min-w-[460px] table-fixed"}`}>
-        {!hasPriceEvidence && <colgroup>
-          <col className="w-[42%]" />
-          <col className="w-[19%]" />
-          <col className="w-[19%]" />
-          <col className="w-[20%]" />
-        </colgroup>}
-        <thead className="bg-white/5">
-          <tr>
-            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">نماد</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P/E</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P/S</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-              قیمت به تعادلی
-            </th>
-            {hasPriceEvidence && <>
-              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">رتبه</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">قیمت و تاریخ معامله</th>
-            </>}
-          </tr>
-        </thead>
-        <tbody>
-          {members.map((row, index) => (
-            <tr key={`${row.company}:${index}`} className="border-b border-hairline text-slate-800">
-              <td className="bg-surface px-3 py-2 align-top font-medium">{row.company}</td>
-              {row.metrics.map((value, metricIndex) => (
-                <td
-                  key={`${row.company}:${metricIndex}`}
-                  className={`px-3 py-2 align-top tabular-nums font-fanum ${status(value, metricIndex) === "green" ? "bg-emerald-100" : status(value, metricIndex) === "red" ? "bg-rose-100" : "bg-surface"}`}
-                >
-                  {value}
-                </td>
-              ))}
-              {hasPriceEvidence && <>
-                <td className="bg-surface px-3 py-2 align-top font-fanum">{row.rank ?? "—"}</td>
-                <td className="bg-surface px-3 py-2 align-top font-fanum">{row.price ?? "—"}</td>
-              </>}
-            </tr>
-          ))}
-          {rows
-            .filter((row) => row.benchmark)
-            .map((row) => (
-              <tr
-                key={row.company}
-                className="border-t-2 border-slate-300 bg-slate-100 font-semibold text-slate-800"
-              >
-                <td className="px-3 py-2">{row.company}</td>
-                {row.metrics.map((value, index) => (
-                  <td key={index} className="px-3 py-2 tabular-nums font-fanum">
-                    {value}
-                  </td>
-                ))}
-                {hasPriceEvidence && <td colSpan={2} />}
-              </tr>
-            ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function parsePersianPercent(value: string): number | null {
-  const normalized = value
-    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٬,]/g, "")
-    .replace(/٫/g, ".")
-    .replace(/٪/g, "")
-    .trim();
-  const parsed = Number.parseFloat(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function formatFinancialStatementMarkdown(content: string): string {
   return content
@@ -523,9 +382,8 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
     : null;
   const isFinancialStatement = isFinancialStatementMarkdown(content);
   const quarterlyTable = parseQuarterlyFinancialTable(content);
-  const isIndustryRelativeValuation = isIndustryRelativeValuationMarkdown(content);
-  const industryTable = isIndustryRelativeValuation
-    ? parseIndustryRelativeValuationTable(content)
+  const industryTable = isIndustryComparisonMarkdown(content)
+    ? parseIndustryComparison(content)
     : null;
   const isRtl =
     direction === "rtl" ||
@@ -536,7 +394,7 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
 
   return (
     <div
-      className={`text-foreground/90 leading-relaxed text-[15px] space-y-3 ${isMonthlySalesQualityRankingTable || quarterlyTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
+      className={`text-foreground/90 leading-relaxed text-[15px] space-y-3 ${isMonthlySalesQualityRankingTable || quarterlyTable || industryTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
       dir={isRtl ? "rtl" : direction}
     >
       {quarterlyTable ? (
@@ -572,7 +430,7 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
               {industryTable.before}
             </Markdown>
           )}
-          <IndustryRelativeValuationTable rows={industryTable.rows} hasPriceEvidence={industryTable.hasPriceEvidence} />
+          <IndustryComparison model={industryTable} />
           {industryTable.after && (
             <MarkdownMessage content={industryTable.after} direction={isRtl ? "rtl" : "ltr"} />
           )}

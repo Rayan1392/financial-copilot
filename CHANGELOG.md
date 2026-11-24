@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-11-24
+
 ### Added
 
 - پس از مقایسهٔ یک نماد با صنعتش، می‌توانید بررسی هر یک از سه نماد اول جدول را با انتخاب پیشنهاد مربوط به آن شروع کنید.
@@ -492,7 +494,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.25.0...develop
+[1.25.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.1...v1.25.0
 [1.24.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.1...v1.24.0
 [1.23.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.23.0...v1.23.1

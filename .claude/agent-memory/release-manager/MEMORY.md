@@ -3,6 +3,17 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.29.1
+
+- Published on 2026-11-25 (PATCH, Fixed). BUG-048 fix commit `c9103364`, develop release commit
+  `2f301185`, prod merge `23850a47`, and annotated tag `v1.29.1` (tag object `4cfd17ac`).
+  The release check passed and release-note tests passed 12/12. No migration is required.
+- Deploy run 45582343689 succeeded, with a deploy job of 11m20s. The public release page returned HTTP 200
+  and showed 1.29.1 as current with the Fajr entry. The public API health endpoint returned HTTP 200 and Healthy.
+- The release corrects monthly sales report routing, prioritizes leading products in rate suggestions,
+  and opens monthly sales report discussions in Simple mode with web search off. The public checks verified the
+  deployment. The authenticated Fajr conversation has not been exercised against live data.
+
 ## Release 1.29.0
 
 - Published on 2026-11-25 (MINOR: Added user-initiated support requests from the existing web inbox).

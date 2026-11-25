@@ -125,7 +125,11 @@ Feature 165 exposes admin send and support routes documented in
 `SuperAdmin`. Role administrators can delegate the permissions independently. Operators receive the updated claims when their web token is refreshed.
 
 The recipient can view messages from «پیام‌ها» on desktop or mobile and reply to a
-reply-enabled conversation. The account badge shows unread staff messages. Every message is
+reply-enabled conversation. Signed-in users can also start a request with
+`POST /api/v1/in-app-messages/me` using `subject`, `body`, and `idempotencyKey`. The authenticated
+membership owns the request, and the first user message enters the shared support queue in the
+same commit. See the [user-initiated support contract](../specs/165-admin-in-app-messages/changes/user-initiated-support/tasks.md#contract-and-persistence).
+The account badge shows unread staff messages. Every message is
 tenant-scoped to the recipient's membership. Membership removal deletes the history immediately.
 Temporary account locks block access and preserve history. Security audit metadata has its own
 retention and contains identifiers and timestamps without message content. An authorized support

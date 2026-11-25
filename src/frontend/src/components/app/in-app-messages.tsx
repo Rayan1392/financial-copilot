@@ -1,7 +1,15 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Inbox } from "lucide-react";
+import { Inbox, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FinancialCopilotApiError } from "@/integrations/financial-copilot/api-client";
 import {
@@ -17,6 +25,143 @@ const dateFormat = new Intl.DateTimeFormat("fa-IR", {
   timeZone: "Asia/Tehran",
 });
 const dateText = (date: string) => dateFormat.format(new Date(date));
+const supportLabels = {
+  waitingForSupport: "در انتظار پاسخ",
+  answered: "پاسخ داده شد",
+};
+
+function SupportRequestForm({
+  scope,
+  onOpen,
+}: {
+  scope: ReturnType<typeof useMessageScope>;
+  onOpen: (id: string) => void;
+}) {
+  const client = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const attempt = useRef<Parameters<typeof messageApi.startSupport>[0]>(null);
+  const send = useMutation({
+    mutationFn: messageApi.startSupport,
+    networkMode: "always",
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: [...scope, "list", false] });
+    },
+  });
+  const normalizedSubject = subject.trim();
+  const normalizedBody = body.trim();
+  const subjectError = submitted && !normalizedSubject;
+  const bodyError = submitted && !normalizedBody;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!send.isPending) setOpen(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" className="ms-auto">
+          <Plus aria-hidden="true" />
+          درخواست جدید
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        dir="rtl"
+        className="max-h-[85dvh] overflow-y-auto text-right [&>button:last-child]:right-auto [&>button:last-child]:left-4"
+      >
+        <DialogTitle>درخواست جدید</DialogTitle>
+        <DialogDescription>پیامتان را برای تیم پشتیبانی ساپیو بنویسید.</DialogDescription>
+        <form
+          className="space-y-4"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (send.isPending) return;
+            setSubmitted(true);
+            if (!normalizedSubject || !normalizedBody) return;
+            if (
+              attempt.current?.subject !== normalizedSubject ||
+              attempt.current.body !== normalizedBody
+            )
+              attempt.current = {
+                subject: normalizedSubject,
+                body: normalizedBody,
+                idempotencyKey: crypto.randomUUID(),
+              };
+            send.mutate(attempt.current, {
+              onSuccess: ({ conversationId }) => {
+                attempt.current = null;
+                setSubject("");
+                setBody("");
+                setSubmitted(false);
+                setOpen(false);
+                onOpen(conversationId);
+              },
+            });
+          }}
+        >
+          <div className="space-y-2">
+            <label htmlFor="support-request-subject" className="block text-sm font-medium">
+              موضوع
+            </label>
+            <Input
+              id="support-request-subject"
+              dir="auto"
+              value={subject}
+              maxLength={120}
+              required
+              disabled={send.isPending}
+              aria-invalid={subjectError || undefined}
+              aria-describedby={subjectError ? "support-request-subject-error" : undefined}
+              onChange={(event) => setSubject(event.target.value)}
+            />
+            {subjectError && (
+              <p
+                id="support-request-subject-error"
+                role="alert"
+                className="text-sm text-destructive"
+              >
+                موضوع را وارد کنید.
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="support-request-body" className="block text-sm font-medium">
+              متن پیام
+            </label>
+            <Textarea
+              id="support-request-body"
+              dir="auto"
+              value={body}
+              maxLength={2000}
+              required
+              disabled={send.isPending}
+              aria-invalid={bodyError || undefined}
+              aria-describedby={bodyError ? "support-request-body-error" : undefined}
+              onChange={(event) => setBody(event.target.value)}
+            />
+            {bodyError && (
+              <p id="support-request-body-error" role="alert" className="text-sm text-destructive">
+                متن پیام را وارد کنید.
+              </p>
+            )}
+          </div>
+          {send.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              ثبت درخواست تأیید نشد. دوباره تلاش کنید.
+            </p>
+          )}
+          <Button type="submit" disabled={send.isPending}>
+            {send.isPending ? "در حال ارسال…" : "ارسال به پشتیبانی"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function MessageError({
   retry,
@@ -86,6 +231,7 @@ export function MessageInbox({
             {label}
           </Button>
         ))}
+        {!staff && scope[1] && <SupportRequestForm key={scope[1]} scope={scope} onOpen={onOpen} />}
       </div>
       {query.isPending && !query.isPaused && (
         <p role="status" className="px-1 text-sm text-muted-foreground">
@@ -105,7 +251,9 @@ export function MessageInbox({
             ? "گفتگویی نیازمند رسیدگی نیست."
             : filter === "unread"
               ? "پیام خوانده‌نشده‌ای ندارید."
-              : "هنوز پیامی وجود ندارد."}
+              : staff
+                ? "هنوز پیامی وجود ندارد."
+                : "برای ارتباط با پشتیبانی ساپیو، یک درخواست جدید ثبت کنید."}
         </div>
       )}
       {query.isSuccess && rows.size > 0 && (
@@ -132,6 +280,7 @@ export function MessageInbox({
                     <span className="break-all">{row.recipientLabel || row.recipientUserId}</span>
                   )}
                   <time dateTime={row.latestActivityUtc}>{dateText(row.latestActivityUtc)}</time>
+                  {row.supportStatus && <span>{supportLabels[row.supportStatus]}</span>}
                   {staff && row.pendingSinceUtc && (
                     <span>در انتظار از {dateText(row.pendingSinceUtc)}</span>
                   )}
@@ -249,7 +398,8 @@ function ScopedConversation({
       </p>
     );
   if (query.isError || !conversation) return <MessageError retry={() => void query.refetch()} />;
-  const { subject, recipientLabel, recipientUserId, repliesEnabled } = conversation.conversation;
+  const { subject, recipientLabel, recipientUserId, repliesEnabled, supportStatus } =
+    conversation.conversation;
 
   function submit() {
     const body = draft.trim();
@@ -265,6 +415,9 @@ function ScopedConversation({
     <section dir="rtl" className="space-y-4">
       <header>
         <h2 className="break-words text-lg font-bold">{subject}</h2>
+        {supportStatus && (
+          <p className="mt-1 text-sm text-muted-foreground">{supportLabels[supportStatus]}</p>
+        )}
         {staff && (
           <p className="break-all text-sm text-muted-foreground">
             {recipientLabel || recipientUserId}

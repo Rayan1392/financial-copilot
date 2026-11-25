@@ -18,14 +18,17 @@ public sealed record MessageListRequest(MessageListFilter Filter, int PageSize, 
 public sealed record MessageSummary(int UnreadCount);
 public sealed record ConversationSummary(
     Guid ConversationId, string Subject, bool RepliesEnabled, DateTimeOffset LatestActivityUtc,
-    bool Unread, DateTimeOffset? PendingSinceUtc, Guid? RecipientUserId = null, string? RecipientLabel = null);
+    bool Unread, DateTimeOffset? PendingSinceUtc, Guid? RecipientUserId = null, string? RecipientLabel = null,
+    string? SupportStatus = null);
 public sealed record ConversationMessage(Guid Id, bool FromStaff, string Body, DateTimeOffset SentAtUtc, DateTimeOffset? ReadAtUtc);
 public sealed record ConversationDetail(
     ConversationSummary Conversation, long Revision, MessagePage<ConversationMessage> Messages);
 public sealed record MessageReceipt(Guid ConversationId, Guid MessageId, DateTimeOffset SentAtUtc);
 
 public sealed record StartMessage(
-    Guid RecipientUserId, string Subject, string Body, bool RepliesEnabled, Guid IdempotencyKey);
+    Guid RecipientUserId, string Subject, string Body, bool RepliesEnabled, Guid IdempotencyKey,
+    MessageAudience Audience = MessageAudience.Staff);
+public sealed record StartSupportRequest(string Subject, string Body, Guid IdempotencyKey);
 public sealed record ReplyMessage(
     Guid ConversationId, string Body, Guid IdempotencyKey, MessageAudience Audience, long? ExpectedRevision = null);
 

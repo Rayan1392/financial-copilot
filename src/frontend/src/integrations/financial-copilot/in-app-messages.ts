@@ -11,6 +11,7 @@ export type ConversationSummary = {
   pendingSinceUtc: string | null;
   recipientLabel: string | null;
   recipientUserId: string | null;
+  supportStatus?: "waitingForSupport" | "answered" | null;
 };
 export type ConversationMessage = {
   id: string;
@@ -33,8 +34,8 @@ function request<T>(path: string, init: RequestInit = {}) {
   return financialCopilotApi<T>(path, { ...init, cache: "no-store" });
 }
 
-function write(path: string, body: object, method = "POST") {
-  return request<void>(path, {
+function write<T = void>(path: string, body: object, method = "POST") {
+  return request<T>(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -59,6 +60,8 @@ export const messageApi = {
     userId: string,
     body: { subject: string; body: string; repliesEnabled: boolean; idempotencyKey: string },
   ) => write(`/api/v1/admin/users/${encodeURIComponent(userId)}/in-app-messages`, body),
+  startSupport: (body: { subject: string; body: string; idempotencyKey: string }) =>
+    write<{ conversationId: string; messageId: string; sentAtUtc: string }>(inbox, body),
   reply: (
     staff: boolean,
     id: string,

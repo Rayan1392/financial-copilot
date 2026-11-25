@@ -28,8 +28,9 @@ internal sealed class EfCoreInAppMessageStore(
         if (existing is not null)
             return StartReplay(existing, command);
 
-        var target = await FindRecipientAsync(actor.TenantId, command.RecipientUserId, ct);
-        RequireEligible(target);
+        var fromStaff = command.Audience == MessageAudience.Staff;
+        if (fromStaff)
+            RequireEligible(await FindRecipientAsync(actor.TenantId, command.RecipientUserId, ct));
         var now = UtcNow();
         var conversation = new InAppConversationRow
         {
@@ -39,16 +40,18 @@ internal sealed class EfCoreInAppMessageStore(
             Subject = command.Subject,
             RepliesEnabled = command.RepliesEnabled,
             Revision = 1,
-            LatestActivityUtc = now
+            LatestActivityUtc = now,
+            PendingSinceUtc = fromStaff ? null : now
         };
-        var message = CreateMessage(conversation, actor.ActorId, command.IdempotencyKey, command.Body, true, now);
+        var message = CreateMessage(conversation, actor.ActorId, command.IdempotencyKey, command.Body, fromStaff, now);
         conversation.Messages.Add(message);
         Conversations.Add(conversation);
-        Audit(actor, FinancialCopilotPermissions.AdminInAppMessagesSend, "in-app-message.start", conversation, message.Id, correlationId);
+        if (fromStaff)
+            Audit(actor, FinancialCopilotPermissions.AdminInAppMessagesSend, "in-app-message.start", conversation, message.Id, correlationId);
         try
         {
             await auth.SaveChangesAsync(ct);
-            CommittedMessages.Add(1, new KeyValuePair<string, object?>("operation", "start"));
+            CommittedMessages.Add(1, new KeyValuePair<string, object?>("operation", fromStaff ? "start" : "user_start"));
             return Receipt(message);
         }
         catch (DbUpdateException exception) when (IsIdempotencyRace(exception))
@@ -216,7 +219,10 @@ internal sealed class EfCoreInAppMessageStore(
     {
         if (audience == MessageAudience.Recipient)
             return query.Select(row => new ConversationSummary(row.Id, row.Subject, row.RepliesEnabled, row.LatestActivityUtc,
-                row.Messages.Any(message => message.FromStaff && message.ReadAtUtc == null), null, null, null));
+                row.Messages.Any(message => message.FromStaff && message.ReadAtUtc == null), null, null, null,
+                row.RepliesEnabled && row.Messages.Any(message => message.Sequence == 1 && !message.FromStaff)
+                    ? (row.PendingSinceUtc != null ? "waitingForSupport" : "answered")
+                    : null));
 
         return from row in query
                join user in auth.Users on row.RecipientUserId equals user.Id
@@ -254,7 +260,8 @@ internal sealed class EfCoreInAppMessageStore(
          select new Replay(message, row.RecipientUserId, row.Subject, row.RepliesEnabled)).SingleOrDefaultAsync(ct);
 
     private static MessageReceipt StartReplay(Replay replay, StartMessage command) =>
-        replay.Message.Sequence == 1 && replay.RecipientUserId == command.RecipientUserId &&
+        replay.Message.Sequence == 1 && replay.Message.FromStaff == (command.Audience == MessageAudience.Staff) &&
+        replay.RecipientUserId == command.RecipientUserId &&
         replay.Subject == command.Subject && replay.RepliesEnabled == command.RepliesEnabled && replay.Message.Body == command.Body
             ? Receipt(replay.Message) : throw Conflict("message-idempotency-conflict");
 

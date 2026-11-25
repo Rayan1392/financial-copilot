@@ -32,6 +32,11 @@ public sealed class InAppMessagesController(
         CancellationToken ct, MessageListFilter filter = MessageListFilter.All, int pageSize = 25, string? cursor = null) =>
         messages.ListAsync(actorContext.Actor, MessageAudience.Recipient, new MessageListRequest(filter, pageSize, cursor), ct);
 
+    [HttpPost("in-app-messages/me")]
+    [EnableRateLimiting(RateLimitPolicies.InAppMessageWrite)]
+    public Task<MessageReceipt> StartSupport(StartSupportRequest request, CancellationToken ct) =>
+        messages.StartSupportAsync(actorContext.Actor, request, ct);
+
     [HttpGet("in-app-messages/me/{conversationId:guid}")]
     public Task<ConversationDetail> OwnDetail(Guid conversationId, CancellationToken ct, int pageSize = 25, string? cursor = null) =>
         messages.DetailAsync(actorContext.Actor, MessageAudience.Recipient, conversationId, pageSize, cursor, HttpContext.TraceIdentifier, ct);

@@ -116,6 +116,73 @@ public sealed class InAppMessage165PostgreSqlTests(PostgreSqlIntegrationFixture 
     }
 
     [SkippableFact]
+    public async Task User_start_enters_shared_queue_once_and_tracks_replies()
+    {
+        await using var database = await postgres.CreateBillingDatabaseAsync("feature165_user_start");
+        await using var auth = database.CreateAuthContext();
+        await auth.Database.MigrateAsync(Ct);
+        var user = Actor(Guid.NewGuid());
+        var staff = Actor(user.TenantId);
+        var other = Actor(user.TenantId);
+        var foreign = Actor(Guid.NewGuid());
+        await SeedAsync(auth, user, staff, other, foreign);
+        var request = new StartSupportRequest("  Subject  ", "  Body  ", Guid.NewGuid());
+        var service = UseCases(auth);
+        var older = await service.StartSupportAsync(other, new("Earlier", "Earlier body", Guid.NewGuid()), Ct);
+        await using var attemptOne = database.CreateAuthContext();
+        await using var attemptTwo = database.CreateAuthContext();
+        var receipts = await Task.WhenAll(
+            UseCases(attemptOne).StartSupportAsync(user, request, Ct),
+            UseCases(attemptTwo).StartSupportAsync(user, request, Ct));
+        var receipt = receipts[0];
+        Assert.Equal(receipt, receipts[1]);
+        Assert.Equal(receipt, await service.StartSupportAsync(user, request with { Body = "Body" }, Ct));
+
+        var altered = await Assert.ThrowsAsync<InAppMessageException>(() =>
+            service.StartSupportAsync(user, request with { Body = "Different" }, Ct));
+        Assert.Equal("message-idempotency-conflict", altered.Code);
+        var staffStartCollision = await Assert.ThrowsAsync<InAppMessageException>(() =>
+            service.StartAsync(user, new(user.ActorId, "Subject", "Body", true, request.IdempotencyKey), "staff", Ct));
+        Assert.Equal("message-idempotency-conflict", staffStartCollision.Code);
+        var replyCollision = await Assert.ThrowsAsync<InAppMessageException>(() =>
+            service.ReplyAsync(user, new(receipt.ConversationId, "Body", request.IdempotencyKey, MessageAudience.Recipient), "reply", Ct));
+        Assert.Equal("message-idempotency-conflict", replyCollision.Code);
+
+        var queue = new MessageListRequest(MessageListFilter.Pending, 25, null);
+        var inbox = new MessageListRequest(MessageListFilter.All, 25, null);
+        var pending = await service.ListAsync(staff, MessageAudience.Staff, queue, Ct);
+        Assert.Equal(new[] { older.ConversationId, receipt.ConversationId }, pending.Items.Select(row => row.ConversationId));
+        Assert.Equal(pending.Items[1].LatestActivityUtc, pending.Items[1].PendingSinceUtc);
+        Assert.Empty((await service.ListAsync(foreign, MessageAudience.Staff, queue, Ct)).Items);
+        Assert.Equal(0, (await service.GetSummaryAsync(user, Ct)).UnreadCount);
+        Assert.Equal("waitingForSupport", Assert.Single((await service.ListAsync(user, MessageAudience.Recipient, inbox, Ct)).Items).SupportStatus);
+        Assert.Equal(MessageFailure.NotFound, (await Assert.ThrowsAsync<InAppMessageException>(() =>
+            service.DetailAsync(other, MessageAudience.Recipient, receipt.ConversationId, 25, null, "unrelated", Ct))).Failure);
+
+        var review = await service.DetailAsync(staff, MessageAudience.Staff, receipt.ConversationId, 25, null, "review", Ct);
+        var first = Assert.Single(review.Messages.Items);
+        Assert.False(first.FromStaff);
+        Assert.Equal("Body", first.Body);
+        Assert.Contains((await service.ListAsync(staff, MessageAudience.Staff, queue, Ct)).Items, row => row.ConversationId == receipt.ConversationId);
+        var answer = await service.ReplyAsync(staff,
+            new(receipt.ConversationId, "Answer", Guid.NewGuid(), MessageAudience.Staff, review.Revision), "answer", Ct);
+        Assert.DoesNotContain((await service.ListAsync(staff, MessageAudience.Staff, queue, Ct)).Items, row => row.ConversationId == receipt.ConversationId);
+
+        await using var reopened = database.CreateAuthContext();
+        var fresh = UseCases(reopened);
+        var answered = await fresh.DetailAsync(user, MessageAudience.Recipient, receipt.ConversationId, 25, null, "reopen", Ct);
+        Assert.Equal("answered", answered.Conversation.SupportStatus);
+        Assert.Equal(2, answered.Messages.Items.Count);
+        Assert.Equal(1, (await fresh.GetSummaryAsync(user, Ct)).UnreadCount);
+        await fresh.AcknowledgeAsync(user, receipt.ConversationId, [answer.MessageId], Ct);
+        Assert.Equal(0, (await fresh.GetSummaryAsync(user, Ct)).UnreadCount);
+        await fresh.ReplyAsync(user,
+            new(receipt.ConversationId, "Follow-up", Guid.NewGuid(), MessageAudience.Recipient), "follow-up", Ct);
+        Assert.Equal("waitingForSupport", Assert.Single((await fresh.ListAsync(user, MessageAudience.Recipient, inbox, Ct)).Items).SupportStatus);
+        Assert.Contains((await fresh.ListAsync(staff, MessageAudience.Staff, queue, Ct)).Items, row => row.ConversationId == receipt.ConversationId);
+    }
+
+    [SkippableFact]
     public async Task Failure_to_write_audit_rolls_back_the_message()
     {
         await using var database = await postgres.CreateBillingDatabaseAsync("feature165_audit");
@@ -133,6 +200,16 @@ public sealed class InAppMessage165PostgreSqlTests(PostgreSqlIntegrationFixture 
         await using var clean = database.CreateAuthContext();
         Assert.Equal(0, (await UseCases(clean).GetSummaryAsync(recipient, Ct)).UnreadCount);
         Assert.Empty(await clean.SecurityAdminAudits.ToListAsync(Ct));
+
+        await clean.Database.ExecuteSqlRawAsync(
+            """ALTER TABLE auth_in_app_messages ADD CONSTRAINT "reject_user_start" CHECK ("FromStaff" OR "Sequence" <> 1)""", Ct);
+        await Assert.ThrowsAsync<DbUpdateException>(() => UseCases(clean).StartSupportAsync(recipient,
+            new("Subject", "Message body", Guid.NewGuid()), Ct));
+        await using var reopened = database.CreateAuthContext();
+        var queue = await UseCases(reopened).ListAsync(staff, MessageAudience.Staff, new(MessageListFilter.Pending, 25, null), Ct);
+        var inbox = await UseCases(reopened).ListAsync(recipient, MessageAudience.Recipient, new(MessageListFilter.All, 25, null), Ct);
+        Assert.Empty(queue.Items);
+        Assert.Empty(inbox.Items);
     }
 
     [SkippableFact]

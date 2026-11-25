@@ -9,7 +9,15 @@ public sealed class InAppMessageUseCases(IInAppMessageStore store)
     public const int MaxPageSize = 50;
     public const int UnreadCap = 100;
 
-    public Task<MessageReceipt> StartAsync(CurrentActor actor, StartMessage command, string correlationId, CancellationToken ct)
+    public Task<MessageReceipt> StartAsync(CurrentActor actor, StartMessage command, string correlationId, CancellationToken ct) =>
+        StartCoreAsync(actor, command with { Audience = MessageAudience.Staff }, correlationId, ct);
+
+    public Task<MessageReceipt> StartSupportAsync(
+        CurrentActor actor, StartSupportRequest command, CancellationToken ct) =>
+        StartCoreAsync(actor, new StartMessage(actor.ActorId, command.Subject, command.Body,
+            true, command.IdempotencyKey, MessageAudience.Recipient), string.Empty, ct);
+
+    private Task<MessageReceipt> StartCoreAsync(CurrentActor actor, StartMessage command, string correlationId, CancellationToken ct)
     {
         RequireWebUser(actor);
         RequireId(command.RecipientUserId);

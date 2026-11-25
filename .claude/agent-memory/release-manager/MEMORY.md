@@ -3,6 +3,16 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.28.0
+
+- Published on 2026-11-24 (MINOR: Added «‹نماد› را با صنعت خودش مقایسه کن» to the desktop symbol menu
+  (watchlist, market movers) and the mobile symbol sheet). Feature commit `bc6d521b`; also carries
+  `0a15e2b0` (BUG-047 tests) and `bb9d8f16` (BUG-046 docs), neither in the changelog. Develop release commit
+  `8f22ff11`, prod merge `bd5aeafe` (merge-tree/commit-tree), annotated tag `v1.28.0` (tag object `4769dd7e`).
+- Release-note tests passed 12/12 and the tag/changelog check passed. Deploy run 45443715705: success
+  (about 4m30s); `/releases` returned HTTP 200 and lists 1.28.0 first. `gh run watch` dropped on a transient
+  api.github.com connection error; the result was confirmed with `gh run view`.
+
 ## Release 1.27.0
 
 - Published on 2026-11-24 (MINOR: Added new-chat starter cards for own-industry comparison and cash flow +

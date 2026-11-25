@@ -27,6 +27,22 @@ public sealed class InAppMessage165EndpointTests(AdminManagementApiFactory facto
         Assert.Equal(HttpStatusCode.Forbidden, (await operatorClient.PostAsJsonAsync(start, content)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await sender.GetAsync(queue)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await apiKey.GetAsync(inbox)).StatusCode);
+        using var apiKeyStart = await apiKey.PostAsJsonAsync("/api/v1/in-app-messages/me", content);
+        Assert.Equal(HttpStatusCode.Forbidden, apiKeyStart.StatusCode);
+        using var invalidSupport = await reader.PostAsJsonAsync("/api/v1/in-app-messages/me", content with { Subject = "   " });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidSupport.StatusCode);
+        using var requested = await reader.PostAsJsonAsync("/api/v1/in-app-messages/me",
+            new { Subject = "Help", Body = "Request", IdempotencyKey = Guid.NewGuid() });
+        Assert.Equal(HttpStatusCode.OK, requested.StatusCode);
+        Assert.True(requested.Headers.CacheControl?.NoStore);
+        var request = await requested.Content.ReadFromJsonAsync<MessageReceipt>();
+        Assert.NotNull(request);
+        using var queued = await operatorClient.GetAsync($"{queue}/{request.ConversationId:D}");
+        Assert.Equal(HttpStatusCode.OK, queued.StatusCode);
+        var pending = await queued.Content.ReadFromJsonAsync<ConversationDetail>();
+        Assert.NotNull(pending);
+        Assert.Equal(AdminManagementApiFactory.UserId, pending.Conversation.RecipientUserId);
+        Assert.False(Assert.Single(pending.Messages.Items).FromStaff);
 
         using var sent = await sender.PostAsJsonAsync(start, content);
         Assert.Equal(HttpStatusCode.OK, sent.StatusCode);

@@ -3,6 +3,16 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.29.0
+
+- Published on 2026-11-25 (MINOR: Added user-initiated support requests from the existing web inbox).
+  Feature commit `9b414351`, develop release commit `24396ac9`, prod merge `216a9f5c`, and annotated tag
+  `v1.29.0` (tag object `b5b8d0a2`). Deploy run 45550145476 succeeded, with a deploy job of 10m31s.
+  The public release page returned HTTP 200 and showed 1.29.0 as current, with the support entry.
+  The public API health endpoint returned HTTP 200 and Healthy.
+- The tag/changelog check passed and release-note tests passed 12/12. No new Auth migration is needed.
+  Feature 165's existing schema shipped in 1.22.0. Queue ownership and the internal response target remain open in OQ-129.
+
 ## Release 1.28.0
 
 - Published on 2026-11-24 (MINOR: Added «‹نماد› را با صنعت خودش مقایسه کن» to the desktop symbol menu

@@ -44,7 +44,8 @@ public sealed record GroundedAnalysisHttpResponse(
     string DefaultDepth,
     bool DefaultWebSearch,
     bool Unlimited,
-    GroundedAnalysisOfferHttpResponse? Offer = null);
+    GroundedAnalysisOfferHttpResponse? Offer = null,
+    bool UseReportDefaults = false);
 
 public sealed record ExternalSourceHttpResponse(string Id, string Title, string Url, string PublishedAt);
 

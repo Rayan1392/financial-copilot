@@ -25,11 +25,6 @@ Captured 2026-11-09 on `develop` at `886f05e`, with only documentation changes i
 | `FinancialSourcePlannerHandoffTests` | `ConsolidationQualifierWithoutCatalogEvidenceStopsBeforePlanner` |
 | `FinancialSourcePlannerHandoffTests` | `ExactIdentity_CarriesLosslessTypedIntentThroughPlannerAndValidator` (4 cases) |
 | `NadpcoApiProviderTests` | `ManualBackfillService_RepeatedIdenticalPayloadIsReportedAsAlreadyPersisted` |
-| `ProductRevenueMixFollowUp075Tests` | `DuplicateNormalizedTitles_AreAllExcludedAsAmbiguous` |
-| `ProductRevenueMixFollowUp075Tests` | `FourValidProducts_ReturnsFirstTwoInTypedOrderThenCompanyTrend` |
-| `ProductRevenueMixFollowUp075Tests` | `OneValidProduct_ReturnsProductThenCompanyTrend` |
-| `ProductRevenueMixFollowUp075Tests` | `ParserUnsafeFirstProduct_IsSkippedAndNextTwoAreUsed` |
-| `ProductRevenueMixFollowUp075Tests` | `TypedOrderWinsOverSalesShareAndRankRecalculation` |
 | `SchemaNavigatorTests` | `ExactApprovedSourceTitles_ResolveIdentityWithoutCreatingAliasesOrAuthorization` |
 | `SchemaNavigatorTests` | `ReviewedCanonicalSourceBinding_IsExactAndDoesNotGrantQueryAuthorization` |
 | `SemanticDialogueGovernanceTests` | `VersionedDataset_CoversEveryExecutableRouteAndPassesOfflineRegression` |

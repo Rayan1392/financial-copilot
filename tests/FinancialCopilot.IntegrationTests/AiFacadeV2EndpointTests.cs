@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Billing;
@@ -1546,7 +1547,7 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         var actions = mixRoot.GetProperty("suggestedActions").EnumerateArray().ToArray();
         Assert.Equal(3, actions.Length);
         Assert.Equal(
-            ["روند فروش گندله سنگ آهن کچاد", "روند فروش کنسانتره سنگ آهن کچاد", "روند فروش ماهانه کچاد"],
+            ["روند نرخ فروش گندله سنگ آهن کچاد", "روند نرخ فروش کنسانتره سنگ آهن کچاد", "روند فروش ماهانه کچاد"],
             actions.Select(action => action.GetProperty("message").GetString()));
 
         using var productResponse = await client.PostAsJsonAsync(
@@ -1571,6 +1572,63 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         var companyRoot = companyDocument.RootElement;
         Assert.Equal("MonthlyActivityTrend", companyRoot.GetProperty("intent").GetString());
         Assert.Equal("کچاد", companyRoot.GetProperty("monthlyActivityTrendResult").GetProperty("companySymbol").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_SalesReportsTakePrecedenceOverDeepWebDiscussion()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        _factory.AnalysisModel.Reset();
+        _factory.AnalysisModel.Decision = ReportDiscussionDisposition.MissingInReport;
+        var callsBefore = _factory.Fake.CompletionCalls;
+
+        using var trendResponse = await client.PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "روند فروش ماهانه کچاد" });
+        using var trend = await ReadJsonAsync(trendResponse);
+        Assert.Equal(HttpStatusCode.OK, trendResponse.StatusCode);
+        var conversationId = trend.RootElement.GetProperty("conversationId").GetGuid();
+        var hint = trend.RootElement.GetProperty("groundedAnalysis");
+        Assert.Equal("simple", hint.GetProperty("defaultDepth").GetString());
+        Assert.False(hint.GetProperty("defaultWebSearch").GetBoolean());
+        Assert.True(hint.GetProperty("useReportDefaults").GetBoolean());
+        using var historyResponse = await client.GetAsync($"/api/ai/v1/conversations/{conversationId}/messages");
+        using var history = await ReadJsonAsync(historyResponse);
+        Assert.Equal(HttpStatusCode.OK, historyResponse.StatusCode);
+        var savedHint = history.RootElement.GetProperty("messages").EnumerateArray()
+            .Last(message => message.GetProperty("role").GetString() == "Assistant")
+            .GetProperty("assistantContent").GetProperty("groundedAnalysis");
+        Assert.Equal("simple", savedHint.GetProperty("defaultDepth").GetString());
+        Assert.False(savedHint.GetProperty("defaultWebSearch").GetBoolean());
+        Assert.True(savedHint.GetProperty("useReportDefaults").GetBoolean());
+
+        var analysisOptions = new { depth = "deep", webSearch = true };
+        using var mixResponse = await client.PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "ترکیب فروش محصولات کچاد", conversationId, analysisOptions });
+        using var mix = await ReadJsonAsync(mixResponse);
+        Assert.Equal(HttpStatusCode.OK, mixResponse.StatusCode);
+        var root = mix.RootElement;
+        Assert.Equal("ProductRevenueMix", root.GetProperty("intent").GetString());
+        Assert.Equal(1m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        var action = root.GetProperty("suggestedActions")[0];
+        Assert.Equal("روند فروش گندله سنگ آهن", action.GetProperty("label").GetString());
+
+        using var rateResponse = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = action.GetProperty("message").GetString(),
+            suggestedActionId = action.GetProperty("id").GetString(),
+            conversationId,
+            analysisOptions
+        });
+        using var rate = await ReadJsonAsync(rateResponse);
+        Assert.Equal(HttpStatusCode.OK, rateResponse.StatusCode);
+        var product = rate.RootElement.GetProperty("monthlyProductTrendResult");
+        Assert.Equal("گندله سنگ آهن", product.GetProperty("productTitle").GetString());
+        Assert.Contains(product.GetProperty("points").EnumerateArray(),
+            point => point.GetProperty("rateStatus").GetString() == "ValidRate");
+        Assert.Equal(callsBefore, _factory.Fake.CompletionCalls);
+        Assert.Equal(0, _factory.AnalysisModel.Decisions);
+        Assert.Empty(_factory.AnalysisModel.Choices);
     }
 
     [Fact]
@@ -1720,8 +1778,8 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         var action = Assert.Single(root.GetProperty("suggestedActions").EnumerateArray());
         Assert.Equal("RunRelatedCapability", action.GetProperty("kind").GetString());
         Assert.Equal("monthly_product_trend", action.GetProperty("capabilityCode").GetString());
-        Assert.Equal("روند فروش آهن اسفنجی کهمدا", action.GetProperty("message").GetString());
-        Assert.Equal(action.GetProperty("message").GetString(), action.GetProperty("label").GetString());
+        Assert.Equal("روند نرخ فروش آهن اسفنجی کهمدا", action.GetProperty("message").GetString());
+        Assert.Equal("روند فروش آهن اسفنجی", action.GetProperty("label").GetString());
         Assert.Equal("کهمدا", action.GetProperty("presetSlots").GetProperty("company").GetString());
         Assert.Equal("آهن اسفنجی", action.GetProperty("presetSlots").GetProperty("product").GetString());
 
@@ -2581,6 +2639,7 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
     private readonly object _seedLock = new();
 
     public V2MonthlySalesRoutingFakeAiModelClient Fake { get; } = new();
+    public ScriptedReportDiscussionAnalysisModel AnalysisModel { get; } = new();
 
     protected override bool ForceV1Orchestration => false;
 
@@ -2592,7 +2651,10 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
+                ["ReportDiscussion:Enabled"] = "true",
+                ["GroundedAnalysis:Enabled"] = "true",
+                ["SymbolGroundedFallback:Enabled"] = "false"
             });
         });
 
@@ -2601,6 +2663,8 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
             ReplaceIngestionDbContext(services, _dbName);
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(Fake);
+            services.RemoveAll<IReportDiscussionAnalysisModel>();
+            services.AddSingleton<IReportDiscussionAnalysisModel>(AnalysisModel);
             services.RemoveAll<ISymbolMetricLookupService>();
             services.AddSingleton<ISymbolMetricLookupService, ThrowingSymbolMetricLookupService>();
         });
@@ -3784,8 +3848,10 @@ internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
 public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
 {
     private int _outerToolSelectionCalls;
+    private int _completionCalls;
 
     public int OuterToolSelectionCalls => _outerToolSelectionCalls;
+    public int CompletionCalls => _completionCalls;
 
     public AiModelProviderDescriptor Descriptor { get; } = new(
         "V2MonthlySalesRoutingFake",
@@ -3799,6 +3865,7 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
 
     public Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
     {
+        Interlocked.Increment(ref _completionCalls);
         if (request.Tools is { Count: > 0 })
         {
             Interlocked.Increment(ref _outerToolSelectionCalls);

@@ -6,6 +6,7 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 /// <summary>Deterministic V2 gate/parser for a named product monthly trend.</summary>
 public static class MonthlyProductTrendIntentRules
 {
+    internal const string SalesRateTrendPrefix = "روند نرخ فروش ";
     private static readonly Regex DefaultRecentWindow = new(
         @"(?<![\u0600-\u06ffA-Za-z0-9])(?:(?:\u062f\u0631|\u0637\u06cc)\s*)?(?:12|\u06f1\u06f2|\u06f1\u0662|\u0661\u06f2|\u0661\u0662|\u062f\u0648\u0627\u0632\u062f\u0647)\s*\u0645\u0627\u0647(?:\u0647{0,2})?(?:\s*(?:\u0627\u062e\u06cc\u0631|\u06af\u0630\u0634\u062a\u0647))?(?![\u0600-\u06ffA-Za-z0-9])|(?<![\u0600-\u06ffA-Za-z])(?:\u062f\u0631\s*)?(?:\u06cc\u06a9|\u06cc\u06a9\u06cc)\s*\u0633\u0627\u0644\s*(?:\u0627\u062e\u06cc\u0631|\u06af\u0630\u0634\u062a\u0647)(?![\u0600-\u06ffA-Za-z])",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -122,8 +123,14 @@ public static class MonthlyProductTrendIntentRules
         }
         if (companyIndex <= 0) return (null, null);
 
-        var productTokens = tokens
-            .Take(companyIndex)
+        if (query.StartsWith(SalesRateTrendPrefix, StringComparison.Ordinal) && companyIndex > 3)
+        {
+            var title = tokens.Skip(3).Take(companyIndex - 3).ToList();
+            if (title[^1] is "نماد" or "شرکت" or "سهم") title.RemoveAt(title.Count - 1);
+            if (title.Count > 0) return (string.Join(' ', title), tokens[companyIndex]);
+        }
+
+        var productTokens = tokens.Take(companyIndex)
             .Where(token => !StopWords.Contains(token) && !UnicodeStopWords.Contains(token) && !CommandStopWords.Contains(token) && !UnicodeCommandStopWords.Contains(token) && !Regex.IsMatch(token, @"^\d+$"))
             .ToArray();
         return productTokens.Length == 0 ? (null, null) : (string.Join(' ', productTokens), tokens[companyIndex]);

@@ -27,15 +27,24 @@ public sealed class AssistantHelpFollowUpProvider(IAssistantHelpReplyComposer co
 }
 
 /// <summary>Feature 075 extension: the typed product revenue mix owns its follow-ups, including empty.</summary>
-public sealed class ProductRevenueMixFollowUpProvider(IProductRevenueMixFollowUpSuggestionService service) : IFollowUpSuggestionProvider
+public sealed class ProductRevenueMixFollowUpProvider(
+    IProductRevenueMixFollowUpSuggestionService service,
+    IMonthlySalesProductFollowUpSuggestionService rateProducts) : IFollowUpSuggestionProvider
 {
     public int Order => 30;
     public bool CanHandle(FollowUpSuggestionContext context) =>
         context.Intent == DetectedIntent.ProductRevenueMix &&
         context.ProductRevenueMix is not null &&
         context.IsAnsweredOrPartial;
-    public Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(FollowUpSuggestionContext context, CancellationToken cancellationToken) =>
-        Task.FromResult(service.Build(context.ProductRevenueMix!));
+    public async Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(
+        FollowUpSuggestionContext context, CancellationToken cancellationToken)
+    {
+        var mix = context.ProductRevenueMix!;
+        var titles = JalaliPeriod.TryCreate(mix.ReportYear, mix.ReportMonth, out var period)
+            ? await rateProducts.FindRateProductTitlesAsync(mix.CompanySymbol, period, cancellationToken)
+            : new HashSet<string>(StringComparer.Ordinal);
+        return service.Build(mix, titles);
+    }
 }
 
 /// <summary>Feature 137: a monthly sales trend with current-year sales.</summary>

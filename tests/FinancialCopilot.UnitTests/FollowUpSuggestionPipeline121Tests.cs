@@ -57,7 +57,7 @@ public sealed class FollowUpSuggestionPipeline121Tests
             new MonthlySalesQualityRankingFollowUpProvider(null!),
             new MonthlyProductTrendFollowUpProvider(null!),
             new MonthlySalesProductFollowUpProvider(null!),
-            new ProductRevenueMixFollowUpProvider(null!),
+            new ProductRevenueMixFollowUpProvider(null!, null!),
             new AssistantHelpFollowUpProvider(null!),
             new SymbolSnapshotFollowUpProvider(null!)
         ];

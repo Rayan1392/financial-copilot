@@ -350,6 +350,8 @@ This package adds two specs for turning Noavaran Amin monthly production/sales h
 |---|---|
 | `076-nadpco-monthly-activity-trend-snapshot` | Persist deterministic company-month production/sales trend snapshots from Noavaran monthly activity data. |
 | `077-ai-monthly-production-sales-trend-query` | Route Persian trend/chart questions to a dedicated AI provider and return chart-ready annual comparison data. |
+
+[BUG-048 implementation plan](162-context-aware-financial-report-follow-up/changes/monthly-sales-report-routing-and-suggestions/tasks.md) covers deterministic report routing, product sales-rate suggestions, and analysis defaults for the monthly sales conversation.
 | `078-frontend-monthly-activity-trend-chart` | Render `monthlyActivityTrendResult` in the chat UI as a chart using the existing AI facade payload. |
 
 ## Implementation Order

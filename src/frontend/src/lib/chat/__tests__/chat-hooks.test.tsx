@@ -318,6 +318,51 @@ describe("analysis options (change «sol-deep-analysis-web-search», T12)", () =
     });
   });
 
+  it("opening a monthly sales report uses its defaults and keeps a manual override local", async () => {
+    localStorage.setItem(
+      "sapio.analysis-choice.v1",
+      JSON.stringify({ depth: "deep", webSearch: true }),
+    );
+    const savedReport = {
+      ...withHint("monthly-report"),
+      content: {
+        ...(withHint("monthly-report").content as object),
+        monthlyActivityTrendResult: {},
+        groundedAnalysis: {
+          ...hint(),
+          defaultDepth: "simple",
+          defaultWebSearch: false,
+          useReportDefaults: true,
+        },
+      },
+    } as ChatMessage;
+    getThreadMessages.mockResolvedValue([...before, savedReport]);
+    sendChatMessage.mockResolvedValue({ ok: true, result: { threadId: THREAD } });
+    const view = renderHook(() => useChatThread(THREAD), { wrapper: wrapper(new QueryClient()) });
+
+    await waitFor(() => expect(view.result.current.analysisHint?.useReportDefaults).toBe(true));
+    expect(view.result.current.analysisChoice).toEqual({ depth: "simple", webSearch: false });
+    act(() => view.result.current.setAnalysisChoice({ depth: "deep", webSearch: false }));
+    act(() => view.result.current.submit("روند فروش ماهانه فجر را تفسیر کن"));
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledOnce());
+    expect(sendChatMessage.mock.calls[0][0].data.analysisOptions).toEqual({
+      depth: "deep",
+      webSearch: false,
+      pricingVersion: "v1",
+    });
+    expect(JSON.parse(localStorage.getItem("sapio.analysis-choice.v1")!)).toEqual({
+      depth: "deep",
+      webSearch: true,
+    });
+
+    view.unmount();
+    const reopened = renderHook(() => useChatThread(THREAD), {
+      wrapper: wrapper(new QueryClient()),
+    });
+    await waitFor(() => expect(reopened.result.current.analysisHint?.useReportDefaults).toBe(true));
+    expect(reopened.result.current.analysisChoice).toEqual({ depth: "simple", webSearch: false });
+  });
+
   it("«تحلیل کن» sends the offer's confirm id with the choice; «انصراف» sends the cancel id alone", async () => {
     const result = await threadAfterReport(true);
 

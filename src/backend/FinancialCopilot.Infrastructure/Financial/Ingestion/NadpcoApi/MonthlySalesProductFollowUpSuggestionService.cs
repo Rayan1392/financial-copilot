@@ -15,35 +15,53 @@ internal sealed class MonthlySalesProductFollowUpSuggestionService(
     : IMonthlySalesProductFollowUpSuggestionService
 {
     private static readonly ActivitySource ActivitySource = new("FinancialCopilot.Feature137", "1.0");
-    private const int MaximumActions = 3;
+    private const int MaximumActions = 2;
 
     public async Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(
         MonthlyActivityTrendResponse trend,
         CancellationToken ct = default)
     {
+        if (!JalaliPeriod.TryCreate(trend.LatestReportYear, trend.LatestReportMonth, out var period))
+            return [];
+
+        var selection = await SelectAsync(trend.CompanySymbol, period, ct);
+        return selection is null ? [] : selection.Products.Take(MaximumActions)
+            .Select(item => CreateAction(item, selection.Symbol, selection.ExternalCompanyId))
+            .ToArray();
+    }
+
+    public async Task<IReadOnlySet<string>> FindRateProductTitlesAsync(
+        string companySymbol,
+        JalaliPeriod period,
+        CancellationToken ct = default)
+    {
+        var selection = await SelectAsync(companySymbol, period, ct);
+        return (selection?.Products ?? []).Select(item => MonthlyProductTrendCalculator.NormalizeProductText(item.DisplayTitle))
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private async Task<ProductSelection?> SelectAsync(
+        string companySymbol, JalaliPeriod period, CancellationToken ct)
+    {
         using var activity = ActivitySource.StartActivity("monthly_sales_product_follow_up.select");
         var started = Stopwatch.GetTimestamp();
         activity?.SetTag("feature", "137");
         activity?.SetTag("selector.invoked", true);
-        activity?.SetTag("selector.anchor_period", $"{trend.LatestReportYear:D4}/{trend.LatestReportMonth:D2}");
+        activity?.SetTag("selector.anchor_period", period.ToString());
         try
         {
-            if (trend.LatestReportYear < 1 || trend.LatestReportMonth is < 1 or > 12)
-                return Empty("invalid_company_period");
-
-            var company = await companyResolver.ResolveBySymbolAsync(trend.CompanySymbol, ct);
+            var company = await companyResolver.ResolveBySymbolAsync(companySymbol, ct);
             var canonicalSymbol = company?.TseSymbol ?? company?.Ticker ?? company?.CompanySymbol;
             if (company is null || string.IsNullOrWhiteSpace(company.ExternalCompanyId) || string.IsNullOrWhiteSpace(canonicalSymbol))
                 return Empty("unresolved_company_or_symbol");
 
             var read = await productCatalog.GetProductFollowUpReadAsync(
                 company.ExternalCompanyId,
-                new JalaliPeriod(trend.LatestReportYear, trend.LatestReportMonth),
+                period,
                 ct);
             activity?.SetTag("selector.candidate_count", read.CandidateUniverse.Count);
-            if (read.AnchorPeriod is not { } anchor)
+            if (read.AnchorPeriod != period)
                 return Empty("no_anchor_period");
-            activity?.SetTag("selector.anchor_period", anchor.ToString());
 
             var candidates = MonthlyProductTrendProductIdentity.BuildCandidates(company.ExternalCompanyId, read.CandidateUniverse);
             var duplicateTitleKeys = candidates
@@ -52,7 +70,6 @@ internal sealed class MonthlySalesProductFollowUpSuggestionService(
                 .Select(group => group.Key)
                 .ToHashSet(StringComparer.Ordinal);
             var anchorGroups = read.AnchorObservations
-                .Where(row => row.SalesAmount.HasValue)
                 .GroupBy(row => MonthlyProductTrendProductIdentity.ProductKey(company.ExternalCompanyId, row), StringComparer.Ordinal);
 
             var eligible = new List<(MonthlyProductTrendCandidate Candidate, decimal SalesAmount, string NormalizedTitle)>();
@@ -76,7 +93,7 @@ internal sealed class MonthlySalesProductFollowUpSuggestionService(
                     continue;
                 }
 
-                var queryText = $"روند فروش {candidate.DisplayTitle} {canonicalSymbol}";
+                var queryText = $"روند نرخ فروش {candidate.DisplayTitle} {canonicalSymbol}";
                 if (candidate.DisplayTitle.Length > 120 || canonicalSymbol.Length > 120 || queryText.Length > 500 ||
                     !MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(queryText))
                 {
@@ -98,34 +115,25 @@ internal sealed class MonthlySalesProductFollowUpSuggestionService(
                     continue;
                 }
 
-                try
-                {
-                    decimal total = 0m;
-                    foreach (var row in group)
-                        if (row.SalesAmount is { } amount) total = checked(total + amount);
-                    eligible.Add((candidate, total, normalizedTitle));
-                }
-                catch (OverflowException)
-                {
-                    activity?.SetTag("selector.zero_action_reason", "sales_aggregation_overflow");
-                }
+                var point = MonthlyProductTrendQueryUseCase.BuildPoint(period, candidate, group.ToArray());
+                if (point.SalesValueMillionRial is > 0m && point.RateStatus == MonthlyProductTrendRateStatus.ValidRate)
+                    eligible.Add((candidate, point.SalesValueMillionRial.Value, normalizedTitle));
             }
 
             activity?.SetTag("selector.eligible_count", eligible.Count);
             activity?.SetTag("selector.parser_rejection_count", parserRejections);
             activity?.SetTag("selector.ambiguity_count", ambiguityCount);
             activity?.SetTag("selector.duplicate_count", duplicateCount);
-            var actions = eligible
+            var products = eligible
                 .OrderByDescending(item => item.SalesAmount)
                 .ThenBy(item => item.NormalizedTitle, StringComparer.Ordinal)
                 .ThenBy(item => item.Candidate.ProductKey, StringComparer.Ordinal)
-                .Take(MaximumActions)
-                .Select(item => CreateAction(item.Candidate, canonicalSymbol, company.ExternalCompanyId))
+                .Select(item => item.Candidate)
                 .ToArray();
-            activity?.SetTag("selector.returned_count", actions.Length);
-            if (actions.Length > 0) activity?.SetTag("selector.action_attribution", "monthly_sales_product_follow_up");
-            if (actions.Length == 0) activity?.SetTag("selector.zero_action_reason", "no_eligible_products");
-            return actions;
+            activity?.SetTag("selector.returned_count", Math.Min(products.Length, MaximumActions));
+            if (products.Length > 0) activity?.SetTag("selector.action_attribution", "monthly_sales_product_follow_up");
+            if (products.Length == 0) activity?.SetTag("selector.zero_action_reason", "no_eligible_products");
+            return new(canonicalSymbol, company.ExternalCompanyId, products);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -136,7 +144,7 @@ internal sealed class MonthlySalesProductFollowUpSuggestionService(
             activity?.SetTag("selector.read_failure", true);
             activity?.SetTag("selector.zero_action_reason", "read_or_selection_failure");
             logger.LogWarning(exception, "Feature 137 follow-up suggestion selection failed; returning no actions.");
-            return [];
+            return null;
         }
         finally
         {
@@ -144,22 +152,22 @@ internal sealed class MonthlySalesProductFollowUpSuggestionService(
         }
     }
 
-    private IReadOnlyCollection<SuggestedAction> Empty(string reason)
+    private static ProductSelection? Empty(string reason)
     {
         Activity.Current?.SetTag("selector.returned_count", 0);
         Activity.Current?.SetTag("selector.zero_action_reason", reason);
-        return [];
+        return null;
     }
 
     private SuggestedAction CreateAction(MonthlyProductTrendCandidate candidate, string companySymbol, string externalCompanyId)
     {
-        var query = $"روند فروش {candidate.DisplayTitle} {companySymbol}";
-        var idInput = $"feature137\nmonthly_product_trend\n{registry.Version}\n{externalCompanyId}\n{candidate.ProductKey}";
+        var query = $"روند نرخ فروش {candidate.DisplayTitle} {companySymbol}";
+        var idInput = $"feature137\nmonthly_product_trend_rate\n{registry.Version}\n{externalCompanyId}\n{candidate.ProductKey}";
         var id = "feature137:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(idInput))).ToLowerInvariant();
         return new SuggestedAction(
             id,
             SuggestedActionKind.RunRelatedCapability,
-            query,
+            $"روند فروش {candidate.DisplayTitle}",
             query,
             "monthly_product_trend",
             new Dictionary<string, string>(StringComparer.Ordinal)
@@ -170,4 +178,7 @@ internal sealed class MonthlySalesProductFollowUpSuggestionService(
             "monthly_sales_product_follow_up",
             registry.Version);
     }
+
+    private sealed record ProductSelection(
+        string Symbol, string ExternalCompanyId, IReadOnlyList<MonthlyProductTrendCandidate> Products);
 }

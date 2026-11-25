@@ -141,6 +141,7 @@ public sealed class ConversationDialogueGate(
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
         var earlyInterpretation = (isV2 ? TryInterpretPeerComparison(request) : null)
+            ?? (isV2 && SalesReportIntentRules.IsExplicitDataRequest(request) ? interpreter.Interpret(request.Message) : null)
             ?? await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken)
             ?? await TryInterpretTechnicalAnalysisAsync(request, scope, cancellationToken);
         if (earlyInterpretation is null &&

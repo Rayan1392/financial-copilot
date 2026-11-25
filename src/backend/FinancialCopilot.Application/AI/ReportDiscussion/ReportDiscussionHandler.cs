@@ -5,9 +5,8 @@ using FinancialCopilot.Application.Conversations;
 namespace FinancialCopilot.Application.AI.ReportDiscussion;
 
 /// <summary>
-/// Feature 162 use case. Decides, with state checks only (D3: no keyword rules), whether the turn belongs to the
-/// conversation's active report; if so, runs the single grounded model call and returns either a reply for the
-/// workflow to persist and bill, or a hand-back so the normal route answers the turn unchanged.
+/// Feature 162 use case. Explicit sales report requests go to their existing routes. For remaining turns with
+/// an active report, the grounded model decides whether to reply or hand the turn back to normal routing.
 /// </summary>
 public sealed class ReportDiscussionHandler(
     IReportDiscussionMessageReader messageReader,
@@ -60,6 +59,8 @@ public sealed class ReportDiscussionHandler(
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
         var taskState = await taskStateService.GetActiveAsync(scope, cancellationToken);
         if (taskState?.PendingAction is not null) return ReportDiscussionTurn.NotApplicableBecause("pending_clarification");
+        if (string.IsNullOrWhiteSpace(selectedSuggestion) && SalesReportIntentRules.IsExplicitDataRequest(request))
+            return ReportDiscussionTurn.NotApplicableBecause("explicit_sales_report");
 
         var messages = await messageReader.ListRecentAsync(
             conversationId, request.TenantId, request.ActorId, options.LookbackMessages, cancellationToken);
@@ -188,8 +189,11 @@ public sealed class ReportDiscussionHandler(
                     DialogueOutcome.NoData, ReportDiscussionReasonCodes.MissingInReport, SemanticBillingCompletionStatus.NoData, routed);
         }
 
-        var choice = request.AnalysisOptions?.Resolve(analysisOptions!.DefaultChoice) ?? analysisOptions!.DefaultChoice;
-        var profile = new GroundedAnalysisProfiles(analysisOptions).For(choice.Depth);
+        var defaults = report.Family == ReportFamily.MonthlySales
+            ? GroundedAnalysisHintFactory.MonthlySalesDefaults
+            : analysisOptions!.DefaultChoice;
+        var choice = request.AnalysisOptions?.Resolve(defaults) ?? defaults;
+        var profile = new GroundedAnalysisProfiles(analysisOptions!).For(choice.Depth);
         // FR-3: the pack is read only for a turn the routing step answers; a hand-back has returned above.
         var pack = dataPack is { Enabled: true }
             ? await dataPack.LoadAsync(data, cancellationToken)

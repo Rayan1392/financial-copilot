@@ -190,7 +190,10 @@ public sealed class DeterministicCapabilityInterpreter(
         // Feature 154 (V2): statement-table reports with possessive suffixes («ترازنامه‌اش») are never product mentions.
         var productMention = isProductRevenueComposition || _feature154 && (quarterlyReport || balanceSheetReport)
             ? null
-            : ProductSemanticIntentRules.ExtractProductMention(original) ?? monthlyProductTrendQuery?.ProductText ??
+            : (monthlyProductTrendQuery is not null &&
+               original.TrimStart().StartsWith(MonthlyProductTrendIntentRules.SalesRateTrendPrefix, StringComparison.Ordinal)
+                ? monthlyProductTrendQuery.ProductText
+                : ProductSemanticIntentRules.ExtractProductMention(original) ?? monthlyProductTrendQuery?.ProductText) ??
               (ProductSemanticIntentRules.LooksLikeProductSalesValue(original)
                   ? ProductSemanticIntentRules.ExtractUnmarkedProductMention(original)
                   : null);

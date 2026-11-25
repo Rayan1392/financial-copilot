@@ -116,4 +116,9 @@ public interface IMonthlySalesProductFollowUpSuggestionService
     Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(
         MonthlyActivityTrendResponse trend,
         CancellationToken ct = default);
+
+    Task<IReadOnlySet<string>> FindRateProductTitlesAsync(
+        string companySymbol,
+        JalaliPeriod period,
+        CancellationToken ct = default);
 }

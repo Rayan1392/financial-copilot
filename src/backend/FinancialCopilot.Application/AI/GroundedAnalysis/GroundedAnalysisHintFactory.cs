@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.ReportDiscussion;
 
 namespace FinancialCopilot.Application.AI.GroundedAnalysis;
 
@@ -48,14 +49,16 @@ public sealed class GroundedAnalysisHintFactory(
         CancellationToken cancellationToken)
     {
         var offer = payload.GroundedAnalysisOffer is { } saved && saved.ExpiresAt > now ? saved : null;
-        return CreateAsync(caller, payload.GroundedAnalysisAvailable == true, offer, cancellationToken);
+        return CreateAsync(caller, payload.GroundedAnalysisAvailable == true, offer, cancellationToken,
+            UsesMonthlySalesDefaults(payload.MonthlyActivityTrendResult is not null, payload.ReportDiscussion));
     }
 
     public async Task<GroundedAnalysisHint?> CreateAsync(
         AiQueryRequest request,
         bool available,
         GroundedAnalysisOffer? offer,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool monthlySales = false)
     {
         if (!options.Enabled || !available && offer is null) return null;
 
@@ -84,6 +87,13 @@ public sealed class GroundedAnalysisHintFactory(
                 unlimited || balance is null || balance.AvailableCredits >= pricing.CreditsFor(options.DefaultChoice),
                 GroundedAnalysisOfferActions.Confirm(offer.OfferId),
                 GroundedAnalysisOfferActions.Cancel(offer.OfferId));
-        return new GroundedAnalysisHint(available, pricing.PricingVersion, pricing.Prices, options.DefaultChoice, unlimited, offerHint);
+        var useReportDefaults = available && monthlySales && offer is null;
+        var defaults = useReportDefaults ? MonthlySalesDefaults : options.DefaultChoice;
+        return new GroundedAnalysisHint(available, pricing.PricingVersion, pricing.Prices, defaults, unlimited, offerHint, useReportDefaults);
     }
+
+    internal static AnalysisChoice MonthlySalesDefaults => new(AnalysisDepth.Simple, false);
+
+    public static bool UsesMonthlySalesDefaults(bool hasMonthlySalesReport, ReportDiscussionMarker? marker) =>
+        hasMonthlySalesReport || marker is { DeactivatesReport: false, ReportFamily: nameof(ReportFamily.MonthlySales) };
 }

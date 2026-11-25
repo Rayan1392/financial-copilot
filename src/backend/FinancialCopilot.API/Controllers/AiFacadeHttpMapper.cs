@@ -102,7 +102,8 @@ public static class AiFacadeHttpMapper
                         hint.Offer.ExpiresAt,
                         hint.Offer.SufficientBalance,
                         hint.Offer.ConfirmActionId,
-                        hint.Offer.CancelActionId));
+                        hint.Offer.CancelActionId),
+                hint.UseReportDefaults);
 
     internal static IReadOnlyList<ExternalSourceHttpResponse>? MapExternalSources(IReadOnlyList<ExternalSource>? sources) =>
         sources is not { Count: > 0 }

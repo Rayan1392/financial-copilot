@@ -5,12 +5,11 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 namespace FinancialCopilot.Application.AI.Orchestration;
 
 /// <summary>
-/// Feature 075 extension. Builds deterministic follow-ups from the already returned revenue-mix
-/// rows. This service is pure: it performs no provider, repository, or downstream use-case calls.
+/// Builds deterministic follow-ups from the report rows and trend-eligible product titles.
 /// </summary>
 public interface IProductRevenueMixFollowUpSuggestionService
 {
-    IReadOnlyCollection<SuggestedAction> Build(ProductRevenueMixResponse result);
+    IReadOnlyCollection<SuggestedAction> Build(ProductRevenueMixResponse result, IReadOnlySet<string> rateProductTitles);
 }
 
 public sealed class ProductRevenueMixFollowUpSuggestionService(
@@ -31,7 +30,7 @@ public sealed class ProductRevenueMixFollowUpSuggestionService(
         "سایر", "ساير", "جمع", "مجموع", "کل", "كلي", "کلی", "بدون عنوان"
     };
 
-    public IReadOnlyCollection<SuggestedAction> Build(ProductRevenueMixResponse result)
+    public IReadOnlyCollection<SuggestedAction> Build(ProductRevenueMixResponse result, IReadOnlySet<string> rateProductTitles)
     {
         ArgumentNullException.ThrowIfNull(result);
         var symbol = result.CompanySymbol?.Trim();
@@ -50,11 +49,13 @@ public sealed class ProductRevenueMixFollowUpSuggestionService(
                 .Select(group => group.Key)
                 .ToHashSet(StringComparer.Ordinal);
 
-            foreach (var row in rows)
+            foreach (var row in rows.OrderByDescending(row => row.Item.SalesAmount)
+                .ThenBy(row => row.NormalizedTitle, StringComparer.Ordinal))
             {
                 if (actions.Count == MaximumProductActions)
                     break;
-                if (!IsEligible(row, ambiguousTitles))
+                if (row.Item.SalesAmount <= 0m || !IsEligible(row, ambiguousTitles) ||
+                    !rateProductTitles.Contains(MonthlyProductTrendCalculator.NormalizeProductText(row.Item.ProductName)))
                     continue;
 
                 var title = row.Item.ProductName.Trim();
@@ -140,9 +141,9 @@ public sealed class ProductRevenueMixFollowUpSuggestionService(
         string normalizedTitle,
         string symbol) =>
         new(
-            StableId(ProductActionCapability, symbol, normalizedTitle),
+            StableId(ProductActionCapability, symbol, "rate:" + normalizedTitle),
             SuggestedActionKind.RunRelatedCapability,
-            message,
+            $"روند فروش {title}",
             message,
             ProductActionCapability,
             new Dictionary<string, string>(StringComparer.Ordinal)

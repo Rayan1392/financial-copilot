@@ -8,15 +8,15 @@ namespace FinancialCopilot.UnitTests;
 public sealed class MonthlySalesProductFollowUp137Tests
 {
     [Fact]
-    public async Task Selector_ReturnsThreeDeterministicParserSafeActionsFromAnchorSales()
+    public async Task Selector_ReturnsTwoDeterministicRateActionsFromAnchorSales()
     {
         var resolver = new Resolver();
         var rows = new[]
         {
-            Row("p1", "گندله", 30m),
+            Row("p1", "محصول گالوانیزه", 30m),
             Row("p2", "فولاد", 20m),
             Row("p3", "آهن اسفنجی", 10m),
-            Row("p4", "محصول چهارم", 5m)
+            Row("p4", "محصول چهارم", 50m) with { SalesQuantity = null }
         };
         var repository = new ProductCatalog(rows);
         var registry = new Registry(7);
@@ -27,22 +27,22 @@ public sealed class MonthlySalesProductFollowUp137Tests
         var first = await service.BuildAsync(trend);
         var repeated = await service.BuildAsync(trend);
 
-        Assert.Equal(3, first.Count);
+        Assert.Equal(2, first.Count);
         Assert.Equal(first.Select(action => action.Id), repeated.Select(action => action.Id));
         Assert.Equal(first.Select(action => action.Message), repeated.Select(action => action.Message));
-        Assert.Equal(new[] { "روند فروش گندله کچاد", "روند فروش فولاد کچاد", "روند فروش آهن اسفنجی کچاد" },
+        Assert.Equal(new[] { "روند نرخ فروش محصول گالوانیزه کچاد", "روند نرخ فروش فولاد کچاد" },
             first.Select(action => action.Message));
+        Assert.Equal("روند فروش محصول گالوانیزه", first.First().LocalizedLabel);
         Assert.All(first, action =>
         {
             Assert.Equal(SuggestedActionKind.RunRelatedCapability, action.Kind);
             Assert.Equal("monthly_product_trend", action.CapabilityCode);
-            Assert.Equal(action.Message, action.LocalizedLabel);
             Assert.Equal("monthly_sales_product_follow_up", action.RelevanceReason);
             Assert.Equal(7, action.RegistryVersion);
             Assert.Equal("کچاد", action.PresetSlots["company"]);
         });
         Assert.Equal(2, repository.ReadCount);
-        Assert.Equal(new[] { "گندله", "فولاد", "آهن اسفنجی" }, first.Select(action => action.PresetSlots["product"]));
+        Assert.Equal(new[] { "محصول گالوانیزه", "فولاد" }, first.Select(action => action.PresetSlots["product"]));
         Assert.All(first, action => Assert.StartsWith("feature137:", action.Id));
     }
 
@@ -58,9 +58,9 @@ public sealed class MonthlySalesProductFollowUp137Tests
     }
 
     [Fact]
-    public async Task Selector_ZeroSalesIsValidButNullOnlySalesAreExcludedAndVersionChangesActionIdentity()
+    public async Task Selector_ZeroAndMissingSalesAreExcludedAndVersionChangesActionIdentity()
     {
-        var rows = new[] { Row("zero", "صفر", 0m), Row("missing", "فاقد مقدار", null) };
+        var rows = new[] { Row("zero", "صفر", 0m), Row("missing", "فاقد مقدار", null), Row("positive", "گندله", 5m) };
         var resolver = new Resolver();
         var firstService = new MonthlySalesProductFollowUpSuggestionService(
             resolver, new ProductCatalog(rows), new Registry(1),
@@ -72,7 +72,7 @@ public sealed class MonthlySalesProductFollowUp137Tests
         var action = Assert.Single(await firstService.BuildAsync(Trend()));
         var changedVersionAction = Assert.Single(await changedVersionService.BuildAsync(Trend()));
 
-        Assert.Equal("صفر", action.PresetSlots["product"]);
+        Assert.Equal("گندله", action.PresetSlots["product"]);
         Assert.NotEqual(action.Id, changedVersionAction.Id);
         Assert.Equal(1, action.RegistryVersion);
         Assert.Equal(2, changedVersionAction.RegistryVersion);
@@ -91,14 +91,14 @@ public sealed class MonthlySalesProductFollowUp137Tests
             new ProductCatalog(rows), new Registry(1), NullLogger<MonthlySalesProductFollowUpSuggestionService>.Instance);
 
         var action = Assert.Single(await tickerFallback.BuildAsync(Trend()));
-        Assert.Equal("روند فروش گندله نماد", action.Message);
+        Assert.Equal("روند نرخ فروش گندله نماد", action.Message);
         Assert.Empty(await noSymbol.BuildAsync(Trend()));
     }
 
     private static ProductSalesObservation Row(string key, string title, decimal? amount) => new(
         Guid.NewGuid(), Guid.NewGuid(), "company-1", new JalaliPeriod(1405, 3), "provider", "report",
         new DateOnly(2026, 5, 22), new DateOnly(2026, 6, 21), key, title, "تن",
-        null, null, null, amount, ProviderProductCode: key, ProductKey: key);
+        null, 10m, null, amount, ProviderProductCode: key, ProductKey: key);
 
     private static MonthlyActivityTrendResponse Trend() => new(
         "کچاد", "چادرملو", 1405, 3, "میلیارد تومان", 1m, null, null, null, null, null, null,

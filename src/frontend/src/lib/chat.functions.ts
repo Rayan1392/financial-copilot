@@ -107,6 +107,7 @@ export interface GroundedAnalysisHint {
   defaultWebSearch: boolean;
   unlimited: boolean;
   offer?: GroundedAnalysisOfferHint | null;
+  useReportDefaults?: boolean;
 }
 
 export interface ExternalSource {

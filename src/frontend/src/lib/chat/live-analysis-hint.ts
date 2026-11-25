@@ -72,11 +72,23 @@ export function useLiveAnalysisHint(
  */
 export function useAnalysisChoice(
   hint: GroundedAnalysisHint | null | undefined,
+  reportKey?: string,
 ): [AnalysisChoice, (choice: AnalysisChoice) => void] {
   const [stored, setStored] = useState<AnalysisChoice | null>(null);
+  const [reportChoice, setReportChoice] = useState<{ key: string; choice: AnalysisChoice }>();
   useEffect(() => {
     setStored(readStoredChoice());
   }, []);
+  useEffect(() => {
+    setReportChoice((previous) => (previous?.key === reportKey ? previous : undefined));
+  }, [reportKey]);
+
+  if (reportKey) {
+    return [
+      reportChoice?.key === reportKey ? reportChoice.choice : defaultChoice(hint),
+      (choice) => setReportChoice({ key: reportKey, choice }),
+    ];
+  }
   return [
     stored ?? defaultChoice(hint),
     (choice) => {

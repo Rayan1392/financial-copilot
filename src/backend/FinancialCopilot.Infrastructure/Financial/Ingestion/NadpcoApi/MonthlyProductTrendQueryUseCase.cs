@@ -138,7 +138,7 @@ internal sealed class MonthlyProductTrendQueryUseCase(
             Message: "روند فروش ماهانه محصول آماده است.");
     }
 
-    private static MonthlyProductTrendPoint BuildPoint(
+    internal static MonthlyProductTrendPoint BuildPoint(
         JalaliPeriod period,
         MonthlyProductTrendCandidate candidate,
         IReadOnlyCollection<ProductSalesObservation> rows)

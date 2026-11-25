@@ -104,7 +104,20 @@ export function useChatThread(threadId: string, { reconcileOnFailure = false } =
   const messages = messagesQuery.data ?? [];
   // Change «sol-deep-analysis-web-search»: the latest answer's prices and offer, and the viewer's choice.
   const liveHint = useLiveAnalysisHint(threadId, messages);
-  const [analysisChoice, setAnalysisChoice] = useAnalysisChoice(liveHint?.hint);
+  const monthlyReport = liveHint?.hint.useReportDefaults
+    ? [...messages]
+        .reverse()
+        .find(
+          (message) =>
+            message.role === "assistant" &&
+            "monthlyActivityTrendResult" in message.content &&
+            message.content.monthlyActivityTrendResult,
+        )
+    : undefined;
+  const reportKey = liveHint?.hint.useReportDefaults
+    ? `${threadId}:${monthlyReport?.id ?? liveHint.messageId}`
+    : undefined;
+  const [analysisChoice, setAnalysisChoice] = useAnalysisChoice(liveHint?.hint, reportKey);
   const { data: followed } = useQuery({
     queryKey: ["followed-symbols"],
     queryFn: () => fetchFollowed(),

@@ -34,7 +34,8 @@ public sealed record GroundedAnalysisHint(
     IReadOnlyList<GroundedAnalysisPrice> Prices,
     AnalysisChoice Defaults,
     bool Unlimited,
-    GroundedAnalysisOfferHint? Offer = null);
+    GroundedAnalysisOfferHint? Offer = null,
+    bool UseReportDefaults = false);
 
 /// <summary>
 /// One external source an answer cites with a <c>[Wn]</c> marker (FR-10). Only sources the hosted web search actually

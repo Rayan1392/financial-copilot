@@ -8,10 +8,10 @@ public sealed class ProductRevenueMixFollowUp075Tests
     [Fact]
     public void FourValidProducts_ReturnsFirstTwoInTypedOrderThenCompanyTrend()
     {
-        var actions = Create().Build(Result("فخوز", "اسلب", "بلوم", "گندله", "آهن اسفنجی")).ToArray();
+        var actions = Build(Create(), Result("فخوز", "اسلب", "بلوم", "گندله", "آهن اسفنجی")).ToArray();
 
         Assert.Equal(3, actions.Length);
-        Assert.Equal(["روند فروش اسلب فخوز", "روند فروش بلوم فخوز", "روند فروش ماهانه فخوز"],
+        Assert.Equal(["روند نرخ فروش اسلب فخوز", "روند نرخ فروش بلوم فخوز", "روند فروش ماهانه فخوز"],
             actions.Select(action => action.Message));
         Assert.Equal(["monthly_product_trend", "monthly_product_trend", "monthly_activity_trend"],
             actions.Select(action => action.CapabilityCode));
@@ -20,32 +20,32 @@ public sealed class ProductRevenueMixFollowUp075Tests
     [Fact]
     public void OneValidProduct_ReturnsProductThenCompanyTrend()
     {
-        var actions = Create().Build(Result("فخوز", "اسلب")).ToArray();
+        var actions = Build(Create(), Result("فخوز", "اسلب")).ToArray();
 
-        Assert.Equal(["روند فروش اسلب فخوز", "روند فروش ماهانه فخوز"], actions.Select(action => action.Message));
+        Assert.Equal(["روند نرخ فروش اسلب فخوز", "روند فروش ماهانه فخوز"], actions.Select(action => action.Message));
     }
 
     [Fact]
     public void ParserUnsafeFirstProduct_IsSkippedAndNextTwoAreUsed()
     {
-        var actions = Create().Build(Result("فخوز", "فروش", "اسلب", "بلوم")).ToArray();
+        var actions = Build(Create(), Result("فخوز", "فروش", "اسلب", "بلوم")).ToArray();
 
-        Assert.Equal(["روند فروش اسلب فخوز", "روند فروش بلوم فخوز", "روند فروش ماهانه فخوز"],
+        Assert.Equal(["روند نرخ فروش اسلب فخوز", "روند نرخ فروش بلوم فخوز", "روند فروش ماهانه فخوز"],
             actions.Select(action => action.Message));
     }
 
     [Fact]
     public void DuplicateNormalizedTitles_AreAllExcludedAsAmbiguous()
     {
-        var actions = Create().Build(Result("فخوز", "اسلب", " اسلب ", "گندله")).ToArray();
+        var actions = Build(Create(), Result("فخوز", "اسلب", " اسلب ", "گندله")).ToArray();
 
-        Assert.Equal(["روند فروش گندله فخوز", "روند فروش ماهانه فخوز"], actions.Select(action => action.Message));
+        Assert.Equal(["روند نرخ فروش گندله فخوز", "روند فروش ماهانه فخوز"], actions.Select(action => action.Message));
     }
 
     [Fact]
     public void NoQueryableProducts_ReturnsCompanyTrendOnly()
     {
-        var actions = Create().Build(Result("فخوز", "سایر", "جمع", "فروش")).ToArray();
+        var actions = Build(Create(), Result("فخوز", "سایر", "جمع", "فروش")).ToArray();
 
         var action = Assert.Single(actions);
         Assert.Equal("monthly_activity_trend", action.CapabilityCode);
@@ -54,7 +54,7 @@ public sealed class ProductRevenueMixFollowUp075Tests
     [Fact]
     public void CompanyTrendUnavailableAndNoQueryableProducts_ReturnsExplicitEmptyCollection()
     {
-        var actions = Create(disabled: ["monthly_activity_trend"]).Build(Result("فخوز", "سایر", "جمع"));
+        var actions = Build(Create(disabled: ["monthly_activity_trend"]), Result("فخوز", "سایر", "جمع"));
 
         Assert.NotNull(actions);
         Assert.Empty(actions);
@@ -63,11 +63,11 @@ public sealed class ProductRevenueMixFollowUp075Tests
     [Fact]
     public void MissingCanonicalSymbol_ReturnsExplicitEmptyCollection()
     {
-        Assert.Empty(Create().Build(Result(" ", "اسلب")));
+        Assert.Empty(Build(Create(), Result(" ", "اسلب")));
     }
 
     [Fact]
-    public void TypedOrderWinsOverSalesShareAndRankRecalculation()
+    public void RevenueRanksSuggestionsEvenWhenRowsAreOutOfOrder()
     {
         var result = Result("فخوز", "اسلب", "بلوم", "گندله") with
         {
@@ -79,18 +79,33 @@ public sealed class ProductRevenueMixFollowUp075Tests
             ]
         };
 
-        var actions = Create().Build(result).ToArray();
+        var actions = Build(Create(), result).ToArray();
 
-        Assert.Equal(["روند فروش اسلب فخوز", "روند فروش بلوم فخوز", "روند فروش ماهانه فخوز"],
+        Assert.Equal(["روند نرخ فروش گندله فخوز", "روند نرخ فروش بلوم فخوز", "روند فروش ماهانه فخوز"],
             actions.Select(action => action.Message));
+    }
+
+    [Fact]
+    public void Fajr_PreservesTheLeadingProductNameAndSkipsItemsWithoutARate()
+    {
+        var result = Result("فجر", "محصول گالوانیزه", "خدمات نورد سرد");
+        var actions = Create().Build(result, new HashSet<string> { "محصول گالوانیزه" });
+
+        var action = Assert.Single(actions, action => action.CapabilityCode == "monthly_product_trend");
+        Assert.Equal("روند فروش محصول گالوانیزه", action.LocalizedLabel);
+        Assert.Equal("روند نرخ فروش محصول گالوانیزه فجر", action.Message);
+        var query = MonthlyProductTrendIntentRules.BuildQuery(action.Message);
+        Assert.Equal("محصول گالوانیزه", query.ProductText);
+        Assert.Equal("فجر", query.CompanyText);
+        Assert.Equal(MonthlyProductComparisonFocus.Rate, query.Focus);
     }
 
     [Fact]
     public void IdsAndOrderingAreStableAndRegistryVersionChangesIds()
     {
-        var first = Create().Build(Result("فخوز", "اسلب", "بلوم")).ToArray();
-        var repeated = Create().Build(Result("فخوز", "اسلب", "بلوم")).ToArray();
-        var versioned = Create(version: 2).Build(Result("فخوز", "اسلب", "بلوم")).ToArray();
+        var first = Build(Create(), Result("فخوز", "اسلب", "بلوم")).ToArray();
+        var repeated = Build(Create(), Result("فخوز", "اسلب", "بلوم")).ToArray();
+        var versioned = Build(Create(version: 2), Result("فخوز", "اسلب", "بلوم")).ToArray();
 
         Assert.Equal(first.Select(action => action.Id), repeated.Select(action => action.Id));
         Assert.All(first, action => Assert.StartsWith("feature075:", action.Id));
@@ -101,10 +116,10 @@ public sealed class ProductRevenueMixFollowUp075Tests
     [Fact]
     public void ProductActionsHaveExactCompanySymbolAndProductSlots()
     {
-        var action = Create().Build(Result("فخوز", "اسلب")).First();
+        var action = Build(Create(), Result("فخوز", "اسلب")).First();
 
         Assert.Equal(SuggestedActionKind.RunRelatedCapability, action.Kind);
-        Assert.Equal(action.Message, action.LocalizedLabel);
+        Assert.Equal("روند فروش اسلب", action.LocalizedLabel);
         Assert.Equal("فخوز", action.PresetSlots["company"]);
         Assert.Equal("فخوز", action.PresetSlots["symbol"]);
         Assert.Equal("اسلب", action.PresetSlots["product"]);
@@ -116,8 +131,7 @@ public sealed class ProductRevenueMixFollowUp075Tests
     {
         var registry = Registry();
         var interpreter = new DeterministicCapabilityInterpreter(registry);
-        var actions = new ProductRevenueMixFollowUpSuggestionService(registry, interpreter)
-            .Build(Result("فخوز", "اسلب", "بلوم"));
+        var actions = Build(new ProductRevenueMixFollowUpSuggestionService(registry, interpreter), Result("فخوز", "اسلب", "بلوم"));
 
         Assert.DoesNotContain(actions, action => action.CapabilityCode == "product_revenue_mix");
         foreach (var action in actions)
@@ -143,9 +157,14 @@ public sealed class ProductRevenueMixFollowUp075Tests
     [Fact]
     public void DisabledProductTrendCapability_ReturnsCompanyTrendOnly()
     {
-        var action = Assert.Single(Create(disabled: ["product_sales_trend"]).Build(Result("فخوز", "اسلب")));
+        var action = Assert.Single(Build(Create(disabled: ["product_sales_trend"]), Result("فخوز", "اسلب")));
         Assert.Equal("monthly_activity_trend", action.CapabilityCode);
     }
+
+    private static IReadOnlyCollection<SuggestedAction> Build(
+        ProductRevenueMixFollowUpSuggestionService service, ProductRevenueMixResponse result) =>
+        service.Build(result, result.Products.Select(item => MonthlyProductTrendCalculator.NormalizeProductText(item.ProductName))
+            .ToHashSet(StringComparer.Ordinal));
 
     private static ProductRevenueMixFollowUpSuggestionService Create(
         IReadOnlyCollection<string>? disabled = null,

@@ -2245,7 +2245,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var groundedAnalysisHint = groundedAnalysisHints is null
             ? null
             : await groundedAnalysisHints.CreateAsync(msg.Request, analysisAvailable == true,
-                msg.GroundedAnalysisOffer, CancellationToken.None);
+                msg.GroundedAnalysisOffer, CancellationToken.None,
+                GroundedAnalysisHintFactory.UsesMonthlySalesDefaults(
+                    msg.MonthlyActivityTrendResult is not null,
+                    msg.ReportDiscussion?.Marker ?? msg.Request.ReportDiscussionHandBack));
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 

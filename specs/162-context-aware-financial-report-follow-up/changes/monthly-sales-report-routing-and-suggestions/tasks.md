@@ -12,6 +12,8 @@ Status: Gate B: Approved by the project owner on 2026-11-25
 
 ## Verification
 
+- Production follow-up: «ترکیب فروش ماهانه فجر؟» was still intercepted by Report Discussion. The V2 product mix rules now recognize monthly sales and monthly revenue composition wording and use the existing product mix route and tariff. All four focused endpoint cases passed, including the exact Fajr wording in an active monthly sales conversation, a one-credit product mix response, the galvanized product rate action, and zero model calls.
+
 - The focused backend run passed all 89 tests in the 075, 121, 137, 138, and 162 unit test classes.
 - The two focused V2 endpoint tests passed. The flow displayed a seeded monthly sales report, reopened it with Simple and web off, submitted the product mix request with Deep and web on, and opened a product trend with a valid rate. The routing and analysis model fakes recorded zero calls. The Fajr label and product identity were verified in the unit test fixture.
 - All 24 architecture tests and 34 focused frontend tests passed. The frontend production build succeeded, and lint passed for the four changed frontend files with the Windows line ending option. The full lint and typecheck runs reported failures. Typecheck reported none in the changed frontend files.

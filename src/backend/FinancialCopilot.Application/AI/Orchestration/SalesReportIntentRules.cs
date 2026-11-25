@@ -18,8 +18,8 @@ internal static class SalesReportIntentRules
                 "interpret" or "analyze" or "analyse" or "why"))
             return false;
 
-        if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(message))
-            return ProductRevenueMixIntentRules.ExtractCompanySymbol(message) is not null;
+        if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(message, isV2: true))
+            return ProductRevenueMixIntentRules.ExtractCompanySymbol(message, isV2: true) is not null;
 
         if (MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(message))
         {

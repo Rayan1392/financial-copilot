@@ -541,9 +541,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             }
         }
 
+        var isProductRevenueMix = ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message, isV2: true);
         var isMonthlyProductComparison = request.SemanticFrame is null &&
             MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message);
         var isMonthlyProductTrend = request.SemanticFrame is null &&
+            !isProductRevenueMix &&
             MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message);
 
         // Monthly activity trends are a deterministic, governed route. Keep ordinary
@@ -1110,10 +1112,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 PsVisualizationResult: monthlyTrendGauge);
         }
 
-        var isProductRevenueMix = ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message);
         if (isProductRevenueMix)
         {
-            var symbol = ProductRevenueMixIntentRules.ExtractCompanySymbol(request.Message);
+            var symbol = ProductRevenueMixIntentRules.ExtractCompanySymbol(request.Message, isV2: true);
             if (symbol is null)
             {
                 stepActivity?.SetTag("workflow.intent", "ProductRevenueMix");
@@ -1484,6 +1485,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var isMonthlyProductComparison = msg.Request.SemanticFrame is null &&
             MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
         var isMonthlyProductTrend = msg.Request.SemanticFrame is null &&
+            !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(msg.Request.Message, isV2: true) &&
             MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(msg.Request.Message);
         var detectedIntent = msg.ExecutedFrame is { } executedFrame
             ? SemanticIntent(executedFrame.CapabilityCode)
@@ -2591,7 +2593,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (isMonthlyProductComparison) return CapabilityExecutionRoutes.MonthlyProductComparison;
         if (isMonthlyProductTrend) return CapabilityExecutionRoutes.ProductSalesTrend;
         if (MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(message)) return CapabilityExecutionRoutes.MonthlyActivityTrend;
-        if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(message) ||
+        if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(message, isV2: true) ||
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(message)) return CapabilityExecutionRoutes.ProductRevenueMix;
         if (FinancialStatementTableIntentRules.LooksLikeV2QuarterlyReportTableQuery(message) ||
             FinancialStatementTableIntentRules.LooksLikeV2FinancialStatementTableQuery(message)) return CapabilityExecutionRoutes.FinancialStatementTable;

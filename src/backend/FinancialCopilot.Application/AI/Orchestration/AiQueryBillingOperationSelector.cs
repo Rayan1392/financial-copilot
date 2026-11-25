@@ -31,6 +31,9 @@ public static class AiQueryBillingOperationSelector
             return FinancialStatementOperationCode;
         }
 
+        if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(originalMessage, isV2: true))
+            return DefaultOperationCode;
+
         if (MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(originalMessage) ||
             MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(originalMessage))
         {

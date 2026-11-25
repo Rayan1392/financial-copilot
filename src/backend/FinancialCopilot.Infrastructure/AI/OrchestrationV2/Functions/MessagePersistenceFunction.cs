@@ -72,7 +72,7 @@ internal sealed class MessagePersistenceFunction(
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
         var malformedProductComposition =
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(request.Message) &&
-            !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message) &&
+            !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message, isV2: true) &&
             outcome == DialogueOutcome.Unsupported;
         var guidanceSubject = CapabilityGuidanceSubject.From(request.SemanticFrame, intent, request.Message);
         IReadOnlyCollection<SuggestedAction> suggestions = deterministicSuggestionsApplied

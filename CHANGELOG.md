@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-11-25
+
 ### Added
 
 - در بخش «پیام‌ها» می‌توانید درخواست پشتیبانی ثبت کنید، پاسخ تیم ساپیو را ببینید و همان‌جا گفتگو را ادامه دهید.
@@ -530,7 +532,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.28.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.0...develop
+[1.29.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.28.0...v1.29.0
 [1.28.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.25.0...v1.26.0

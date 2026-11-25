@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [1.29.1] - 2026-11-25
+
 ### Fixed
 
 - در گفتگوی روند فروش ماهانه، درخواست ترکیب فروش مستقیماً جدول محصولات را باز می‌کند. پیشنهادهای نرخ فروش بر پایهٔ سهم درآمد محصولات، مانند محصول گالوانیزهٔ فجر، مرتب می‌شوند و گفتگوی گزارش با حالت ساده و جست‌وجوی وب خاموش باز می‌شود.
@@ -536,7 +538,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.1...develop
+[1.29.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.0...v1.29.1
 [1.29.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.28.0...v1.29.0
 [1.28.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.26.0...v1.27.0

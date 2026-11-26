@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.29.2] - 2026-11-26
+
+پرسش ترکیب فروش ماهانه در گفتگوی روند فروش، جدول محصولات را باز می‌کند.
+
+### Fixed
+
+- در گفتگوی روند فروش ماهانه، پرسشی مانند «ترکیب فروش ماهانه فجر؟» یا «ترکیب درآمد ماهانه فجر» حالا جدول ترکیب فروش محصولات را نشان می‌دهد و دیگر پاسخ نمی‌دهد که این داده در گزارش نیست.
+
 ## [1.29.1] - 2026-11-25
 
 ### Fixed
@@ -538,7 +546,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.2...develop
+[1.29.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.1...v1.29.2
 [1.29.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.0...v1.29.1
 [1.29.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.28.0...v1.29.0
 [1.28.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.27.0...v1.28.0

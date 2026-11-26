@@ -22,11 +22,8 @@ const view =
   ) : (
     <div className="flex p-8">
       <div className="m-auto w-full max-w-3xl py-6 text-center md:py-10" data-testid="starter-root">
-        {/* Same classes as `/chat`; its light-theme contrast is BUG-049, measured apart by the browser check. */}
-        <div
-          className="mb-5 inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium text-emerald"
-          data-known-defect="BUG-049"
-        >
+        {/* Same classes as the coverage badge on `/chat`. */}
+        <div className="mb-5 inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium emerald-ink-text">
           {coverage.badge}
         </div>
         <p className="mx-auto mb-7 max-w-2xl text-sm leading-7 text-muted-foreground text-pretty">

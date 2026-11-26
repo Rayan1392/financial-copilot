@@ -12,9 +12,14 @@ import { chromium } from "playwright-core";
 import { createServer } from "vite";
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// `--evidence <dir>` (relative to the repository root) saves the log and screenshots for a later change.
+const evidenceArgument = process.argv.indexOf("--evidence");
 const evidenceDir = path.resolve(
   frontendRoot,
-  "../../specs/159-capability-source-map-comprehensive-analysis/changes/valuation-gauge-starter-card/evidence/browser",
+  "../..",
+  evidenceArgument > 0
+    ? process.argv[evidenceArgument + 1]
+    : "specs/159-capability-source-map-comprehensive-analysis/changes/valuation-gauge-starter-card/evidence/browser",
 );
 const fixturePath = "src/components/app/__tests__/starter-cards-browser-fixture.html";
 const executablePath = [
@@ -35,75 +40,68 @@ const record = (line) => {
 };
 
 // Every text node's element against its own resolved background (oklch resolved through a 1-pixel canvas).
-// BUG-049 (pre-existing, specs/bugs.md): small emerald text in the light theme, the desktop coverage badge (marked in the
-// fixture) and the phone sales topic. It is measured apart and logged, not asserted, until that bug is fixed.
-const KNOWN_DEFECTS = "[data-known-defect], [data-starters] .text-emerald";
-async function minContrast(page, knownDefects = false) {
-  return page.evaluate(
-    ([knownDefects, known]) => {
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = 1;
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      const parse = (value) => {
-        context.clearRect(0, 0, 1, 1);
-        context.fillStyle = "#000";
-        context.fillStyle = value;
-        context.fillRect(0, 0, 1, 1);
-        const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
-        return [r, g, b, a / 255];
-      };
-      const blend = (top, bottom) =>
-        top.slice(0, 3).map((v, i) => v * top[3] + bottom[i] * (1 - top[3]));
-      // Gradients have no background-color; their lightest stop is taken as the worst case for light text.
-      const gradientStops = (node) =>
-        [...getComputedStyle(node).backgroundImage.matchAll(/(oklch|rgba?|color)\([^)]*\)/g)].map(
-          (m) => parse(m[0]),
-        );
-      const background = (element) => {
-        const layers = [];
-        for (let node = element; node; node = node.parentElement) {
-          const color = parse(getComputedStyle(node).backgroundColor);
-          if (color[3] > 0) layers.push(color);
-          if (color[3] >= 0.99) break;
-        }
-        return layers.reduceRight((acc, layer) => blend(layer, acc), [255, 255, 255]);
-      };
-      const lum = (rgb) =>
-        rgb
-          .map((v) => {
-            v /= 255;
-            return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-          })
-          .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
-      const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-      const targets = [...document.querySelectorAll("[data-testid='starter-root'] *")].filter(
-        (element) =>
-          !element.closest("svg") &&
-          Boolean(element.closest(known)) === knownDefects &&
-          [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim()),
+async function minContrast(page) {
+  return page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const parse = (value) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = "#000";
+      context.fillStyle = value;
+      context.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
+      return [r, g, b, a / 255];
+    };
+    const blend = (top, bottom) =>
+      top.slice(0, 3).map((v, i) => v * top[3] + bottom[i] * (1 - top[3]));
+    // Gradients have no background-color; their lightest stop is taken as the worst case for light text.
+    const gradientStops = (node) =>
+      [...getComputedStyle(node).backgroundImage.matchAll(/(oklch|rgba?|color)\([^)]*\)/g)].map(
+        (m) => parse(m[0]),
       );
-      return targets
-        .map((element) => {
-          const base = background(element);
-          const card = element.closest("button");
-          const backdrops = [
-            base,
-            ...(card ? gradientStops(card).map((stop) => blend(stop, base)) : []),
-          ];
-          const color = getComputedStyle(element).color;
-          const fg = parse(color);
-          const value = Math.min(...backdrops.map((bg) => ratio(lum(blend(fg, bg)), lum(bg))));
-          return {
-            value,
-            text: element.textContent.trim().slice(0, 40),
-            color,
-            backdrops: backdrops.map(String),
-          };
+    const background = (element) => {
+      const layers = [];
+      for (let node = element; node; node = node.parentElement) {
+        const color = parse(getComputedStyle(node).backgroundColor);
+        if (color[3] > 0) layers.push(color);
+        if (color[3] >= 0.99) break;
+      }
+      return layers.reduceRight((acc, layer) => blend(layer, acc), [255, 255, 255]);
+    };
+    const lum = (rgb) =>
+      rgb
+        .map((v) => {
+          v /= 255;
+          return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
         })
-        .reduce((worst, item) => (item.value < worst.value ? item : worst), { value: Infinity });
-    },
-    [knownDefects, KNOWN_DEFECTS],
-  );
+        .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    const targets = [...document.querySelectorAll("[data-testid='starter-root'] *")].filter(
+      (element) =>
+        !element.closest("svg") &&
+        [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim()),
+    );
+    return targets
+      .map((element) => {
+        const base = background(element);
+        const card = element.closest("button");
+        const backdrops = [
+          base,
+          ...(card ? gradientStops(card).map((stop) => blend(stop, base)) : []),
+        ];
+        const color = getComputedStyle(element).color;
+        const fg = parse(color);
+        const value = Math.min(...backdrops.map((bg) => ratio(lum(blend(fg, bg)), lum(bg))));
+        return {
+          value,
+          text: element.textContent.trim().slice(0, 40),
+          color,
+          backdrops: backdrops.map(String),
+        };
+      })
+      .reduce((worst, item) => (item.value < worst.value ? item : worst), { value: Infinity });
+  });
 }
 
 const layouts = [
@@ -210,12 +208,8 @@ try {
           contrast >= 4.5,
           `${label}: text contrast ${contrast.toFixed(2)} ${JSON.stringify(worst)}`,
         );
-        const known = await minContrast(page, true);
         record(
-          `${label}: ${cards} cards, no scroll, nothing clipped, contrast >= ${contrast.toFixed(2)}` +
-            (Number.isFinite(known.value)
-              ? ` (BUG-049 emerald text: ${known.value.toFixed(2)})`
-              : ""),
+          `${label}: ${cards} cards, no scroll, nothing clipped, contrast >= ${contrast.toFixed(2)}`,
         );
         await page.screenshot({
           path: path.join(evidenceDir, `${view}-gauge${gauge}-${layout.name}-${theme}.png`),

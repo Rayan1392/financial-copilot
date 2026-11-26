@@ -33,7 +33,7 @@ const ROW_TONES: Record<
   StarterPromptTone,
   { tile: IconTileTone; gradient: string; topic: string }
 > = {
-  sales: { tile: "emerald", gradient: "from-emerald/10", topic: "text-emerald" },
+  sales: { tile: "emerald", gradient: "from-emerald/10", topic: "emerald-ink-text" },
   statement: { tile: "gold", gradient: "from-gold/10", topic: "mobile-gold-text" },
   valuation: { tile: "valuation", gradient: "from-valuation/10", topic: "text-valuation" },
 };

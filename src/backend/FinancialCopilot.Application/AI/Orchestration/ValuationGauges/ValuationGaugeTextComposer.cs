@@ -103,7 +103,7 @@ public static class ValuationGaugeTextComposer
             if (card.Insights?.PriceVsMidpointPercent is { } vsMid)
                 comparisons.Add("تا میانهٔ بازه " + Percent(vsMid, signed: true));
             if (card.Insights?.PriceVsLowerPercent is { } vsLow)
-                comparisons.Add("نسبت به حد پایین " + Percent(vsLow, signed: true));
+                comparisons.Add("بالای حد پایین " + Percent(vsLow, signed: true));
             if (comparisons.Count > 0)
                 builder.AppendLine().Append(string.Join("، ", comparisons));
             builder.AppendLine().Append("قیمت: ").Append(QuoteSourceText(quote.SourceLabel))

@@ -809,7 +809,7 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
               insights?.priceVsLowerPercent ? (
                 <Tile
                   key="low"
-                  label="نسبت به حد پایین"
+                  label="بالای حد پایین"
                   value={<Num>{formatPercent(insights.priceVsLowerPercent, true)}</Num>}
                   note={`نسبت به ${formatRial0(range.lower)}`}
                 />

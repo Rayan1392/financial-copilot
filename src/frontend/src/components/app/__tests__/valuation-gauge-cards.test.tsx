@@ -263,7 +263,7 @@ describe("ValuationGaugeCards equilibrium card", () => {
     expect(card).toHaveTextContent("حد بالا۵٬۰۰۰");
     expect(card).toHaveTextContent("جایگاهدر نیمهٔ پایین بازه");
     expect(card).toHaveTextContent("تا میانهٔ بازه‎−۶٫۴٪");
-    expect(card).toHaveTextContent("نسبت به حد پایین‎+۸٫۴٪");
+    expect(card).toHaveTextContent("بالای حد پایین‎+۸٫۴٪");
     expect(within(card).getByTestId("valuation-gauge-quote-source")).toHaveTextContent(
       "قیمت: آخرین روز معاملاتی · نوآوران امین ·",
     );
@@ -277,6 +277,34 @@ describe("ValuationGaugeCards equilibrium card", () => {
     // 48° of 180° → 26.67٪ along the track.
     expect(screen.getByTestId("valuation-gauge-needle").style.left).toContain(
       String(48 / 180).slice(0, 6),
+    );
+  });
+
+  it("rests the pin at the upper end with a dashed stem when the price is above the range", () => {
+    const base = equilibriumCard();
+    const card = {
+      ...base,
+      equilibrium: {
+        ...base.equilibrium!,
+        quote: { ...base.equilibrium!.quote!, price: "5600" },
+        position: "AboveRange" as const,
+      },
+      geometry: {
+        ...base.geometry!,
+        needle: { angle: 180, value: "5600", side: "PinnedAbove" as const },
+      },
+      insights: { priceVsMidpointPercent: "27.3", priceVsLowerPercent: "47.4" },
+    };
+    render(<ValuationGaugeCards data={gaugeResult([card], "اخابر")} />);
+
+    const pin = screen.getByTestId("valuation-gauge-needle");
+    expect(pin).toHaveAttribute("data-side", "PinnedAbove");
+    // The full track length (factor 1); jsdom may reorder the calc() terms.
+    expect(pin.style.left).toMatch(/(\+ 1 \* \(100% - 1\.5rem\)|\* 1\))\)?$/);
+    expect(pin).toHaveTextContent("۵٬۶۰۰ ریال");
+    expect(pin.querySelector(".border-dashed")).not.toBeNull();
+    expect(screen.getByTestId("valuation-gauge-card-Equilibrium")).toHaveTextContent(
+      "جایگاهبالاتر از بازهٔ تعادلی",
     );
   });
 

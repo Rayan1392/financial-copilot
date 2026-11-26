@@ -86,17 +86,17 @@ Status: Gate B: Approved by the owner on 2026-11-26
 
 ## Definition Of Done
 
-- [ ] `dotnet test src/backend/FinancialCopilot.sln --configuration Release` green: no failure outside `specs/test-baseline.md` and the known pre-existing failures recorded in the previous change.
-- [ ] In `src/frontend`:
+- [x] `dotnet test src/backend/FinancialCopilot.sln --configuration Release` green: no failure outside `specs/test-baseline.md` and the known pre-existing failures recorded in the previous change.
+- [x] In `src/frontend`:
   - `npm run test` and `npm run build` green, no new lint error in touched files;
   - `npm run typecheck` adds no error beyond the baseline;
   - `npm run test:valuation-gauges-browser` green.
-- [ ] AC-01 … AC-12 checked.
-- [ ] Reference docs updated.
-- [ ] `CHANGELOG.md` `[Unreleased]`:
+- [x] AC-01 … AC-12 checked.
+- [x] Reference docs updated.
+- [x] `CHANGELOG.md` `[Unreleased]`:
   - an «Added» line announcing the valuation gauges, which became visible when the flag was enabled;
   - a «Changed» line for the new design.
-- [ ] New questions go to `specs/open-questions.md`, deferred work to `specs/backlog.md`.
+- [x] New questions go to `specs/open-questions.md`, deferred work to `specs/backlog.md`.
 - [ ] Release, tag and deploy only through the separately confirmed release process.
 
 ## Implementation Notes
@@ -108,3 +108,27 @@ Deviations are recorded in `user-story.md` under *Deviations From The Approved P
 - one `ValuationGaugeInsights` record replaces the two planned records.
 
 Browser evidence is in `evidence/browser/`: 104 screenshots and `browser-check.txt`.
+
+### Verification (2026-11-26)
+
+**Backend.** Compared by TRX test names against the commit before this change (`864b7344`).
+
+- Unit tests: 28 failures, none new.
+- Integration tests: six failures appeared only in the change run: four valuation-gauge cases and two Telegram cases.
+  - That run overlapped the browser and Vitest checks. The gauge failures were read and quote timeouts: a range-only card, «موقتاً در دسترس نیست», and no cards.
+  - Run alone, the same 20 tests (all gauge cases plus the two Telegram cases) passed three times in a row.
+  - All other integration failures also fail on the base commit.
+
+**Frontend.**
+
+- Vitest: the gauge suite has 36 tests, all passing, and release notes pass. The remaining full-suite failures fail identically on clean HEAD:
+  - `fa-terminology` (profile editor and another feature's fixture);
+  - `markdown-message` 16-row table;
+  - `monthly-product-trend-chart` failed message;
+  - three `scripts/*.browser.test.mjs` suites (esbuild `TextEncoder` invariant under jsdom).
+- `npm run build`: green.
+- Type-check: the 37-error baseline, unchanged.
+- Lint: clean on the touched files.
+- Browser check: green, 130 lines including reduced motion.
+
+**Copy fix after review.** The third equilibrium tile and the text answer use the approved label «بالای حد پایین». The first implementation had «نسبت به حد پایین». The negative case is OQ-137.

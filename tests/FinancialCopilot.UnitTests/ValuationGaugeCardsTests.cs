@@ -634,7 +634,7 @@ public sealed class ValuationGaugeCardsTests
 
         Assert.Contains("حد پایین ۳٬۸۰۰، میانه ۴٬۴۰۱، حد بالا ۵٬۰۰۰ ریال", text);
         Assert.Contains("قیمت بازار ۴٬۱۲۰ ریال", text);
-        Assert.Contains("تا میانهٔ بازه \u200e−۶٫۴٪، نسبت به حد پایین \u200e+۸٫۴٪", text);
+        Assert.Contains("تا میانهٔ بازه \u200e−۶٫۴٪، بالای حد پایین \u200e+۸٫۴٪", text);
     }
 
     [Fact]

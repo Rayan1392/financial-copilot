@@ -3,6 +3,19 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.29.2
+
+- Published on 2026-11-26 (PATCH, Fixed: «ترکیب فروش/درآمد ماهانه ‹نماد›» in a monthly sales conversation opens the
+  product mix table). Fix commit `a7fe38b2`; also carries `3c9593b2` (Feature 159 change
+  `standalone-valuation-gauge-cards`, off by default via `VALUATION_GAUGE_CARDS_ENABLED`, so not in the changelog).
+  Develop release commit `ead299fe`, prod merge `ee28d1eb`, annotated tag `v1.29.2` (tag object `29627bb7`).
+- Release check passed and release-note tests passed 12/12. No migration, no Telegram gateway change.
+- Deploy run 45768239733 succeeded (deploy job 11m27s). `/releases` returned HTTP 200 and lists 1.29.2 first;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: the gauge cards stay off in production until the owner enables them (staging check pending, see the change's
+  `tasks.md`); enabling them is a configuration change, and a changelog «Added» entry belongs to the release in which
+  they become visible. The live Fajr monthly mix wording has not been exercised by an authenticated user.
+
 ## Release 1.29.1
 
 - Published on 2026-11-25 (PATCH, Fixed). BUG-048 fix commit `c9103364`, develop release commit

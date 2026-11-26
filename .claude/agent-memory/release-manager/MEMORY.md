@@ -3,6 +3,17 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.32.0
+
+- Published on 2026-11-26 (MINOR: an Added item, the «گیج‌های ارزش‌گذاری گدنا» starter card). Feature commit
+  `ef7ef4cd` (159 change `valuation-gauge-starter-card`), develop release commit `9ed45529`, prod merge `d2a5a23a`,
+  annotated tag `v1.32.0` (tag object `b0a1b2eb`).
+- Release check passed and release-note tests passed 12/12. No migration, no Telegram gateway change.
+- Deploy run 45838072183 succeeded (deploy job 4m08s). `/releases` lists 1.32.0 first;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: BUG-049 (light-theme emerald text below 4.5:1, pre-existing); OQ-136 forward needle blocked on the provider
+  (design proposal, Gate A pending); OQ-137 open. Legacy tags `v1.2.3`–`v1.3.6` remain on origin.
+
 ## Release 1.31.0
 
 - Published on 2026-11-26 (MINOR: a notable Changed item, the gauge price).

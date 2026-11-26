@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.32.1] - 2026-11-26
+
+نوشته‌های سبز کوچک صفحهٔ اول در تم روشن خواناتر شدند.
+
+### Fixed
+
+- در تم روشن، نوشته‌های سبز کوچک صفحهٔ اول (نشان «پوشش فعلی» و عنوان پیشنهادها در موبایل) خواناتر شدند.
+
 ## [1.32.0] - 2026-11-26
 
 پیشنهادهای صفحهٔ اول با نمونهٔ گیج‌های ارزش‌گذاری شروع می‌شوند.
@@ -578,7 +586,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.1...develop
+[1.32.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.2...v1.30.0

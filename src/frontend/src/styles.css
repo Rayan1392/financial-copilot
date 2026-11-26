@@ -354,6 +354,15 @@
   line-height: 1.55;
 }
 
+/* BUG-049: small emerald text (the new-chat coverage badge, the phone starter topics). The light theme's emerald is
+   too light for 4.5:1 there; this is the same ink as the desktop starter card topics. */
+.emerald-ink-text {
+  color: var(--emerald);
+}
+.light .emerald-ink-text {
+  color: oklch(0.45 0.12 160);
+}
+
 /* Gold as text on the mobile surfaces: the light theme's gold is too light for 4.5:1. */
 .mobile-gold-text {
   color: var(--gold);

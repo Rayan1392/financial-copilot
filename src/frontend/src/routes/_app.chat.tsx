@@ -61,7 +61,7 @@ function NewChatPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3 text-balance">
               دستیار هوشمند بازار سرمایه
             </h1>
-            <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium text-emerald mb-5">
+            <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium emerald-ink-text mb-5">
               {coverage.badge}
             </div>
             <p className="text-base md:text-lg font-medium text-foreground mb-2 max-w-2xl mx-auto text-pretty">

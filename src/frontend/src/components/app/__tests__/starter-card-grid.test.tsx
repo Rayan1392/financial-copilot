@@ -75,6 +75,13 @@ describe("MobileStarterList", () => {
     expect(onSelect).toHaveBeenCalledWith(GAUGE_TEXT);
   });
 
+  it("writes the sales topics in the emerald ink that keeps 4.5:1 in the light theme (BUG-049)", () => {
+    render(<MobileStarterList prompts={withoutGauge} disabled={false} onSelect={() => {}} />);
+
+    expect(screen.getByText("ترکیب فروش")).toHaveClass("emerald-ink-text");
+    expect(screen.getByText("ترکیب فروش")).not.toHaveClass("text-emerald");
+  });
+
   it("keeps today's eight rows while gauge cards are unavailable", () => {
     render(<MobileStarterList prompts={withoutGauge} disabled={false} onSelect={() => {}} />);
 

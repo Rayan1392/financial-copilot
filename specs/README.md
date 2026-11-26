@@ -55,7 +55,8 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
   `valuation-gauge-per-card-credits` (Gate A+B 2026-11-26: one credit per usable card, fixed settlement in every billing
   mode, hold raised before the read) and `valuation-gauge-starter-card` (Gate A+B 2026-11-26, implemented locally, uncommitted: the wide
   «گیج‌های ارزش‌گذاری گدنا» starter card with a half-dial heads the desktop grid and the phone list while the API reports
-  gauge cards available; light-theme emerald text found pre-existing, BUG-049).
+  gauge cards available; released v1.32.0). `fix-starter-emerald-text-contrast` (BUG-049, Gate A+B 2026-11-26,
+  implemented locally: the light-theme emerald badge and phone topics reach 4.5:1).
 
 - `081-ai-financial-statement-period-analysis-query/changes/period-analysis-feature-flag`: Gate A (option B) and Gate B approved 2026-11-20; implemented locally (uncommitted). `FinancialStatementPeriodAnalysis:Enabled` switches 081's fixed statement summary off (off in `appsettings.json`); on V2 a question 081 would answer ends unsupported at zero credits so the Feature 163 analysis offer can follow. Statement tables are unchanged.
 

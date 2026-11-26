@@ -8,6 +8,7 @@ import {
   dialPoint,
   formatExactDecimal,
   formatPercent,
+  lowerBoundComparison,
   formatRatio2,
   formatRial0,
   formatTehranDate,
@@ -797,11 +798,10 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
                 />
               ) : null,
               insights?.priceVsLowerPercent ? (
-                <Tile
+                <LowerBoundTile
                   key="low"
-                  label="بالای حد پایین"
-                  value={<Num>{formatPercent(insights.priceVsLowerPercent, true)}</Num>}
-                  note={`نسبت به ${formatRial0(range.lower)}`}
+                  value={insights.priceVsLowerPercent}
+                  lower={range.lower}
                 />
               ) : null,
             ]}
@@ -824,6 +824,11 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
       </div>
     </CardShell>
   );
+}
+
+function LowerBoundTile({ value, lower }: { value: string; lower: string }) {
+  const { label, percent } = lowerBoundComparison(value);
+  return <Tile label={label} value={<Num>{percent}</Num>} note={`نسبت به ${formatRial0(lower)}`} />;
 }
 
 function UnavailableCard({ card, symbol, companyName, showCompany }: CardProps) {

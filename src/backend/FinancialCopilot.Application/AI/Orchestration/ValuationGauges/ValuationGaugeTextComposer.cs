@@ -103,7 +103,7 @@ public static class ValuationGaugeTextComposer
             if (card.Insights?.PriceVsMidpointPercent is { } vsMid)
                 comparisons.Add("تا میانهٔ بازه " + Percent(vsMid, signed: true));
             if (card.Insights?.PriceVsLowerPercent is { } vsLow)
-                comparisons.Add("بالای حد پایین " + Percent(vsLow, signed: true));
+                comparisons.Add(LowerBoundComparison(vsLow));
             if (comparisons.Count > 0)
                 builder.AppendLine().Append(string.Join("، ", comparisons));
             // No provider name for users (owner, 2026-11-26); the payload keeps it.
@@ -211,6 +211,19 @@ public static class ValuationGaugeTextComposer
     public static string Rial0(string value) => Exact(RoundHalfAwayFromZero(value, 0));
 
     /// <summary>A derived percentage («‎+۱۹٫۰٪»); the plus sign is shown only for signed distances.</summary>
+    /// <summary>
+    /// The price-vs-lower-bound figure (OQ-137, owner 2026-11-26): below the lower bound it reads «زیر حد پایین» with the
+    /// absolute value; otherwise «بالای حد پایین» signed, as released. A value that rounds to zero keeps the released label.
+    /// The web card applies the same rule (<c>lowerBoundComparison</c> in <c>valuation-gauges.ts</c>).
+    /// </summary>
+    private static string LowerBoundComparison(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith('-') && RoundHalfAwayFromZero(trimmed[1..], 1) != "0.0")
+            return "زیر حد پایین " + Percent(trimmed[1..]);
+        return "بالای حد پایین " + Percent(trimmed, signed: true);
+    }
+
     private static string Percent(string value, bool signed = false)
     {
         var text = Exact(value) + "٪";

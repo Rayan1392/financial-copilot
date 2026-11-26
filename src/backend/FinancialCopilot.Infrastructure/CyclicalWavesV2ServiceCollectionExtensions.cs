@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.ValuationGauges;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
@@ -46,8 +47,20 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
         var capabilitySources = ChatCapabilitySourceMap.Create(financialData);
         var relativeValuationEnabled = configuration.GetValue<bool>(
             $"{IndustryRelativeValuationOptions.SectionName}:CyclicalWavesV2Enabled");
+        // Feature 159 change «standalone-valuation-gauge-cards»: off by default; read-only over Feature 148 snapshots.
+        services.AddOptions<ValuationGaugeCardsOptions>()
+            .BindConfiguration(ValuationGaugeCardsOptions.SectionName)
+            .Validate(options => options.IsValid(out _), "ValuationGaugeCards settings are invalid: MaxFetchAgeHours 1-720, ReadTimeoutMilliseconds and QuoteTimeoutMilliseconds 100-30000, PercentageDecimals 0-3.")
+            .ValidateOnStart();
+        var valuationGaugeCardsEnabled = configuration.GetValue<bool>($"{ValuationGaugeCardsOptions.SectionName}:Enabled");
+        services.AddSingleton(provider => provider.GetRequiredService<IOptions<ValuationGaugeCardsOptions>>().Value);
+        services.AddScoped<IValuationGaugeSnapshotReader, ValuationGaugeSnapshotReader>();
+        services.AddScoped<IValuationGaugeQuoteReader, ValuationGaugeQuoteReader>();
+        services.AddSingleton<IValuationGaugeObserver, ValuationGaugeTelemetry>();
+        services.AddScoped<IValuationGaugeCardsUseCase, ValuationGaugeCardsUseCase>();
+        services.AddScoped<IConversationalCapabilityExecutor, ValuationGaugeCapabilityExecutor>();
         services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(
-            financialData.ChatProvider, capabilitySources, relativeValuationEnabled));
+            financialData.ChatProvider, capabilitySources, relativeValuationEnabled, valuationGaugeCardsEnabled));
         services.AddScoped<CyclicalWavesV2RelativeValuationInputReader>();
         services.AddOptions<ComprehensiveAnalysisPresentationOptions>()
             .BindConfiguration(ComprehensiveAnalysisPresentationOptions.SectionName)

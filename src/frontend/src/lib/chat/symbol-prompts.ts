@@ -4,11 +4,27 @@
  * phrasing of prompts the assistant already answers well.
  */
 export interface SymbolPrompt {
-  id: "monthly-sales" | "quarterly-report" | "balance-sheet" | "industry-comparison";
+  id:
+    | "monthly-sales"
+    | "quarterly-report"
+    | "balance-sheet"
+    | "industry-comparison"
+    | "valuation-gauges";
   text: string;
 }
 
-export function symbolAnalysisPrompts(symbol: string): SymbolPrompt[] {
+export interface SymbolPromptOptions {
+  /**
+   * Feature 159 change «standalone-valuation-gauge-cards» (OQ-132): offered only when the API says the gauge cards
+   * are available to this user. The shortcut sends the same phrase a user can type.
+   */
+  valuationGauges?: boolean;
+}
+
+export function symbolAnalysisPrompts(
+  symbol: string,
+  options: SymbolPromptOptions = {},
+): SymbolPrompt[] {
   const ticker = symbol.trim();
   return [
     { id: "monthly-sales", text: `روند فروش ماهانه ${ticker} را نشان بده` },
@@ -16,6 +32,9 @@ export function symbolAnalysisPrompts(symbol: string): SymbolPrompt[] {
     // Technical analysis is not answered yet, so the menu offers the balance sheet (Feature 154) instead.
     { id: "balance-sheet", text: `ترازنامه ${ticker}` },
     { id: "industry-comparison", text: `${ticker} را با صنعت خودش مقایسه کن` },
+    ...(options.valuationGauges
+      ? [{ id: "valuation-gauges" as const, text: `گیج‌های ارزش‌گذاری ${ticker}` }]
+      : []),
   ];
 }
 

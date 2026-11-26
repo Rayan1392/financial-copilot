@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { symbolAnalysisPrompts } from "@/lib/chat/symbol-prompts";
 import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
+import { useChatCapabilityAvailability } from "@/lib/chat/use-capability-availability";
 
 /**
  * Desktop counterpart of the mobile symbol sheet: the same analysis prompts (one owner, `symbol-prompts.ts`) and a
@@ -25,6 +26,7 @@ export function SymbolActionsMenu({
   trigger: ReactNode;
 }) {
   const { ask, askAbout } = useOpenNewChat("/chat");
+  const { valuationGaugeCards } = useChatCapabilityAvailability();
   return (
     <DropdownMenu dir="rtl">
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
@@ -38,7 +40,7 @@ export function SymbolActionsMenu({
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {symbolAnalysisPrompts(symbol).map((prompt) => (
+        {symbolAnalysisPrompts(symbol, { valuationGauges: valuationGaugeCards }).map((prompt) => (
           <DropdownMenuItem key={prompt.id} onSelect={() => ask(prompt.text)}>
             <Sparkles className="size-3.5 text-emerald" aria-hidden="true" />
             {prompt.text}

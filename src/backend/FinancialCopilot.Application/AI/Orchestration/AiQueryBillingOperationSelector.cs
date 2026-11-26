@@ -20,9 +20,14 @@ public static class AiQueryBillingOperationSelector
                 "financial_statement_table" => FinancialStatementOperationCode,
                 "financial_statement_period_analysis" when periodAnalysisEnabled => FinancialStatementOperationCode,
                 "monthly_activity_trend" or "monthly_product_trend" => MonthlySalesTrendOperationCode,
+                // Standalone valuation gauge cards: one minimum credit per usable answer (OQ-131), however many cards.
+                ValuationGaugeCapability.Code => DefaultOperationCode,
                 _ => DefaultOperationCode
             };
         }
+
+        if (ValuationGaugeIntentRules.TryMatch(originalMessage) is not null)
+            return DefaultOperationCode;
 
         if (FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(originalMessage) ||
             FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(originalMessage) ||

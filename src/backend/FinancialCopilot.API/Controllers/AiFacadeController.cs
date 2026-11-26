@@ -31,7 +31,10 @@ public sealed class AiFacadeController(
     ICapabilityGuidanceService guidanceService,
     // Change «sol-deep-analysis-web-search», OQ-113 (a): registered with the V2 workflow only.
     GroundedAnalysisHintFactory? groundedAnalysisHints = null,
-    TimeProvider? timeProvider = null) : ControllerBase
+    TimeProvider? timeProvider = null,
+    // Feature 159 change «standalone-valuation-gauge-cards»: what the symbol menu may offer.
+    IChatCapabilityAvailability? capabilityAvailability = null,
+    Feature154RoutingScope? routingScope = null) : ControllerBase
 {
     [HttpGet("capabilities/guidance")]
     public ActionResult<IReadOnlyCollection<CapabilityStarterPromptHttpResponse>> GetCapabilityGuidance(
@@ -43,6 +46,16 @@ public sealed class AiFacadeController(
                 item.CapabilityCode, item.LocalizedLabel, item.Example, item.RegistryVersion))
             .ToArray());
     }
+
+    /// <summary>
+    /// Feature 159 change «standalone-valuation-gauge-cards»: optional chat capabilities evaluated on the server, so the
+    /// client shows a shortcut only when the same request would be answered (V2, flag on, CyclicalWaves source).
+    /// </summary>
+    [HttpGet("capabilities/availability")]
+    public ActionResult<ChatCapabilityAvailabilityHttpResponse> GetCapabilityAvailability() =>
+        Ok(new ChatCapabilityAvailabilityHttpResponse(
+            ValuationGaugeCards: routingScope?.IsActive == true &&
+                capabilityAvailability?.EvaluateForV2(CapabilityExecutionRoutes.ValuationGauges, ValuationGaugeCapability.Code).IsAvailable == true));
 
     [HttpPost("query")]
     public async Task<ActionResult<AiQueryHttpResponse>> Query(

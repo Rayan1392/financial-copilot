@@ -443,6 +443,7 @@ public static class SemanticRouteMapping
         DetectedIntent.FinancialStatementValueSearch => "financial_statement_value_search",
         DetectedIntent.Clarification => "clarification",
         DetectedIntent.SymbolSnapshot => SymbolSnapshotCapability.Code,
+        DetectedIntent.ValuationGauges => ValuationGaugeCapability.Code,
         _ => "unknown"
     };
 }

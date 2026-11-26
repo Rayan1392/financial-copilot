@@ -77,6 +77,7 @@ public static class CapabilityExecutionRoutes
     public const string SymbolSnapshot = "symbol_snapshot";
     public const string AssistantHelp = "assistant_help";
     public const string UnavailableTopic = "unavailable_topic";
+    public const string ValuationGauges = "valuation_gauges";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -84,7 +85,7 @@ public static class CapabilityExecutionRoutes
         ProductSalesValue, ProductSalesTrend,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
         MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch,
-        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot, AssistantHelp, UnavailableTopic
+        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot, AssistantHelp, UnavailableTopic, ValuationGauges
     };
 }
 
@@ -293,6 +294,11 @@ public static class InitialConversationalCapabilityCatalog
             [Alias("en", "assistant help"), Alias("fa", "راهنمای دستیار")],
             [Example("en", "hello"), Example("fa", "سلام")],
             [], [], false) with { GateRoutedOnly = true },
+        // Feature 159 change «standalone-valuation-gauge-cards»: explicit gauge requests only (gate routed, V2).
+        Definition(ValuationGaugeCapability.Code, CapabilityExecutionRoutes.ValuationGauges, "summary", "valuation-gauges",
+            [Alias("en", "valuation gauges"), Alias("fa", "گیج‌های ارزش‌گذاری")],
+            [Example("en", "P/E gauge شاراک"), Example("fa", "گیج‌های ارزش‌گذاری شاراک")],
+            [Slot("symbol", "symbol", true)], [Slot("metricSet", "metric-list", false)], false) with { GateRoutedOnly = true },
         // Feature 150 change: technical analysis, valuation, and advice questions get a fixed refusal (gate only).
         Definition(UnavailableTopicCapability.Code, CapabilityExecutionRoutes.UnavailableTopic, "summary", "unavailable-topic",
             [Alias("en", "topic not available yet"), Alias("fa", "موضوع پشتیبانی‌نشده")],
@@ -335,6 +341,7 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.IndustryRelativeValuation => ["published_industry_relative_valuation_snapshot"],
         CapabilityExecutionRoutes.AssistantHelp => ["assistant_help_copy"],
         CapabilityExecutionRoutes.UnavailableTopic => ["unavailable_topic_copy"],
+        CapabilityExecutionRoutes.ValuationGauges => ["canonical_company_identity", "cyclicalwaves_v2_gauge_snapshots"],
         _ => throw new InvalidOperationException($"No governed data requirements exist for route '{route}'.")
     };
 

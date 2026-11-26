@@ -140,7 +140,11 @@ public sealed class ConversationDialogueGate(
         CancellationToken cancellationToken)
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
-        var earlyInterpretation = (isV2 ? TryInterpretPeerComparison(request) : null)
+        var gaugeRequest = isV2 ? TryMatchValuationGauges(request) : null;
+        var earlyInterpretation = (gaugeRequest is null || capabilityRegistry is null
+                ? null
+                : ValuationGaugeIntentRules.BuildInterpretation(request.Message, gaugeRequest, capabilityRegistry.Version))
+            ?? (isV2 ? TryInterpretPeerComparison(request) : null)
             ?? (isV2 && SalesReportIntentRules.IsExplicitDataRequest(request) ? interpreter.Interpret(request.Message) : null)
             ?? await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken)
             ?? await TryInterpretTechnicalAnalysisAsync(request, scope, cancellationToken);
@@ -262,6 +266,18 @@ public sealed class ConversationDialogueGate(
                 interpretation,
                 validatedFrameSlots,
                 timeProvider.GetUtcNow()).ToArray();
+        // Standalone valuation gauges: the requested kinds travel in the task state, so a clarified symbol keeps them.
+        if (gaugeRequest is not null && capability == ValuationGaugeCapability.Code)
+            validatedFrameSlots = validatedFrameSlots
+                .Where(slot => slot.Type != QuerySlotType.MetricSet)
+                .Append(new ResolvedQuerySlot(
+                    QuerySlotType.MetricSet,
+                    gaugeRequest.KindsSlotValue,
+                    QueryValueProvenance.UserExplicit,
+                    1m,
+                    QuerySlotValidationState.Valid,
+                    capability))
+                .ToArray();
         IndustryRelativeValuationResolution? relativeResolution = null;
         PendingDialogueAction? pendingCompanyAction = null;
         if (industryRelativeValuationResolver is not null && IsIndustryRelativeValuationCapability(capability))
@@ -612,6 +628,16 @@ public sealed class ConversationDialogueGate(
             transition,
             effectiveSlots);
     }
+
+    /// <summary>
+    /// Standalone valuation gauge cards (V2): an explicit gauge request while the route is available (flag on and
+    /// effective source CyclicalWaves). Otherwise the message keeps today's routing, including Feature 115/148 gauges.
+    /// </summary>
+    private ValuationGaugeRequest? TryMatchValuationGauges(AiQueryRequest request) =>
+        capabilityRegistry is null || capabilityAvailability is null || request.Context?.InsightEventId is not null ||
+        !capabilityAvailability.EvaluateForV2(CapabilityExecutionRoutes.ValuationGauges, ValuationGaugeCapability.Code).IsAvailable
+            ? null
+            : ValuationGaugeIntentRules.TryMatch(request.Message);
 
     private QueryInterpretation? TryInterpretPeerComparison(AiQueryRequest request)
     {

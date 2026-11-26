@@ -171,8 +171,10 @@ services:
         CyclicalWavesLegacy__AllowCalls: "false"
         # Feature 148: Chat provider selection (legacy CyclicalWaves-derived metrics are always excluded).
         FinancialData__ChatProvider: ${FINANCIAL_DATA_CHAT_PROVIDER:-NoavaranAmin}
-        # Feature 159: per-capability source (empty = the ChatProvider above). Only comprehensive_analysis may be set.
+        # Feature 159: per-capability source (empty = the ChatProvider above). Only comprehensive_analysis and
+        # valuation_gauges may be set; valuation_gauges may map only to CyclicalWaves.
         FinancialData__CapabilitySources__comprehensive_analysis: ${FINANCIAL_DATA_SOURCE_COMPREHENSIVE_ANALYSIS:-}
+        FinancialData__CapabilitySources__valuation_gauges: ${FINANCIAL_DATA_SOURCE_VALUATION_GAUGES:-}
         IndustryRelativeValuation__CyclicalWavesV2Enabled: "${INDUSTRY_RELATIVE_VALUATION_CYCLICALWAVES_V2_ENABLED:-false}"
         ComprehensiveAnalysis__TahlilAppAnalysesUrl: ${COMPREHENSIVE_ANALYSIS_TAHLILAPP_URL:-https://tahlilapp.com/app/analysis}
         # Feature 148: CyclicalWaves v2 provider. Credentials only in the ignored .env file.
@@ -551,6 +553,10 @@ services:
       Feature141__Enabled: ${FEATURE141_ENABLED:-false}
       # Feature 156 bare-ticker card: off unless an environment sets SYMBOL_SNAPSHOT_ENABLED=true; set false to roll back.
       SymbolSnapshot__Enabled: ${SYMBOL_SNAPSHOT_ENABLED:-false}
+      # Feature 159 change «standalone-valuation-gauge-cards»: off unless VALUATION_GAUGE_CARDS_ENABLED=true; set false
+      # to roll back (new cards and the symbol-menu shortcut stop; stored cards stay readable).
+      ValuationGaugeCards__Enabled: ${VALUATION_GAUGE_CARDS_ENABLED:-false}
+      ValuationGaugeCards__MaxFetchAgeHours: ${VALUATION_GAUGE_CARDS_MAX_FETCH_AGE_HOURS:-48}
       # Feature 141 shared public company scope: one tenant-level scope over every eligible listed company, active only
       # with the owner's approval reference. tools/SemanticCatalog/sql/feature141-public-company-scope-env.sql generates
       # these variables and the per-company Feature141__QueryExecution__* lines into .env (they reach the container

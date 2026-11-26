@@ -79,7 +79,8 @@ public static class AiFacadeHttpMapper
              MonthlyProductTrendResult: MapMonthlyProductTrendResult(result.MonthlyProductTrendResult),
              SymbolSnapshotResult: result.SymbolSnapshotResult,
              GroundedAnalysis: MapGroundedAnalysisHint(result.GroundedAnalysis),
-             Sources: MapExternalSources(result.Sources));
+             Sources: MapExternalSources(result.Sources),
+             ValuationGaugeCards: result.ValuationGaugeCards);
 
     internal static string DepthName(AnalysisDepth depth) => depth == AnalysisDepth.Simple ? "simple" : "deep";
 
@@ -358,7 +359,8 @@ public static class AiFacadeHttpMapper
                 FinancialStatementValueSearchResult: payload.FinancialStatementValueSearchResult,
                 MonthlyProductTrendResult: MapMonthlyProductTrendResult(payload.MonthlyProductTrendResult),
                 SymbolSnapshotResult: payload.SymbolSnapshotResult,
-                Sources: MapExternalSources(payload.ExternalSources));
+                Sources: MapExternalSources(payload.ExternalSources),
+                ValuationGaugeCards: payload.ValuationGaugeCards);
 
     internal static MonthlyProductComparisonHttpResponse? MapMonthlyProductComparisonResult(MonthlyProductComparisonResponse? result)
     {

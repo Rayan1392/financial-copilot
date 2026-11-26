@@ -59,7 +59,7 @@ public interface IChatCapabilityAvailability
 /// There is no fallback between providers: an unavailable capability gets an explicit answer.
 /// </summary>
 public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provider, ChatCapabilitySourceMap sources,
-    bool cyclicalWavesV2RelativeValuationEnabled = false)
+    bool cyclicalWavesV2RelativeValuationEnabled = false, bool valuationGaugeCardsEnabled = false)
     : IChatCapabilityAvailability
 {
     public ChatCapabilityAvailability(FinancialDataChatProvider provider)
@@ -71,6 +71,9 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
     public const string UnavailableForProviderReasonCode = "capability_unavailable_for_provider";
     public const string ComprehensiveAnalysisUnavailableReasonCode = "comprehensive_analysis_unavailable";
     public const string PeerComparisonCapabilityCode = "symbol_vs_industry_relative_valuation";
+    public const string ValuationGaugesUnavailableReasonCode = "valuation_gauges_unavailable";
+    public const string ValuationGaugesUnavailableMessageFa = "گیج‌های ارزش‌گذاری در منبع دادهٔ فعال در دسترس نیست.";
+    public const string ValuationGaugesUnavailableMessageEn = "Valuation gauges are not available from the active data source.";
 
     public const string RetiredMessageFa = "این قابلیت به‌دلیل توقف منبع دادهٔ قبلی غیرفعال شده است.";
     public const string UnavailableForProviderMessageFa = "این پرسش با دادهٔ منبع فعال (CyclicalWaves) قابل پاسخ نیست.";
@@ -110,6 +113,12 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
         UnavailableForProviderMessageFa,
         UnavailableForProviderMessageEn);
 
+    private static readonly ChatCapabilityAvailabilityOutcome ValuationGaugesUnavailable = new(
+        ChatCapabilityAvailabilityStatus.UnavailableForProvider,
+        ValuationGaugesUnavailableReasonCode,
+        ValuationGaugesUnavailableMessageFa,
+        ValuationGaugesUnavailableMessageEn);
+
     private static readonly ChatCapabilityAvailabilityOutcome ComprehensiveAnalysisUnavailable = new(
         ChatCapabilityAvailabilityStatus.UnavailableForProvider,
         ComprehensiveAnalysisUnavailableReasonCode,
@@ -126,6 +135,15 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
         if (RetiredRoutes.Contains(executionRoute))
         {
             return Retired;
+        }
+
+        // Standalone valuation gauge cards: behind ValuationGaugeCards:Enabled, and only where the effective source
+        // is CyclicalWaves (base CyclicalWaves mode, or NoavaranAmin with the route mapped to CyclicalWaves).
+        if (executionRoute == CapabilityExecutionRoutes.ValuationGauges)
+        {
+            return valuationGaugeCardsEnabled && SourceFor(executionRoute) == FinancialDataChatProvider.CyclicalWaves
+                ? ChatCapabilityAvailabilityOutcome.Available
+                : ValuationGaugesUnavailable;
         }
 
         // Feature 159: an overridden capability is judged by its own source's matrix.
@@ -151,6 +169,7 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
     public static string? MessageForReasonCode(string? reasonCode, bool persian) => reasonCode switch
     {
         RetiredReasonCode => persian ? RetiredMessageFa : RetiredMessageEn,
+        ValuationGaugesUnavailableReasonCode => persian ? ValuationGaugesUnavailableMessageFa : ValuationGaugesUnavailableMessageEn,
         UnavailableForProviderReasonCode => persian ? UnavailableForProviderMessageFa : UnavailableForProviderMessageEn,
         ComprehensiveAnalysisUnavailableReasonCode => persian
             ? ComprehensiveAnalysisUnavailableMessageFa

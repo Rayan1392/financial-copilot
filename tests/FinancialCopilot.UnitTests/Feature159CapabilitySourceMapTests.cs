@@ -24,8 +24,8 @@ public sealed class Feature159CapabilitySourceMapTests
     // --- Source map ---
 
     [Fact]
-    public void OnlyComprehensiveAnalysisMayBeOverridden() =>
-        Assert.Equal([CapabilityExecutionRoutes.ComprehensiveAnalysis], ChatCapabilitySourceMap.OverridableRoutes);
+    public void OnlyComprehensiveAnalysisAndValuationGaugesMayBeOverridden() =>
+        Assert.Equal([CapabilityExecutionRoutes.ComprehensiveAnalysis, CapabilityExecutionRoutes.ValuationGauges], ChatCapabilitySourceMap.OverridableRoutes.Order(StringComparer.Ordinal));
 
     [Theory]
     [InlineData(FinancialDataChatProvider.NoavaranAmin)]

@@ -16,6 +16,7 @@ using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.FinancialData.ValuationGauges;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
@@ -505,7 +506,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         // Gauge requests have a narrow, provider-specific data source. Resolve them before the
         // general semantic dispatcher so P/E/P/S gauge questions cannot be reinterpreted as a
         // normalized metric lookup. The explicit P/S gauge request keeps Feature 115's standalone UX.
-        if (IsCyclicalWavesMode)
+        // Standalone valuation gauge cards own their frame; the Feature 115/148 gauge intercepts stay for everything else.
+        if (IsCyclicalWavesMode && request.SemanticFrame?.CapabilityCode != ValuationGaugeCapability.Code)
         {
             var standalonePsSymbol = PsGaugeIntentRules.ExtractCompanySymbol(request.Message);
             if (standalonePsSymbol is not null)
@@ -623,6 +625,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             // The registered financial source capability is Feature 141 itself: its result is settled here and never re-run.
             var directFeature141 = semantic.Execution.Payload as Feature141ChatAnswer;
             var policyBlocked = ChatCapabilityAvailability.MessageForReasonCode(semantic.Execution.ReasonCode, persian: true) is not null;
+            if (semantic.Execution.Payload is ValuationGaugeCardsResult)
+                stepActivity?.SetTag("workflow.intent", "ValuationGauges");
             if (semantic.Execution.Payload is SymbolSnapshotResult)
                 stepActivity?.SetTag("workflow.intent", "SymbolSnapshot");
             // A snapshot with no data is a complete answer, so the registered financial source never replaces it.
@@ -630,6 +634,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             var canUseFeature141 = directFeature141 is null && !policyBlocked && !IsCyclicalWavesMode
                 && !IsSourceOverridden(semanticFrame.CapabilityCode)
                 && semanticFrame.CapabilityCode != SymbolSnapshotCapability.Code
+                && semanticFrame.CapabilityCode != ValuationGaugeCapability.Code
                 && semanticFrame.CapabilityCode != ChatCapabilityAvailability.PeerComparisonCapabilityCode
                 && semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired
                 or CapabilityExecutionStatus.DisambiguationRequired
@@ -706,6 +711,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 PsVisualizationResult gauge => BuildPsGaugeContent(gauge.CompanySymbol, gauge),
                 IndustryRelativeValuationPayload relative => relative.PresentationText,
                 SymbolSnapshotResult snapshot => SymbolSnapshotTextComposer.Compose(snapshot),
+                ValuationGaugeCardsResult gauges => ValuationGaugeTextComposer.Compose(gauges),
                 string explanation => explanation,
                 _ => AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
                     clarification ? DialogueOutcome.ClarificationNeeded : semantic.Execution.Status == CapabilityExecutionStatus.NoData ? DialogueOutcome.NoData : DialogueOutcome.Unsupported,
@@ -734,6 +740,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 MonthlyProductTrendResult: monthlyProductTrendResult,
                 FinancialStatementValueSearchResult: financialStatementValueSearchResult,
                 SymbolSnapshotResult: semantic.Execution.Payload as SymbolSnapshotResult,
+                ValuationGaugeCards: semantic.Execution.Payload is ValuationGaugeCardsResult { } gaugeCards && gaugeCards.HasDisplayableData() ? gaugeCards : null,
                 IndustryComparison: (semantic.Execution.Payload as IndustryRelativeValuationPayload)?.ReadModel);
         }
 
@@ -1658,6 +1665,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             SuggestedActions: deterministicActions,
             DeterministicSuggestionsApplied: deterministicApplied,
             SymbolSnapshotResult: msg.SymbolSnapshotResult,
+            ValuationGaugeCards: msg.ValuationGaugeCards,
             GroundedAnalysisOffer: analysisOffer);
     }
 
@@ -2181,10 +2189,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlyProductTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlyProductTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch or DetectedIntent.ValuationGauges
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlyProductTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlyProductTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch or DetectedIntent.ValuationGauges
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -2231,6 +2239,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             financialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
             monthlyProductTrendResult: msg.MonthlyProductTrendResult,
              symbolSnapshotResult: msg.SymbolSnapshotResult,
+             valuationGaugeCards: msg.ValuationGaugeCards,
              disclosureListingResult: msg.DisclosureListingResult,
              psVisualizationResult: msg.PsVisualizationResult,
              deterministicSuggestedActions: msg.SuggestedActions,
@@ -2272,6 +2281,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              SuggestedActions: persistedExchange.SuggestedActions,
              DeterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied,
              SymbolSnapshotResult: msg.SymbolSnapshotResult,
+             ValuationGaugeCards: msg.ValuationGaugeCards,
              GroundedAnalysis: groundedAnalysisHint,
              Sources: AnswerSources(msg));
     }
@@ -2333,6 +2343,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
             MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
             SymbolSnapshotResult: msg.SymbolSnapshotResult,
+            ValuationGaugeCards: msg.ValuationGaugeCards,
             DisclosureListingResult: msg.DisclosureListingResult,
             PsVisualizationResult: msg.PsVisualizationResult,
             Outcome: msg.Outcome,
@@ -2578,6 +2589,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
         "financial_statement_value_search" => DetectedIntent.FinancialStatementValueSearch,
         SymbolSnapshotCapability.Code => DetectedIntent.SymbolSnapshot,
+        ValuationGaugeCapability.Code => DetectedIntent.ValuationGauges,
         "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or
             "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown

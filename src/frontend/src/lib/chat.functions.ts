@@ -9,6 +9,7 @@ import { classifyApiFailure, type ChatFailure } from "@/lib/chat/chat-errors";
 import { mapAssistantBlock } from "@/lib/chat/assistant-block-mapper";
 import type { BalanceSheetReportResult } from "@/components/app/balance-sheet-report/balance-sheet-report-types";
 import type { CashFlowReportResult } from "@/components/app/cash-flow-report/cash-flow-report-types";
+import type { ValuationGaugeCardsResult } from "@/lib/chat/valuation-gauges";
 
 export interface ChatThread {
   id: string;
@@ -42,6 +43,8 @@ export interface AssistantChatBlock {
   monthlyProductComparisonResult?: MonthlyProductComparisonResult;
   monthlyProductTrendResult?: MonthlyProductTrendResult;
   symbolSnapshotResult?: SymbolSnapshotResult | null;
+  /** Feature 159 change «standalone-valuation-gauge-cards»: typed P/E, P/S and equilibrium cards (live and history). */
+  valuationGaugeCards?: ValuationGaugeCardsResult | null;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
@@ -463,6 +466,8 @@ export interface AssistantContentResponse {
   monthlyProductComparisonResult?: MonthlyProductComparisonResult;
   monthlyProductTrendResult?: MonthlyProductTrendResult;
   symbolSnapshotResult?: SymbolSnapshotResult | null;
+  /** Feature 159 change «standalone-valuation-gauge-cards»: typed P/E, P/S and equilibrium cards (live and history). */
+  valuationGaugeCards?: ValuationGaugeCardsResult | null;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
@@ -734,6 +739,20 @@ export const getCapabilityStarterPrompts = createServerFn({ method: "GET" })
     financialCopilotServerApi<CapabilityStarterPrompt[]>(
       context,
       "/api/ai/v1/capabilities/guidance?language=fa",
+    ),
+  );
+
+/** Feature 159 change «standalone-valuation-gauge-cards»: which optional chat shortcuts this user may see. */
+export interface ChatCapabilityAvailability {
+  valuationGaugeCards: boolean;
+}
+
+export const getChatCapabilityAvailability = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .handler(async ({ context }) =>
+    financialCopilotServerApi<ChatCapabilityAvailability>(
+      context,
+      "/api/ai/v1/capabilities/availability",
     ),
   );
 

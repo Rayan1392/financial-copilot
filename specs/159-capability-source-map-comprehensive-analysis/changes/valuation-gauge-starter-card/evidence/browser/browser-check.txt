@@ -1,0 +1,44 @@
+desktop gauge=1 1280 dark: 5 full rows
+desktop gauge=1 1280 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 7.90)
+desktop gauge=1 1280 light: 5 full rows
+desktop gauge=1 1280 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 3.97)
+desktop gauge=1 768 dark: 5 full rows
+desktop gauge=1 768 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 7.90)
+desktop gauge=1 768 light: 5 full rows
+desktop gauge=1 768 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 3.97)
+desktop gauge=1 430 dark: 9 full rows
+desktop gauge=1 430 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 7.90)
+desktop gauge=1 430 light: 9 full rows
+desktop gauge=1 430 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 3.97)
+desktop gauge=1 375 dark: 9 full rows
+desktop gauge=1 375 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 7.90)
+desktop gauge=1 375 light: 9 full rows
+desktop gauge=1 375 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 3.97)
+desktop gauge=1 320 dark: 9 full rows
+desktop gauge=1 320 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 7.90)
+desktop gauge=1 320 light: 9 full rows
+desktop gauge=1 320 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 3.97)
+desktop gauge=0 1280 dark: 4 full rows
+desktop gauge=0 1280 dark: 8 cards, no scroll, nothing clipped, contrast >= 5.44 (BUG-049 emerald text: 7.90)
+desktop gauge=0 1280 light: 4 full rows
+desktop gauge=0 1280 light: 8 cards, no scroll, nothing clipped, contrast >= 6.05 (BUG-049 emerald text: 3.97)
+desktop gauge=0 768 dark: 4 full rows
+desktop gauge=0 768 dark: 8 cards, no scroll, nothing clipped, contrast >= 5.44 (BUG-049 emerald text: 7.90)
+desktop gauge=0 768 light: 4 full rows
+desktop gauge=0 768 light: 8 cards, no scroll, nothing clipped, contrast >= 6.05 (BUG-049 emerald text: 3.97)
+desktop gauge=0 375 dark: 8 full rows
+desktop gauge=0 375 dark: 8 cards, no scroll, nothing clipped, contrast >= 5.44 (BUG-049 emerald text: 7.90)
+desktop gauge=0 375 light: 8 full rows
+desktop gauge=0 375 light: 8 cards, no scroll, nothing clipped, contrast >= 6.05 (BUG-049 emerald text: 3.97)
+mobile gauge=1 430 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 8.33)
+mobile gauge=1 430 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 4.07)
+mobile gauge=1 375 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 8.33)
+mobile gauge=1 375 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 4.07)
+mobile gauge=1 320 dark: 9 cards, no scroll, nothing clipped, contrast >= 5.30 (BUG-049 emerald text: 8.33)
+mobile gauge=1 320 light: 9 cards, no scroll, nothing clipped, contrast >= 5.79 (BUG-049 emerald text: 4.07)
+mobile gauge=0 375 dark: 8 cards, no scroll, nothing clipped, contrast >= 10.93 (BUG-049 emerald text: 8.33)
+mobile gauge=0 375 light: 8 cards, no scroll, nothing clipped, contrast >= 6.06 (BUG-049 emerald text: 4.07)
+reduced motion no-preference: pointer rotate 16deg after hover
+reduced motion reduce: pointer rotate 0deg after hover
+focus dark: Tab reaches the featured card first, 2px ring
+focus light: Tab reaches the featured card first, 2px ring

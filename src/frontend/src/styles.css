@@ -120,6 +120,33 @@
   --surface: oklch(0.165 0.005 270);
   --surface-2: oklch(0.19 0.005 270);
   --hairline: oklch(1 0 0 / 0.06);
+
+  /* Valuation gauge cards: six bands from cheap (green) to expensive (red), bound markers and price band. */
+  --gauge-band-1: oklch(0.56 0.13 158);
+  --gauge-band-2: oklch(0.66 0.13 158);
+  --gauge-band-3: oklch(0.76 0.09 160);
+  --gauge-band-4: oklch(0.77 0.08 22);
+  --gauge-band-5: oklch(0.66 0.15 22);
+  --gauge-band-6: oklch(0.57 0.18 22);
+  --gauge-ink-on-light: oklch(0.18 0.01 270);
+  --gauge-ink-on-dark: oklch(0.99 0 0);
+  --gauge-low: oklch(0.74 0.15 155);
+  --gauge-high: oklch(0.72 0.18 25);
+  --gauge-warm: oklch(0.76 0.14 35);
+  --gauge-cool: oklch(0.78 0.13 160);
+  --gauge-warm-soft: oklch(0.74 0.15 30 / 0.16);
+  --gauge-cool-soft: oklch(0.76 0.13 160 / 0.14);
+  --gauge-eq-low: oklch(0.76 0.09 225);
+  --gauge-eq-high: oklch(0.55 0.11 235);
+}
+
+@keyframes valuation-gauge-sweep {
+  from {
+    transform: rotate(var(--gauge-sweep-from, 0deg));
+  }
+  to {
+    transform: rotate(0deg);
+  }
 }
 
 .light {
@@ -151,6 +178,21 @@
   --surface: oklch(0.955 0.005 270);
   --surface-2: oklch(0.92 0.008 270);
   --hairline: oklch(0.45 0.012 270 / 0.16);
+
+  --gauge-band-1: oklch(0.55 0.13 158);
+  --gauge-band-2: oklch(0.67 0.13 158);
+  --gauge-band-3: oklch(0.85 0.08 160);
+  --gauge-band-4: oklch(0.86 0.06 22);
+  --gauge-band-5: oklch(0.7 0.14 22);
+  --gauge-band-6: oklch(0.58 0.19 22);
+  --gauge-low: oklch(0.48 0.13 155);
+  --gauge-high: oklch(0.52 0.2 27);
+  --gauge-warm: oklch(0.5 0.16 32);
+  --gauge-cool: oklch(0.47 0.12 160);
+  --gauge-warm-soft: oklch(0.62 0.17 35 / 0.12);
+  --gauge-cool-soft: oklch(0.54 0.14 160 / 0.12);
+  --gauge-eq-low: oklch(0.84 0.07 225);
+  --gauge-eq-high: oklch(0.55 0.12 235);
 }
 
 @layer base {

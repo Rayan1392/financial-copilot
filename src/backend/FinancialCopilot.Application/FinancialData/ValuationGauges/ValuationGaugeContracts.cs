@@ -91,7 +91,8 @@ public sealed record ValuationGaugeCard(
     DateTimeOffset? FetchedAtUtc,
     ValuationRatioGaugeFacts? Ratio = null,
     ValuationEquilibriumFacts? Equilibrium = null,
-    ValuationGaugeGeometry? Geometry = null)
+    ValuationGaugeGeometry? Geometry = null,
+    ValuationGaugeInsights? Insights = null)
 {
     public bool IsDisplayable() => State is ValuationGaugeCardState.Available or ValuationGaugeCardState.Partial;
 }
@@ -132,7 +133,32 @@ public sealed record ValuationGaugeGeometry(
     IReadOnlyList<ValuationGaugeMarker> Markers,
     ValuationGaugeNeedle? Needle);
 
-public sealed record ValuationGaugeSector(int Order, decimal StartAngle, decimal EndAngle, long? DayCount, string? Percentage);
+/// <summary>
+/// One dial sector. <see cref="From"/> and <see cref="To"/> are the exact value range the sector covers (ratio dials
+/// only; absent on cards stored before the visual refresh).
+/// </summary>
+public sealed record ValuationGaugeSector(
+    int Order,
+    decimal StartAngle,
+    decimal EndAngle,
+    long? DayCount,
+    string? Percentage,
+    string? From = null,
+    string? To = null);
+
+/// <summary>
+/// Figures derived from the same card's exact facts (Feature 159 change «valuation-gauge-cards-visual-refresh»).
+/// Every member is optional and absent when its inputs are missing, so web and text show only what the data supports.
+/// Percentages are invariant decimal strings. <see cref="CurrentBand"/> is the 1-based sector of an inside needle;
+/// the day shares are sums of the displayed largest-remainder sector percentages, so they match the dial exactly.
+/// </summary>
+public sealed record ValuationGaugeInsights(
+    string? DistanceToAveragePercent = null,
+    int? CurrentBand = null,
+    string? DaysBelowBandPercent = null,
+    string? DaysInBandPercent = null,
+    string? PriceVsMidpointPercent = null,
+    string? PriceVsLowerPercent = null);
 
 /// <summary>Role is one of start, min, average, max, end (ratio) or lower, midpoint, upper (equilibrium).</summary>
 public sealed record ValuationGaugeMarker(string Role, decimal Angle, string Value);

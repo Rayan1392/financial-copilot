@@ -8,6 +8,8 @@ const ratioSectors = [0, 1, 2, 3, 4, 5].map((index) => ({
   startAngle: index * 30,
   endAngle: index * 30 + 30,
 }));
+// Exact sector edges: start, min, mid(min, average), average, mid(average, max), max, end.
+const ratioEdges = ["2", "4", "5", "6", "7", "8", "10"];
 
 export function ratioCard(
   kind: "Pe" | "Ps",
@@ -15,6 +17,8 @@ export function ratioCard(
     current?: string | null;
     needleAngle?: number | null;
     side?: "Inside" | "PinnedBelow" | "PinnedAbove";
+    /** A card as stored by v1.29.2: no insights and no sector ranges. */
+    legacy?: boolean;
   } = {},
 ): ValuationGaugeCard {
   const current = overrides.current === undefined ? "6.4291" : overrides.current;
@@ -22,6 +26,19 @@ export function ratioCard(
   const side = overrides.side ?? "Inside";
   const counts = [40, 120, 300, 260, 90, 25];
   const percentages = ["4.8", "14.5", "36.1", "31.3", "10.8", "3.0"];
+  const legacy = overrides.legacy ?? false;
+  const inside = current !== null && side === "Inside";
+  // Server figures for this fixture: (6.4291 − 6) / 6 = 7.2٪, band 4, 4.8 + 14.5 + 36.1 = 55.4٪ below, 31.3٪ within.
+  const insights =
+    legacy || current === null
+      ? undefined
+      : {
+          distanceToAveragePercent:
+            side === "PinnedAbove" ? "86.7" : side === "PinnedBelow" ? "-50.0" : "7.2",
+          currentBand: inside ? 4 : null,
+          daysBelowBandPercent: inside ? "55.4" : null,
+          daysInBandPercent: inside ? "31.3" : null,
+        };
   return {
     kind,
     state: current === null ? "Partial" : "Available",
@@ -54,6 +71,7 @@ export function ratioCard(
         ...sector,
         dayCount: counts[index],
         percentage: percentages[index],
+        ...(legacy ? {} : { from: ratioEdges[index], to: ratioEdges[index + 1] }),
       })),
       markers: [
         { role: "start", angle: 0, value: "2" },
@@ -67,6 +85,7 @@ export function ratioCard(
           ? null
           : { angle: needleAngle, value: current, side },
     },
+    ...(insights ? { insights } : {}),
   };
 }
 
@@ -106,6 +125,10 @@ export function equilibriumCard(withQuote = true): ValuationGaugeCard {
       ],
       needle: withQuote ? { angle: 48, value: "4120", side: "Inside" } : null,
     },
+    // (4120 − 4400) / 4400 = −6.4٪ and (4120 − 3800) / 3800 = 8.4٪.
+    ...(withQuote
+      ? { insights: { priceVsMidpointPercent: "-6.4", priceVsLowerPercent: "8.4" } }
+      : {}),
   };
 }
 

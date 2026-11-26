@@ -40,10 +40,9 @@ public static class ValuationGaugeProjector
             return Unavailable(kind, ValuationGaugeCardState.Stale, ValuationGaugeReasonCodes.StaleSnapshot, snapshot.FetchedAtUtc);
 
         var total = snapshot.DayCounts.Sum();
-        IReadOnlyList<string>? percentages = total > 0
-            ? LargestRemainderPercentages.Calculate(snapshot.DayCounts, percentageDecimals)
-                .Select(value => value.ToString("F" + percentageDecimals, CultureInfo.InvariantCulture)).ToArray()
-            : null;
+        var shares = total > 0 ? LargestRemainderPercentages.Calculate(snapshot.DayCounts, percentageDecimals) : null;
+        IReadOnlyList<string>? percentages = shares?
+            .Select(value => value.ToString("F" + percentageDecimals, CultureInfo.InvariantCulture)).ToArray();
 
         var start = Parse(snapshot.Start);
         var min = Parse(snapshot.Min);
@@ -64,12 +63,16 @@ public static class ValuationGaugeProjector
         if (renderable)
         {
             var anchors = new[] { start!.Value, min!.Value, (min.Value + average!.Value) / 2m, average.Value, (average.Value + max!.Value) / 2m, max.Value, end!.Value };
+            // Provider strings for the five provider anchors; the two split points are display geometry.
+            var edges = new[] { snapshot.Start, snapshot.Min, Format(anchors[2]), snapshot.Average, Format(anchors[4]), snapshot.Max, snapshot.End };
             var sectors = Enumerable.Range(0, 6).Select(order => new ValuationGaugeSector(
                 order,
                 order * 30m,
                 (order + 1) * 30m,
                 snapshot.DayCounts[order],
-                percentages?[order])).ToArray();
+                percentages?[order],
+                edges[order],
+                edges[order + 1])).ToArray();
             var markers = new[]
             {
                 new ValuationGaugeMarker("start", 0m, snapshot.Start),
@@ -104,8 +107,39 @@ public static class ValuationGaugeProjector
                 : percentages is null
                     ? (ValuationGaugeCardState.Partial, ValuationGaugeReasonCodes.NoDistribution)
                     : (ValuationGaugeCardState.Available, ValuationGaugeReasonCodes.None);
-        return new ValuationGaugeCard(kind, state, reason, Source, snapshot.FetchedAtUtc, Ratio: facts, Geometry: geometry);
+        return new ValuationGaugeCard(kind, state, reason, Source, snapshot.FetchedAtUtc, Ratio: facts, Geometry: geometry,
+            Insights: RatioInsights(current, average, geometry?.Needle, shares, percentageDecimals));
     }
+
+    /// <summary>
+    /// Distance to the average needs a current value and a positive average. The band figures need an inside needle
+    /// and a day distribution: a pinned needle has no band, and "below today's band" is the only honest claim because
+    /// days inside one band are not ordered.
+    /// </summary>
+    private static ValuationGaugeInsights? RatioInsights(
+        decimal? current,
+        decimal? average,
+        ValuationGaugeNeedle? needle,
+        IReadOnlyList<decimal>? shares,
+        int percentageDecimals)
+    {
+        var distance = current is { } value && average is > 0m and var avg ? Percent((value - avg) / avg) : null;
+        int? band = needle is { Side: ValuationGaugeNeedleSide.Inside } inside && shares is not null
+            ? Math.Min(6, (int)Math.Floor(inside.Angle / 30m) + 1)
+            : null;
+        string? below = null, within = null;
+        if (band is { } order)
+        {
+            below = shares!.Take(order - 1).Sum().ToString("F" + percentageDecimals, CultureInfo.InvariantCulture);
+            within = shares![order - 1].ToString("F" + percentageDecimals, CultureInfo.InvariantCulture);
+        }
+
+        return distance is null && band is null ? null : new ValuationGaugeInsights(distance, band, below, within);
+    }
+
+    /// <summary>A ratio as a percentage with one decimal, rounded half away from zero.</summary>
+    private static string Percent(decimal ratio) =>
+        decimal.Round(ratio * 100m, 1, MidpointRounding.AwayFromZero).ToString("F1", CultureInfo.InvariantCulture);
 
     public static ValuationGaugeCard ProjectEquilibrium(
         EquilibriumRangeSnapshot? snapshot,
@@ -170,7 +204,16 @@ public static class ValuationGaugeProjector
                     ? ValuationGaugeReasonCodes.QuoteTimedOut
                     : ValuationGaugeReasonCodes.QuoteUnavailable)
                 : (ValuationGaugeCardState.Available, ValuationGaugeReasonCodes.None);
-        return new ValuationGaugeCard(kind, state, reason, Source, snapshot.FetchedAtUtc, Equilibrium: facts, Geometry: geometry);
+        ValuationGaugeInsights? insights = null;
+        if (quote is not null)
+        {
+            var vsMid = midpoint is { } m0 && m0 != 0m ? Percent((quote.Price - m0) / Math.Abs(m0)) : null;
+            var vsLow = lower is { } l0 && l0 != 0m ? Percent((quote.Price - l0) / Math.Abs(l0)) : null;
+            if (vsMid is not null || vsLow is not null)
+                insights = new ValuationGaugeInsights(PriceVsMidpointPercent: vsMid, PriceVsLowerPercent: vsLow);
+        }
+
+        return new ValuationGaugeCard(kind, state, reason, Source, snapshot.FetchedAtUtc, Equilibrium: facts, Geometry: geometry, Insights: insights);
     }
 
     public static ValuationRatioPosition PositionFor(int? providerStatus) => providerStatus switch

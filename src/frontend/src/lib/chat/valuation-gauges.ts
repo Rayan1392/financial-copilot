@@ -39,9 +39,22 @@ export interface ValuationGaugeGeometry {
     endAngle: number;
     dayCount?: number | null;
     percentage?: string | null;
+    /** Exact value range of a ratio sector; absent on cards stored before the visual refresh. */
+    from?: string | null;
+    to?: string | null;
   }>;
   markers: Array<{ role: string; angle: number; value: string }>;
   needle?: { angle: number; value: string; side: ValuationGaugeNeedleSide } | null;
+}
+
+/** Server-derived figures (change «valuation-gauge-cards-visual-refresh»); each is absent when its inputs are. */
+export interface ValuationGaugeInsights {
+  distanceToAveragePercent?: string | null;
+  currentBand?: number | null;
+  daysBelowBandPercent?: string | null;
+  daysInBandPercent?: string | null;
+  priceVsMidpointPercent?: string | null;
+  priceVsLowerPercent?: string | null;
 }
 
 export interface ValuationGaugeCard {
@@ -78,6 +91,7 @@ export interface ValuationGaugeCard {
     position?: ValuationEquilibriumPosition | null;
   } | null;
   geometry?: ValuationGaugeGeometry | null;
+  insights?: ValuationGaugeInsights | null;
 }
 
 export interface ValuationGaugeCardsResult {
@@ -105,6 +119,61 @@ export function formatExactDecimal(value: string): string {
     fraction ? `${grouped}${PERSIAN_DECIMAL_SEPARATOR}${fraction}` : grouped,
   );
   return negative ? `‎−${body}` : body;
+}
+
+/**
+ * Rounds an invariant decimal string half away from zero, digit by digit, so long provider values never drift through
+ * floating point. Returns the input unchanged when it is not a plain decimal.
+ */
+export function roundDecimalString(value: string, decimals: number): string {
+  let text = value.trim();
+  const negative = text.startsWith("-");
+  if (negative || text.startsWith("+")) text = text.slice(1);
+  const [rawInteger = "", fraction = ""] = text.split(".");
+  const integer = rawInteger === "" ? "0" : rawInteger;
+  if (!/^\d+$/.test(integer) || !/^\d*$/.test(fraction)) return value;
+  const kept =
+    fraction.length >= decimals ? fraction.slice(0, decimals) : fraction.padEnd(decimals, "0");
+  let scaled = BigInt(integer + kept);
+  if (fraction.length > decimals && fraction[decimals] >= "5") scaled += 1n;
+  const digits = scaled.toString().padStart(decimals + 1, "0");
+  const rounded =
+    decimals === 0 ? digits : `${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`;
+  return negative && scaled !== 0n ? `-${rounded}` : rounded;
+}
+
+/** A P/E or P/S value with exactly two decimals («۷٫۰۰»). */
+export function formatRatio2(value: string): string {
+  return formatExactDecimal(roundDecimalString(value, 2));
+}
+
+/** A price or equilibrium bound in whole rials («۴٬۱۲۰»). */
+export function formatRial0(value: string): string {
+  return formatExactDecimal(roundDecimalString(value, 0));
+}
+
+/** A server percentage string («19.0») as «۱۹٫۰٪»; signed distances get an explicit plus («‎+۱۹٫۰٪»). */
+export function formatPercent(value: string, signed = false): string {
+  const text = `${formatExactDecimal(value)}٪`;
+  const positive = !value.trim().startsWith("-") && roundDecimalString(value, 1) !== "0.0";
+  return signed && positive ? `‎+${text}` : text;
+}
+
+/** The provider's name for users; the payload keeps the internal source code. */
+export const SOURCE_NAME = "تحلیل‌اپ";
+
+/** Tehran local date in the Persian calendar, for example «۱۴۰۵/۰۹/۰۵». */
+export function formatTehranDate(isoUtc: string): string {
+  const date = new Date(isoUtc);
+  if (Number.isNaN(date.getTime())) return "—";
+  const parts = new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn", {
+    timeZone: "Asia/Tehran",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  return toPersianDigits(`${part("year")}/${part("month")}/${part("day")}`);
 }
 
 /** Tehran local time in the Persian calendar, for example «۱۴۰۵/۰۹/۰۵ ۱۲:۴۰». */
@@ -159,7 +228,7 @@ export function unavailableText(card: ValuationGaugeCard): string {
   // The card footer shows the fetch time, so a stale card names only the state here.
   if (card.state === "Stale") return "دادهٔ منبع قدیمی است";
   if (card.state === "TemporarilyUnavailable") return "موقتاً در دسترس نیست";
-  if (card.reasonCode === "coverage_miss") return "این نماد در پوشش دادهٔ گیج CyclicalWaves نیست";
+  if (card.reasonCode === "coverage_miss") return `این نماد در پوشش دادهٔ گیج ${SOURCE_NAME} نیست`;
   if (card.reasonCode === "ambiguous_match") return "تطبیق یکتای نماد با منبع گیج ممکن نشد";
   return "داده‌ای ثبت نشده است";
 }
@@ -184,11 +253,18 @@ export function dialPoint(
 }
 
 /** SVG path of a band between two angles and two radii. */
-export function bandPath(startAngle: number, endAngle: number, outer = 124, inner = 82): string {
-  const a = dialPoint(startAngle, outer);
-  const b = dialPoint(endAngle, outer);
-  const c = dialPoint(endAngle, inner);
-  const d = dialPoint(startAngle, inner);
+export function bandPath(
+  startAngle: number,
+  endAngle: number,
+  outer = 124,
+  inner = 82,
+  cx = 150,
+  cy = 142,
+): string {
+  const a = dialPoint(startAngle, outer, cx, cy);
+  const b = dialPoint(endAngle, outer, cx, cy);
+  const c = dialPoint(endAngle, inner, cx, cy);
+  const d = dialPoint(startAngle, inner, cx, cy);
   const large = endAngle - startAngle > 180 ? 1 : 0;
   const f = (value: number) => value.toFixed(2);
   return `M ${f(a.x)} ${f(a.y)} A ${outer} ${outer} 0 ${large} 1 ${f(b.x)} ${f(b.y)} L ${f(c.x)} ${f(c.y)} A ${inner} ${inner} 0 ${large} 0 ${f(d.x)} ${f(d.y)} Z`;

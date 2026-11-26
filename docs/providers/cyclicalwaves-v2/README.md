@@ -115,3 +115,25 @@ duplicate normalized ticker or ISIN and none lacks an ISIN; 9 equilibrium ranges
 web client had no existing availability boundary for the menu shortcut (unknown or failed → hidden); and
 `DetectedIntent.ValuationGauges` was appended to the persisted intent enum (integer, added last) so history records the
 route.
+
+### Display rule and derived figures (change `valuation-gauge-cards-visual-refresh`)
+
+- **Rounding is display-only.** The payload keeps the exact provider strings. Web cards, Telegram and history text use
+  the same rule, rounding half away from zero from the decimal string with no precision limit:
+  - P/E and P/S: exactly two decimals («۷٫۰۰»);
+  - share price and equilibrium bounds: whole rials («۴٬۱۲۰»);
+  - derived percentages: one decimal.
+- **Source label:** users see the provider as «تحلیل‌اپ» with the fetch date only («تحلیل‌اپ · دریافت ۱۴۰۵/۰۹/۰۵»). The
+  stored `source` code stays `CyclicalWavesV2`. The quote line keeps its own source and time.
+- **Derived figures** are computed once in `ValuationGaugeProjector` and shared by web and Telegram. They go in the
+  optional `insights` member, additive in payload version 1:
+  - `distanceToAveragePercent` = (current − average) / average, only when the average is > 0;
+  - `currentBand` (1–6), only for a needle inside the axis with a non-zero day total;
+  - `daysBelowBandPercent` and `daysInBandPercent`, the sums of the displayed largest-remainder shares;
+  - for the equilibrium range, only with a quote: `priceVsMidpointPercent` and `priceVsLowerPercent`, each as
+    (price − x) / |x|, omitted when x = 0.
+- **Sector ranges:** each ratio sector carries its exact `from`/`to` edges (start, min, the midpoint of min and average,
+  average, the midpoint of average and max, max, end).
+- **Stored cards:** cards stored before this change lack `insights` and `from`/`to`. They still render, without those
+  figures.
+- **Forward P/E** is not in the provider contract (OQ-136) and is never estimated.

@@ -46,7 +46,12 @@ public sealed class ValuationGaugeCardsCyclicalWavesE2ETests : IClassFixture<Val
         var average = card.GetProperty("geometry").GetProperty("markers").EnumerateArray()
             .Single(marker => marker.GetProperty("role").GetString() == "average");
         Assert.Equal(90m, average.GetProperty("angle").GetDecimal());
-        Assert.Contains("نسبت فعلی ۶٫۴۲۹۱", ValuationGaugeChat.Text(root));
+        Assert.Contains("نسبت فعلی ۶٫۴۳", ValuationGaugeChat.Text(root));
+        // Visual refresh: derived figures and band ranges travel as optional members of the stored card.
+        var insights = card.GetProperty("insights");
+        Assert.Equal(JsonValueKind.String, insights.GetProperty("distanceToAveragePercent").ValueKind);
+        Assert.InRange(insights.GetProperty("currentBand").GetInt32(), 1, 6);
+        Assert.Equal("5.88", card.GetProperty("geometry").GetProperty("sectors")[3].GetProperty("from").GetString());
         Assert.Equal(1m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
         var charge = Assert.Single(_factory.ReadUsageEntries(), entry => entry.IdempotencyKey == $"{key:N}:charge");
         Assert.Equal("AiQuery.Scanner", charge.OperationCode);
@@ -60,7 +65,7 @@ public sealed class ValuationGaugeCardsCyclicalWavesE2ETests : IClassFixture<Val
         var messages = (await Feature148Chat.MessagesAsync(_factory, conversationId)).GetProperty("messages").EnumerateArray().ToArray();
         var replayed = messages[^1].GetProperty("assistantContent").GetProperty("valuationGaugeCards");
         Assert.Equal(cards.GetRawText(), replayed.GetRawText());
-        Assert.Contains("نسبت فعلی ۶٫۴۲۹۱", messages[^1].GetProperty("content").GetString());
+        Assert.Contains("نسبت فعلی ۶٫۴۳", messages[^1].GetProperty("content").GetString());
     }
 
     [Fact]

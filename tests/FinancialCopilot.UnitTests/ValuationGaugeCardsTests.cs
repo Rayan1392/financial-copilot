@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.ValuationGauges;
@@ -440,12 +442,13 @@ public sealed class ValuationGaugeCardsTests
         var text = ValuationGaugeTextComposer.Compose(result);
 
         Assert.StartsWith("گیج‌های ارزش‌گذاری شاراک", text);
-        Assert.Contains("نسبت فعلی ۶٫۴۲۹۱", text);
+        Assert.Contains("نسبت فعلی ۶٫۴۳", text);
         Assert.Contains("میانگین ۵٫۸۸", text);
         Assert.Contains("بین میانگین و حد بالا", text);
-        Assert.Contains("۲٬۴۸۸٫۱۵", text);
+        Assert.Contains("حد پایین ۲٬۴۸۸،", text);
         Assert.Contains("قیمت بازار در دسترس نیست", text);
-        Assert.Contains("منبع: CyclicalWaves", text);
+        Assert.Contains("منبع: تحلیل‌اپ · دریافت ۱۴۰۵/۰۹/۰۵", text);
+        Assert.DoesNotContain("CyclicalWaves", text);
         Assert.Contains("در دسترس نیست: P/S", text);
         Assert.True(text.IndexOf("P/E", StringComparison.Ordinal) < text.IndexOf("بازهٔ قیمت تعادلی:", StringComparison.Ordinal));
     }
@@ -494,9 +497,165 @@ public sealed class ValuationGaugeCardsTests
 
         var text = string.Concat(renderer.Render(response, "fa-IR").Select(message => message.Text)).Replace("\\", string.Empty);
 
-        Assert.Contains("بازهٔ قیمت تعادلی: حد پایین ۲٬۴۸۸٫۱۵", text);
+        Assert.Contains("بازهٔ قیمت تعادلی: حد پایین ۲٬۴۸۸، میانه ۴٬۷۱۳، حد بالا ۶٬۹۳۹ ریال", text);
         Assert.Contains("در نیمهٔ پایین بازه", text);
         Assert.DoesNotContain("unused text", text);
+    }
+
+    // ---- Visual refresh: display rule and derived figures (change «valuation-gauge-cards-visual-refresh») -------
+
+    // شاراک P/E as shown by the first production card on 2026-11-26.
+    private static RatioGaugeSnapshot SharakPeProduction(string? close = "6.999044944", long[]? counts = null) =>
+        new(close, "2.1059510085", "3.3487316736139543", "5.880866117458263", "9.693612328874726", "59.613521843",
+            counts ?? [414, 1483, 1412, 1161, 634, 662], 3, Now.AddHours(-3));
+
+    [Theory]
+    [InlineData("6.999044944", 2, "7.00")]
+    [InlineData("5.880866117458263", 2, "5.88")]
+    [InlineData("3.3487316736139543", 2, "3.35")]
+    [InlineData("7", 2, "7.00")]
+    [InlineData("1.005", 2, "1.01")]
+    [InlineData("-0.004", 2, "0.00")]
+    [InlineData("4120.5", 0, "4121")]
+    [InlineData("4120.4", 0, "4120")]
+    [InlineData("-12.5", 0, "-13")]
+    [InlineData(".5", 0, "1")]
+    [InlineData("123456789012345678901234567890.125", 2, "123456789012345678901234567890.13")]
+    public void DisplayRoundingIsHalfAwayFromZeroWithoutPrecisionLimit(string value, int decimals, string expected) =>
+        Assert.Equal(expected, ValuationGaugeTextComposer.RoundHalfAwayFromZero(value, decimals));
+
+    [Fact]
+    public void RatiosShowTwoDecimalsAndPricesWholeRials()
+    {
+        Assert.Equal("۷٫۰۰", ValuationGaugeTextComposer.Ratio2("6.999044944"));
+        Assert.Equal("۴٬۱۲۰", ValuationGaugeTextComposer.Rial0("4120.4"));
+        Assert.Equal("\u200e−۱۳", ValuationGaugeTextComposer.Rial0("-12.5"));
+    }
+
+    [Fact]
+    public void SharakInsightsMatchTheDialAndTheSourceSite()
+    {
+        var card = ValuationGaugeProjector.ProjectRatio(ValuationGaugeKind.Pe, SharakPeProduction(), Now, MaxAge, 1);
+
+        Assert.Equal("19.0", card.Insights!.DistanceToAveragePercent);
+        Assert.Equal(4, card.Insights.CurrentBand);
+        Assert.Equal("57.4", card.Insights.DaysBelowBandPercent);
+        Assert.Equal("20.1", card.Insights.DaysInBandPercent);
+        Assert.Equal(["7.2", "25.7", "24.5", "20.1", "11.0", "11.5"], card.Ratio!.DayPercentages!);
+        var sectors = card.Geometry!.Sectors;
+        Assert.Equal("2.1059510085", sectors[0].From);
+        Assert.Equal("3.3487316736139543", sectors[0].To);
+        Assert.Equal("5.880866117458263", sectors[3].From);
+        Assert.StartsWith("7.787239", sectors[3].To);
+        Assert.Equal("59.613521843", sectors[5].To);
+        Assert.All(sectors.Zip(sectors.Skip(1)), pair => Assert.Equal(pair.First.To, pair.Second.From));
+    }
+
+    [Fact]
+    public void SharakTextIsRoundedNamesTheSourceAndCarriesTheInsights()
+    {
+        var result = new ValuationGaugeCardsResult(1, "شاراک", "پتروشیمی شازند", "شاراک", [ValuationGaugeKind.Pe],
+            [ValuationGaugeProjector.ProjectRatio(ValuationGaugeKind.Pe, SharakPeProduction(), Now, MaxAge, 1)], Now, 48);
+
+        var text = ValuationGaugeTextComposer.Compose(result);
+
+        Assert.Contains("نسبت فعلی ۷٫۰۰", text);
+        Assert.Contains("حد پایین ۳٫۳۵، میانگین ۵٫۸۸، حد بالا ۹٫۶۹ (محور از ۲٫۱۱ تا ۵۹٫۶۱)", text);
+        Assert.Contains("فاصله تا میانگین \u200e+۱۹٫۰٪", text);
+        Assert.Contains("در ۵۷٫۴٪ روزها P/E پایین‌تر از بازهٔ امروز بوده و ۲۰٫۱٪ روزها در همین بازه.", text);
+        Assert.Contains("منبع: تحلیل‌اپ · دریافت ۱۴۰۵/۰۹/۰۵", text);
+        Assert.DoesNotMatch(new Regex("[۰-۹]٫[۰-۹]{3,}"), text);
+        Assert.DoesNotMatch(new Regex("دریافت [۰-۹/]+ [۰-۹]{2}:"), text);
+    }
+
+    [Fact]
+    public void APinnedNeedleKeepsTheDistanceButHasNoBand()
+    {
+        var card = ValuationGaugeProjector.ProjectRatio(ValuationGaugeKind.Pe, SharakPeProduction(close: "1.5"), Now, MaxAge, 1);
+
+        Assert.Equal("-74.5", card.Insights!.DistanceToAveragePercent);
+        Assert.Null(card.Insights.CurrentBand);
+        Assert.Null(card.Insights.DaysBelowBandPercent);
+        Assert.Null(card.Insights.DaysInBandPercent);
+    }
+
+    [Fact]
+    public void NoCurrentValueHasNoInsights() =>
+        Assert.Null(ValuationGaugeProjector.ProjectRatio(ValuationGaugeKind.Pe, SharakPeProduction(close: null), Now, MaxAge, 1).Insights);
+
+    [Fact]
+    public void AZeroDayTotalKeepsOnlyTheDistance()
+    {
+        var card = ValuationGaugeProjector.ProjectRatio(ValuationGaugeKind.Pe, SharakPeProduction(counts: [0, 0, 0, 0, 0, 0]), Now, MaxAge, 1);
+
+        Assert.Equal("19.0", card.Insights!.DistanceToAveragePercent);
+        Assert.Null(card.Insights.CurrentBand);
+        Assert.Null(card.Insights.DaysBelowBandPercent);
+    }
+
+    [Fact]
+    public void ANonPositiveAverageHasNoDistanceButKeepsTheBand()
+    {
+        var snapshot = new RatioGaugeSnapshot("0.5", "-5", "-3", "0", "2", "4", [10, 10, 20, 20, 20, 20], 3, Now.AddHours(-1));
+
+        var card = ValuationGaugeProjector.ProjectRatio(ValuationGaugeKind.Pe, snapshot, Now, MaxAge, 1);
+
+        Assert.Null(card.Insights!.DistanceToAveragePercent);
+        Assert.Equal(4, card.Insights.CurrentBand);
+        Assert.Equal("40.0", card.Insights.DaysBelowBandPercent);
+    }
+
+    [Theory]
+    [InlineData("3800", "4400", "5000", 4120, "-6.4", "8.4")]
+    [InlineData("0", "10", "20", 5, "-50.0", null)]
+    [InlineData("-10", "5", "20", 0, "-100.0", "100.0")]
+    public void EquilibriumInsightsCompareThePriceWithTheMidpointAndTheLowerBound(
+        string lower, string midpoint, string upper, double price, string? vsMid, string? vsLow)
+    {
+        var card = ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, lower, midpoint, upper, Now.AddHours(-1)),
+            Quote((decimal)price), ValuationGaugeQuoteState.Available, Now, MaxAge);
+
+        Assert.Equal(vsMid, card.Insights!.PriceVsMidpointPercent);
+        Assert.Equal(vsLow, card.Insights.PriceVsLowerPercent);
+    }
+
+    [Fact]
+    public void ARangeWithoutQuoteHasNoInsights() =>
+        Assert.Null(ValuationGaugeProjector.ProjectEquilibrium(AkhaberRange(), null, ValuationGaugeQuoteState.Unavailable, Now, MaxAge).Insights);
+
+    [Fact]
+    public void EquilibriumTextShowsWholeRialsAndTheComparisons()
+    {
+        var result = new ValuationGaugeCardsResult(1, "شاراک", null, "شاراک", [ValuationGaugeKind.Equilibrium],
+            [ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "3800", "4400.6", "5000", Now.AddHours(-1)),
+                Quote(4120.4m), ValuationGaugeQuoteState.Available, Now, MaxAge)], Now, 48);
+
+        var text = ValuationGaugeTextComposer.Compose(result);
+
+        Assert.Contains("حد پایین ۳٬۸۰۰، میانه ۴٬۴۰۱، حد بالا ۵٬۰۰۰ ریال", text);
+        Assert.Contains("قیمت بازار ۴٬۱۲۰ ریال", text);
+        Assert.Contains("تا میانهٔ بازه \u200e−۶٫۴٪، نسبت به حد پایین \u200e+۸٫۴٪", text);
+    }
+
+    [Fact]
+    public void AStoredCardWithoutTheNewFieldsStillReadsAndRounds()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var result = new ValuationGaugeCardsResult(1, "شاراک", null, "شاراک", [ValuationGaugeKind.Pe],
+            [ValuationGaugeProjector.ProjectRatio(ValuationGaugeKind.Pe, SharakPeProduction(), Now, MaxAge, 1)], Now, 48);
+        var node = JsonNode.Parse(JsonSerializer.Serialize(result, options))!;
+        var card = node["cards"]![0]!.AsObject();
+        card.Remove("insights");
+        foreach (var sector in card["geometry"]!["sectors"]!.AsArray()) { sector!.AsObject().Remove("from"); sector.AsObject().Remove("to"); }
+
+        var restored = node.Deserialize<ValuationGaugeCardsResult>(options)!;
+        var text = ValuationGaugeTextComposer.Compose(restored);
+
+        Assert.Null(restored.Cards[0].Insights);
+        Assert.Null(restored.Cards[0].Geometry!.Sectors[0].From);
+        Assert.Contains("نسبت فعلی ۷٫۰۰", text);
+        Assert.DoesNotContain("فاصله تا میانگین", text);
+        Assert.DoesNotContain("پایین‌تر از بازهٔ امروز", text);
     }
 
     // ---- Helpers -------------------------------------------------------------------------------------------

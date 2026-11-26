@@ -69,17 +69,66 @@ public sealed class ValuationGaugeCardsCyclicalWavesE2ETests : IClassFixture<Val
     }
 
     [Fact]
-    public async Task AllGauges_ComeInFixedOrder_ForOneMinimumCharge()
+    public async Task AllGauges_ComeInFixedOrder_ForOneCreditPerCard()
     {
-        var root = await ValuationGaugeChat.AskAsync(_factory, "گیج‌های ارزش‌گذاری شاراک");
+        var key = Guid.NewGuid();
+        var root = await ValuationGaugeChat.AskAsync(_factory, "گیج‌های ارزش‌گذاری شاراک", key);
 
         var kinds = root.GetProperty("valuationGaugeCards").GetProperty("cards").EnumerateArray()
             .Select(card => (card.GetProperty("kind").GetString(), card.GetProperty("state").GetString())).ToArray();
         // شاراک has no instrument quote in this store, so the equilibrium card is range-only.
         Assert.Equal([("Pe", "Available"), ("Ps", "Available"), ("Equilibrium", "Partial")], kinds);
-        Assert.Equal(1m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        // Change «valuation-gauge-per-card-credits» AC-02, AC-04 (OQ-139): three usable cards, the range-only
+        // equilibrium card included, cost three credits.
+        Assert.Equal(3m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        var charge = Assert.Single(_factory.ReadUsageEntries(), entry => entry.IdempotencyKey == $"{key:N}:charge");
+        Assert.Equal("ValuationGaugesAnswered.3", charge.CompletionStatus);
+        Assert.Equal(3m, charge.CreditsCharged);
         Assert.Contains("قیمت بازار در دسترس نیست", ValuationGaugeChat.Text(root));
         Feature148Chat.NoOutboundCalls(_factory.Http);
+    }
+
+    [Fact]
+    public async Task AllGauges_WithAMissingCard_ChargeOnlyTheCardsShown()
+    {
+        var key = Guid.NewGuid();
+        var root = await ValuationGaugeChat.AskAsync(_factory, "گیج‌های ارزش‌گذاری کگهر", key);
+
+        var states = root.GetProperty("valuationGaugeCards").GetProperty("cards").EnumerateArray()
+            .Select(card => (card.GetProperty("kind").GetString(), card.GetProperty("state").GetString())).ToArray();
+        // کگهر has no P/E snapshot: two usable cards (AC-03, OQ-138).
+        Assert.Equal("Ps", states[1].Item1);
+        Assert.Equal(2, states.Count(state => state.Item2 is "Available" or "Partial"));
+        Assert.Equal(2m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.Equal("ValuationGaugesAnswered.2",
+            Assert.Single(_factory.ReadUsageEntries(), entry => entry.IdempotencyKey == $"{key:N}:charge").CompletionStatus);
+    }
+
+    [Fact]
+    public async Task AllGauges_WithTooSmallABalance_AreRefusedBeforeAnyGaugeRead()
+    {
+        var key = Guid.NewGuid();
+        var balances = _factory.SetWalletBalances(2m);
+        try
+        {
+            using var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+            using var response = await client.PostAsJsonAsync("/api/ai/v1/query",
+                new { message = "گیج‌های ارزش‌گذاری شاراک", idempotencyKey = key }, CancellationToken.None);
+            var body = await response.Content.ReadAsStringAsync(CancellationToken.None);
+
+            // AC-05 (OQ-140): the existing insufficient-credit outcome, no card, no gauge read, nothing charged.
+            Assert.True(response.StatusCode == HttpStatusCode.PaymentRequired, $"{(int)response.StatusCode}: {body}");
+            Assert.DoesNotContain("valuationGaugeCards\":{", body);
+            Assert.False(_factory.Reads.Read<CyclicalWavesV2GaugeDetailRow>());
+            Assert.False(_factory.Reads.Read<CyclicalWavesV2EquilibriumRangeRow>());
+            Assert.DoesNotContain(_factory.ReadUsageEntries(), entry => entry.IdempotencyKey == $"{key:N}:charge" && entry.CreditsCharged > 0);
+            Assert.All(_factory.ReadWallets(), wallet => Assert.Equal((2m, 0m), (wallet.Balance, wallet.ReservedAmount)));
+        }
+        finally
+        {
+            _factory.RestoreWalletBalances(balances);
+        }
     }
 
     [Theory]
@@ -144,6 +193,19 @@ public sealed class ValuationGaugeCardsCyclicalWavesE2ETests : IClassFixture<Val
 
         Assert.Equal(1m, first.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
         Assert.Single(_factory.ReadUsageEntries(), entry => entry.IdempotencyKey == $"{key:N}:charge");
+    }
+
+    [Fact]
+    public async Task ARetriedAllGaugesRequestSettlesOnceAtThreeCredits()
+    {
+        var key = Guid.NewGuid();
+        var first = await ValuationGaugeChat.AskAsync(_factory, "گیج‌های ارزش‌گذاری شاراک", key);
+        var second = await ValuationGaugeChat.AskAsync(_factory, "گیج‌های ارزش‌گذاری شاراک", key);
+
+        // AC-07: the replay returns the first settlement; the raised hold is never upgraded again.
+        Assert.Equal(3m, first.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.Equal(3m, second.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.Equal(3m, Assert.Single(_factory.ReadUsageEntries(), entry => entry.IdempotencyKey == $"{key:N}:charge").CreditsCharged);
     }
 
     [Fact]
@@ -286,6 +348,33 @@ public class ValuationGaugeCardsApiFactory : Feature148CyclicalWavesChatApiFacto
 
         ResetRecorders();
     }
+
+    /// <summary>Sets every wallet to <paramref name="balance"/> and returns the previous balances.</summary>
+    public IReadOnlyDictionary<Guid, decimal> SetWalletBalances(decimal balance)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>();
+        var previous = db.WalletProjections.ToDictionary(row => row.CustomerAccountId, row => row.Balance);
+        foreach (var wallet in db.WalletProjections) wallet.Balance = balance;
+        db.SaveChanges();
+        return previous;
+    }
+
+    public void RestoreWalletBalances(IReadOnlyDictionary<Guid, decimal> balances)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>();
+        foreach (var wallet in db.WalletProjections)
+            if (balances.TryGetValue(wallet.CustomerAccountId, out var balance)) wallet.Balance = balance;
+        db.SaveChanges();
+    }
+
+    public IReadOnlyCollection<FinancialCopilot.Infrastructure.Billing.Persistence.WalletProjectionRow> ReadWallets()
+    {
+        using var scope = Services.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>()
+            .WalletProjections.AsNoTracking().ToList();
+    }
 }
 
 public sealed class ValuationGaugeCardsFlagOffApiFactory : ValuationGaugeCardsApiFactory
@@ -338,7 +427,8 @@ internal static class ValuationGaugeSeed
             Gauge(tickers["دوقلوب"].Id, "PE", "5", "1", "10", "2", "4.5", "8", 2, now.AddHours(-1)));
         db.CyclicalWavesV2EquilibriumRanges.AddRange(
             Range(tickers["شاراک"].Id, "15423.41", "44331.97", "73240.53", now.AddHours(-1)),
-            Range(tickers["اخابر"].Id, "2488.15", "4713.35", "6938.56", now.AddHours(-1)));
+            Range(tickers["اخابر"].Id, "2488.15", "4713.35", "6938.56", now.AddHours(-1)),
+            Range(tickers["کگهر"].Id, "1500", "2000", "2500", now.AddHours(-1)));
 
         // The canonical quote for اخابر's instrument (same ISIN); the latest daily trade, since nothing traded today.
         var instrumentId = Guid.NewGuid();

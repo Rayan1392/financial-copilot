@@ -296,8 +296,16 @@ public static class SemanticBillingCompletionStatus
     /// <summary>A fixed informational reply (greeting or help). It is answered, but zero-charge by owner decision OQ-017.</summary>
     public const string InformationalReply = "InformationalReply";
 
-    public static string For(CapabilityExecutionResult result) =>
-        result.ReasonCode == DialogueOutcomeReasonCodes.AssistantHelp ? InformationalReply : For(result.Status);
+    public static string For(CapabilityExecutionResult result) => result switch
+    {
+        { ReasonCode: DialogueOutcomeReasonCodes.AssistantHelp } => InformationalReply,
+        // Change «valuation-gauge-per-card-credits»: a usable gauge answer settles per usable card.
+        { Status: CapabilityExecutionStatus.Executed or CapabilityExecutionStatus.Partial,
+            Payload: FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult gauges }
+            when ValuationGaugeBillingPolicy.ChargedCards(gauges) > 0
+            => ValuationGaugeBillingPolicy.AnsweredStatus(ValuationGaugeBillingPolicy.ChargedCards(gauges)),
+        _ => For(result.Status)
+    };
 
     public static string For(CapabilityExecutionStatus status) => status switch
     {

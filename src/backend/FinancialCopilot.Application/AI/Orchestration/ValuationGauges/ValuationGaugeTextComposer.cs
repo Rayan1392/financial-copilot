@@ -106,8 +106,9 @@ public static class ValuationGaugeTextComposer
                 comparisons.Add("بالای حد پایین " + Percent(vsLow, signed: true));
             if (comparisons.Count > 0)
                 builder.AppendLine().Append(string.Join("، ", comparisons));
+            // No provider name for users (owner, 2026-11-26); the payload keeps it.
             builder.AppendLine().Append("قیمت: ").Append(QuoteSourceText(quote.SourceLabel))
-                .Append("، ").Append(quote.ProviderName).Append("، ").Append(DateTime(quote.AsOf));
+                .Append("، ").Append(DateTime(quote.AsOf));
         }
         else
         {

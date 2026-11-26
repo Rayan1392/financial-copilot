@@ -634,6 +634,9 @@ public sealed class ValuationGaugeCardsTests
 
         Assert.Contains("حد پایین ۳٬۸۰۰، میانه ۴٬۴۰۱، حد بالا ۵٬۰۰۰ ریال", text);
         Assert.Contains("قیمت بازار ۴٬۱۲۰ ریال", text);
+        // Owner, 2026-11-26: the price line names its source and time, not the provider.
+        Assert.Contains("قیمت: معاملات امروز، ", text);
+        Assert.DoesNotContain("StockMarketDb", text);
         Assert.Contains("تا میانهٔ بازه \u200e−۶٫۴٪، بالای حد پایین \u200e+۸٫۴٪", text);
     }
 

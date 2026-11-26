@@ -15,6 +15,8 @@ internal static class DefaultPricingPolicy
         "v1",
         new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
         {
+            // A usable valuation gauge answer settles with a ValuationGaugesAnswered.* status at one credit per card
+            // (ValuationGaugeBillingPolicy), never at this price.
             ["AiQuery.Scanner"] = 1m,
             ["AiQuery.FinancialStatement"] = 2m,
             ["AiQuery.MonthlySalesTrend"] = 2m,

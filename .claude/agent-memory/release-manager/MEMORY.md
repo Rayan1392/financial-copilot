@@ -3,6 +3,29 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.30.0
+
+- Published on 2026-11-26 (MINOR).
+  - Added: the valuation gauge cards, already enabled in production by the owner after 1.29.2.
+  - Changed: the Feature 159 change `valuation-gauge-cards-visual-refresh`: two-decimal ratios, whole-rial prices,
+    green/black/red bounds, derived figures, the price band, and the segmented control on phones.
+- Commits:
+  - feature `f9de68e4` and label fix `efdf00a4`;
+  - develop release commit `e318e0d5`;
+  - prod merge `b4ddedf7`;
+  - annotated tag `v1.30.0` (tag object `99ff80b5`).
+- Checks:
+  - the release check passed and release-note tests passed 12/12;
+  - no migration and no Telegram gateway change;
+  - backend failures were compared by test name with `864b7344`: none new once load-related timeouts were rerun alone.
+- Deploy run 45809746873 succeeded (deploy job 10m45s). `/releases` returned HTTP 200 and lists 1.30.0 first;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open:
+  - OQ-136, the forward P/E needle (provider data needed);
+  - OQ-137, the wording of the «بالای حد پایین» tile when the figure is negative;
+  - prod and develop still differ in four pre-existing files (compose override and its backup on prod;
+    `.deepcode/settings.json` and a skill file on develop).
+
 ## Release 1.29.2
 
 - Published on 2026-11-26 (PATCH, Fixed: «ترکیب فروش/درآمد ماهانه ‹نماد›» in a monthly sales conversation opens the

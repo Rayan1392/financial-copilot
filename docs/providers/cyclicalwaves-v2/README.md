@@ -69,7 +69,11 @@ V2 Chat answers «گیج P/E ‹نماد›», «گیج P/S ‹نماد›», «
 `EquilibriumRanges` rows. A «گیج» or «بازه» word is required (OQ-130): the bare «قیمت تعادلی ‹نماد›» keeps its current
 route. The equilibrium needle uses the canonical quote (`PersistedMarketDataProvider`, the same reader as the relative
 valuation inputs), shown with its own source and time. Cards make no LLM, vendor HTTP or cross-provider fallback call.
-A usable answer costs one `AiQuery.Scanner` minimum credit (OQ-131); clarification, no-data, stale-only and
+Each usable card (Available or Partial, including a range-only equilibrium card) costs one credit, so the three-card
+answer costs three (change `valuation-gauge-per-card-credits`, OQ-138, OQ-139; it supersedes OQ-131). The answer
+settles with `ValuationGaugesAnswered.<n>` at that fixed amount in every `UsageBasedCredits:Mode`
+(`ValuationGaugeBillingPolicy`). Before any read, the hold is raised to the requested cards; a balance below it gets
+the existing insufficient-credit answer and no card (OQ-140). Clarification, no-data, stale-only and
 temporarily-unavailable answers are free. No table, migration or tariff seed was added.
 
 **Activation** (API service; off by default):

@@ -170,16 +170,17 @@ public sealed class AiFacadeBillingHook(
         bool isUnlimited,
         CancellationToken cancellationToken)
     {
-        if (!EnforcesUsageBasedCredits(operationCode))
-        {
-            return operationCredits;
-        }
-
-        // A replayed turn reuses its original hold: the reservation service rejects a different
-        // amount for the same idempotency key, and the balance has moved since the first attempt.
+        // A replayed turn reuses its original hold in every mode: the reservation service rejects a different
+        // amount for the same idempotency key, the balance has moved since the first attempt, and a fixed-amount
+        // route may have raised the hold above the operation price (change «valuation-gauge-per-card-credits»).
         if (await reservations.FindByIdempotencyKeyAsync(reservationKey, cancellationToken) is { } existing)
         {
             return existing.ReservedCredits;
+        }
+
+        if (!EnforcesUsageBasedCredits(operationCode))
+        {
+            return operationCredits;
         }
 
         var minimum = Math.Max(decimal.Ceiling(operationCredits), creditOptions.MinimumCredits);
@@ -302,10 +303,12 @@ public sealed class AiFacadeBillingHook(
             CreateChargeRequest(handle.OperationCode, request.CompletionStatus, request.Cached));
         // Change «sol-deep-analysis-web-search» (PO-6, PO-7): an answered analysis settles at its fixed tier amount and
         // never takes the usage-based path, whatever UsageBasedCredits:Mode is. The tier is in the completion status.
-        var fixedAnalysisCredits = groundedAnalysisPricing is null
-            ? null
-            : GroundedAnalysisBillingPolicy.FixedCredits(request.CompletionStatus, groundedAnalysisPricing);
-        if (fixedAnalysisCredits is { } tierCredits)
+        // Change «valuation-gauge-per-card-credits»: a usable gauge answer settles the same way, one credit per card.
+        var fixedCredits = (groundedAnalysisPricing is null
+                ? null
+                : GroundedAnalysisBillingPolicy.FixedCredits(request.CompletionStatus, groundedAnalysisPricing))
+            ?? ValuationGaugeBillingPolicy.FixedCredits(request.CompletionStatus);
+        if (fixedCredits is { } tierCredits)
         {
             charge = charge with { CreditsCharged = tierCredits };
         }
@@ -319,7 +322,7 @@ public sealed class AiFacadeBillingHook(
             };
         }
 
-        if (fixedAnalysisCredits is null && EvaluatesUsageBasedCredits(handle.OperationCode))
+        if (fixedCredits is null && EvaluatesUsageBasedCredits(handle.OperationCode))
         {
             try
             {
@@ -374,7 +377,7 @@ public sealed class AiFacadeBillingHook(
             return await ReplayFinalizationAsync(handle, existingEntry, cancellationToken);
         }
 
-        if (fixedAnalysisCredits is null && EvaluatesUsageBasedCredits(handle.OperationCode))
+        if (fixedCredits is null && EvaluatesUsageBasedCredits(handle.OperationCode))
         {
             try
             {

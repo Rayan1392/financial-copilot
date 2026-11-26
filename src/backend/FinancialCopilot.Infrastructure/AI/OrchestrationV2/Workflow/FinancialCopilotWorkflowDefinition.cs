@@ -572,6 +572,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 interpretation.Period?.Value,
                 interpretation.Comparison?.Value,
                 interpretation.Presentation?.Kind.ToString());
+            var semanticReservation = msg.Reservation;
+            // Change «valuation-gauge-per-card-credits» (OQ-140): hold one credit per requested card before any read, so
+            // a short balance gets the existing insufficient-credit outcome and no card. Without a symbol the turn is a
+            // free clarification, so the hold stays as it is. A replayed turn already holds what its first attempt raised
+            // (its reservation is settled and cannot be upgraded), so only a hold below the requirement is raised.
+            if (semanticReservation is not null && semanticFrame.CapabilityCode == ValuationGaugeCapability.Code
+                && semanticFrame.Value(QuerySlotType.CompanyOrSymbol) is not null
+                && ValuationGaugeBillingPolicy.RequiredCredits(semanticFrame) is var requiredGaugeCredits
+                && semanticReservation.ReservedCredits < requiredGaugeCredits)
+            {
+                semanticReservation = await billingFunctions.EnsureReservedCapacityAsync(
+                    semanticReservation, requiredGaugeCredits, ct);
+            }
             var semantic = await semanticExecutionCoordinator.ExecuteWithReservationAsync(
                 semanticFrame,
                 new QueryExecutionContext(
@@ -585,7 +598,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     request,
                     IsAgentWorkflowV2: true),
                 request,
-                msg.Reservation,
+                semanticReservation,
                 deferSettlementForFallback: true,
                 ct);
             logger.LogInformation(

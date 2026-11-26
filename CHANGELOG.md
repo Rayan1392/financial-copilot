@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-11-26
+
+هر کارت گیج ارزش‌گذاری یک اعتبار هزینه دارد و کارت بازهٔ قیمت تعادلی ساده‌تر شد.
+
+### Changed
+
+- هر کارت گیج ارزش‌گذاری یک اعتبار است؛ «گیج‌های ارزش‌گذاری ‹نماد›» با سه کارت سه اعتبار. کارتی که داده ندارد رایگان است.
+- در کارت «بازهٔ قیمت تعادلی» خط قیمت فقط منبع و زمان قیمت را نشان می‌دهد و پیشوند «بازه:» از پانویس کارت حذف شد.
+
 ## [1.30.0] - 2026-11-26
 
 کارت‌های گیج ارزش‌گذاری با طراحی تازه در گفتگو نمایش داده می‌شوند.
@@ -561,7 +570,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.30.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.31.0...develop
+[1.31.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.2...v1.30.0
 [1.29.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.1...v1.29.2
 [1.29.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.0...v1.29.1

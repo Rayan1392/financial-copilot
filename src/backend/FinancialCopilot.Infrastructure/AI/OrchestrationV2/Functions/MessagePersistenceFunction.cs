@@ -58,7 +58,8 @@ internal sealed class MessagePersistenceFunction(
         FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? groundedAnalysisOffer = null,
         FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisRun? groundedAnalysisRun = null,
         IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? externalSources = null,
-        bool? groundedAnalysisAvailable = null)
+        bool? groundedAnalysisAvailable = null,
+        FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? valuationGaugeCards = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -72,7 +73,7 @@ internal sealed class MessagePersistenceFunction(
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
         var malformedProductComposition =
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(request.Message) &&
-            !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message) &&
+            !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message, isV2: true) &&
             outcome == DialogueOutcome.Unsupported;
         var guidanceSubject = CapabilityGuidanceSubject.From(request.SemanticFrame, intent, request.Message);
         IReadOnlyCollection<SuggestedAction> suggestions = deterministicSuggestionsApplied
@@ -142,7 +143,8 @@ internal sealed class MessagePersistenceFunction(
                     GroundedAnalysisOffer: groundedAnalysisOffer,
                     GroundedAnalysisRun: groundedAnalysisRun,
                     ExternalSources: externalSources,
-                    GroundedAnalysisAvailable: groundedAnalysisAvailable)),
+                    GroundedAnalysisAvailable: groundedAnalysisAvailable,
+                    ValuationGaugeCards: valuationGaugeCards)),
             createConversation,
             cancellationToken);
         return persisted with { SuggestedActions = suggestions };

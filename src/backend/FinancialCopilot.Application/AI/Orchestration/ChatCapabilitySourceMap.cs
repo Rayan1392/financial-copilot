@@ -10,10 +10,14 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 /// </summary>
 public sealed class ChatCapabilitySourceMap
 {
-    /// <summary>The only capabilities whose source may be overridden. Steps 2 and 3 extend it through their own features.</summary>
+    /// <summary>
+    /// The only capabilities whose source may be overridden. Steps 2 and 3 extend it through their own features.
+    /// Standalone valuation gauge cards read only Feature 148 snapshots, so they may map to CyclicalWaves only.
+    /// </summary>
     public static readonly IReadOnlySet<string> OverridableRoutes = new HashSet<string>(StringComparer.Ordinal)
     {
-        CapabilityExecutionRoutes.ComprehensiveAnalysis
+        CapabilityExecutionRoutes.ComprehensiveAnalysis,
+        CapabilityExecutionRoutes.ValuationGauges
     };
 
     private readonly Dictionary<string, FinancialDataChatProvider> _overrides;
@@ -64,6 +68,13 @@ public sealed class ChatCapabilitySourceMap
             {
                 errors.Add(string.Create(CultureInfo.InvariantCulture,
                     $"'{key}' has unknown provider '{value}'; allowed: {string.Join(", ", Enum.GetNames<FinancialDataChatProvider>())}."));
+                continue;
+            }
+
+            if (route == CapabilityExecutionRoutes.ValuationGauges && provider != FinancialDataChatProvider.CyclicalWaves)
+            {
+                errors.Add(string.Create(CultureInfo.InvariantCulture,
+                    $"'{key}' may map only to {nameof(FinancialDataChatProvider.CyclicalWaves)}."));
                 continue;
             }
 

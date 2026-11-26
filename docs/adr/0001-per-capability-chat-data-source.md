@@ -22,7 +22,8 @@ as missing. Values from one provider are never written into the other provider's
 calculated value.
 
 Step 1 (Feature 159) allowlists `comprehensive_analysis`. Steps 2 and 3 extend the allowlist only through their
-own approved features.
+own approved features. The approved Feature 159 change `standalone-valuation-gauge-cards` (Gate B 2026-11-25) adds
+`valuation_gauges`, which may map only to `CyclicalWaves`.
 
 ## Consequences
 

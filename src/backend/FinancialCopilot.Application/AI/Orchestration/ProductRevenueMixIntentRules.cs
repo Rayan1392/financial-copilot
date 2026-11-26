@@ -5,6 +5,10 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 
 public static class ProductRevenueMixIntentRules
 {
+    private static readonly Regex V2MonthlyMixPhrase = new(
+        @"(?<!\p{L})ترکیب\s+(?:فروش|درآمد)\s+ماهانه(?!\p{L})",
+        RegexOptions.CultureInvariant);
+
     private static readonly string[] ProductRevenuePhrases =
     [
         "مهم‌ترین محصول", "مهم ترین محصول",
@@ -27,19 +31,25 @@ public static class ProductRevenueMixIntentRules
         "product composition", "product concentration"
     ];
 
-    public static bool LooksLikeProductRevenueMixQuery(string? query)
+    public static bool LooksLikeProductRevenueMixQuery(string? query) =>
+        LooksLikeProductRevenueMixQuery(query, isV2: false);
+
+    public static bool LooksLikeProductRevenueMixQuery(string? query, bool isV2)
     {
         if (string.IsNullOrWhiteSpace(query)) return false;
         var normalized = NormalizeLookupText(query);
-        return GetMatchedPhrase(normalized) is not null;
+        return GetMatchedPhrase(normalized, isV2) is not null;
     }
 
-    public static string? ExtractCompanySymbol(string? query)
+    public static string? ExtractCompanySymbol(string? query) =>
+        ExtractCompanySymbol(query, isV2: false);
+
+    public static string? ExtractCompanySymbol(string? query, bool isV2)
     {
         if (string.IsNullOrWhiteSpace(query)) return null;
 
         var normalized = NormalizeLookupText(query);
-        var matchedPhrase = GetMatchedPhrase(normalized);
+        var matchedPhrase = GetMatchedPhrase(normalized, isV2);
         var stripped = matchedPhrase is null
             ? normalized
             : RemoveFirst(normalized, matchedPhrase);
@@ -60,11 +70,16 @@ public static class ProductRevenueMixIntentRules
             .Replace('‌', ' ')
             .ToLowerInvariant();
 
-    private static string? GetMatchedPhrase(string normalizedQuery) =>
-        ProductRevenuePhrases
+    private static string? GetMatchedPhrase(string normalizedQuery, bool isV2)
+    {
+        if (isV2 && V2MonthlyMixPhrase.Match(normalizedQuery) is { Success: true } monthlyMix)
+            return monthlyMix.Value;
+
+        return ProductRevenuePhrases
             .Select(NormalizeLookupText)
             .OrderByDescending(phrase => phrase.Length)
             .FirstOrDefault(phrase => normalizedQuery.Contains(phrase, StringComparison.OrdinalIgnoreCase));
+    }
 
     private static string RemoveFirst(string source, string value)
     {

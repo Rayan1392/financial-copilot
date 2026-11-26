@@ -80,7 +80,10 @@ public sealed record AssistantMessagePayload(
     IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? ExternalSources = null,
     // OQ-113 (a): whether the next question about this answer may be a priced analysis, as decided when the turn ran,
     // so a reloaded conversation shows the same settings bar. Null when analysis is off and on old payloads.
-    bool? GroundedAnalysisAvailable = null);
+    bool? GroundedAnalysisAvailable = null,
+    // Feature 159 change «standalone-valuation-gauge-cards»: the cards exactly as answered, replayed from history.
+    // Null on every other turn and on old payloads; stays readable after the feature flag is turned off.
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

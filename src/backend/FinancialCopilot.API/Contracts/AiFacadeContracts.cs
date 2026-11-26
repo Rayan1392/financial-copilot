@@ -49,6 +49,8 @@ public sealed record GroundedAnalysisHttpResponse(
 
 public sealed record ExternalSourceHttpResponse(string Id, string Title, string Url, string PublishedAt);
 
+public sealed record ChatCapabilityAvailabilityHttpResponse(bool ValuationGaugeCards);
+
 public sealed record CapabilityStarterPromptHttpResponse(
     string CapabilityCode,
     string Label,
@@ -98,7 +100,9 @@ public sealed record AiQueryHttpResponse(
     MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null,
     SymbolSnapshotResult? SymbolSnapshotResult = null,
     GroundedAnalysisHttpResponse? GroundedAnalysis = null,
-    IReadOnlyList<ExternalSourceHttpResponse>? Sources = null);
+    IReadOnlyList<ExternalSourceHttpResponse>? Sources = null,
+    // Feature 159 change «standalone-valuation-gauge-cards»: present only when at least one card is usable.
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
 
 public sealed record MonthlyProductTrendHttpResponse(
     string ResultDiscriminator,
@@ -386,7 +390,8 @@ public sealed record AssistantMessageContentResponse(
     SymbolSnapshotResult? SymbolSnapshotResult = null,
     IReadOnlyList<ExternalSourceHttpResponse>? Sources = null,
     // OQ-113 (a): only on the conversation's latest assistant message, with current prices and balance.
-    GroundedAnalysisHttpResponse? GroundedAnalysis = null);
+    GroundedAnalysisHttpResponse? GroundedAnalysis = null,
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

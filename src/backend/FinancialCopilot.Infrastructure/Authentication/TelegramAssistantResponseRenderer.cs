@@ -66,6 +66,15 @@ public sealed class TelegramAssistantResponseRenderer(
             return RenderDisclosureListing(response, response.DisclosureListingResult);
         }
 
+        // Feature 159 change «standalone-valuation-gauge-cards»: the same typed facts as the web cards, as text.
+        if (response.ValuationGaugeCards is { } valuationGauges)
+        {
+            var gaugeText = new StringBuilder(ValuationGaugeTextComposer.Compose(valuationGauges)).AppendLine();
+            AppendUsage(gaugeText, response);
+            AppendSuggestedActions(gaugeText, response);
+            return Split(EscapeMarkdownV2(gaugeText.ToString().Trim()));
+        }
+
         if (response.MonthlyProductTrendResult is not null)
         {
             return RenderMonthlyProductTrend(response.MonthlyProductTrendResult);

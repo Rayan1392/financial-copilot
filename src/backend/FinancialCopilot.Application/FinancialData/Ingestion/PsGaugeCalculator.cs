@@ -19,17 +19,7 @@ public static class PsGaugeCalculator
             throw new ArgumentOutOfRangeException(nameof(gaugeMax), "Gauge boundaries must satisfy start < min < max < end.");
         if (percentageDecimals is < 0 or > 6) throw new ArgumentOutOfRangeException(nameof(percentageDecimals));
 
-        var scale = Pow10(percentageDecimals);
-        var targetUnits = checked(100L * scale);
-        var exactUnits = counts.Select((count, order) => new
-        {
-            Order = order,
-            Exact = (decimal)count * targetUnits / total
-        }).ToArray();
-        var displayUnits = exactUnits.Select(x => (long)decimal.Floor(x.Exact)).ToArray();
-        var residual = checked((int)(targetUnits - displayUnits.Sum()));
-        foreach (var item in exactUnits.OrderByDescending(x => x.Exact - decimal.Floor(x.Exact)).ThenBy(x => x.Order).Take(residual))
-            displayUnits[item.Order]++;
+        var displayPercentages = LargestRemainderPercentages.Calculate(counts, percentageDecimals);
 
         var middleStep = (gaugeMax - gaugeMin) / 4m;
         var lowerBoundaries = new[]
@@ -56,7 +46,7 @@ public static class PsGaugeCalculator
             roles[order],
             counts[order],
             (decimal)counts[order] * 100m / total,
-            (decimal)displayUnits[order] / scale,
+            displayPercentages[order],
             lowerBoundaries[order],
             upperBoundaries[order],
             order * 30m,
@@ -83,12 +73,5 @@ public static class PsGaugeCalculator
         var fraction = (value - band.LowerBoundary) / (band.UpperBoundary - band.LowerBoundary);
         var normalized = (band.StartAngleDegrees + fraction * (band.EndAngleDegrees - band.StartAngleDegrees)) / 180m;
         return (normalized, band.Order);
-    }
-
-    private static long Pow10(int value)
-    {
-        long result = 1;
-        for (var index = 0; index < value; index++) result *= 10;
-        return result;
     }
 }

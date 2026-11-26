@@ -48,6 +48,17 @@ public sealed class AiIntentDetectorTests
     }
 
     [Theory]
+    [InlineData("ترکیب فروش ماهانه فجر؟")]
+    [InlineData("ترکیب درآمد ماهانهٔ فجر")]
+    [InlineData("ترکیب فروش ماهانه محصولات فجر را نشان بده")]
+    public void MonthlyProductMixAlias_ResolvesFajrOnlyInV2(string query)
+    {
+        Assert.True(ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(query, isV2: true));
+        Assert.Equal("فجر", ProductRevenueMixIntentRules.ExtractCompanySymbol(query, isV2: true));
+        Assert.False(ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(query));
+    }
+
+    [Theory]
     [InlineData("P/E کمتر از ۴")]
     [InlineData("P/E below 6")]
     public async Task Detect_PeFilterQuery_StillUsesModelClassification(string query)

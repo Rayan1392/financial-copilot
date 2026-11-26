@@ -222,6 +222,14 @@ public sealed class CyclicalWavesV2DomainAndMappingTests
                 continue;
             }
 
+            // Feature 159 change «standalone-valuation-gauge-cards»: off by default in both modes (flag false).
+            if (route == CapabilityExecutionRoutes.ValuationGauges)
+            {
+                Assert.Equal(ChatCapabilityAvailability.ValuationGaugesUnavailableReasonCode, inNoavaran.ReasonCode);
+                Assert.Equal(ChatCapabilityAvailability.ValuationGaugesUnavailableReasonCode, inCyclicalWaves.ReasonCode);
+                continue;
+            }
+
             Assert.True(inNoavaran.IsAvailable, route);
             Assert.Equal(ChatCapabilityAvailability.CyclicalWavesSupportedRoutes.Contains(route), inCyclicalWaves.IsAvailable);
             if (!inCyclicalWaves.IsAvailable)

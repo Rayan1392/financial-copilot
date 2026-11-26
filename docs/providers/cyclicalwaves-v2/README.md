@@ -61,3 +61,57 @@ WHERE "Scope" IN ('Analysis', 'Full')
 ORDER BY "RequestedAt" DESC
 LIMIT 5;
 ```
+
+## Standalone valuation gauge cards (Feature 159 change `standalone-valuation-gauge-cards`)
+
+V2 Chat answers «گیج P/E ‹نماد›», «گیج P/S ‹نماد›», «بازهٔ قیمت تعادلی ‹نماد›» (or «گیج قیمت تعادلی») and «گیج‌های
+ارزش‌گذاری ‹نماد›» with typed cards built from the latest-state `GaugeAvailability`, `GaugeDetails` and
+`EquilibriumRanges` rows. A «گیج» or «بازه» word is required (OQ-130): the bare «قیمت تعادلی ‹نماد›» keeps its current
+route. The equilibrium needle uses the canonical quote (`PersistedMarketDataProvider`, the same reader as the relative
+valuation inputs), shown with its own source and time. Cards make no LLM, vendor HTTP or cross-provider fallback call.
+A usable answer costs one `AiQuery.Scanner` minimum credit (OQ-131); clarification, no-data, stale-only and
+temporarily-unavailable answers are free. No table, migration or tariff seed was added.
+
+**Activation** (API service; off by default):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `ValuationGaugeCards:Enabled` (`VALUATION_GAUGE_CARDS_ENABLED`) | `false` | Master switch for the route and the symbol-menu shortcut. |
+| `ValuationGaugeCards:MaxFetchAgeHours` (`VALUATION_GAUGE_CARDS_MAX_FETCH_AGE_HOURS`) | `48` | Older snapshots (or `FetchedAtUtc` more than 5 minutes in the future) are reported stale and not shown. 1–720. |
+| `ValuationGaugeCards:ReadTimeoutMilliseconds` / `QuoteTimeoutMilliseconds` | `2000` / `1500` | Budgets for the snapshot read and the quote read; 100–30000. |
+| `ValuationGaugeCards:PercentageDecimals` | `1` | Largest-remainder precision of the six day-share percentages; 0–3. |
+| `FinancialData:CapabilitySources:valuation_gauges` (`FINANCIAL_DATA_SOURCE_VALUATION_GAUGES`) | empty | Needed only when `ChatProvider` is `NoavaranAmin`; may map only to `CyclicalWaves`. Base CyclicalWaves needs no entry. |
+
+All values are validated at start-up. Steps: confirm the gauge and equilibrium syncs are recent (query below), set the
+source map if the base provider is NoavaranAmin, set `VALUATION_GAUGE_CARDS_ENABLED=true`, restart the API, then check
+`GET /api/ai/v1/capabilities/availability` returns `{"valuationGaugeCards":true}` for a signed-in user and ask
+«گیج P/E شاراک» once.
+
+**Rollback:** set `VALUATION_GAUGE_CARDS_ENABLED=false` (and clear the source entry if it was added) and restart the API.
+New requests return to their previous routes and the availability endpoint hides the menu shortcut; cards already stored
+in conversations stay readable because history maps the stored payload without consulting the flag.
+
+**Health signals** (meter `FinancialCopilot.ValuationGauges`): `valuation_gauge.requests` (tags `match`, `usable`),
+`valuation_gauge.cards` (tags `kind`, `state`, `reason`), `valuation_gauge.snapshot_age` (hours, tag `kind`) and
+`valuation_gauge.latency` (ms, tag `match`). `match` is `matched`, `missing`, `ambiguous` or `timeout`. Watch for a rising share of `match=missing`/`ambiguous`
+(identity drift),
+`state=Stale` (sync lag beyond 48 h), `reason=quote_timed_out` and `reason=read_timed_out`.
+
+```sql
+SELECT "Scope", "Status", "StartedAt", "CompletedAt", "UpdatedItems", "FailedItems", "ErrorSummary"
+FROM cyclicalwaves."SyncRuns"
+WHERE "Scope" IN ('GaugeCatalog', 'GaugeDetails', 'EquilibriumCatalog', 'EquilibriumDetails', 'Full')
+ORDER BY "RequestedAt" DESC
+LIMIT 10;
+```
+
+**Source-coverage baseline** (local development database, 2026-11-22 sync; staging and production not measured):
+654 P/E and 645 P/S gauge rows, of which 83 and 38 have no current value (card without needle) and none has a zero day
+total; 4 rows have a non-increasing axis (text fallback); every row has an asymmetric average; active tickers have no
+duplicate normalized ticker or ISIN and none lacks an ISIN; 9 equilibrium ranges have a negative lower bound. Evidence:
+`specs/159-capability-source-map-comprehensive-analysis/changes/standalone-valuation-gauge-cards/evidence/`.
+
+**Deviations from the plan:** a small read endpoint `GET /api/ai/v1/capabilities/availability` was added because the
+web client had no existing availability boundary for the menu shortcut (unknown or failed → hidden); and
+`DetectedIntent.ValuationGauges` was appended to the persisted intent enum (integer, added last) so history records the
+route.

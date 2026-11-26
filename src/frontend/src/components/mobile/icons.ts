@@ -40,6 +40,7 @@ export { FileText as QuarterlyReportIcon } from "@phosphor-icons/react/dist/csr/
 export { Scales as BalanceSheetIcon } from "@phosphor-icons/react/dist/csr/Scales";
 export { Money as CashFlowIcon } from "@phosphor-icons/react/dist/csr/Money";
 export { ArrowsLeftRight as IndustryComparisonIcon } from "@phosphor-icons/react/dist/csr/ArrowsLeftRight";
+export { Gauge as ValuationGaugesIcon } from "@phosphor-icons/react/dist/csr/Gauge";
 
 // Account
 export { EnvelopeSimple as MessagesIcon } from "@phosphor-icons/react/dist/csr/EnvelopeSimple";

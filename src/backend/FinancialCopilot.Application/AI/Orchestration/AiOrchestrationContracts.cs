@@ -29,7 +29,9 @@ public enum DetectedIntent
     // Persisted as an integer: new members go last.
     SymbolSnapshot,
     // Feature 162: a turn answered by Report Discussion from the conversation's active report.
-    ReportDiscussion
+    ReportDiscussion,
+    // Feature 159 change «standalone-valuation-gauge-cards»: standalone valuation gauge cards (V2).
+    ValuationGauges
 }
 
 public sealed record IntentDetectionInput(
@@ -181,7 +183,8 @@ public sealed record AiQueryResponse(
     // Change «sol-deep-analysis-web-search»: prices, defaults and a pending offer (FR-4, FR-7), and the external
     // sources an answer cited (FR-10).
     FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisHint? GroundedAnalysis = null,
-    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null);
+    IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null,
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

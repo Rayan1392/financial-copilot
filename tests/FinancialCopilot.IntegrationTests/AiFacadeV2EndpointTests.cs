@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
@@ -1574,17 +1574,26 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         Assert.Equal("کچاد", companyRoot.GetProperty("monthlyActivityTrendResult").GetProperty("companySymbol").GetString());
     }
 
-    [Fact]
-    public async Task V2AiQuery_SalesReportsTakePrecedenceOverDeepWebDiscussion()
+    [Theory]
+    [InlineData("ترکیب فروش محصولات کچاد", false)]
+    [InlineData("ترکیب فروش ماهانه فجر؟", true)]
+    [InlineData("ترکیب درآمد ماهانه کچاد؟", false)]
+    public async Task V2AiQuery_SalesReportsTakePrecedenceOverDeepWebDiscussion(string mixQuestion, bool useFajrFixture)
     {
-        using var client = _factory.CreateClient();
+        using var fajrFactory = useFajrFixture ? new V2ProductRevenueMixApiFactory() : null;
+        fajrFactory?.EnsureSeeded(useFajrFixture: true);
+        var factory = fajrFactory ?? _factory;
+        var symbol = useFajrFixture ? "فجر" : "کچاد";
+        var productTitle = useFajrFixture ? "محصول گالوانیزه" : "گندله سنگ آهن";
+
+        using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
-        _factory.AnalysisModel.Reset();
-        _factory.AnalysisModel.Decision = ReportDiscussionDisposition.MissingInReport;
-        var callsBefore = _factory.Fake.CompletionCalls;
+        factory.AnalysisModel.Reset();
+        factory.AnalysisModel.Decision = ReportDiscussionDisposition.MissingInReport;
+        var callsBefore = factory.Fake.CompletionCalls;
 
         using var trendResponse = await client.PostAsJsonAsync("/api/ai/v1/query",
-            new { message = "روند فروش ماهانه کچاد" });
+            new { message = $"روند فروش ماهانه {symbol}" });
         using var trend = await ReadJsonAsync(trendResponse);
         Assert.Equal(HttpStatusCode.OK, trendResponse.StatusCode);
         var conversationId = trend.RootElement.GetProperty("conversationId").GetGuid();
@@ -1604,14 +1613,15 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
 
         var analysisOptions = new { depth = "deep", webSearch = true };
         using var mixResponse = await client.PostAsJsonAsync("/api/ai/v1/query",
-            new { message = "ترکیب فروش محصولات کچاد", conversationId, analysisOptions });
+            new { message = mixQuestion, conversationId, analysisOptions });
         using var mix = await ReadJsonAsync(mixResponse);
         Assert.Equal(HttpStatusCode.OK, mixResponse.StatusCode);
         var root = mix.RootElement;
         Assert.Equal("ProductRevenueMix", root.GetProperty("intent").GetString());
+        Assert.Contains(symbol, root.GetProperty("textAnswer").GetString());
         Assert.Equal(1m, root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
         var action = root.GetProperty("suggestedActions")[0];
-        Assert.Equal("روند فروش گندله سنگ آهن", action.GetProperty("label").GetString());
+        Assert.Equal($"روند فروش {productTitle}", action.GetProperty("label").GetString());
 
         using var rateResponse = await client.PostAsJsonAsync("/api/ai/v1/query", new
         {
@@ -1623,12 +1633,12 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         using var rate = await ReadJsonAsync(rateResponse);
         Assert.Equal(HttpStatusCode.OK, rateResponse.StatusCode);
         var product = rate.RootElement.GetProperty("monthlyProductTrendResult");
-        Assert.Equal("گندله سنگ آهن", product.GetProperty("productTitle").GetString());
+        Assert.Equal(productTitle, product.GetProperty("productTitle").GetString());
         Assert.Contains(product.GetProperty("points").EnumerateArray(),
             point => point.GetProperty("rateStatus").GetString() == "ValidRate");
-        Assert.Equal(callsBefore, _factory.Fake.CompletionCalls);
-        Assert.Equal(0, _factory.AnalysisModel.Decisions);
-        Assert.Empty(_factory.AnalysisModel.Choices);
+        Assert.Equal(callsBefore, factory.Fake.CompletionCalls);
+        Assert.Equal(0, factory.AnalysisModel.Decisions);
+        Assert.Empty(factory.AnalysisModel.Choices);
     }
 
     [Fact]
@@ -2670,7 +2680,7 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
         });
     }
 
-    public void EnsureSeeded()
+    public void EnsureSeeded(bool useFajrFixture = false)
     {
         EnsureBillingSeeded();
         if (_seeded) return;
@@ -2681,25 +2691,28 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
 
             using var scope = Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
-            SeedProductRevenueMixData(db);
+            SeedProductRevenueMixData(db, useFajrFixture);
             db.SaveChanges();
             _seeded = true;
         }
     }
 
-    private static void SeedProductRevenueMixData(FinancialIngestionDbContext db)
+    private static void SeedProductRevenueMixData(FinancialIngestionDbContext db, bool useFajrFixture)
     {
         var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
+        var symbol = useFajrFixture ? "فجر" : "کچاد";
+        var companyName = useFajrFixture ? "فولاد امیر کبیر کاشان" : "معدنی و صنعتی چادرملو";
+        var leadingProduct = useFajrFixture ? "محصول گالوانیزه" : "گندله سنگ آهن";
 
         db.Companies.AddRange(
             new NormalizedCompanyRow
             {
                 Id = Guid.Parse("54000000-0000-0000-0000-000000000003"),
-                Name = "معدنی و صنعتی چادرملو",
+                Name = companyName,
                 ProviderName = "NoavaranCurrentApi",
                 ExternalCompanyId = "3",
-                CompanySymbol = "کچاد",
-                TseSymbol = "کچاد",
+                CompanySymbol = symbol,
+                TseSymbol = symbol,
                 LastSynchronizedAt = now
             },
             new NormalizedCompanyRow
@@ -2762,12 +2775,12 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
             {
                 Id = Guid.NewGuid(),
                 ExternalCompanyId = "3",
-                CompanySymbol = "کچاد",
-                CompanyName = "معدنی و صنعتی چادرملو",
+                CompanySymbol = symbol,
+                CompanyName = companyName,
                 ReportYear = 1403,
                 ReportMonth = 3,
                 FiscalEndDate = "1403/12/29",
-                ProductName = "گندله سنگ آهن",
+                ProductName = leadingProduct,
                 ProductionQuantity = 900_000m,
                 SalesQuantity = 880_000m,
                 SalesRate = 68_000m,
@@ -2783,8 +2796,8 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
             {
                 Id = Guid.NewGuid(),
                 ExternalCompanyId = "3",
-                CompanySymbol = "کچاد",
-                CompanyName = "معدنی و صنعتی چادرملو",
+                CompanySymbol = symbol,
+                CompanyName = companyName,
                 ReportYear = 1403,
                 ReportMonth = 3,
                 FiscalEndDate = "1403/12/29",
@@ -2804,8 +2817,8 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
             {
                 Id = Guid.NewGuid(),
                 ExternalCompanyId = "3",
-                CompanySymbol = "کچاد",
-                CompanyName = "معدنی و صنعتی چادرملو",
+                CompanySymbol = symbol,
+                CompanyName = companyName,
                 ReportYear = 1403,
                 ReportMonth = 3,
                 FiscalEndDate = "1403/12/29",
@@ -2976,7 +2989,7 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
                 SourceRowFingerprint = "kchad-pellet",
                 ProviderProductCode = "PELLET",
                 ProductCode = "PELLET",
-                Title = "گندله سنگ آهن",
+                Title = leadingProduct,
                 Unit = "تن",
                 SalesQuantity = 880_000m,
                 SalesAmount = 60_000_000_000_000m,
@@ -3000,8 +3013,8 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
         {
             Id = Guid.Parse("54000000-0000-0000-0000-000000000321"),
             ExternalCompanyId = "3",
-            CompanySymbol = "کچاد",
-            CompanyName = "معدنی و صنعتی چادرملو",
+            CompanySymbol = symbol,
+            CompanyName = companyName,
             ReportYear = 1403,
             ReportMonth = 3,
             FiscalYear = 1403,

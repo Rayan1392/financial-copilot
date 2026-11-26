@@ -11,6 +11,16 @@ describe("symbol prompts (D-Q1: one shared module)", () => {
     ]);
   });
 
+  it("adds the valuation-gauge shortcut only when the API makes it available", () => {
+    expect(symbolAnalysisPrompts("شاراک").map((prompt) => prompt.id)).not.toContain(
+      "valuation-gauges",
+    );
+    expect(symbolAnalysisPrompts(" شاراک ", { valuationGauges: true }).at(-1)).toEqual({
+      id: "valuation-gauges",
+      text: "گیج‌های ارزش‌گذاری شاراک",
+    });
+  });
+
   it("prefills the composer with the symbol and a trailing space", () => {
     expect(symbolQuestionPrefill("شپنا")).toBe("شپنا ");
   });

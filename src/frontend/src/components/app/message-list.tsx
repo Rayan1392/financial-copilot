@@ -33,6 +33,7 @@ import { AnalysisProgress, AssistantAvatar } from "@/components/app/analysis-pro
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import { SymbolSnapshotCard } from "@/components/app/symbol-snapshot-card";
+import { ValuationGaugeCards } from "@/components/app/valuation-gauge-cards";
 import { AnswerDensityContext, useAnswerDensity } from "@/components/app/answer-density";
 import { AnalysisOfferCard } from "@/components/app/analysis-settings";
 import { withInlineSources } from "@/lib/chat/external-sources";
@@ -220,6 +221,11 @@ function AssistantBlock({
   const typedCashFlow = block.financialStatementTableResult?.cashFlowReport ?? null;
   // Feature 156: the card replaces its text rendering on screen (the text stays for Telegram and history).
   const symbolSnapshot = block.symbolSnapshotResult ?? null;
+  // Feature 159 change «standalone-valuation-gauge-cards»: the cards replace their text on screen (the text stays for
+  // Telegram and history). The API sends them only when at least one card has displayable data.
+  const valuationGauges = block.valuationGaugeCards?.cards.length
+    ? block.valuationGaugeCards
+    : null;
   const financialStatementAnalysis = block.financialStatementAnalysisResult;
   const dailyTradesSource = "منبع: آمار معاملات روزانه";
   const sourceMatch = message.match(/\s*(منبع: آمار معاملات روزانه)[.。]?\s*$/u);
@@ -270,13 +276,15 @@ function AssistantBlock({
           financialStatementAnalysis ||
           typedBalanceSheet ||
           typedCashFlow ||
-          symbolSnapshot) && (
+          symbolSnapshot ||
+          valuationGauges) && (
           <div className="space-y-1">
             {displayMessage.length > 0 &&
               !typedQuarterlyTable &&
               !typedBalanceSheet &&
               !typedCashFlow &&
-              !symbolSnapshot && (
+              !symbolSnapshot &&
+              !valuationGauges && (
                 <MarkdownMessage
                   content={displayMessage}
                   direction={isRtlMessage ? "rtl" : "ltr"}
@@ -292,6 +300,7 @@ function AssistantBlock({
                 showFollow={!readOnly}
               />
             )}
+            {valuationGauges && <ValuationGaugeCards data={valuationGauges} />}
             {financialStatementAnalysis && (
               <FinancialStatementAnalysisCard data={financialStatementAnalysis} />
             )}

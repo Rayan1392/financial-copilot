@@ -177,7 +177,7 @@ public sealed class DeterministicCapabilityInterpreter(
             ];
         }
         var isProductRevenueComposition =
-            ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(original) ||
+            ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(original, isV2: _feature154) ||
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(original) ||
             ProductSemanticIntentRules.LooksLikeProductRevenueComposition(normalized) ||
             normalized.Contains("\u062a\u0631\u06a9\u06cc\u0628", StringComparison.Ordinal) &&

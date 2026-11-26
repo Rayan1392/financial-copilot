@@ -264,12 +264,15 @@ describe("ValuationGaugeCards equilibrium card", () => {
     expect(card).toHaveTextContent("جایگاهدر نیمهٔ پایین بازه");
     expect(card).toHaveTextContent("تا میانهٔ بازه‎−۶٫۴٪");
     expect(card).toHaveTextContent("بالای حد پایین‎+۸٫۴٪");
-    expect(within(card).getByTestId("valuation-gauge-quote-source")).toHaveTextContent(
-      "قیمت: آخرین روز معاملاتی · نوآوران امین ·",
+    // Owner, 2026-11-26: no provider name on the price line and no «بازه:» prefix on the range line.
+    expect(within(card).getByTestId("valuation-gauge-quote-source").textContent).toBe(
+      "قیمت: آخرین روز معاملاتی · ۱۴۰۵/۰۹/۰۴ ۱۲:۳۰",
     );
-    expect(within(card).getByTestId("valuation-gauge-source")).toHaveTextContent(
-      "بازه: تحلیل‌اپ · دریافت ۱۴۰۵/۰۹/۰۵",
+    expect(within(card).getByTestId("valuation-gauge-source").textContent).toBe(
+      "تحلیل‌اپ · دریافت ۱۴۰۵/۰۹/۰۵",
     );
+    expect(card).not.toHaveTextContent("NoavaranAmin");
+    expect(card).not.toHaveTextContent("نوآوران امین");
   });
 
   it("places the pin at the server angle on the linear track", () => {

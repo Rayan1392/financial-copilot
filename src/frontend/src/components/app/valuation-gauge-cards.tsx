@@ -19,7 +19,6 @@ import {
   type ValuationGaugeCardsResult,
   type ValuationRatioPosition,
 } from "@/lib/chat/valuation-gauges";
-import { formatProviderDisplayName } from "@/lib/format/provider-display";
 import { toPersianDigits } from "@/lib/format/persian";
 import { cn } from "@/lib/utils";
 
@@ -77,14 +76,12 @@ function CardShell({
   symbol,
   companyName,
   showCompany,
-  sourcePrefix,
   children,
 }: {
   card: ValuationGaugeCard;
   symbol: string;
   companyName?: string | null;
   showCompany: boolean;
-  sourcePrefix?: string;
   children: ReactNode;
 }) {
   const chip = STATE_LABEL[card.state];
@@ -118,7 +115,6 @@ function CardShell({
         className="mt-3 text-xs leading-5 text-muted-foreground"
         data-testid="valuation-gauge-source"
       >
-        {sourcePrefix}
         {SOURCE_NAME}
         {card.fetchedAtUtc && (
           <>
@@ -716,13 +712,7 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
   const bubbleShift = at === null ? "-50%" : at < 0.15 ? "-12%" : at > 0.85 ? "-88%" : "-50%";
 
   return (
-    <CardShell
-      card={card}
-      symbol={symbol}
-      companyName={companyName}
-      showCompany={showCompany}
-      sourcePrefix="بازه: "
-    >
+    <CardShell card={card} symbol={symbol} companyName={companyName} showCompany={showCompany}>
       <div className="grid gap-4">
         {card.geometry ? (
           <div
@@ -826,8 +816,8 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
             className="text-xs leading-5 text-muted-foreground"
             data-testid="valuation-gauge-quote-source"
           >
+            {/* The owner asked (2026-11-26) for no provider name here; the payload keeps it. */}
             قیمت: {quoteSourceText(quote.sourceLabel)} ·{" "}
-            {formatProviderDisplayName(quote.providerName)} ·{" "}
             <Num>{formatTehranDateTime(quote.asOf)}</Num>
           </p>
         )}

@@ -159,6 +159,19 @@ export function formatPercent(value: string, signed = false): string {
   return signed && positive ? `‎+${text}` : text;
 }
 
+/**
+ * The equilibrium card's price-vs-lower-bound figure (OQ-137, owner 2026-11-26): below the lower bound it reads
+ * «زیر حد پایین» with the absolute value; otherwise «بالای حد پایین» signed, as released. A value that rounds to zero
+ * keeps the released label.
+ */
+export function lowerBoundComparison(value: string): { label: string; percent: string } {
+  const trimmed = value.trim();
+  const magnitude = trimmed.startsWith("-") ? trimmed.slice(1) : null;
+  if (magnitude !== null && roundDecimalString(magnitude, 1) !== "0.0")
+    return { label: "زیر حد پایین", percent: formatPercent(magnitude) };
+  return { label: "بالای حد پایین", percent: formatPercent(trimmed, true) };
+}
+
 /** The provider's name for users; the payload keeps the internal source code. */
 export const SOURCE_NAME = "تحلیل‌اپ";
 

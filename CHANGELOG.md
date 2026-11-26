@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-11-26
+
+کارت بازهٔ قیمت تعادلی قیمتِ پایین‌تر از بازه را روشن‌تر نشان می‌دهد.
+
+### Changed
+
+- در کارت «بازهٔ قیمت تعادلی»، وقتی قیمت پایین‌تر از بازه است، به‌جای «بالای حد پایین» با عدد منفی، «زیر حد پایین» با عدد مثبت نوشته می‌شود.
+
 ## [1.32.1] - 2026-11-26
 
 نوشته‌های سبز کوچک صفحهٔ اول در تم روشن خواناتر شدند.
@@ -586,7 +594,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.33.0...develop
+[1.33.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.30.0...v1.31.0

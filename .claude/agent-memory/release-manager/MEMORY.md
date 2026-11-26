@@ -3,6 +3,17 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.32.1
+
+- Published on 2026-11-26 (PATCH, Fixed: BUG-049, light-theme emerald text on the new-chat page reaches 4.5:1). Fix
+  commit `28942fab`; also carries `0f34df4c` (OQ-136 forward ratio design proposal, docs only). Develop release commit
+  `ec81c500`, prod merge `0ebcbdc8`, annotated tag `v1.32.1` (tag object `888a60ae`).
+- Release check passed and release-note tests passed 12/12. No migration, no Telegram gateway change.
+- Deploy run 45841835788 succeeded (deploy job 3m47s). `/releases` lists 1.32.1 first;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: OQ-136 blocked on the provider (Gate A pending). OQ-137 answered by the owner on 2026-11-26 («زیر حد پایین»),
+  change in progress. Legacy tags `v1.2.3`–`v1.3.6` remain on origin.
+
 ## Release 1.32.0
 
 - Published on 2026-11-26 (MINOR: an Added item, the «گیج‌های ارزش‌گذاری گدنا» starter card). Feature commit

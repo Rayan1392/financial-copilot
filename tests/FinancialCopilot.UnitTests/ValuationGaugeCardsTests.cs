@@ -640,6 +640,34 @@ public sealed class ValuationGaugeCardsTests
         Assert.Contains("تا میانهٔ بازه \u200e−۶٫۴٪، بالای حد پایین \u200e+۸٫۴٪", text);
     }
 
+    // OQ-137 (owner, 2026-11-26): below the lower bound the text reads «زیر حد پایین» with the absolute value.
+    [Fact]
+    public void EquilibriumTextBelowTheLowerBoundSaysBelowWithTheAbsoluteValue()
+    {
+        var result = new ValuationGaugeCardsResult(1, "شاراک", null, "شاراک", [ValuationGaugeKind.Equilibrium],
+            [ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "3800", "4400.6", "5000", Now.AddHours(-1)),
+                Quote(3610m), ValuationGaugeQuoteState.Available, Now, MaxAge)], Now, 48);
+
+        var text = ValuationGaugeTextComposer.Compose(result);
+
+        Assert.Contains("زیر حد پایین ۵٫۰٪", text);
+        Assert.DoesNotContain("بالای حد پایین", text);
+        Assert.DoesNotContain("حد پایین ‎−", text);
+    }
+
+    [Fact]
+    public void EquilibriumTextAtTheLowerBoundKeepsTheReleasedLabel()
+    {
+        var result = new ValuationGaugeCardsResult(1, "شاراک", null, "شاراک", [ValuationGaugeKind.Equilibrium],
+            [ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "3800", "4400.6", "5000", Now.AddHours(-1)),
+                Quote(3799.9m), ValuationGaugeQuoteState.Available, Now, MaxAge)], Now, 48);
+
+        var text = ValuationGaugeTextComposer.Compose(result);
+
+        Assert.DoesNotContain("زیر حد پایین", text);
+        Assert.Contains("بالای حد پایین", text);
+    }
+
     [Fact]
     public void AStoredCardWithoutTheNewFieldsStillReadsAndRounds()
     {

@@ -56,7 +56,9 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
   mode, hold raised before the read) and `valuation-gauge-starter-card` (Gate A+B 2026-11-26, implemented locally, uncommitted: the wide
   «گیج‌های ارزش‌گذاری گدنا» starter card with a half-dial heads the desktop grid and the phone list while the API reports
   gauge cards available; released v1.32.0). `fix-starter-emerald-text-contrast` (BUG-049, Gate A+B 2026-11-26,
-  implemented locally: the light-theme emerald badge and phone topics reach 4.5:1).
+  released v1.32.1: the light-theme emerald badge and phone topics reach 4.5:1).
+  `equilibrium-below-lower-bound-label` (OQ-137, Gate A+B 2026-11-26, implemented locally: «زیر حد پایین» with the
+  absolute value below the range, card and text answer).
 
 - `081-ai-financial-statement-period-analysis-query/changes/period-analysis-feature-flag`: Gate A (option B) and Gate B approved 2026-11-20; implemented locally (uncommitted). `FinancialStatementPeriodAnalysis:Enabled` switches 081's fixed statement summary off (off in `appsettings.json`); on V2 a question 081 would answer ends unsupported at zero credits so the Feature 163 analysis offer can follow. Statement tables are unchanged.
 

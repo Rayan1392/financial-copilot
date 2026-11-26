@@ -311,6 +311,30 @@ describe("ValuationGaugeCards equilibrium card", () => {
     );
   });
 
+  // OQ-137 (owner, 2026-11-26): below the lower bound the tile reads «زیر حد پایین» with the absolute value.
+  it("says «زیر حد پایین» with the absolute value when the price is below the range", () => {
+    const base = equilibriumCard();
+    const card = {
+      ...base,
+      equilibrium: {
+        ...base.equilibrium!,
+        quote: { ...base.equilibrium!.quote!, price: "3610" },
+        position: "BelowRange" as const,
+      },
+      geometry: {
+        ...base.geometry!,
+        needle: { angle: 0, value: "3610", side: "PinnedBelow" as const },
+      },
+      insights: { priceVsMidpointPercent: "-18.0", priceVsLowerPercent: "-5.0" },
+    };
+    render(<ValuationGaugeCards data={gaugeResult([card], "اخابر")} />);
+
+    const tile = screen.getByTestId("valuation-gauge-card-Equilibrium");
+    expect(tile).toHaveTextContent("زیر حد پایین۵٫۰٪");
+    expect(tile).not.toHaveTextContent("بالای حد پایین");
+    expect(tile).not.toHaveTextContent("حد پایین‎−");
+  });
+
   it("shows the range only when the quote is unavailable", () => {
     render(<ValuationGaugeCards data={gaugeResult([equilibriumCard(false)], "اخابر")} />);
 

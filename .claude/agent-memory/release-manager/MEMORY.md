@@ -3,6 +3,28 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.31.0
+
+- Published on 2026-11-26 (MINOR: a notable Changed item, the gauge price).
+  - Changed: Feature 159 change `valuation-gauge-per-card-credits`, one credit per usable gauge card (three for the
+    combined answer), with the hold raised before any read; a replayed turn reuses its original hold in every mode.
+  - Changed: the equilibrium card no longer shows the quote provider name or the «بازه:» footer prefix.
+- Commits:
+  - copy edit `8ef840fd`, credits `03747161`, starter-card proposal `2c726b31` (docs only, Gate A pending);
+  - develop release commit `af586bbc`;
+  - prod merge `8033f4d1`;
+  - annotated tag `v1.31.0` on `8033f4d1`.
+- Checks:
+  - the release check passed and release-note tests passed 12/12;
+  - no migration and no Telegram gateway change;
+  - backend failures compared by test name with clean HEAD `a6b9ed9f` and base `864b7344`: none new except
+    load-related ones that pass alone; architecture 24/24; frontend build and lint passed.
+- Deploy run 45823553842 succeeded (deploy job 11m26s). `/releases` returned HTTP 200 and lists 1.31.0 first;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open:
+  - OQ-136 (forward P/E), OQ-137 (negative lower-bound label), OQ-141 and OQ-142 (starter card, Gate A pending);
+  - prod and develop still differ in the same four pre-existing files.
+
 ## Release 1.30.0
 
 - Published on 2026-11-26 (MINOR).

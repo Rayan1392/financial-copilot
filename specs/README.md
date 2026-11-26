@@ -53,7 +53,9 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 - `159-capability-source-map-comprehensive-analysis`: Gate B approved 2026-11-10; implemented on branch `feature/162-capability-source-map` (uncommitted), map empty by default. «تحلیل جامع X» answers from the CyclicalWaves v2 analyses while the provider stays NoavaranAmin: title and whole summary, fixed TahlilApp link (ADR 0001). Changes: `latest-analysis-teaser` (preview of the latest analysis), `bug-020-technical-analysis-topic`, `per-analysis-link` (withdrawn), `max-plan-full-analysis-text` (Gate B 2026-11-11, branch `track/a-routing-answer-correctness`, uncommitted: whole text for Max). Change `analysis-recency-window` (Gate A+B 2026-11-16): TahlilApp analyses older than 30 days are never shown; no recent analysis goes to the Feature 163 fallback.
   Valuation gauge cards: `standalone-valuation-gauge-cards` (v1.29.2), `valuation-gauge-cards-visual-refresh` (v1.30.0),
   `valuation-gauge-per-card-credits` (Gate A+B 2026-11-26: one credit per usable card, fixed settlement in every billing
-  mode, hold raised before the read) and `valuation-gauge-starter-card` (proposed, Gate A pending).
+  mode, hold raised before the read) and `valuation-gauge-starter-card` (Gate A+B 2026-11-26, implemented locally, uncommitted: the wide
+  «گیج‌های ارزش‌گذاری گدنا» starter card with a half-dial heads the desktop grid and the phone list while the API reports
+  gauge cards available; light-theme emerald text found pre-existing, BUG-049).
 
 - `081-ai-financial-statement-period-analysis-query/changes/period-analysis-feature-flag`: Gate A (option B) and Gate B approved 2026-11-20; implemented locally (uncommitted). `FinancialStatementPeriodAnalysis:Enabled` switches 081's fixed statement summary off (off in `appsettings.json`); on V2 a question 081 would answer ends unsupported at zero credits so the Feature 163 analysis offer can follow. Statement tables are unchanged.
 

@@ -154,8 +154,9 @@ describe("TopAppBar", () => {
 });
 
 describe("starter prompts on the phone cards", () => {
-  it("sends the fixed starter questions, sales cards first and statement cards last", () => {
+  it("sends the fixed starter questions, the valuation card first, sales cards next and statement cards last", () => {
     expect(STARTER_PROMPTS.map((prompt) => prompt.text)).toEqual([
+      "گیج‌های ارزش‌گذاری گدنا",
       "ترکیب فروش محصولات کگهر را بررسی کن",
       "روند فروش ماهانه کگهر را نشان بده",
       "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
@@ -166,6 +167,7 @@ describe("starter prompts on the phone cards", () => {
       "جریان وجه نقد اخابر",
     ]);
     expect(STARTER_PROMPTS.map((prompt) => prompt.tone)).toEqual([
+      "valuation",
       "sales",
       "sales",
       "sales",

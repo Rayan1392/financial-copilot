@@ -1,6 +1,6 @@
 # Design proposal: valuation gauge starter card
 
-Status: Proposed — not approved
+Status: Gate B: Approved by the owner on 2026-11-26 (Gate A the same day; OQ-141 and OQ-142 as proposed)
 
 ## Feature Folder
 

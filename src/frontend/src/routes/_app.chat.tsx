@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
-import { StarterCard } from "@/components/app/starter-card";
+import { StarterCardGrid } from "@/components/app/starter-card-grid";
 import { useMemo, useState } from "react";
 import { useNewChatIntent } from "@/lib/chat/new-chat-intent";
-import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
+import { homeStarterPrompts, starterCoverage } from "@/lib/chat/starter-prompts";
+import { useChatCapabilityAvailability } from "@/lib/chat/use-capability-availability";
 import { useFollowedSymbols } from "@/lib/workspace/queries";
 import { ChatErrorNotice } from "@/components/app/chat-error-notice";
 import { useStartChat } from "@/lib/chat/use-start-chat";
@@ -27,13 +28,16 @@ function NewChatPage() {
       setSeed((current) => ({ text: prefillQuestion, version: current.version + 1 }));
     if (submitQuestion) submit(submitQuestion);
   });
-  // The fixed starter cards; watchlist personalization is switched off in starter-prompts.ts.
+  // The fixed starter cards; watchlist personalization is switched off in starter-prompts.ts. An optional card (the
+  // valuation gauges) is shown only while the API reports its capability available.
   const followed = useFollowedSymbols();
+  const { valuationGaugeCards } = useChatCapabilityAvailability();
   const starterSet = useMemo(
-    () => homeStarterPrompts(followed.data?.symbols ?? []),
-    [followed.data],
+    () => homeStarterPrompts(followed.data?.symbols ?? [], { valuationGaugeCards }),
+    [followed.data, valuationGaugeCards],
   );
   const starterPrompts = starterSet.prompts;
+  const coverage = starterCoverage(starterPrompts);
 
   return (
     <>
@@ -58,31 +62,24 @@ function NewChatPage() {
               دستیار هوشمند بازار سرمایه
             </h1>
             <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium text-emerald mb-5">
-              پوشش فعلی: تولید، فروش و گزارش‌های مالی
+              {coverage.badge}
             </div>
             <p className="text-base md:text-lg font-medium text-foreground mb-2 max-w-2xl mx-auto text-pretty">
               گزارش‌های تولید و فروش و صورت‌های مالی شرکت‌ها را با زبان طبیعی بررسی کنید.
             </p>
             <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
-              روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه،
-              مقایسهٔ نماد با صنعت و سود و زیان فصلی، ترازنامه (صورت وضعیت مالی) و جریان وجوه نقد
-              نمادها را بررسی کنید.
+              {coverage.sentence}
             </p>
             {starterSet.personalized && (
               <p className="mb-3 text-right text-xs text-muted-foreground">
                 پیشنهادها بر اساس نمادهای دیده‌بان شما
               </p>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-right">
-              {starterPrompts.map((prompt) => (
-                <StarterCard
-                  key={prompt.text}
-                  prompt={prompt}
-                  disabled={startChat.isPending}
-                  onSelect={submit}
-                />
-              ))}
-            </div>
+            <StarterCardGrid
+              prompts={starterPrompts}
+              disabled={startChat.isPending}
+              onSelect={submit}
+            />
           </div>
         )}
       </div>

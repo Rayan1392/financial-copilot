@@ -1,11 +1,12 @@
 import type { MobileIcon } from "@/components/mobile/icons";
 import { cn } from "@/lib/utils";
 
-export type IconTileTone = "emerald" | "gold" | "neutral" | "danger";
+export type IconTileTone = "emerald" | "gold" | "valuation" | "neutral" | "danger";
 
 const TONES: Record<IconTileTone, string> = {
   emerald: "bg-emerald-soft text-emerald",
   gold: "bg-gold/15 text-gold",
+  valuation: "bg-valuation/12 text-valuation",
   neutral: "bg-surface-2 text-muted-foreground",
   danger: "bg-rose/12 mobile-danger-text",
 };

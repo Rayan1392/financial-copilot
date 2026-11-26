@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  availableStarterPrompts,
   homeStarterPrompts,
   personalizedStarterPrompts,
   STARTER_PROMPTS,
@@ -18,7 +19,7 @@ describe("homeStarterPrompts", () => {
     ]);
 
     expect(set.personalized).toBe(false);
-    expect(set.prompts).toBe(STARTER_PROMPTS);
+    expect(set.prompts).toEqual(availableStarterPrompts());
     expect(set.prompts).toHaveLength(8);
     expect(set.prompts.every((prompt) => !prompt.text.includes("ثبهساز"))).toBe(true);
   });
@@ -29,7 +30,7 @@ describe("personalizedStarterPrompts", () => {
     const set = personalizedStarterPrompts([]);
 
     expect(set.personalized).toBe(false);
-    expect(set.prompts).toBe(STARTER_PROMPTS);
+    expect(set.prompts).toEqual(availableStarterPrompts());
   });
 
   it("keeps the same capability cards and only swaps in watchlist symbols, newest first", () => {
@@ -43,7 +44,7 @@ describe("personalizedStarterPrompts", () => {
     expect(set.personalized).toBe(true);
     // Same topics, same order, each once: no capability is dropped or repeated.
     expect(set.prompts.map((prompt) => prompt.topic)).toEqual(
-      STARTER_PROMPTS.map((prompt) => prompt.topic),
+      availableStarterPrompts().map((prompt) => prompt.topic),
     );
     expect(set.prompts.map((prompt) => prompt.text)).toEqual([
       // Sales mix stays static by owner decision (not yet reliable for every company).
@@ -63,7 +64,7 @@ describe("personalizedStarterPrompts", () => {
     const set = personalizedStarterPrompts([followed("فاذر", "2026-11-05T10:00:00Z")]);
     const texts = set.prompts.map((prompt) => prompt.text);
 
-    expect(texts).toHaveLength(STARTER_PROMPTS.length);
+    expect(texts).toHaveLength(availableStarterPrompts().length);
     expect(new Set(texts).size).toBe(texts.length);
     expect(texts).toEqual([
       "ترکیب فروش محصولات کگهر را بررسی کن",
@@ -87,7 +88,7 @@ describe("personalizedStarterPrompts", () => {
 
     const onlyRights = personalizedStarterPrompts([followed("شگلح", "2026-11-06T10:00:00Z")]);
     expect(onlyRights.personalized).toBe(false);
-    expect(onlyRights.prompts).toBe(STARTER_PROMPTS);
+    expect(onlyRights.prompts).toEqual(availableStarterPrompts());
   });
 
   it("ignores blank and repeated symbols", () => {
@@ -99,5 +100,49 @@ describe("personalizedStarterPrompts", () => {
 
     expect(set.prompts[1].text).toBe("روند فروش ماهانه کگهر را نشان بده");
     expect(set.prompts.every((prompt) => !prompt.text.includes("  "))).toBe(true);
+  });
+});
+
+// Change «valuation-gauge-starter-card»: the gauge card is shown first, and only while the API reports it available.
+describe("the valuation gauge starter card", () => {
+  const eight = [
+    "ترکیب فروش محصولات کگهر را بررسی کن",
+    "روند فروش ماهانه کگهر را نشان بده",
+    "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
+    "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
+    "شاراک را با صنعت خودش مقایسه کن",
+    "عملکرد مالی فصلی فولاد را بررسی کن",
+    "صورت وضعیت مالی فاذر را بررسی کن",
+    "جریان وجه نقد اخابر",
+  ];
+
+  it("comes first with nine cards while gauge cards are available", () => {
+    const set = homeStarterPrompts([], { valuationGaugeCards: true });
+
+    expect(set.prompts.map((prompt) => prompt.text)).toEqual(["گیج‌های ارزش‌گذاری گدنا", ...eight]);
+    expect(set.prompts[0]).toMatchObject({
+      id: "valuation-gauges",
+      topic: "ارزش‌گذاری",
+      detail: "P/E · P/S · قیمت تعادلی",
+      tone: "valuation",
+      featured: true,
+    });
+    expect(new Set(set.prompts.map((prompt) => prompt.id)).size).toBe(9);
+  });
+
+  it.each([undefined, {}, { valuationGaugeCards: false }])(
+    "leaves today's eight cards in today's order otherwise (%o)",
+    (availability) => {
+      expect(homeStarterPrompts([], availability).prompts.map((prompt) => prompt.text)).toEqual(
+        eight,
+      );
+    },
+  );
+
+  it("sends the routed phrase with zero-width non-joiners", () => {
+    const gauge = STARTER_PROMPTS.find((prompt) => prompt.id === "valuation-gauges")!;
+
+    expect(gauge.text).toBe("گیج‌های ارزش‌گذاری گدنا");
+    expect(gauge.forSymbol?.("شاراک")).toBe("گیج‌های ارزش‌گذاری شاراک");
   });
 });

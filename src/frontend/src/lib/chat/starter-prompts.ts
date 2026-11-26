@@ -3,6 +3,7 @@ import {
   Banknote,
   BarChart3,
   FileText,
+  Gauge,
   ListOrdered,
   PieChart,
   Scale,
@@ -12,9 +13,10 @@ import {
 import { isRightsIssueSymbol } from "@/lib/market/instrument-kind";
 
 /** Visual family of a starter card; each tone maps to theme-aware design tokens. */
-export type StarterPromptTone = "sales" | "statement";
+export type StarterPromptTone = "sales" | "statement" | "valuation";
 
 export type StarterPromptId =
+  | "valuation-gauges"
   | "sales-mix"
   | "monthly-sales"
   | "product-trend"
@@ -23,6 +25,12 @@ export type StarterPromptId =
   | "quarterly-report"
   | "balance-sheet"
   | "cash-flow";
+
+/** An optional capability the API can switch off; a card that needs one is shown only while it is available. */
+export type StarterPromptCapability = "valuationGaugeCards";
+
+/** What the API reports as available (`useChatCapabilityAvailability`); a missing entry means unavailable. */
+export type StarterPromptAvailability = Partial<Record<StarterPromptCapability, boolean>>;
 
 export interface StarterPrompt {
   /** Stable key of the capability; the phone workspace picks its own icon by it. */
@@ -33,6 +41,12 @@ export interface StarterPrompt {
   /** Short topic label shown above the question on the desktop cards. */
   topic: string;
   tone: StarterPromptTone;
+  /** A short line under the question naming what the answer contains. */
+  detail?: string;
+  /** Shown as the wide featured card on desktop, first in the list. */
+  featured?: boolean;
+  /** The optional capability the question needs; the card is left out while it is unavailable. */
+  requires?: StarterPromptCapability;
   /**
    * The same question for another symbol, so the card can use one from the user's watchlist. Absent when the
    * example cannot be generalized: the product card names a company-specific product, the ranking card is
@@ -46,6 +60,19 @@ export interface StarterPrompt {
  * capability. Personalization only swaps the example symbol; it never adds, drops or repeats a card type.
  */
 export const STARTER_PROMPTS: readonly StarterPrompt[] = [
+  {
+    // Change «valuation-gauge-starter-card» (owner, 2026-11-26): the example symbol is the owner's choice. The text is
+    // the routed phrase «گیج‌های ارزش‌گذاری ‹نماد›», with the zero-width non-joiners.
+    id: "valuation-gauges",
+    text: "گیج‌های ارزش‌گذاری گدنا",
+    icon: Gauge,
+    topic: "ارزش‌گذاری",
+    detail: "P/E · P/S · قیمت تعادلی",
+    tone: "valuation",
+    featured: true,
+    requires: "valuationGaugeCards",
+    forSymbol: (s) => `گیج‌های ارزش‌گذاری ${s}`,
+  },
   {
     id: "sales-mix",
     text: "ترکیب فروش محصولات کگهر را بررسی کن",
@@ -125,13 +152,27 @@ export interface StarterPromptSet {
  */
 export const WATCHLIST_STARTER_PROMPTS_ENABLED = false;
 
-/** The cards the new-chat pages show: the fixed set while watchlist personalization is off. */
+/** The starter cards whose capability is available; by default, only the cards that need no optional capability. */
+export function availableStarterPrompts(
+  availability: StarterPromptAvailability = {},
+): readonly StarterPrompt[] {
+  return STARTER_PROMPTS.filter(
+    (prompt) => prompt.requires === undefined || availability[prompt.requires] === true,
+  );
+}
+
+/**
+ * The cards the new-chat pages show: the available cards, fixed while watchlist personalization is off. While the
+ * availability answer is loading or has failed, the caller passes nothing, so no optional card is shown.
+ */
 export function homeStarterPrompts(
   followed: readonly { symbol: string; followedAtUtc?: string }[],
+  availability: StarterPromptAvailability = {},
 ): StarterPromptSet {
+  const prompts = availableStarterPrompts(availability);
   return WATCHLIST_STARTER_PROMPTS_ENABLED
-    ? personalizedStarterPrompts(followed)
-    : { prompts: STARTER_PROMPTS, personalized: false };
+    ? personalizedStarterPrompts(followed, prompts)
+    : { prompts, personalized: false };
 }
 
 /**
@@ -142,19 +183,39 @@ export function homeStarterPrompts(
  */
 export function personalizedStarterPrompts(
   followed: readonly { symbol: string; followedAtUtc?: string }[],
+  available: readonly StarterPrompt[] = availableStarterPrompts(),
 ): StarterPromptSet {
   const symbols = [...followed]
     .filter((item) => item.symbol.trim().length > 0 && !isRightsIssueSymbol(item.symbol))
     .sort((a, b) => (b.followedAtUtc ?? "").localeCompare(a.followedAtUtc ?? ""))
     .map((item) => item.symbol.trim())
     .filter((symbol, index, all) => all.indexOf(symbol) === index);
-  if (symbols.length === 0) return { prompts: STARTER_PROMPTS, personalized: false };
+  if (symbols.length === 0) return { prompts: available, personalized: false };
 
   let next = 0;
-  const prompts = STARTER_PROMPTS.map((prompt) =>
+  const prompts = available.map((prompt) =>
     prompt.forSymbol
       ? { ...prompt, text: prompt.forSymbol(symbols[next++ % symbols.length]) }
       : prompt,
   );
   return { prompts, personalized: true };
+}
+
+/** The coverage badge and capability sentence above the cards; valuation is named only while its card is shown (OQ-142). */
+export function starterCoverage(prompts: readonly StarterPrompt[]): {
+  badge: string;
+  sentence: string;
+} {
+  const valuation = prompts.some((prompt) => prompt.requires === "valuationGaugeCards");
+  return valuation
+    ? {
+        badge: "پوشش فعلی: تولید، فروش، گزارش‌های مالی و ارزش‌گذاری",
+        sentence:
+          "روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه، مقایسهٔ نماد با صنعت و سود و زیان فصلی، ترازنامه (صورت وضعیت مالی)، جریان وجوه نقد و گیج‌های ارزش‌گذاری نمادها را بررسی کنید.",
+      }
+    : {
+        badge: "پوشش فعلی: تولید، فروش و گزارش‌های مالی",
+        sentence:
+          "روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه، مقایسهٔ نماد با صنعت و سود و زیان فصلی، ترازنامه (صورت وضعیت مالی) و جریان وجوه نقد نمادها را بررسی کنید.",
+      };
 }

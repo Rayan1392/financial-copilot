@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-11-26
+
+پیشنهادهای صفحهٔ اول با نمونهٔ گیج‌های ارزش‌گذاری شروع می‌شوند.
+
+### Added
+
+- نمونهٔ «گیج‌های ارزش‌گذاری گدنا» به پیشنهادهای صفحهٔ اول اضافه شد.
+
 ## [1.31.0] - 2026-11-26
 
 هر کارت گیج ارزش‌گذاری یک اعتبار هزینه دارد و کارت بازهٔ قیمت تعادلی ساده‌تر شد.
@@ -570,7 +578,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.31.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.0...develop
+[1.32.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.2...v1.30.0
 [1.29.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.29.1...v1.29.2

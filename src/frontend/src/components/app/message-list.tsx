@@ -29,6 +29,7 @@ import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-tre
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
 import { MonthlyTrendSummaryCards } from "@/components/app/monthly-trend-summary-cards";
 import { AnswerActions } from "@/components/app/answer-actions";
+import { gaugeImageFileName } from "@/lib/chat/answer-image";
 import { AnalysisProgress, AssistantAvatar } from "@/components/app/analysis-progress";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
@@ -226,6 +227,15 @@ function AssistantBlock({
   const valuationGauges = block.valuationGaugeCards?.cards.length
     ? block.valuationGaugeCards
     : null;
+  // Change «valuation-gauge-answer-image-share»: a gauge answer can leave the app as a picture of its cards. The picture
+  // is wide enough for the side-by-side layout, so it shows every card also when the screen shows one at a time.
+  const answerImage = valuationGauges
+    ? {
+        content: <ValuationGaugeCards data={valuationGauges} />,
+        width: valuationGauges.cards.length > 1 ? 800 : 480,
+        fileName: gaugeImageFileName(valuationGauges.symbol),
+      }
+    : undefined;
   const financialStatementAnalysis = block.financialStatementAnalysisResult;
   const dailyTradesSource = "منبع: آمار معاملات روزانه";
   const sourceMatch = message.match(/\s*(منبع: آمار معاملات روزانه)[.。]?\s*$/u);
@@ -412,6 +422,7 @@ function AssistantBlock({
           <AnswerActions
             text={displayMessage}
             onRegenerate={onRegenerate}
+            image={answerImage}
             disabled={actionsDisabled}
           />
         )}

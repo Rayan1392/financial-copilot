@@ -3,6 +3,18 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.34.0
+
+- Tagged on 2026-11-27 (MINOR). Added Sapio's forward P/E and P/S estimates to valuation gauge cards
+  (OQ-136, `57fbbc3f`) and made new-chat starter cards ask for a symbol (`63346dea`).
+- Develop release commit `9fe62ccb`, prod merge `d4b62c32`, annotated tag `v1.34.0` (tag object
+  `1a93f76a`). The release check passed, as did 91 focused frontend and 79 focused backend tests.
+  No migration or Telegram gateway change.
+- Deploy run 45960803820 succeeded (11m36s from run start to completion). The public `/releases` page
+  showed 1.34.0 as current, and `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- The forward-estimate flag defaults to off in the released commit. Its runtime value was not verified
+  or changed. The local uncommitted appsettings edit was excluded.
+
 ## Release 1.33.0
 
 - Published on 2026-11-26 (MINOR at the owner's request; the single Changed item is small, so the rules alone would

@@ -563,7 +563,7 @@ function RatioDetails({ card }: { card: ValuationGaugeCard }) {
   const sectors = card.geometry?.sectors ?? [];
   const hasRanges = sectors.length === 6 && sectors.every((sector) => sector.from && sector.to);
   return (
-    <details className="group mt-3 border-t border-hairline pt-2">
+    <details data-share-hide className="group mt-3 border-t border-hairline pt-2">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm text-muted-foreground [&::-webkit-details-marker]:hidden">
         <span aria-hidden className="inline-block transition-transform group-open:rotate-90">
           ‹

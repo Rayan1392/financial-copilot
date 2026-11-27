@@ -155,7 +155,12 @@ public sealed class EfCoreCyclicalWavesV2GaugeStore(FinancialIngestionDbContext 
         var changed = row is null || row.A != gauge.A || row.B != gauge.B || row.C != gauge.C || row.D != gauge.D || row.E != gauge.E || row.F != gauge.F ||
                       row.Close != gauge.Close || row.Start != gauge.Start || row.End != gauge.End || row.Min != gauge.Min || row.Avg != gauge.Avg || row.Max != gauge.Max || row.Status != gauge.Status;
         if (!changed)
+        {
+            // FetchedAtUtc is the last time the vendor confirmed these values, not the last time they changed: the
+            // readers age the gauge by it, and on closed market days the vendor returns the same gauge (BUG-052).
+            row!.FetchedAtUtc = now;
             return false;
+        }
         row ??= new CyclicalWavesV2GaugeDetailRow { TickerId = tickerId, GaugeType = type };
         row.A = gauge.A; row.B = gauge.B; row.C = gauge.C; row.D = gauge.D; row.E = gauge.E; row.F = gauge.F;
         row.Close = gauge.Close; row.Start = gauge.Start; row.End = gauge.End; row.Min = gauge.Min; row.Avg = gauge.Avg; row.Max = gauge.Max; row.Status = gauge.Status; row.FetchedAtUtc = now;

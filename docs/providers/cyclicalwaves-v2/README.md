@@ -101,6 +101,11 @@ in conversations stay readable because history maps the stored payload without c
 (identity drift),
 `state=Stale` (sync lag beyond 48 h), `reason=quote_timed_out` and `reason=read_timed_out`.
 
+`GaugeDetails.FetchedAtUtc` and `EquilibriumRanges.DetailsFetchedAtUtc` are the time of the last successful fetch of
+that row, also when the vendor returned the same values (closed market days). The gauge cards (`MaxFetchAgeHours`) and
+the Feature 125 comparison on v2 (`IndustryRelativeValuation:SourceFreshnessHours`) age the data by these columns, so
+they measure sync lag, not the time since the values last changed (BUG-052).
+
 ```sql
 SELECT "Scope", "Status", "StartedAt", "CompletedAt", "UpdatedItems", "FailedItems", "ErrorSummary"
 FROM cyclicalwaves."SyncRuns"

@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-11-27
+
+پاسخ‌های گیج ارزش‌گذاری را می‌توانید به‌صورت تصویر کپی کنید یا به اشتراک بگذارید و مقایسه با صنعت در روزهای تعطیل بازار هم کار می‌کند.
+
 ### Added
 
 - پاسخ‌های گیج ارزش‌گذاری را می‌توانید به‌صورت تصویر بفرستید: دکمهٔ «کپی تصویر» تصویر کارت‌ها را برای چسباندن در تلگرام و برنامه‌های دیگر کپی می‌کند و «اشتراک‌گذاری» همان تصویر را همراه متن می‌فرستد. تصویر همهٔ کارت‌های پاسخ را نشان می‌دهد.
@@ -618,7 +622,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.34.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.35.0...develop
+[1.35.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.0...v1.32.1

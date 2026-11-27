@@ -3,6 +3,23 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.35.0
+
+- Tagged on 2026-11-27 (MINOR: an Added item). Added copy/share of a valuation gauge answer as an image
+  (`8175d846`); Changed deep analysis to weigh evidence (`8c86849d`); Fixed BUG-052, gauge fetch time on
+  unchanged vendor values, so industry comparison and P/E, P/S gauge cards work on closed market days (`ed1059a7`).
+- Develop release commit `53f6756b`, prod merge `25ffbdbb` (merge-tree/commit-tree), annotated tag `v1.35.0`
+  (tag object `948a8f7d`). The three change commits were already on prod through untagged merges; this merge
+  added only the changelog and docs commit `004acd31`. Release check passed; release-note tests 12/12. Backend
+  and other frontend tests were not rerun for this release.
+- Deploy run 45993560736 succeeded (17m44s). `/releases` shows 1.35.0 as «نسخهٔ جاری»;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: `specs/bugs.md` still says "Not yet released" for BUG-052 (and BUG-049, shipped in 1.32.1); the release
+  process does not cover that file, so it was left for the owner. BUG-052 production check (task 0) and BUG-053
+  (19 gauge E2E tests fail at host start) are open. Commit `c52739d9` (subject ".") set
+  `ValuationGaugeCards:Enabled` and `ForwardEstimate:Enabled` to true and two `CapabilitySources` in the tracked
+  `appsettings.json`; runtime values in production were not verified.
+
 ## Release 1.34.0
 
 - Tagged on 2026-11-27 (MINOR). Added Sapio's forward P/E and P/S estimates to valuation gauge cards

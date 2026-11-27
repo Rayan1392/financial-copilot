@@ -23,7 +23,10 @@ export function answerPlainText(markdown: string): string {
 /** Public address shown in copied and shared answers, so someone who receives one can find Sapio. */
 export const SAPIO_SITE_URL = "https://sapioai.ir";
 
-const SOURCE_SIGNATURE = `ساپیو | دستیار هوشمند بازار سرمایه\n${SAPIO_SITE_URL}`;
+/** Sapio's name line: the text signature and the footer of a shared answer image both use it. */
+export const SAPIO_NAME_LINE = "ساپیو | دستیار هوشمند بازار سرمایه";
+
+const SOURCE_SIGNATURE = `${SAPIO_NAME_LINE}\n${SAPIO_SITE_URL}`;
 
 /**
  * Text an answer leaves the app with, by copy or share: the plain answer followed by Sapio's name and link as its

@@ -59,6 +59,10 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
   released v1.32.1: the light-theme emerald badge and phone topics reach 4.5:1).
   `equilibrium-below-lower-bound-label` (OQ-137, Gate A+B 2026-11-26, implemented locally: «زیر حد پایین» with the
   absolute value below the range, card and text answer).
+  `valuation-gauge-answer-image-share` (OQ-153 to OQ-156, Gate A+B 2026-11-27, implemented locally 2026-11-27, not
+  released): a gauge answer can be copied («کپی تصویر») or shared as a PNG of its cards, drawn in the browser from an
+  off-screen render of the same card component at a fixed width; text fallbacks remain. Real-device check (iOS Safari,
+  Android Chrome, Telegram Desktop paste) is open with the owner.
   `valuation-gauge-forward-ratio` (OQ-136, Gate A+B 2026-11-26, committed on develop 2026-11-27, not released, flag
   `ValuationGaugeCards:ForwardEstimate:Enabled` off by default): Sapio's own forward P/E and P/S estimate «(برآورد ساپیو)»
   from 12 months of sales, 4-month YoY growth and the median 8-quarter margin, as a dashed needle on the card and a

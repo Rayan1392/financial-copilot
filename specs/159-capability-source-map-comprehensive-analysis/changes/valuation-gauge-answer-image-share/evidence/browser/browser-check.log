@@ -1,0 +1,12 @@
+single phone-390 dark: 960x1435 px, 1 card(s), 0.38% pixels differ from the screenshot, 183335 bytes
+single phone-390 light: 960x1435 px, 1 card(s), 0.64% pixels differ from the screenshot, 184686 bytes
+single desktop-1280 dark: 960x1451 px, 1 card(s), 0.38% pixels differ from the screenshot, 185740 bytes
+single desktop-1280 light: 960x1451 px, 1 card(s), 0.63% pixels differ from the screenshot, 187182 bytes
+all phone-390 dark: 1600x2214 px, 3 card(s), 0.28% pixels differ from the screenshot, 477821 bytes
+all phone-390 light: 1600x2214 px, 3 card(s), 0.54% pixels differ from the screenshot, 483948 bytes
+all desktop-1280 dark: 1600x2237 px, 3 card(s), 0.55% pixels differ from the screenshot, 426079 bytes
+all desktop-1280 light: 1600x2237 px, 3 card(s), 0.73% pixels differ from the screenshot, 433809 bytes
+forward phone-390 dark: 1600x2290 px, 3 card(s), 0.40% pixels differ from the screenshot, 458464 bytes
+forward phone-390 light: 1600x2290 px, 3 card(s), 0.62% pixels differ from the screenshot, 463965 bytes
+forward desktop-1280 dark: 1600x2313 px, 3 card(s), 0.66% pixels differ from the screenshot, 403722 bytes
+forward desktop-1280 light: 1600x2313 px, 3 card(s), 0.82% pixels differ from the screenshot, 409731 bytes

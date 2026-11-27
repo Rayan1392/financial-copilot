@@ -378,3 +378,15 @@
 .light .mobile-danger-text {
   color: oklch(0.5 0.2 22);
 }
+
+/* Shared answer image (Feature 159 change «valuation-gauge-answer-image-share»): the off-screen frame is captured to a
+   PNG, so nothing in it may be mid-animation, and controls that only work on screen are left out. */
+[data-share-frame] *,
+[data-share-frame] *::before,
+[data-share-frame] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+[data-share-frame] [data-share-hide] {
+  display: none !important;
+}

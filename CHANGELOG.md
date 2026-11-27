@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-11-27
+
+کارت‌های گیج ارزش‌گذاری برآورد ساپیو از نسبت‌های آینده‌نگر را نشان می‌دهند و کارت‌های پیشنهادی گفتگو برای هر نمادی کار می‌کنند.
+
 ### Added
 
 - برآورد ساپیو از P/E و P/S آینده‌نگر روی کارت‌های گیج ارزش‌گذاری (با عقربهٔ خط‌چین).
@@ -602,7 +606,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.33.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.34.0...develop
+[1.34.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.31.0...v1.32.0

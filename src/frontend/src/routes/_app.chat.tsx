@@ -1,15 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
+import { NewChatIntroduction } from "@/components/app/new-chat-introduction";
 import { StarterCardGrid } from "@/components/app/starter-card-grid";
 import { StarterSymbolPickerDialog } from "@/components/app/starter-symbol-picker-dialog";
 import { useMemo, useState } from "react";
 import { useNewChatIntent } from "@/lib/chat/new-chat-intent";
-import {
-  homeStarterPrompts,
-  starterCoverage,
-  starterPickerSymbols,
-} from "@/lib/chat/starter-prompts";
+import { homeStarterPrompts, starterPickerSymbols } from "@/lib/chat/starter-prompts";
 import { useStarterSelection } from "@/lib/chat/use-starter-selection";
 import { useChatCapabilityAvailability } from "@/lib/chat/use-capability-availability";
 import { useFollowedSymbols } from "@/lib/workspace/queries";
@@ -47,7 +44,6 @@ function NewChatPage() {
     [followed.data],
   );
   const starter = useStarterSelection(submit);
-  const coverage = starterCoverage(starterPrompts);
 
   return (
     <>
@@ -68,18 +64,7 @@ function NewChatPage() {
             dir="rtl"
             className="m-auto max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up"
           >
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3 text-balance">
-              دستیار هوشمند بازار سرمایه
-            </h1>
-            <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium emerald-ink-text mb-5">
-              {coverage.badge}
-            </div>
-            <p className="text-base md:text-lg font-medium text-foreground mb-2 max-w-2xl mx-auto text-pretty">
-              گزارش‌های تولید و فروش و صورت‌های مالی شرکت‌ها را با زبان طبیعی بررسی کنید.
-            </p>
-            <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
-              {coverage.sentence}
-            </p>
+            <NewChatIntroduction />
             <StarterCardGrid
               prompts={starterPrompts}
               disabled={startChat.isPending}

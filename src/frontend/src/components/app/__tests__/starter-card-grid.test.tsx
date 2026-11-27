@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { StarterCardGrid } from "@/components/app/starter-card-grid";
 import { MobileStarterList } from "@/components/mobile/mobile-starter-list";
-import { homeStarterPrompts, starterCoverage } from "@/lib/chat/starter-prompts";
+import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
 
 // Changes «valuation-gauge-starter-card» and «starter-cards-symbol-picker».
 const withGauge = homeStarterPrompts({ valuationGaugeCards: true });
@@ -78,19 +78,6 @@ describe("StarterCardGrid", () => {
     const buttons = within(screen.getByTestId("starter-card-grid")).getAllByRole("button");
     expect(buttons).toHaveLength(8);
     expect(screen.queryByTestId("starter-card-dial")).not.toBeInTheDocument();
-  });
-});
-
-describe("starterCoverage", () => {
-  it("names valuation only while the gauge card is shown (OQ-142)", () => {
-    expect(starterCoverage(withGauge).badge).toBe(
-      "پوشش فعلی: تولید، فروش، گزارش‌های مالی و ارزش‌گذاری",
-    );
-    expect(starterCoverage(withGauge).sentence).toContain(
-      "جریان وجوه نقد و گیج‌های ارزش‌گذاری نمادها",
-    );
-    expect(starterCoverage(withoutGauge).badge).toBe("پوشش فعلی: تولید، فروش و گزارش‌های مالی");
-    expect(starterCoverage(withoutGauge).sentence).not.toContain("ارزش‌گذاری");
   });
 });
 

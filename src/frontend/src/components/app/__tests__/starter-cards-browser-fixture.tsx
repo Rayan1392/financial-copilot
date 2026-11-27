@@ -1,23 +1,23 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { NewChatIntroduction } from "../new-chat-introduction";
 import { StarterCardGrid } from "../starter-card-grid";
 import { StarterSymbolPicker } from "../starter-symbol-picker";
 import { StarterSymbolPickerDialog } from "../starter-symbol-picker-dialog";
 import { BottomSheet } from "@/components/mobile/bottom-sheet";
 import { MobileStarterList } from "@/components/mobile/mobile-starter-list";
-import { homeStarterPrompts, starterCoverage } from "@/lib/chat/starter-prompts";
+import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
 import { useStarterSelection } from "@/lib/chat/use-starter-selection";
 import "../../../styles.css";
 
 // Browser fixture of the starter cards (changes «valuation-gauge-starter-card» and «starter-cards-symbol-picker»):
-// ?view=desktop|mobile&gauge=1|0&watch=1|0. The desktop view repeats the new-chat column of `/chat` (max-w-3xl, the
-// coverage badge and sentence) with its picker dialog; the mobile view repeats `/m` with its bottom sheet. What a
+// ?view=desktop|mobile&gauge=1|0&watch=1|0. The desktop view renders the `/chat` introduction and starter cards
+// with their picker dialog; the mobile view repeats `/m` with its bottom sheet. What a
 // card or the picker sends is written to the «sent» line.
 const params = new URLSearchParams(location.search);
 const prompts = homeStarterPrompts({ valuationGaugeCards: params.get("gauge") !== "0" });
 const watchlistSymbols = params.get("watch") === "1" ? ["شپنا", "فملی"] : [];
-const coverage = starterCoverage(prompts);
 const mobile = params.get("view") === "mobile";
 
 export function Fixture() {
@@ -40,13 +40,7 @@ export function Fixture() {
             className="m-auto w-full max-w-3xl py-6 text-center md:py-10"
             data-testid="starter-root"
           >
-            {/* Same classes as the coverage badge on `/chat`. */}
-            <div className="mb-5 inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium emerald-ink-text">
-              {coverage.badge}
-            </div>
-            <p className="mx-auto mb-7 max-w-2xl text-sm leading-7 text-muted-foreground text-pretty">
-              {coverage.sentence}
-            </p>
+            <NewChatIntroduction />
             <StarterCardGrid prompts={prompts} disabled={false} onSelect={starter.select} />
           </div>
         </div>

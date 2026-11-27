@@ -3,7 +3,10 @@
 // at a phone and at a desktop viewport, in the dark and the light theme, and matches a browser screenshot of the same
 // picture rendered on screen. The off-screen frame is inert, adds no page scroll and is gone afterwards.
 // It does not cover the share sheet or Safari: those need real devices (tasks.md, section 6).
+// Feature 125 change «comparison-answer-image-share» adds the own-industry comparison fixtures: the picture is the whole
+// answer with the full table, also where the screen (phone density) shows cards.
 // Run: npm run test:answer-image-browser [-- --evidence <dir relative to the repository root>]
+//      npm run test:comparison-image-browser   (the comparison fixtures, evidence under the Feature 125 change)
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -42,11 +45,26 @@ const PIXEL_RATIO = 2;
 // check also asserts that nothing in the frame is animated.
 const MAX_DIFFERENT_PIXELS = 0.015;
 
-const fixtures = {
+const allFixtures = {
   single: { cards: 1, width: 480 },
   all: { cards: 3, width: 800 },
   forward: { cards: 3, width: 800 },
+  // rows: member rows plus the group-average row.
+  comparison: { comparison: true, layout: "wide", rows: 5, width: 800 },
+  "comparison-four": { comparison: true, layout: "compact-table", rows: 5, width: 560 },
+  "comparison-large": { comparison: true, layout: "wide", rows: 41, width: 800 },
 };
+const fixturesArgument = process.argv.indexOf("--fixtures");
+const selected =
+  fixturesArgument > 0 && process.argv[fixturesArgument + 1]
+    ? process.argv[fixturesArgument + 1].split(",")
+    : ["single", "all", "forward"];
+const fixtures = Object.fromEntries(
+  selected.map((name) => {
+    assert.ok(allFixtures[name], `unknown fixture ${name}`);
+    return [name, allFixtures[name]];
+  }),
+);
 const viewports = [
   { name: "phone-390", width: 390, height: 844 },
   { name: "desktop-1280", width: 1280, height: 900 },
@@ -64,7 +82,10 @@ async function open(context, port, query, theme) {
     waitUntil: "domcontentloaded",
     timeout: 120000,
   });
-  await page.getByTestId("valuation-gauge-cards").first().waitFor({ timeout: 120000 });
+  await page
+    .locator("[data-testid='valuation-gauge-cards'], [data-testid='industry-comparison']")
+    .first()
+    .waitFor({ timeout: 120000 });
   await page.evaluate(
     (light) => document.documentElement.classList.toggle("light", light),
     theme === "light",
@@ -141,7 +162,9 @@ try {
           deviceScaleFactor: PIXEL_RATIO,
           permissions: ["clipboard-read", "clipboard-write"],
         });
-        const page = await open(context, port, `fixture=${fixture}`, theme);
+        // The phone workspace renders answers in the compact density.
+        const density = viewport.width < 720 ? "&density=compact" : "";
+        const page = await open(context, port, `fixture=${fixture}${density}`, theme);
         const errors = [];
         page.on("pageerror", (error) => errors.push(error.message));
 
@@ -163,6 +186,19 @@ try {
               animated: [...picture.querySelectorAll("*")].filter(
                 (node) => getComputedStyle(node).animationName !== "none",
               ).length,
+              layouts: [...picture.querySelectorAll("[data-layout]")]
+                .filter(visible)
+                .map((node) => node.dataset.layout),
+              rows: [...picture.querySelectorAll("[data-layout] tbody tr")].filter(visible).length,
+              missingText: [
+                "مقایسه نماد با هم‌گروهی‌ها",
+                "گروه صنعتی:",
+                "اندازه گروه:",
+                "کمتر از میانگین گروه",
+                "این اطلاعات توصیه به سرمایه گذاری نیست",
+                "sapioai.ir",
+              ].filter((part) => !picture.textContent.includes(part)),
+              buttons: picture.querySelectorAll("button").length,
               inert: picture.parentElement.inert,
               hidden: picture.parentElement.getAttribute("aria-hidden"),
               scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -173,16 +209,24 @@ try {
         const button = page.getByRole("button", { name: "کپی تصویر" });
         await button.waitFor({ timeout: 30000 });
         const onScreenTabs = await page.getByTestId("valuation-gauge-tabs").isVisible();
+        const onScreenLayouts = await page.evaluate(() =>
+          [...document.querySelectorAll("[data-layout]")]
+            .filter((node) => node.getClientRects().length > 0)
+            .map((node) => node.dataset.layout),
+        );
+        const started = Date.now();
         await button.click();
         await page.getByRole("button", { name: "تصویر کپی شد" }).waitFor({ timeout: 30000 });
+        const drawMs = Date.now() - started;
 
         const frames = await page.evaluate(() => window.__frames);
         assert.equal(frames.length, 1, `${label}: one frame is drawn`);
+        const { layouts, rows, missingText, buttons, ...frame } = frames[0];
         assert.deepEqual(
-          frames[0],
+          frame,
           {
             width: expected.width,
-            cards: expected.cards,
+            cards: expected.comparison ? 0 : expected.cards,
             tabs: 0,
             details: 0,
             animated: 0,
@@ -192,12 +236,27 @@ try {
           },
           `${label}: the frame while mounted`,
         );
+        if (expected.comparison) {
+          assert.deepEqual(
+            { layouts, rows, missingText, buttons },
+            { layouts: [expected.layout], rows: expected.rows, missingText: [], buttons: 0 },
+            `${label}: the picture is the whole answer with the full table and no button`,
+          );
+          if (viewport.width < 720)
+            assert.deepEqual(onScreenLayouts, ["cards"], `${label}: the screen shows cards`);
+          assert.ok(
+            await page.getByTestId("follow-up").isVisible(),
+            `${label}: follow-up on screen`,
+          );
+          // AC-06: inside the 15-second draw limit.
+          assert.ok(drawMs < 15000, `${label}: drawn in ${drawMs} ms`);
+        }
         assert.equal(
           await page.locator("[data-share-frame]").count(),
           0,
           `${label}: the frame is removed`,
         );
-        if (viewport.width < 720 && expected.cards > 1)
+        if (!expected.comparison && viewport.width < 720 && expected.cards > 1)
           assert.ok(onScreenTabs, `${label}: the screen shows one card at a time`);
 
         const produced = await page.evaluate(async () => {
@@ -256,7 +315,10 @@ try {
         assert.deepEqual(errors, [], `${label}: no page error`);
 
         record(
-          `${label}: ${result.produced[0]}x${result.produced[1]} px, ${expected.cards} card(s), ` +
+          `${label}: ${result.produced[0]}x${result.produced[1]} px, ` +
+            (expected.comparison
+              ? `${expected.layout} table with ${expected.rows} rows, copied in ${drawMs} ms, `
+              : `${expected.cards} card(s), `) +
             `${(result.different * 100).toFixed(2)}% pixels differ from the screenshot, ${png.length} bytes`,
         );
         await referenceContext.close();

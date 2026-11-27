@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AssistantChatBlock } from "@/lib/chat.functions";
 import { renderNodeToPngBlob } from "@/lib/chat/answer-image";
 import { AnswerActions } from "../answer-actions";
-import { MessageList } from "../message-list";
+import { MessageList, ReadOnlyAssistantAnswer } from "../message-list";
 import { gaugeResult, ratioCard } from "./valuation-gauge-fixtures";
 
 // Feature 159 change «valuation-gauge-answer-image-share»: the capture library is replaced; everything else is real.
@@ -267,6 +267,118 @@ describe("MessageList image actions", () => {
 
     await click("کپی تصویر");
     await waitFor(() => expect(width).toBe("480px"));
+  });
+
+  // Feature 125 change «comparison-answer-image-share».
+  const comparison = (sixColumns: boolean) =>
+    [
+      "### مقایسه نماد با هم‌گروهی‌ها",
+      "**گروه صنعتی:** استخراج سنگ معدن های فلزی آهنی",
+      "**اندازه گروه:** ۲ نماد",
+      "",
+      sixColumns
+        ? "| نماد | P/E | P/S | قیمت به تعادلی | رتبه | قیمت و تاریخ معامله |"
+        : "| نماد | P/E | P/S | قیمت به تعادلی |",
+      sixColumns ? "|---|---:|---:|---:|---:|---|" : "|---|---:|---:|---:|",
+      `| کچاد | ۱۱۲٫۳۱٪ | ۵۳٫۵٪ | ۴۷٫۵۷٪ |${sixColumns ? " ۱ از ۲ | ۳۴۴۰ ریال (روزانه، ۱۴۰۵/۰۸/۳۰)، تعادلی ۷۲۳۲ ریال |" : ""}`,
+      `| کگهر | ۷۱٫۱۶٪ | ۴۱٫۶٪ | ۶۹٫۹٪ |${sixColumns ? " ۲ از ۲ | ۱۰۵۰۰ ریال (روزانه، ۱۴۰۵/۰۸/۳۰)، تعادلی ۱۵۰۲۱ ریال |" : ""}`,
+      `| میانگین گروه | ۱۱۹٫۹۱٪ | ۵۵٫۲۷٪ | ۶۱٫۹۱٪ |${sixColumns ? " — | — |" : ""}`,
+      "این اطلاعات توصیه به سرمایه گذاری نیست",
+    ].join("\n");
+  const followUp = {
+    id: "compare-1",
+    kind: "capability",
+    label: "کگهر را با صنعت خودش مقایسه کن",
+    message: "کگهر را با صنعت خودش مقایسه کن",
+    capabilityCode: "symbol_vs_industry_relative_valuation",
+    relevanceReason: "comparison",
+    registryVersion: 1,
+  };
+
+  it("offers the picture of a comparison answer: the whole answer with the full table, also on a phone", async () => {
+    stubClipboard();
+    const share = vi.fn().mockResolvedValue(undefined);
+    stubShare(share);
+    let captured: Record<string, unknown> | undefined;
+    draw.mockImplementation(async (node) => {
+      const element = await node;
+      captured = {
+        width: element.style.width,
+        // The phone density renders cards only; the picture renders the full table and nothing else.
+        layouts: [...element.querySelectorAll("[data-layout]")].map((node) =>
+          node.getAttribute("data-layout"),
+        ),
+        rows: element.querySelectorAll("[data-layout='wide'] tbody tr").length,
+        heading: element.textContent?.includes("مقایسه نماد با هم‌گروهی‌ها"),
+        group: element.textContent?.includes("استخراج سنگ معدن های فلزی آهنی"),
+        disclaimer: element.textContent?.includes("این اطلاعات توصیه به سرمایه گذاری نیست"),
+        buttons: element.querySelectorAll("button").length,
+      };
+      return png;
+    });
+    render(
+      <MessageList
+        messages={[
+          {
+            id: "m1",
+            role: "assistant",
+            content: block({ message: comparison(true), suggestedActions: [followUp] }),
+            created_at: "2026-11-26T00:00:00Z",
+          },
+        ]}
+        loading={false}
+        streaming={false}
+        onSuggested={vi.fn()}
+        density="compact"
+      />,
+    );
+    expect(document.querySelector("[data-layout='wide']")).toBeNull();
+
+    await click("کپی تصویر");
+    await waitFor(() =>
+      expect(captured).toEqual({
+        width: "800px",
+        layouts: ["wide"],
+        rows: 3,
+        heading: true,
+        group: true,
+        disclaimer: true,
+        buttons: 0,
+      }),
+    );
+
+    await click("اشتراک‌گذاری");
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    const [file] = share.mock.calls[0][0].files as File[];
+    expect(file.name).toMatch(/^مقایسه-با-صنعت-.+\.png$/u);
+    expect(share.mock.calls[0][0].text).toContain("کچاد");
+  });
+
+  it("uses the narrow width for a four-column comparison answer", async () => {
+    stubClipboard();
+    let captured: { width: string; layouts: Array<string | null> } | undefined;
+    draw.mockImplementation(async (node) => {
+      const element = await node;
+      captured = {
+        width: element.style.width,
+        layouts: [...element.querySelectorAll("[data-layout]")].map((node) =>
+          node.getAttribute("data-layout"),
+        ),
+      };
+      return png;
+    });
+    renderBlock(block({ message: comparison(false) }));
+
+    await click("کپی تصویر");
+    await waitFor(() => expect(captured).toEqual({ width: "560px", layouts: ["compact-table"] }));
+  });
+
+  it("offers no picture for a read-only comparison answer", () => {
+    stubClipboard();
+    render(<ReadOnlyAssistantAnswer block={block({ message: comparison(true) })} />);
+
+    expect(screen.getByTestId("industry-comparison")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "کپی تصویر" })).not.toBeInTheDocument();
   });
 
   it("offers no picture for a text answer", () => {

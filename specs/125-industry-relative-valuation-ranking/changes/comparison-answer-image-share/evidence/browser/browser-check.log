@@ -1,0 +1,12 @@
+comparison phone-390 dark: 1600x1142 px, wide table with 5 rows, copied in 1342 ms, 0.60% pixels differ from the screenshot, 223945 bytes
+comparison phone-390 light: 1600x1142 px, wide table with 5 rows, copied in 924 ms, 0.81% pixels differ from the screenshot, 223931 bytes
+comparison desktop-1280 dark: 1600x1142 px, wide table with 5 rows, copied in 755 ms, 0.60% pixels differ from the screenshot, 223945 bytes
+comparison desktop-1280 light: 1600x1142 px, wide table with 5 rows, copied in 1612 ms, 0.81% pixels differ from the screenshot, 223931 bytes
+comparison-four phone-390 dark: 1120x854 px, compact-table table with 5 rows, copied in 801 ms, 0.96% pixels differ from the screenshot, 142907 bytes
+comparison-four phone-390 light: 1120x854 px, compact-table table with 5 rows, copied in 994 ms, 1.16% pixels differ from the screenshot, 142587 bytes
+comparison-four desktop-1280 dark: 1120x854 px, compact-table table with 5 rows, copied in 831 ms, 0.96% pixels differ from the screenshot, 142907 bytes
+comparison-four desktop-1280 light: 1120x854 px, compact-table table with 5 rows, copied in 948 ms, 1.16% pixels differ from the screenshot, 142587 bytes
+comparison-large phone-390 dark: 1600x6398 px, wide table with 41 rows, copied in 4703 ms, 0.82% pixels differ from the screenshot, 1304006 bytes
+comparison-large phone-390 light: 1600x6398 px, wide table with 41 rows, copied in 5100 ms, 1.05% pixels differ from the screenshot, 1302204 bytes
+comparison-large desktop-1280 dark: 1600x6398 px, wide table with 41 rows, copied in 4987 ms, 0.82% pixels differ from the screenshot, 1304006 bytes
+comparison-large desktop-1280 light: 1600x6398 px, wide table with 41 rows, copied in 4355 ms, 1.05% pixels differ from the screenshot, 1302204 bytes

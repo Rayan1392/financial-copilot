@@ -1,4 +1,5 @@
 import { useAnswerDensity } from "@/components/app/answer-density";
+import { useIsAnswerPicture } from "@/components/app/answer-picture";
 import {
   METRIC_LABELS,
   type IndustryComparisonModel,
@@ -13,6 +14,8 @@ import {
 //   ≥ 40rem  six-column table (price evidence answers)
 //   ≥ 26rem  four-column table, rank and trade details on a full-width line under each symbol
 //   narrower cards, also the only layout in the phone workspace (compact density)
+// A shared answer picture (change «comparison-answer-image-share») has a fixed width, so it renders the one table that
+// fits its content and none of the alternatives: the capture cost grows with every node, hidden ones included.
 // Colours come from the theme tokens, so both site themes stay readable; every colour cue also carries a ▼/▲
 // marker and screen-reader text.
 
@@ -292,11 +295,16 @@ function Legend() {
 
 export function IndustryComparison({ model }: { model: IndustryComparisonModel }) {
   const compact = useAnswerDensity() === "compact";
+  const picture = useIsAnswerPicture();
   const tableFrame = "overflow-hidden rounded-lg ring-1 ring-hairline";
 
   return (
     <div className="@container my-2 min-w-0" dir="rtl" data-testid="industry-comparison">
-      {compact ? (
+      {picture ? (
+        <div className={tableFrame}>
+          {model.hasPriceEvidence ? <WideTable model={model} /> : <CompactTable model={model} />}
+        </div>
+      ) : compact ? (
         <Cards model={model} />
       ) : (
         <>

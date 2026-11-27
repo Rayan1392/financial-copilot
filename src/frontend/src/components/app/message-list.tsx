@@ -29,7 +29,8 @@ import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-tre
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
 import { MonthlyTrendSummaryCards } from "@/components/app/monthly-trend-summary-cards";
 import { AnswerActions } from "@/components/app/answer-actions";
-import { gaugeImageFileName } from "@/lib/chat/answer-image";
+import { comparisonImageFileName, gaugeImageFileName } from "@/lib/chat/answer-image";
+import { parseIndustryComparison } from "@/components/app/industry-comparison/industry-comparison-model";
 import { AnalysisProgress, AssistantAvatar } from "@/components/app/analysis-progress";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
@@ -229,7 +230,7 @@ function AssistantBlock({
     : null;
   // Change «valuation-gauge-answer-image-share»: a gauge answer can leave the app as a picture of its cards. The picture
   // is wide enough for the side-by-side layout, so it shows every card also when the screen shows one at a time.
-  const answerImage = valuationGauges
+  const gaugeImage = valuationGauges
     ? {
         content: <ValuationGaugeCards data={valuationGauges} />,
         width: valuationGauges.cards.length > 1 ? 800 : 480,
@@ -267,6 +268,28 @@ function AssistantBlock({
     ? localizedMessage.slice(0, tradingDateMatch.index).trimEnd()
     : localizedMessage;
   const displayMessage = mainMessage.replace(/[.。]\s*$/u, "").trimEnd();
+  const showsMarkdown =
+    displayMessage.length > 0 &&
+    !typedQuarterlyTable &&
+    !typedBalanceSheet &&
+    !typedCashFlow &&
+    !symbolSnapshot &&
+    !valuationGauges;
+  // Feature 125 change «comparison-answer-image-share»: an own-industry comparison leaves the app as a picture of the
+  // whole answer. The picture is recognised by the parser the screen uses and has a fixed width; inside it the
+  // comparison renders its full table, also where the screen shows cards.
+  const industryComparison = showsMarkdown ? parseIndustryComparison(displayMessage) : null;
+  const answerImage =
+    gaugeImage ??
+    (industryComparison
+      ? {
+          content: (
+            <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
+          ),
+          width: industryComparison.hasPriceEvidence ? 800 : 560,
+          fileName: comparisonImageFileName(),
+        }
+      : undefined);
 
   return (
     <div className={compact ? "flex" : "flex gap-4"} dir={isRtlMessage ? "rtl" : "ltr"}>
@@ -289,17 +312,9 @@ function AssistantBlock({
           symbolSnapshot ||
           valuationGauges) && (
           <div className="space-y-1">
-            {displayMessage.length > 0 &&
-              !typedQuarterlyTable &&
-              !typedBalanceSheet &&
-              !typedCashFlow &&
-              !symbolSnapshot &&
-              !valuationGauges && (
-                <MarkdownMessage
-                  content={displayMessage}
-                  direction={isRtlMessage ? "rtl" : "ltr"}
-                />
-              )}
+            {showsMarkdown && (
+              <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
+            )}
             {typedQuarterlyTable && <QuarterlyFinancialTable model={typedQuarterlyTable} />}
             {typedBalanceSheet && <BalanceSheetReport result={typedBalanceSheet} />}
             {typedCashFlow && <CashFlowReport result={typedCashFlow} />}

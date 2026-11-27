@@ -32,13 +32,11 @@ export type StarterPromptCapability = "valuationGaugeCards";
 /** What the API reports as available (`useChatCapabilityAvailability`); a missing entry means unavailable. */
 export type StarterPromptAvailability = Partial<Record<StarterPromptCapability, boolean>>;
 
-export interface StarterPrompt {
+interface StarterPromptBase {
   /** Stable key of the capability; the phone workspace picks its own icon by it. */
   id: StarterPromptId;
-  /** The exact question sent to the assistant. */
-  text: string;
   icon: LucideIcon;
-  /** Short topic label shown above the question on the desktop cards. */
+  /** Short topic label shown above the question; also the title of the symbol picker. */
   topic: string;
   tone: StarterPromptTone;
   /** A short line under the question naming what the answer contains. */
@@ -47,58 +45,93 @@ export interface StarterPrompt {
   featured?: boolean;
   /** The optional capability the question needs; the card is left out while it is unavailable. */
   requires?: StarterPromptCapability;
-  /**
-   * The same question for another symbol, so the card can use one from the user's watchlist. Absent when the
-   * example cannot be generalized: the product card names a company-specific product, the ranking card is
-   * market-wide.
-   */
-  forSymbol?: (symbol: string) => string;
+}
+
+/** A card that sends its question in one tap. */
+export interface DirectStarterPrompt extends StarterPromptBase {
+  kind: "direct";
+  /** The exact question shown on the card and sent to the assistant. */
+  text: string;
+  /** The question names one fixed symbol that cannot be swapped; the card is marked «نمونه» (OQ-151). */
+  example?: boolean;
+}
+
+/** A card that first asks for the symbol (change «starter-cards-symbol-picker»). */
+export interface SymbolStarterPrompt extends StarterPromptBase {
+  kind: "symbol";
+  /** The short phrase on the card, around the «نماد» slot. */
+  label: { before: string; after: string };
+  /** The symbol the picker offers as «نمونه». */
+  exampleSymbol: string;
+  /** The exact question sent for a symbol; the only owner of the question wording. */
+  forSymbol: (symbol: string) => string;
+}
+
+export type StarterPrompt = DirectStarterPrompt | SymbolStarterPrompt;
+
+/** The word shown in a symbol card's slot. */
+export const STARTER_SYMBOL_SLOT = "نماد";
+
+/** The card's phrase as plain text: the question of a direct card, the label with the slot word of a symbol card. */
+export function starterPromptTitle(prompt: StarterPrompt): string {
+  return prompt.kind === "direct"
+    ? prompt.text
+    : `${prompt.label.before}${STARTER_SYMBOL_SLOT}${prompt.label.after}`;
 }
 
 /**
  * The one list of new-chat starter prompts, shared by desktop `/chat` and mobile `/m`: one card per product
- * capability. Personalization only swaps the example symbol; it never adds, drops or repeats a card type.
+ * capability. A symbol card never names a symbol; the user picks one and `forSymbol` builds the question.
  */
 export const STARTER_PROMPTS: readonly StarterPrompt[] = [
   {
-    // Change «valuation-gauge-starter-card» (owner, 2026-11-26): the example symbol is the owner's choice. The text is
-    // the routed phrase «گیج‌های ارزش‌گذاری ‹نماد›», with the zero-width non-joiners.
+    // The question is the routed phrase «گیج‌های ارزش‌گذاری ‹نماد›», with the zero-width non-joiners.
     id: "valuation-gauges",
-    text: "گیج‌های ارزش‌گذاری گدنا",
+    kind: "symbol",
+    label: { before: "گیج‌های ارزش‌گذاری ", after: "" },
+    exampleSymbol: "گدنا",
+    forSymbol: (s) => `گیج‌های ارزش‌گذاری ${s}`,
     icon: Gauge,
     topic: "ارزش‌گذاری",
     detail: "P/E · P/S · قیمت تعادلی",
     tone: "valuation",
     featured: true,
     requires: "valuationGaugeCards",
-    forSymbol: (s) => `گیج‌های ارزش‌گذاری ${s}`,
   },
   {
+    // Kept on one symbol by owner decision: the sales-mix answer is not yet reliable for every company
+    // (e.g. گدنا), so the example stays on a symbol known to work.
     id: "sales-mix",
+    kind: "direct",
     text: "ترکیب فروش محصولات کگهر را بررسی کن",
+    example: true,
     icon: PieChart,
     topic: "ترکیب فروش",
     tone: "sales",
-    // Kept static by owner decision: the sales-mix answer is not yet reliable for every company
-    // (e.g. گدنا), so the example stays on a symbol known to work.
   },
   {
     id: "monthly-sales",
-    text: "روند فروش ماهانه کگهر را نشان بده",
+    kind: "symbol",
+    label: { before: "روند فروش ماهانه ", after: "" },
+    exampleSymbol: "کگهر",
+    forSymbol: (s) => `روند فروش ماهانه ${s} را نشان بده`,
     icon: TrendingUp,
     topic: "فروش ماهانه",
     tone: "sales",
-    forSymbol: (s) => `روند فروش ماهانه ${s} را نشان بده`,
   },
   {
+    // The product name is company-specific, so the question cannot take another symbol.
     id: "product-trend",
+    kind: "direct",
     text: "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
+    example: true,
     icon: BarChart3,
     topic: "عملکرد محصول",
     tone: "sales",
   },
   {
     id: "ranking",
+    kind: "direct",
     text: "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
     icon: ListOrdered,
     topic: "رتبه‌بندی",
@@ -106,54 +139,51 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
   },
   {
     id: "industry-comparison",
-    text: "شاراک را با صنعت خودش مقایسه کن",
+    kind: "symbol",
+    label: { before: "مقایسه ", after: " با صنعت" },
+    exampleSymbol: "شاراک",
+    forSymbol: (s) => `${s} را با صنعت خودش مقایسه کن`,
     icon: ArrowLeftRight,
     topic: "مقایسه با صنعت",
     tone: "sales",
-    forSymbol: (s) => `${s} را با صنعت خودش مقایسه کن`,
   },
   {
     id: "quarterly-report",
-    text: "عملکرد مالی فصلی فولاد را بررسی کن",
+    kind: "symbol",
+    label: { before: "عملکرد مالی فصلی ", after: "" },
+    exampleSymbol: "فولاد",
+    forSymbol: (s) => `عملکرد مالی فصلی ${s} را بررسی کن`,
     icon: FileText,
     topic: "سود و زیان فصلی",
     tone: "statement",
-    forSymbol: (s) => `عملکرد مالی فصلی ${s} را بررسی کن`,
   },
   {
     id: "balance-sheet",
-    text: "صورت وضعیت مالی فاذر را بررسی کن",
+    kind: "symbol",
+    label: { before: "صورت وضعیت مالی ", after: "" },
+    exampleSymbol: "فاذر",
+    forSymbol: (s) => `صورت وضعیت مالی ${s} را بررسی کن`,
     icon: Scale,
     topic: "ترازنامه",
     tone: "statement",
-    forSymbol: (s) => `صورت وضعیت مالی ${s} را بررسی کن`,
   },
   {
     id: "cash-flow",
-    text: "جریان وجه نقد اخابر",
+    kind: "symbol",
+    label: { before: "جریان وجه نقد ", after: "" },
+    exampleSymbol: "اخابر",
+    forSymbol: (s) => `جریان وجه نقد ${s}`,
     icon: Banknote,
     topic: "جریان وجوه نقد",
     tone: "statement",
-    forSymbol: (s) => `جریان وجه نقد ${s}`,
   },
 ];
 
-export interface StarterPromptSet {
-  prompts: readonly StarterPrompt[];
-  /** True when at least one card uses a symbol from the user's watchlist. */
-  personalized: boolean;
-}
-
 /**
- * Off by owner decision (2026-11-06): a watchlist symbol is not known to have the data a card asks about —
- * e.g. a non-producing company such as ثبهساز has no monthly sales trend — so personalized cards could
- * promise answers the assistant cannot give. Turn back on only once a card is offered just for symbols
- * that support its capability.
+ * The cards the new-chat pages show: every card whose capability is available. While the availability answer is
+ * loading or has failed, the caller passes nothing, so no optional card is shown.
  */
-export const WATCHLIST_STARTER_PROMPTS_ENABLED = false;
-
-/** The starter cards whose capability is available; by default, only the cards that need no optional capability. */
-export function availableStarterPrompts(
+export function homeStarterPrompts(
   availability: StarterPromptAvailability = {},
 ): readonly StarterPrompt[] {
   return STARTER_PROMPTS.filter(
@@ -161,44 +191,22 @@ export function availableStarterPrompts(
   );
 }
 
-/**
- * The cards the new-chat pages show: the available cards, fixed while watchlist personalization is off. While the
- * availability answer is loading or has failed, the caller passes nothing, so no optional card is shown.
- */
-export function homeStarterPrompts(
-  followed: readonly { symbol: string; followedAtUtc?: string }[],
-  availability: StarterPromptAvailability = {},
-): StarterPromptSet {
-  const prompts = availableStarterPrompts(availability);
-  return WATCHLIST_STARTER_PROMPTS_ENABLED
-    ? personalizedStarterPrompts(followed, prompts)
-    : { prompts, personalized: false };
-}
+/** How many watchlist symbols the symbol picker offers before the user types. */
+export const STARTER_PICKER_WATCHLIST_LIMIT = 8;
 
 /**
- * The same capability cards, with examples taken from the user's watchlist: symbols, newest followed
- * first, are dealt across the cards that can take one, so different cards show different symbols. Rights
- * issues (شگلح) are skipped because they have no statements or monthly sales of their own. With no usable
- * symbol the static cards are returned as they are.
+ * The watchlist symbols the symbol picker offers: newest followed first, each once. Rights issues (شگلح) are
+ * left out because they have no statements or monthly sales of their own.
  */
-export function personalizedStarterPrompts(
+export function starterPickerSymbols(
   followed: readonly { symbol: string; followedAtUtc?: string }[],
-  available: readonly StarterPrompt[] = availableStarterPrompts(),
-): StarterPromptSet {
-  const symbols = [...followed]
+): string[] {
+  return [...followed]
     .filter((item) => item.symbol.trim().length > 0 && !isRightsIssueSymbol(item.symbol))
     .sort((a, b) => (b.followedAtUtc ?? "").localeCompare(a.followedAtUtc ?? ""))
     .map((item) => item.symbol.trim())
-    .filter((symbol, index, all) => all.indexOf(symbol) === index);
-  if (symbols.length === 0) return { prompts: available, personalized: false };
-
-  let next = 0;
-  const prompts = available.map((prompt) =>
-    prompt.forSymbol
-      ? { ...prompt, text: prompt.forSymbol(symbols[next++ % symbols.length]) }
-      : prompt,
-  );
-  return { prompts, personalized: true };
+    .filter((symbol, index, all) => all.indexOf(symbol) === index)
+    .slice(0, STARTER_PICKER_WATCHLIST_LIMIT);
 }
 
 /** The coverage badge and capability sentence above the cards; valuation is named only while its card is shown (OQ-142). */

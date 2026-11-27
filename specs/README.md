@@ -66,6 +66,7 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `153-mobile-pwa-workspace` — mobile-first workspace at `/m` (chat, history, market, watchlist, account), device routing behind a rollout flag, and an installable PWA that caches static assets only.
 - `153-mobile-pwa-workspace/changes/mobile-ui-refresh`: Gate B approved 2026-11-12; implemented on branch `feature/153-mobile-ui-refresh` (uncommitted). Larger type scale, self-hosted fonts (app-wide), Phosphor icons behind one mobile icon module, and redesigned `/m` screens with shorter copy. Frontend only; OQ-073 (disclaimer placement) open.
+- `153-mobile-pwa-workspace/changes/starter-cards-symbol-picker`: Gate A and Gate B approved 2026-11-27; implemented 2026-11-27. Six starter cards on `/chat` and `/m` no longer name a fixed symbol: they show a short label with a «نماد» slot and open a symbol picker (dialog on desktop, bottom sheet on the phone) with type-ahead search, the watchlist symbols and an example symbol; the picked symbol sends the card's unchanged question. «ترکیب فروش» and «عملکرد محصول» stay fixed examples marked «نمونه»; the switched-off watchlist personalization of the cards is removed.
 - `153-mobile-pwa-workspace/changes/dastkhat-font-typography`: Gate A and Gate B approved 2026-11-17; implemented locally. Shared Dastkhat Main + FaNum typography for desktop web and `/m`, including offline PWA fonts and Persian typography rules. Verification results and existing suite failures are recorded in `ImplementationReport.md`.
 
 ## Phase 1 Scanner MVP Specs

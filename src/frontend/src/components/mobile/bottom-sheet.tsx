@@ -18,6 +18,8 @@ interface BottomSheetProps {
   children: ReactNode;
   /** Full-height sheets hold a search list (add symbol). */
   fullHeight?: boolean;
+  /** For a sheet opened without a trigger element: where focus goes when it closes. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /**
@@ -31,11 +33,13 @@ export function BottomSheet({
   description,
   children,
   fullHeight,
+  onCloseAutoFocus,
 }: BottomSheetProps) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
       <DrawerContent
         dir="rtl"
+        onCloseAutoFocus={onCloseAutoFocus}
         // Without a description, opt out explicitly instead of repeating the title to screen readers.
         {...(description ? {} : { "aria-describedby": undefined })}
         className={cn(

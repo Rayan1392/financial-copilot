@@ -15,7 +15,7 @@ Status: Gate A: Approved by the owner on 2026-11-27 («با طرح رفع دائ
 
 ### 0. Production check (owner; does not block the fix)
 
-- [ ] Run on production and record the result in BUG-052:
+- [x] Run on production and record the result in BUG-052 (owner, 2026-11-27 ~20:35 UTC; result in the BUG-052 row):
   `SELECT "GaugeType", min("FetchedAtUtc"), max("FetchedAtUtc"), count(*) FROM cyclicalwaves."GaugeDetails" GROUP BY 1;`
   and
   `SELECT "Status", count(*), max("CalculatedAtUtc"), max("ValidUntilUtc") FROM "IndustryRelativeValuationCalculations" WHERE "InputSourceVersion" = 'cyclicalwaves-v2' AND "CalculatedAtUtc" > now() - interval '1 day' GROUP BY 1;`
@@ -67,10 +67,14 @@ Status: Gate A: Approved by the owner on 2026-11-27 («با طرح رفع دائ
   this change; the failures outside the baseline are listed, not compared with a clean worktree.
 - [x] No pending model change (no entity or configuration is touched).
 - [x] Tasks 1–3 ticked; BUG-052 updated; BUG-053 recorded.
-- [ ] Task 0 (production check) — open with the owner.
+- [x] Task 0 (production check) — run by the owner on 2026-11-27; see BUG-052.
 
 ## After release (owner)
 
 - The fix takes effect at the first sync after the deploy: the scheduled one at 23:30 UTC or an Admin-requested run.
   The calculation worker publishes within its 5-minute cadence after that.
-- If `IndustryRelativeValuation__SourceFreshnessHours` was raised as a workaround, set it back to 26.
+- If `IndustryRelativeValuation__SourceFreshnessHours` was raised as a workaround, set it back to 26 only after the
+  first full gauge sync that follows the deploy, not right after the deploy: until that sync the stored fetch times are
+  still the old ones. On 2026-11-27 it was set back before any sync and every group became `Inconclusive` again; 96
+  restored it. Check first:
+  `SELECT "GaugeType", count(*) FILTER (WHERE "FetchedAtUtc" > now() - interval '20 hours') AS fresh, count(*) FROM cyclicalwaves."GaugeDetails" GROUP BY 1;`

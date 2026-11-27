@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>پیش‌نمایش صفحهٔ گفتگوی ساپیو</title>
+  <style>
+    @font-face {
+      font-family: Dastkhat;
+      src: url('../../src/frontend/public/fonts/dastkhat-main.woff2') format('woff2');
+      font-weight: 100 900;
+      font-display: swap;
+    }
+    :root {
+      color-scheme: dark;
+      --background: #0b0b0d;
+      --surface: #121215;
+      --card: #17171a;
+      --line: #303036;
+      --text: #e7e7ec;
+      --muted: #a0a0aa;
+      --green: #43d9a3;
+      --blue: #84c9f0;
+      --gold: #efc06a;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --background: #f7f7fa;
+      --surface: #efeff3;
+      --card: #fff;
+      --line: #d8d8e0;
+      --text: #24242c;
+      --muted: #575965;
+      --green: #086a49;
+      --blue: #215d87;
+      --gold: #77521c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--background);
+      color: var(--text);
+      font: 400 15px/1.7 Dastkhat, Tahoma, sans-serif;
+    }
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 9px clamp(14px, 4vw, 36px);
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .brand img { width: 32px; height: 32px; object-fit: contain; }
+    .preview-controls { display: flex; align-items: center; gap: 12px; }
+    .preview-label { color: var(--muted); font-size: 12px; }
+    .theme-toggle {
+      min-height: 44px;
+      padding-inline: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+    }
+    main { flex: 1; width: min(100% - 32px, 768px); margin-inline: auto; padding-block: 32px 26px; }
+    .intro { text-align: center; margin-block-end: 27px; }
+    h1 { margin: 0 0 10px; font-size: clamp(24px, 3.2vw, 30px); line-height: 1.4; text-wrap: balance; }
+    .badge {
+      display: inline-block;
+      margin-block-end: 16px;
+      border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
+      border-radius: 999px;
+      padding: 3px 12px;
+      background: color-mix(in srgb, var(--green) 9%, transparent);
+      color: var(--green);
+      font-size: 13px;
+    }
+    h2 { margin: 0 0 5px; font-size: clamp(17px, 2.3vw, 20px); font-weight: 600; text-wrap: balance; }
+    .intro p { max-width: 670px; margin: 0 auto; color: var(--muted); line-height: 1.95; text-wrap: pretty; }
+    bdi { white-space: nowrap; }
+    .cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .card {
+      --tone: var(--green);
+      display: grid;
+      grid-template-columns: 4px minmax(0, 1fr);
+      gap: 11px;
+      align-items: center;
+      min-height: 62px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      padding: 8px 13px;
+    }
+    .card::before { content: ''; width: 3px; height: 28px; background: var(--tone); border-radius: 8px; }
+    .card.featured { --tone: var(--blue); grid-column: 1 / -1; }
+    .card.statement { --tone: var(--gold); }
+    .card small { display: block; color: var(--tone); font-size: 12px; }
+    .card strong { display: block; font-size: 14px; font-weight: 600; }
+    .card .detail { color: var(--muted); font-size: 12px; }
+    .slot { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding-inline: 5px; white-space: nowrap; }
+    footer { padding: 0 16px 16px; }
+    .composer { max-width: 768px; margin-inline: auto; background: var(--card); border: 1px solid var(--line); border-radius: 15px; padding: 10px 14px; }
+    .composer p { color: var(--muted); margin: 0 0 8px; font-size: 14px; }
+    .composer-options { display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: 12px; }
+    .composer-options span { border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+    @media (max-width: 767px) {
+      main { padding-block-start: 24px; }
+      .cards { grid-template-columns: minmax(0, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="../../src/frontend/public/sapio-logo.png" alt=""> ساپیو</div>
+    <div class="preview-controls">
+      <span class="preview-label">پیش‌نمایش شماتیک</span>
+      <button class="theme-toggle" type="button">نمای روشن</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro" aria-labelledby="chat-title">
+      <h1 id="chat-title">دستیار هوشمند بازار سرمایه</h1>
+      <div class="badge">تحلیل بنیادی، ارزش‌گذاری و رصد هوشمند بازار</div>
+      <h2>از داده‌های مالی تا تصمیم‌های هوشمندانه سرمایه‌گذاری</h2>
+      <p>تحلیل گزارش‌های مالی و تولید و فروش، گیج‌های ارزش‌گذاری <bdi dir="ltr">P/E</bdi>، <bdi dir="ltr">P/S</bdi> و قیمت تعادلی، مقایسه با صنعت، رتبه‌بندی گزارش‌های ماهانه، تحلیل عمیق سهام با جست‌وجوی وب و پایش هوشمند رویدادهای دیده‌بان؛ همگی با زبان طبیعی و دسترسی از طریق وب و تلگرام.</p>
+    </section>
+
+    <ul class="cards" aria-label="پیشنهادهای گفتگو">
+      <li class="card featured"><div><small>ارزش‌گذاری</small><strong>گیج‌های ارزش‌گذاری <span class="slot">نماد</span></strong><span class="detail"><bdi dir="ltr">P/E</bdi> · <bdi dir="ltr">P/S</bdi> · قیمت تعادلی</span></div></li>
+      <li class="card"><div><small>ترکیب فروش</small><strong>ترکیب فروش محصولات کگهر را بررسی کن</strong></div></li>
+      <li class="card"><div><small>فروش ماهانه</small><strong>روند فروش ماهانه <span class="slot">نماد</span></strong></div></li>
+      <li class="card"><div><small>عملکرد محصول</small><strong>روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟</strong></div></li>
+      <li class="card"><div><small>رتبه‌بندی</small><strong>رتبه‌بندی گزارش‌های ماهانه را نشان بده</strong></div></li>
+      <li class="card"><div><small>مقایسه با صنعت</small><strong>مقایسه <span class="slot">نماد</span> با صنعت</strong></div></li>
+      <li class="card statement"><div><small>سود و زیان فصلی</small><strong>عملکرد مالی فصلی <span class="slot">نماد</span></strong></div></li>
+      <li class="card statement"><div><small>ترازنامه</small><strong>صورت وضعیت مالی <span class="slot">نماد</span></strong></div></li>
+      <li class="card statement"><div><small>جریان وجوه نقد</small><strong>جریان وجه نقد <span class="slot">نماد</span></strong></div></li>
+    </ul>
+  </main>
+
+  <footer>
+    <div class="composer">
+      <p>مثلاً: روند فروش ماهانه شاراک را نشان بده</p>
+      <div class="composer-options"><span>پاسخ عمیق</span><span>جست‌وجوی وب</span></div>
+    </div>
+  </footer>
+
+  <script>
+    const themeToggle = document.querySelector('.theme-toggle');
+    themeToggle.addEventListener('click', () => {
+      const showLight = document.documentElement.dataset.theme === 'dark';
+      document.documentElement.dataset.theme = showLight ? 'light' : 'dark';
+      themeToggle.textContent = showLight ? 'نمای تیره' : 'نمای روشن';
+    });
+  </script>
+</body>
+</html>

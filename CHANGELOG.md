@@ -10,9 +10,13 @@
 
 ## [Unreleased]
 
+## [1.37.0] - 2026-11-28
+
+«راهنمای تحلیل و رصد بازار» نمونه‌های پرسش و پاسخ ساپیو را حتی پیش از ورود نشان می‌دهد.
+
 ### Added
 
-- «راهنمای تحلیل و رصد بازار» از صفحهٔ نخست ساپیو، پیش از ورود، در دسترس است و نمونه‌هایی از پرسش‌ها و پاسخ‌های ساپیو و روش استفاده از امکانات آن را نشان می‌دهد.
+- «راهنمای تحلیل و رصد بازار» از صفحهٔ نخست ساپیو، پیش از ورود، در دسترس است و نمونه‌هایی از پرسش‌ها و پاسخ‌های ساپیو و روش استفاده از امکانات آن را نشان می‌دهد. پس از ورود هم از نوار بالای دسکتاپ و صفحهٔ حساب کاربری در موبایل باز می‌شود.
 
 ### Changed
 
@@ -638,7 +642,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.36.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.37.0...develop
+[1.37.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.36.0...v1.37.0
 [1.36.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.35.0...v1.36.0
 [1.35.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.33.0...v1.34.0

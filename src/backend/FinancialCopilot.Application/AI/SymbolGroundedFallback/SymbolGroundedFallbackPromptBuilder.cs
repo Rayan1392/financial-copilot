@@ -47,6 +47,7 @@ public sealed class SymbolGroundedFallbackPromptBuilder(SymbolGroundedFallbackOp
         ReportDiscussion.GroundedAnalysis.NumberRules +
         ReportDiscussion.GroundedAnalysis.ResearchMindset +
         ReportDiscussion.GroundedAnalysis.AnalysisDimensions +
+        ReportDiscussion.GroundedAnalysis.EditorialJudgmentRules(choice.Depth) +
         ReportDiscussion.GroundedAnalysis.StyleRules +
         ReportDiscussion.GroundedAnalysis.PersianWritingRules +
         ReportDiscussion.GroundedAnalysis.HiddenReportRule +

@@ -97,6 +97,7 @@ public sealed class ReportDiscussionContextBuilder(ReportDiscussionOptions optio
         GroundedAnalysis.NumberRules +
         GroundedAnalysis.ResearchMindset +
         GroundedAnalysis.AnalysisDimensions +
+        GroundedAnalysis.EditorialJudgmentRules(choice.Depth) +
         GroundedAnalysis.StyleRules +
         GroundedAnalysis.PersianWritingRules +
         GroundedAnalysis.ShownReportRule +

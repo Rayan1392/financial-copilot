@@ -1,5 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { createPortal } from "react-dom";
+import { AnswerPictureContext } from "@/components/app/answer-picture";
 import { SAPIO_NAME_LINE, SAPIO_SITE_URL } from "@/lib/chat/answer-text";
 
 type PictureProps = {
@@ -23,7 +24,7 @@ export function AnswerSharePicture({ width, children, ref }: PictureProps) {
       className="bg-background p-6 text-right text-foreground"
       style={{ width }}
     >
-      {children}
+      <AnswerPictureContext.Provider value={true}>{children}</AnswerPictureContext.Provider>
       <div className="mt-4 flex items-baseline justify-between gap-4 text-sm text-muted-foreground">
         <span>{SAPIO_NAME_LINE}</span>
         <span dir="ltr">{new URL(SAPIO_SITE_URL).host}</span>

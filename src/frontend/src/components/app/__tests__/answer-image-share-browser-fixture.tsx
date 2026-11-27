@@ -1,8 +1,11 @@
 import { createRoot } from "react-dom/client";
-import { gaugeImageFileName } from "@/lib/chat/answer-image";
+import type { ReactNode } from "react";
+import { comparisonImageFileName, gaugeImageFileName } from "@/lib/chat/answer-image";
 import type { ValuationGaugeCardsResult } from "@/lib/chat/valuation-gauges";
 import { AnswerSharePicture } from "../answer-share-frame";
 import { AnswerActions } from "../answer-actions";
+import { AnswerDensityContext } from "../answer-density";
+import { MarkdownMessage } from "../markdown-message";
 import { ValuationGaugeCards } from "../valuation-gauge-cards";
 import {
   equilibriumCard,
@@ -30,17 +33,57 @@ const fixtures: Record<string, ValuationGaugeCardsResult> = {
   ]),
 };
 
+// Feature 125 change «comparison-answer-image-share»: ?fixture=comparison|comparison-four|comparison-large renders an
+// own-industry comparison answer; &density=compact is the phone workspace, which shows cards on screen.
+const SYMBOLS = ["کچاد", "کگهر", "کنور", "کگل"];
+function comparisonMessage(rows: number, sixColumns: boolean): string {
+  const members = Array.from({ length: rows }, (_, index) => {
+    const symbol = index < SYMBOLS.length ? SYMBOLS[index] : `نماد${index + 1}`;
+    const metrics = `| ${symbol} | ${70 + index * 7}٫۳۱٪ | ${40 + index}٫۵٪ | ${45 + index * 2}٫۵۷٪ |`;
+    return sixColumns
+      ? `${metrics} ${index + 1} از ${rows} | ${3440 + index * 110} ریال (روزانه، ۱۴۰۵/۰۸/۳۰)، تعادلی ${7232 + index * 90} ریال |`
+      : metrics;
+  });
+  return [
+    "### مقایسه نماد با هم‌گروهی‌ها",
+    "**گروه صنعتی:** استخراج سنگ معدن های فلزی آهنی",
+    `**اندازه گروه:** ${rows} نماد`,
+    "",
+    sixColumns
+      ? "| نماد | P/E | P/S | قیمت به تعادلی | رتبه | قیمت و تاریخ معامله |"
+      : "| نماد | P/E | P/S | قیمت به تعادلی |",
+    sixColumns ? "|---|---:|---:|---:|---:|---|" : "|---|---:|---:|---:|",
+    ...members,
+    `| میانگین گروه | ۱۱۹٫۹۱٪ | ۵۵٫۲۷٪ | ۶۱٫۹۱٪ |${sixColumns ? " — | — |" : ""}`,
+    "این اطلاعات توصیه به سرمایه گذاری نیست",
+  ].join("\n");
+}
+const comparisons: Record<string, { message: string; width: number }> = {
+  comparison: { message: comparisonMessage(4, true), width: 800 },
+  "comparison-four": { message: comparisonMessage(4, false), width: 560 },
+  "comparison-large": { message: comparisonMessage(40, true), width: 800 },
+};
+
 const params = new URLSearchParams(location.search);
-const data = fixtures[params.get("fixture") ?? "single"];
+const fixtureName = params.get("fixture") ?? "single";
+const comparison = comparisons[fixtureName];
+const data = fixtures[comparison ? "single" : fixtureName];
 const referenceWidth = Number(params.get("reference"));
+const density = params.get("density") === "compact" ? "compact" : "default";
 
 // The same picture source `message-list.tsx` builds for a gauge answer. The fixture renders the cards and the actions
 // directly: the message list itself needs the app's server runtime, and its wiring is covered by the Vitest suite.
-const image = {
-  content: <ValuationGaugeCards data={data} />,
-  width: data.cards.length > 1 ? 800 : 480,
-  fileName: gaugeImageFileName(data.symbol),
-};
+const image: { content: ReactNode; width: number; fileName: string } = comparison
+  ? {
+      content: <MarkdownMessage content={comparison.message} direction="rtl" />,
+      width: comparison.width,
+      fileName: comparisonImageFileName(),
+    }
+  : {
+      content: <ValuationGaugeCards data={data} />,
+      width: data.cards.length > 1 ? 800 : 480,
+      fileName: gaugeImageFileName(data.symbol),
+    };
 
 // A picture wider than the viewport overflows to the left in a right-to-left page, where it cannot be scrolled to or
 // photographed. The reference page is left-to-right; the picture sets its own direction.
@@ -48,16 +91,32 @@ if (referenceWidth > 0) document.documentElement.dir = "ltr";
 
 createRoot(document.getElementById("root")!).render(
   referenceWidth > 0 ? (
-    <AnswerSharePicture width={referenceWidth}>
-      <ValuationGaugeCards data={data} />
-    </AnswerSharePicture>
+    <AnswerSharePicture width={referenceWidth}>{image.content}</AnswerSharePicture>
   ) : (
     <div className="flex min-h-dvh bg-background text-foreground">
       <main className="mx-auto w-full min-w-0 max-w-4xl flex-1 px-4 py-5">
-        <div className="space-y-5">
-          <ValuationGaugeCards data={data} />
-          <AnswerActions text="P/E: 6.43" image={image} />
-        </div>
+        {comparison ? (
+          <AnswerDensityContext.Provider value={density}>
+            <div className="space-y-5 text-right" dir="rtl">
+              <MarkdownMessage content={comparison.message} direction="rtl" />
+              <AnswerActions text={comparison.message} image={image} />
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="پیشنهادهای ادامه گفتگو"
+              >
+                <button type="button" data-testid="follow-up">
+                  کگهر را با صنعت خودش مقایسه کن
+                </button>
+              </div>
+            </div>
+          </AnswerDensityContext.Provider>
+        ) : (
+          <div className="space-y-5">
+            <ValuationGaugeCards data={data} />
+            <AnswerActions text="P/E: 6.43" image={image} />
+          </div>
+        )}
       </main>
     </div>
   ),

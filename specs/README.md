@@ -12,6 +12,7 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 ## Financial Statement Value Search
 
+- `125-industry-relative-valuation-ranking` change [`comparison-answer-image-share`](125-industry-relative-valuation-ranking/changes/comparison-answer-image-share/design-proposal.md) (OQ-157 to OQ-159) — Gate A+B approved 2026-11-27, implemented locally 2026-11-27, not released; real-device check (AC-08) open with the owner: an own-industry comparison answer can be copied («کپی تصویر») or shared as a PNG of the whole answer with the full table, using the image mechanism of the Feature 159 gauge change.
 - `131-financial-statement-value-search` — internal Application service for exact values in the latest persisted financial statement.
 - `132-ai-financial-statement-value-search` — expose Feature 131 through the existing AI query facade for natural-language exact-value identification questions.
 

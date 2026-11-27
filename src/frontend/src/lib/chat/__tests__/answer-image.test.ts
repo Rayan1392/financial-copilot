@@ -4,6 +4,7 @@ import {
   canCopyImage,
   canShareFile,
   canSharePngFiles,
+  comparisonImageFileName,
   gaugeImageFileName,
   renderNodeToPngBlob,
 } from "@/lib/chat/answer-image";
@@ -91,5 +92,11 @@ describe("gaugeImageFileName", () => {
       /^گیج-ارزش‌گذاری-فجر-[۰-۹]{4}-[۰-۹]{2}-[۰-۹]{2}\.png$/u,
     );
     expect(gaugeImageFileName('و/"بملت')).toMatch(/^گیج-ارزش‌گذاری-وبملت-/u);
+  });
+});
+
+describe("comparisonImageFileName", () => {
+  it("names the picture by the Jalali date", () => {
+    expect(comparisonImageFileName()).toMatch(/^مقایسه-با-صنعت-[۰-۹]{4}-[۰-۹]{2}-[۰-۹]{2}\.png$/u);
   });
 });

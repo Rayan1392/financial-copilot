@@ -67,3 +67,8 @@ export function canSharePngFiles(): boolean {
 export function gaugeImageFileName(symbol: string): string {
   return `گیج-ارزش‌گذاری-${safeFileSymbol(symbol)}-${exportDate().replaceAll("/", "-")}.png`;
 }
+
+/** File name of a shared own-industry comparison picture: today's Jalali date. The answer names no asked symbol. */
+export function comparisonImageFileName(): string {
+  return `مقایسه-با-صنعت-${exportDate().replaceAll("/", "-")}.png`;
+}

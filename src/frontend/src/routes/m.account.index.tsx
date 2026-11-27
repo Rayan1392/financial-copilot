@@ -12,6 +12,7 @@ import {
   DarkThemeIcon,
   DesktopIcon,
   DownloadIcon,
+  MarketGuideIcon,
   MessagesIcon,
   SecurityIcon,
   SignOutIcon,
@@ -27,6 +28,7 @@ import { useExperienceSwitch } from "@/lib/experience/use-experience-switch";
 import { useInstallState } from "@/lib/pwa/install";
 import { markExplicitSignOut } from "@/lib/session-end";
 import { cn } from "@/lib/utils";
+import { MARKET_GUIDE_TITLE } from "@/lib/market-guide/catalog";
 
 export const Route = createFileRoute("/m/account/")({
   head: () => ({ meta: [{ title: "حساب کاربری — ساپیو" }] }),
@@ -119,6 +121,13 @@ function MobileAccount() {
             <Link to="/telegram-link" className={ROW}>
               <IconTile icon={TelegramIcon} />
               <span className="flex-1">اتصال تلگرام</span>
+              {chevron}
+            </Link>
+          </li>
+          <li>
+            <Link to="/market-guide" search={{ source: "mobile" }} className={ROW}>
+              <IconTile icon={MarketGuideIcon} />
+              <span className="flex-1">{MARKET_GUIDE_TITLE}</span>
               {chevron}
             </Link>
           </li>

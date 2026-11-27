@@ -1,6 +1,6 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Eye, FileSearch, FileText, Home, Settings, Smartphone } from "lucide-react";
+import { BookOpen, Eye, FileSearch, FileText, Home, Settings, Smartphone } from "lucide-react";
 import { HeaderAccount } from "@/components/app/header-account";
 import { SapioMark } from "@/components/app/sapio-mark";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -14,6 +14,7 @@ import {
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
 import { useExperienceSwitch } from "@/lib/experience/use-experience-switch";
+import { MARKET_GUIDE_TITLE } from "@/lib/market-guide/catalog";
 
 const NAV_ITEM_BASE =
   "group flex h-10 min-w-10 items-center justify-center gap-2 rounded-xl px-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40";
@@ -32,18 +33,21 @@ function HeaderNavLink({
   to,
   label,
   icon,
+  search,
   showLabel = false,
   exact = false,
 }: {
   to: LinkProps["to"];
   label: string;
   icon: ReactNode;
+  search?: LinkProps["search"];
   showLabel?: boolean;
   exact?: boolean;
 }) {
   return (
     <Link
       to={to}
+      search={search}
       activeOptions={{ exact, includeSearch: false }}
       className={NAV_ITEM_BASE}
       inactiveProps={{ className: NAV_ITEM_IDLE }}
@@ -113,6 +117,12 @@ export function ChatHeader({ withSidebar = false }: { withSidebar?: boolean }) {
             label="اطلاعیه‌های کدال"
             showLabel
             icon={<FileText className={ICON_CLASS} />}
+          />
+          <HeaderNavLink
+            to="/market-guide"
+            search={{ source: "desktop" }}
+            label={MARKET_GUIDE_TITLE}
+            icon={<BookOpen className={ICON_CLASS} />}
           />
           {showMonthlyBackfill && (
             <HeaderNavLink

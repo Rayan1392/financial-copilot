@@ -1,11 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Eye, EyeOff, FileText, Megaphone, Radar, TrendingUp } from "lucide-react";
+import { BookOpen, Eye, EyeOff, FileText, Megaphone, Radar, TrendingUp } from "lucide-react";
 import { login } from "@/integrations/financial-copilot/auth";
 import { safeInternalPath } from "@/lib/safe-redirect";
 import { SapioMark } from "@/components/app/sapio-mark";
 import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
 import { TAHLILAPP_SAPIO_URL } from "@/lib/external-links";
+import { MARKET_GUIDE_TITLE } from "@/lib/market-guide/catalog";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { redirect: string; reason?: "expired" } => ({
@@ -239,6 +240,13 @@ function ProductIntroHeader() {
         ساپیو گزارش‌های ماهانهٔ تولید و فروش، صورت‌های مالی و اطلاعیه‌های کدال را می‌خواند و به پرسش
         شما با جدول، نمودار و منبع داده پاسخ می‌دهد.
       </p>
+      <Link
+        to="/market-guide"
+        className="mt-2 inline-flex min-h-11 max-w-full items-center gap-2 rounded-md text-sm font-semibold underline decoration-emerald/50 underline-offset-4 emerald-ink-text hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <BookOpen className="size-4 shrink-0" aria-hidden="true" />
+        {MARKET_GUIDE_TITLE}
+      </Link>
     </section>
   );
 }

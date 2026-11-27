@@ -116,6 +116,14 @@ describe("path mapping (spec §7.2)", () => {
     expect(toMobileAutoPath("/followed-symbols#symbol-search")).toBe("/m/watchlist#symbol-search");
   });
 
+  it("keeps the explicit events tab on the desktop watchlist", () => {
+    expect(toMobileAutoPath("/followed-symbols?tab=events#heading")).toBeNull();
+    expect(toMobileAutoPath("/followed-symbols?tab=unknown")).toBe("/m/watchlist?tab=unknown");
+    expect(toMobileAutoPath("/followed-symbols?tab=events&tab=unknown")).toBe(
+      "/m/watchlist?tab=events&tab=unknown",
+    );
+  });
+
   it.each([
     "/",
     "/auth",
@@ -145,6 +153,7 @@ describe("path mapping (spec §7.2)", () => {
 
   it("maps manual switches in both directions", () => {
     expect(toMobilePath("/profile")).toBe("/m/account/profile");
+    expect(toMobilePath("/followed-symbols?tab=events")).toBe("/m/watchlist?tab=events");
     expect(toMobilePath("/disclosures")).toBe("/m");
     expect(toDesktopPath("/m/c/abc?x=1")).toBe("/c/abc?x=1");
     expect(toDesktopPath("/m/watchlist")).toBe("/followed-symbols");

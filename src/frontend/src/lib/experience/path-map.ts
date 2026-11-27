@@ -37,14 +37,20 @@ function autoMobilePathname(pathname: string): string | null {
  */
 export function toMobileAutoPath(href: string): string | null {
   const { pathname, suffix } = splitHref(href);
+  // The mobile watchlist has no events tab. Keep explicit links to that tab on the existing screen.
+  if (pathname === "/followed-symbols") {
+    const tabs = new URLSearchParams(suffix.split("#", 1)[0]).getAll("tab");
+    if (tabs.length === 1 && tabs[0] === "events") return null;
+  }
   const target = autoMobilePathname(pathname);
   return target === null ? null : target + suffix;
 }
 
 /** The mobile destination for the manual «نسخه موبایل» switch: the mapped path, otherwise the mobile home. */
 export function toMobilePath(href: string): string {
-  const { pathname } = splitHref(href);
+  const { pathname, suffix } = splitHref(href);
   if (pathname === "/profile") return "/m/account/profile";
+  if (pathname === "/followed-symbols") return `/m/watchlist${suffix}`;
   return toMobileAutoPath(href) ?? "/m";
 }
 

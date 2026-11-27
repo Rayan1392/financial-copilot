@@ -166,7 +166,12 @@ try {
           (light) => document.documentElement.classList.toggle("light", light),
           theme === "light",
         );
-        await page.waitForTimeout(200);
+        await page.evaluate(async () => {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          const transitions = document.getAnimations().filter((animation) => animation instanceof CSSTransition);
+          await Promise.allSettled(transitions.map((transition) => transition.finished));
+          await document.fonts.ready;
+        });
         const label = `${view} gauge=${gauge} ${layout.name} ${theme}`;
 
         const buttons = await root.locator("button").count();
@@ -207,8 +212,34 @@ try {
         );
         assert.deepEqual(clipped, [], `${label}: clipped content`);
 
-        // Rows: on the two-column desktop grid every row is full; the featured card fills its row alone.
         if (view === "desktop") {
+          assert.equal(
+            await root.getByRole("heading", { level: 1 }).innerText(),
+            "دستیار هوشمند بازار سرمایه",
+            `${label}: introduction title`,
+          );
+          assert.equal(
+            await root.getByText("تحلیل بنیادی، ارزش‌گذاری و رصد هوشمند بازار", { exact: true }).count(),
+            1,
+            `${label}: introduction badge`,
+          );
+          assert.equal(
+            await root.getByRole("heading", { level: 2 }).innerText(),
+            "از داده‌های مالی تا تصمیم‌های هوشمندانه سرمایه‌گذاری",
+            `${label}: introduction subheading`,
+          );
+          const introBody = root.locator(":scope > p");
+          assert.equal(
+            await introBody.innerText(),
+            "تحلیل گزارش‌های مالی و تولید و فروش، گیج‌های ارزش‌گذاری P/E، P/S و قیمت تعادلی، مقایسه با صنعت، رتبه‌بندی گزارش‌های ماهانه، تحلیل عمیق سهام با جست‌وجوی وب و پایش هوشمند رویدادهای دیده‌بان؛ همگی با زبان طبیعی و دسترسی از طریق وب و تلگرام.",
+            `${label}: introduction body`,
+          );
+          assert.deepEqual(
+            await introBody.locator('bdi[dir="ltr"]').allTextContents(),
+            ["P/E", "P/S"],
+            `${label}: left-to-right valuation ratios`,
+          );
+          // The desktop grid fills every row; the featured card fills its row alone.
           const rows = await page.getByTestId("starter-card-grid").evaluate((grid) => {
             const width = grid.getBoundingClientRect().width;
             const byTop = new Map();

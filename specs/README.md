@@ -47,6 +47,8 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 ## Chat Experience
 
+- `166-market-research-guide` — **Gate A and Gate B approved 2026-11-27; implemented locally 2026-11-28.** Public Persian guide with grouped Sapio examples, original captures, and example drafts. Discoverable in the home-page introduction, desktop navigation, and mobile account menu. See the [design](166-market-research-guide/design-proposal.md), [story](166-market-research-guide/user-story.md), and [verification status](166-market-research-guide/tasks.md).
+
 - `156-symbol-snapshot-default-card`: Gate B approved 2026-11-09; implemented locally (uncommitted), flag off, live Development check open. A message that is only an eligible ticker gets one card (latest price, monthly sales, quarterly report) and next-step buttons instead of a refusal, on the V2 path behind `SymbolSnapshot:Enabled`.
 
 - `150-shared-chat-routing-intent-and-entity-resolution-fixes/changes/unavailable-capability-refusals-and-answer-correctness`: Gate B approved 2026-11-11; implemented on branch `track/a-routing-answer-correctness` (uncommitted). Technical-analysis, valuation, and buy-advice questions get a fixed refusal with follow-ups instead of an unrelated table (BUG-004, BUG-005); price answers lose the wrong «واحد: میلیون ریال» note (BUG-006); a metric with no value is NoData and free (BUG-007).

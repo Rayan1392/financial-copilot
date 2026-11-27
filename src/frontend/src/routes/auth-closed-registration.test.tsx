@@ -68,6 +68,7 @@ describe("sign-in form usability", () => {
     const router = createRouter({
       routeTree: rootRoute.addChildren([
         createRoute({ getParentRoute: () => rootRoute, path: "/releases" }),
+        createRoute({ getParentRoute: () => rootRoute, path: "/market-guide" }),
       ]),
       history: createMemoryHistory({ initialEntries: ["/"] }),
     });
@@ -80,6 +81,14 @@ describe("sign-in form usability", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("روند فروش ماهانه و ترکیب محصولات")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ورود به حساب" })).toBeInTheDocument();
+    const guide = screen.getByRole("link", { name: "راهنمای تحلیل و رصد بازار" });
+    expect(guide).toHaveAttribute("href", "/market-guide");
+    expect(guide.closest("section")).toHaveAttribute("aria-labelledby", "intro-title");
+    expect(guide.closest("form")).toBeNull();
+    expect(
+      guide.compareDocumentPosition(screen.getByRole("button", { name: "ورود" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       // The «·» separator is aria-hidden, so it is not part of the accessible name.
       screen.getByRole("link", { name: /^نسخهٔ \d+\.\d+\.\d+\s+تاریخچهٔ نسخه‌ها$/ }),
@@ -95,6 +104,7 @@ describe("closed registration auth page", () => {
     expect(screen.getByLabelText("ایمیل")).toHaveAttribute("type", "email");
     expect(screen.getByLabelText("گذرواژه")).toHaveAttribute("type", "password");
     expect(screen.getByRole("button", { name: "ورود" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "راهنمای تحلیل و رصد بازار" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "گذرواژه را فراموش کرده‌اید؟" })).toHaveAttribute(
       "href",
       "/forgot-password",

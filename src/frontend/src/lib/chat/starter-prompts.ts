@@ -208,22 +208,3 @@ export function starterPickerSymbols(
     .filter((symbol, index, all) => all.indexOf(symbol) === index)
     .slice(0, STARTER_PICKER_WATCHLIST_LIMIT);
 }
-
-/** The coverage badge and capability sentence above the cards; valuation is named only while its card is shown (OQ-142). */
-export function starterCoverage(prompts: readonly StarterPrompt[]): {
-  badge: string;
-  sentence: string;
-} {
-  const valuation = prompts.some((prompt) => prompt.requires === "valuationGaugeCards");
-  return valuation
-    ? {
-        badge: "پوشش فعلی: تولید، فروش، گزارش‌های مالی و ارزش‌گذاری",
-        sentence:
-          "روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه، مقایسهٔ نماد با صنعت و سود و زیان فصلی، ترازنامه (صورت وضعیت مالی)، جریان وجوه نقد و گیج‌های ارزش‌گذاری نمادها را بررسی کنید.",
-      }
-    : {
-        badge: "پوشش فعلی: تولید، فروش و گزارش‌های مالی",
-        sentence:
-          "روند فروش ماهانه، ترکیب فروش محصولات، عملکرد یک محصول، رتبه‌بندی گزارش‌های ماهانه، مقایسهٔ نماد با صنعت و سود و زیان فصلی، ترازنامه (صورت وضعیت مالی) و جریان وجوه نقد نمادها را بررسی کنید.",
-      };
-}

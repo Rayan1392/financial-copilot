@@ -37,12 +37,20 @@ import {
 } from "@/lib/insight-localization";
 
 export const Route = createFileRoute("/_app/followed-symbols")({
+  validateSearch: (search: Record<string, unknown>): { tab?: "events" } =>
+    search.tab === "events" ? { tab: "events" } : {},
   component: FollowedSymbolsPage,
 });
 
 type FollowedSymbolsTab = "symbols" | "add" | "events";
 
 function FollowedSymbolsPage() {
+  const { tab } = Route.useSearch();
+  const initialTab = tab ?? "symbols";
+  return <FollowedSymbolsContent key={initialTab} initialTab={initialTab} />;
+}
+
+function FollowedSymbolsContent({ initialTab }: { initialTab: FollowedSymbolsTab }) {
   const qc = useQueryClient();
   const fetchFollowed = useServerFn(getFollowedSymbols);
   const fetchInsights = useServerFn(getFollowedSymbolInsights);
@@ -52,7 +60,7 @@ function FollowedSymbolsPage() {
   const dismiss = useServerFn(dismissInsight);
   const explain = useServerFn(explainInsight);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<FollowedSymbolsTab>("symbols");
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [typeFilter, setTypeFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [includeDismissed, setIncludeDismissed] = useState(false);

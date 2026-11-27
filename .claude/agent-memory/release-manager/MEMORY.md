@@ -3,6 +3,19 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.36.0
+
+- Tagged on 2026-11-27 (MINOR: one Added item). Added copy/share of an own-industry comparison answer as an
+  image (`908ecbfa`, frontend only; no backend, config or migration change).
+- Develop release commit `b5db642e`, prod merge `f0ee1e4f` (merge-tree/commit-tree), annotated tag `v1.36.0`
+  (tag object `b15b4b14`). Release check passed; release-note tests plus the two answer-image test files passed
+  (3 files, 34 tests). Backend and the rest of the frontend suite were not rerun.
+- Deploy run 46017335498 succeeded (deploy job 9m03s). `/releases` shows 1.36.0 as «نسخهٔ جاری»;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: `specs/README.md` still says "not released" for change `comparison-answer-image-share` (feature 125);
+  left for the owner, as that file is outside the release records. Real-device check of image copy/share
+  (iOS/Android/Telegram paste) was not done by this agent.
+
 ## Release 1.35.0
 
 - Tagged on 2026-11-27 (MINOR: an Added item). Added copy/share of a valuation gauge answer as an image

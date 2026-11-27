@@ -1,0 +1,18 @@
+# Tasks: Market research guide
+
+Status: Gate B: Approved by Kamran Abdi on 2026-11-27
+
+## Implementation
+
+- [x] **1. Prepare guide content and images.** Use the approved HTML as the visual and content reference. Extract the 14 supplied captures, review them for private account details, and prepare optimized previews and separate full-size assets under the frontend public assets. Build a typed catalog of the five groups and 15 entries with stable IDs, labels, example text, image alternatives, and action types.
+- [x] **2. Build the public guide.** Add `src/frontend/src/routes/market-guide.tsx` alongside `/releases`, with route-local presentation components as needed. Reuse Sapio theme tokens, the brand mark, and the accessible dialog primitive. Add the hero, topic and example selection, response image, keyboard/touch viewer, copy action, and workflow instructions from the design. Load the full-size capture when the viewer opens.
+- [x] **3. Connect navigation and actions.** Add the guide as a secondary link beneath the public home page's product introduction in `routes/auth.tsx`. Keep it before the form in reading and keyboard order. Add the workspace entries in `components/app/chat-header.tsx` and `routes/m.account.index.tsx`. Keep the originating desktop/mobile experience, with existing experience preferences and device routing as the fallback for direct visits. Verify authentication on the chat action and pass only `prefillQuestion` in router state to `/chat` or `/m`. Return signed-out users from `/auth` to the guide with the allowlisted example ID selected, where they can open their draft.
+- [x] **4. Link workflow examples.** Route the watchlist and inbox to their existing desktop/mobile destinations and Telegram to `/telegram-link`. Give the existing `/followed-symbols` events tab a validated `tab=events` entry, and keep that exact link on the desktop screen on phones because `/m/watchlist` has no events tab. Keep the device preference and all standard watchlist redirects intact.
+
+## Verification
+
+- [ ] **5. Cover routing and example actions.** Verify all 15 examples, 14 captures, and workflow mappings. Cover guest sign-in return, invalid example IDs, desktop/mobile draft prefill, and direct events navigation. Assert that opening a sample fires no chat request and that the normal Send action submits the draft.
+- [ ] **6. Check the guide in the browser.** Exercise both themes and 320 px, representative phone, and desktop widths. Check keyboard and touch selection, visible focus, image zoom/pan, focus return, and that guide browsing does not call financial endpoints or fetch original images prematurely. Verify that the home-page link precedes «ورود» in the visual and keyboard order, opens the guide as a guest, and does not submit or validate the sign-in form. Also verify the authenticated flows and both workspace navigation entries.
+- [ ] **7. Verify and document.** Run frontend lint, tests, build, and type checks. Compare any existing failures against `specs/test-baseline.md` or a clean baseline and record limitations. Confirm all acceptance criteria, and add a Persian `Unreleased` entry through `release-manager` when merging to `develop`.
+
+Verification recorded for the local merge: the frontend build passed. Browser checks passed for the public home link, all 15 examples, and deferred requests for full-size screenshots. The targeted test run reported 37 passing tests and one worker startup timeout. The owner confirmed the revised home-page placement and requested proceeding to the local merge. Full browser scenarios and the broader frontend checks were not completed. The broader runs encountered worker timeouts, existing repository-wide formatting errors, and TypeScript diagnostics.

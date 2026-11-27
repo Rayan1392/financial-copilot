@@ -80,14 +80,17 @@ Status: Gate B: Approved by the owner on 2026-11-26 (Gate A on the same day; OQ-
 
 ### 6. Rollout (owner actions, after implementation)
 
-- [ ] 6.1 Read-only coverage count on production (a SQL file added under the research folder): gauge companies with 16
+- [x] 6.1 Read-only coverage count on production (a SQL file added under the research folder): gauge companies with 16
   months and 8 quarters, and how many pass the guards. Report the numbers before the flag is turned on.
   The query is `tools/research/forward-pe-reverse-engineering/sql/14_forward_estimate_coverage.sql` (added
   2026-11-27, read-only, mirrors the reader and the guards). Run read-only on the local database on 2026-11-27 (owner's
   permission; local data, not production): 656 gauge tickers, 470 with 16 months and 8 quarters, 428 pass the guards,
   forward P/S on 427 and forward P/E on 398. Not estimated: 121 insufficient monthly sales, 41 company unmatched, 37
   growth out of range, 15 insufficient quarters, 12 excluded industry, 1 stale, 1 no comparison sales. The guarded
-  fixture symbols get the estimator's reasons (فگستر growth, شپنا industry, آپ quarters). Production still to run.
+  fixture symbols get the estimator's reasons (فگستر growth, شپنا industry, آپ quarters).
+  Production, run by the owner on 2026-11-27: 656 gauge tickers, 470 with 16 months and 8 quarters, 425 pass the
+  guards, forward P/S on 424 and forward P/E on 395. Not estimated: 121 insufficient monthly sales, 41 company
+  unmatched, 39 growth out of range, 16 insufficient quarters, 12 excluded industry, 1 stale, 1 no comparison sales.
 - [ ] 6.2 Turn on `ValuationGaugeCards__ForwardEstimate__Enabled` on the server only on the owner's instruction.
   Rollback: turn it off.
 

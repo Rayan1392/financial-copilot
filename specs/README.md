@@ -59,6 +59,10 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
   released v1.32.1: the light-theme emerald badge and phone topics reach 4.5:1).
   `equilibrium-below-lower-bound-label` (OQ-137, Gate A+B 2026-11-26, implemented locally: «زیر حد پایین» with the
   absolute value below the range, card and text answer).
+  `valuation-gauge-forward-ratio` (OQ-136, Gate A+B 2026-11-26, committed on develop 2026-11-27, not released, flag
+  `ValuationGaugeCards:ForwardEstimate:Enabled` off by default): Sapio's own forward P/E and P/S estimate «(برآورد ساپیو)»
+  from 12 months of sales, 4-month YoY growth and the median 8-quarter margin, as a dashed needle on the card and a
+  line in the text answer; no migration, no billing change.
 
 - `081-ai-financial-statement-period-analysis-query/changes/period-analysis-feature-flag`: Gate A (option B) and Gate B approved 2026-11-20; implemented locally (uncommitted). `FinancialStatementPeriodAnalysis:Enabled` switches 081's fixed statement summary off (off in `appsettings.json`); on V2 a question 081 would answer ends unsupported at zero credits so the Feature 163 analysis offer can follow. Statement tables are unchanged.
 

@@ -6,14 +6,17 @@ namespace FinancialCopilot.Application.FinancialData.ValuationGauges;
 /// Builds standalone valuation gauge cards for one security from Feature 148 snapshots and the canonical quote.
 /// Expected read timeouts become <see cref="ValuationGaugeCardState.TemporarilyUnavailable"/> cards (or a range-only
 /// equilibrium card for a quote timeout); caller cancellation is always rethrown. No LLM, vendor HTTP, legacy table
-/// or cross-provider fallback is involved.
+/// or cross-provider fallback is involved. When <see cref="ValuationGaugeForwardOptions.Enabled"/> is on and a P/E or
+/// P/S card is displayable, Sapio's forward estimate is added to those cards; its input read has its own budget and a
+/// timeout or failure drops only the estimate. The reader is optional so the flag-off path needs no registration.
 /// </summary>
 public sealed class ValuationGaugeCardsUseCase(
     IValuationGaugeSnapshotReader snapshots,
     IValuationGaugeQuoteReader quotes,
     ValuationGaugeCardsOptions options,
     TimeProvider timeProvider,
-    IValuationGaugeObserver? observer = null) : IValuationGaugeCardsUseCase
+    IValuationGaugeObserver? observer = null,
+    IForwardRatioInputsReader? forwardInputs = null) : IValuationGaugeCardsUseCase
 {
     private readonly IValuationGaugeObserver _observer = observer ?? NullValuationGaugeObserver.Instance;
 
@@ -56,6 +59,8 @@ public sealed class ValuationGaugeCardsUseCase(
             cards = [];
             foreach (var kind in kinds)
                 cards.Add(await ProjectAsync(kind, set, now, maxAge, cancellationToken));
+            if (options.ForwardEstimate.Enabled && forwardInputs is not null)
+                cards = await AddForwardEstimatesAsync(query.Security, set.VendorTicker, cards, now, cancellationToken);
         }
 
         foreach (var card in cards)
@@ -121,6 +126,92 @@ public sealed class ValuationGaugeCardsUseCase(
             }
         }
     }
+
+    /// <summary>
+    /// Reads the estimator inputs once for the P/E and P/S cards that can carry an estimate (displayable, with a current
+    /// value and a rendered dial) and attaches each ratio's estimate. Every ratio card gets one observer call.
+    /// </summary>
+    private async Task<List<ValuationGaugeCard>> AddForwardEstimatesAsync(
+        ValuationGaugeSecurity security,
+        string? vendorTicker,
+        List<ValuationGaugeCard> cards,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var ratioCards = cards.Where(card => card.Kind is ValuationGaugeKind.Pe or ValuationGaugeKind.Ps).ToArray();
+        if (ratioCards.Length == 0) return cards;
+        var eligible = ratioCards.Where(card => ForwardBlocker(card) is null).ToArray();
+        if (eligible.Length == 0 || string.IsNullOrWhiteSpace(vendorTicker))
+        {
+            foreach (var card in ratioCards)
+                _observer.ForwardEstimated(card.Kind, false, ForwardBlocker(card) ?? ForwardRatioReasonCodes.CompanyUnmatched, null);
+            return cards;
+        }
+
+        var started = Stopwatch.GetTimestamp();
+        ForwardRatioInputs? inputs = null;
+        string? readFailure = null;
+        try
+        {
+            inputs = await WithBudget(
+                token => forwardInputs!.ReadAsync(security, vendorTicker, token),
+                options.ForwardEstimate.ReadTimeoutMilliseconds,
+                cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            readFailure = ForwardRatioReasonCodes.ReadTimedOut;
+            _observer.ForwardReadFailed(readFailure, Stopwatch.GetElapsedTime(started), null);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            readFailure = ForwardRatioReasonCodes.ReadFailed;
+            _observer.ForwardReadFailed(readFailure, Stopwatch.GetElapsedTime(started), exception);
+        }
+
+        var readElapsed = Stopwatch.GetElapsedTime(started);
+        ForwardRatioEstimate? estimate = null;
+        if (inputs is not null)
+        {
+            var currentPe = CurrentValue(cards, ValuationGaugeKind.Pe);
+            var currentPs = CurrentValue(cards, ValuationGaugeKind.Ps);
+            estimate = ForwardRatioEstimator.Estimate(
+                inputs, currentPe, currentPs, options.ForwardEstimate.Thresholds(), DateOnly.FromDateTime(now.UtcDateTime));
+        }
+
+        var result = new List<ValuationGaugeCard>(cards.Count);
+        foreach (var card in cards)
+        {
+            if (card.Kind is not (ValuationGaugeKind.Pe or ValuationGaugeKind.Ps))
+            {
+                result.Add(card);
+                continue;
+            }
+
+            var (value, reason) = ForwardBlocker(card) is { } blocker ? (null, blocker)
+                : readFailure is not null ? (null, readFailure)
+                : estimate is null ? (null, ForwardRatioReasonCodes.CompanyUnmatched)
+                : card.Kind == ValuationGaugeKind.Pe ? (estimate.ForwardPe, estimate.PeReasonCode)
+                : (estimate.ForwardPs, estimate.PsReasonCode);
+            var projected = value is { } forward ? ValuationGaugeProjector.WithForward(card, forward, estimate!) : card;
+            _observer.ForwardEstimated(card.Kind, projected.Forward is not null, reason, readElapsed);
+            result.Add(projected);
+        }
+
+        return result;
+    }
+
+    /// <summary>Why a ratio card cannot carry an estimate before any input is read; null when it can.</summary>
+    private static string? ForwardBlocker(ValuationGaugeCard card) =>
+        !card.IsDisplayable() || card.Ratio?.Current is null ? ForwardRatioReasonCodes.CardNotDisplayable
+        : card.Geometry is null ? ForwardRatioReasonCodes.AxisNotRenderable
+        : null;
+
+    private static decimal? CurrentValue(IEnumerable<ValuationGaugeCard> cards, ValuationGaugeKind kind) =>
+        cards.FirstOrDefault(card => card.Kind == kind && ForwardBlocker(card) is null)?.Ratio?.Current is { } text &&
+        decimal.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
 
     /// <summary>Fixed presentation order P/E, P/S, equilibrium; an empty request means all kinds.</summary>
     public static IReadOnlyList<ValuationGaugeKind> Normalize(IReadOnlyCollection<ValuationGaugeKind>? kinds) =>

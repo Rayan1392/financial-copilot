@@ -1,0 +1,34 @@
+forward 320 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward 320 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward 360 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward 360 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward 390 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward 390 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward 430 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward 430 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward tablet-768 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward tablet-768 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward desktop-1280 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward desktop-1280 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward desktop-sidebar-1280 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward desktop-sidebar-1280 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward zoom200-1280 dark: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.18:1
+forward zoom200-1280 light: no overflow, order Pe/Ps/Equilibrium, 3 needle(s), 2 forward needle(s), min contrast 5.57:1
+forward-pinned 320 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned 320 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+forward-pinned 360 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned 360 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+forward-pinned 390 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned 390 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+forward-pinned 430 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned 430 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+forward-pinned tablet-768 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned tablet-768 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+forward-pinned desktop-1280 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned desktop-1280 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+forward-pinned desktop-sidebar-1280 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned desktop-sidebar-1280 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+forward-pinned zoom200-1280 dark: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.18:1
+forward-pinned zoom200-1280 light: no overflow, order Pe, 1 needle(s), 1 forward needle(s), min contrast 5.61:1
+reduced motion no-preference: 1 needle animation(s)
+reduced motion reduce: 0 needle animation(s)

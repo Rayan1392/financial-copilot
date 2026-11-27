@@ -92,6 +92,23 @@ export interface ValuationGaugeCard {
   } | null;
   geometry?: ValuationGaugeGeometry | null;
   insights?: ValuationGaugeInsights | null;
+  /** Sapio's own forward estimate (change «valuation-gauge-forward-ratio»); absent on most and on older cards. */
+  forward?: ValuationGaugeForwardEstimate | null;
+}
+
+/**
+ * Sapio's forward estimate of a P/E or P/S card's ratio, never the provider's. The value has two decimals; the angle
+ * and side are on the card's own axis with the same pin rule as the current needle.
+ */
+export interface ValuationGaugeForwardEstimate {
+  value: string;
+  angle: number;
+  side: ValuationGaugeNeedleSide;
+  methodVersion: string;
+  salesGrowthFactor: string;
+  marginPercent?: string | null;
+  latestSalesMonthEnd: string;
+  latestQuarterEnd: string;
 }
 
 export interface ValuationGaugeCardsResult {
@@ -174,6 +191,32 @@ export function lowerBoundComparison(value: string): { label: string; percent: s
 
 /** The provider's name for users; the payload keeps the internal source code. */
 export const SOURCE_NAME = "تحلیل‌اپ";
+
+/** Follows the ratio name, for example «P/E آینده‌نگر (برآورد ساپیو)»; the same label the backend text uses. */
+export const FORWARD_LABEL = "آینده‌نگر (برآورد ساپیو)";
+
+const NEEDLE_SIDES: ValuationGaugeNeedleSide[] = ["Inside", "PinnedBelow", "PinnedAbove"];
+
+/**
+ * The card's forward estimate when it can be drawn: a P/E or P/S card with a dial and a well-formed estimate. A
+ * malformed estimate is ignored so the card still renders as before.
+ */
+export function forwardEstimate(card: ValuationGaugeCard): ValuationGaugeForwardEstimate | null {
+  const forward = card.forward;
+  if (!forward || (card.kind !== "Pe" && card.kind !== "Ps") || !card.geometry) return null;
+  const { value, angle, side } = forward;
+  if (typeof value !== "string" || !/^-?\d+(\.\d+)?$/.test(value.trim())) return null;
+  if (typeof angle !== "number" || !Number.isFinite(angle) || angle < 0 || angle > 180) return null;
+  if (!NEEDLE_SIDES.includes(side)) return null;
+  return forward;
+}
+
+/** The method sentence for «جزئیات»; the P/S estimate does not use the margin. */
+export function forwardMethodText(kind: ValuationGaugeKind): string {
+  return kind === "Pe"
+    ? "برآورد ساپیو بر پایهٔ فروش ۱۲ ماه اخیر، رشد سالانهٔ ۴ ماه اخیر و میانهٔ حاشیهٔ سود ۸ فصل؛ پیش‌بینی قطعی و توصیهٔ سرمایه‌گذاری نیست."
+    : "برآورد ساپیو بر پایهٔ فروش ۱۲ ماه اخیر و رشد سالانهٔ ۴ ماه اخیر؛ پیش‌بینی قطعی و توصیهٔ سرمایه‌گذاری نیست.";
+}
 
 /** Tehran local date in the Persian calendar, for example «۱۴۰۵/۰۹/۰۵». */
 export function formatTehranDate(isoUtc: string): string {

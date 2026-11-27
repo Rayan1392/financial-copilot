@@ -140,4 +140,43 @@ route.
   average, the midpoint of average and max, max, end).
 - **Stored cards:** cards stored before this change lack `insights` and `from`/`to`. They still render, without those
   figures.
-- **Forward P/E** is not in the provider contract (OQ-136) and is never estimated.
+- **Forward P/E** is not in the provider contract (OQ-136). Sapio shows its own estimate instead; see below.
+
+### Sapio forward P/E and P/S estimate (change `valuation-gauge-forward-ratio`)
+
+The provider supplies no forward ratio. Behind a flag, Sapio adds **its own** estimate to the P/E and P/S cards. It is
+always labelled «(برآورد ساپیو)», never attributed to تحلیل‌اپ, and never changes the provider `status`, the position,
+the insights, the card state or the credits.
+
+- **Method `sapio-1`** (`ForwardRatioEstimator`, pure; reference: `estimate()` in
+  `tools/research/forward-pe-reverse-engineering/export_estimator_fixtures.py`):
+  - forecast sales = Σ last 12 monthly sales × (Σ last 4 months ÷ Σ the same 4 months one year earlier);
+  - forward margin = median of the last 8 quarterly net margins (net profit ÷ revenue, discrete quarters);
+  - forward P/S = current P/S × Σ revenue of the last 4 quarters ÷ forecast sales;
+  - forward P/E = current P/E × Σ net profit of the last 4 quarters ÷ (forecast sales × forward margin).
+  Each ratio uses its own gauge `close`.
+- **Inputs** (`ForwardRatioInputsReader`, read-only, bounded to 16 months and 8 statements):
+  - monthly sales: the accepted monthly activity reports of the company whose `SymbolIsin` is the vendor ticker's ISIN
+    (exactly one match), the month itself (output type 0, or none for service reports), summed over line items and
+    converted from million rials to rials;
+  - quarters: the stored income statements' discrete-quarter values; revenue is the first of keys 44, 46, 124, 412, 599
+    with a value, net profit is key 66 (`CyclicalWavesV2IncomeStatementLines`). A missing discrete quarter is never
+    filled from year-to-date figures.
+- **No estimate** (the card stays exactly as before) when: the flag is off; the card is not displayable, has no current
+  value or no dial; the company is not matched uniquely; the industry is excluded (default external id `31`, OQ-148);
+  fewer than 16 consecutive months (ends at most 35 days apart) or the latest month is more than
+  `MaxMonthlyReportAgeDays` old; the comparison months sum to zero or less; the growth factor is outside
+  `MinGrowthFactor`–`MaxGrowthFactor`; fewer than 8 consecutive usable quarters (ends at most 100 days apart) ending at
+  the latest statement; the input read fails or exceeds its budget. The forward P/E alone is hidden when the margin is
+  ≤ 0, or the current P/E or the 4-quarter net profit is ≤ 0; the forward P/S can still be shown.
+- **Payload:** the optional `forward` member of a ratio card (additive in payload version 1, omitted when absent):
+  `value` (two decimals), `angle` and `side` on the card's own axis with the same pin rule as the current needle,
+  `methodVersion`, `salesGrowthFactor`, `marginPercent` (P/E card only), `latestSalesMonthEnd`, `latestQuarterEnd`.
+- **Display:** a finely dashed needle with a ring and a chip «P/E آینده‌نگر (برآورد ساپیو) ‹مقدار›» on the web card, the
+  method sentence in «جزئیات», and the line «P/E آینده‌نگر (برآورد ساپیو): ‹مقدار›» in the text answer and Telegram.
+- **Configuration** `ValuationGaugeCards:ForwardEstimate`: `Enabled` (false), `MinGrowthFactor` (0.5),
+  `MaxGrowthFactor` (4), `MaxMonthlyReportAgeDays` (75), `ExcludedIndustryExternalIds` (`["31"]`, default in code: the
+  configuration binder appends to it), `ReadTimeoutMilliseconds` (1000). Invalid values fail startup. The input reader
+  is registered only when `Enabled` is true; turning it off restores today's cards and is the rollback path.
+- **Telemetry:** `valuation_gauge.forward_estimates` (kind, shown, reason), `valuation_gauge.forward_read_latency`, and
+  one warning log per request when the input read times out or fails.

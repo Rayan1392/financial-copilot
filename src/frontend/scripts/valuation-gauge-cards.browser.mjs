@@ -3,7 +3,9 @@
 // light themes and at 200 % zoom. It asserts no horizontal scroll, no clipped text, no needle without a current value,
 // the average marker on top of the dial, no overlapping dial labels, green/red bound markers, the segmented control on
 // a narrow answer, reduced motion, and text contrast >= 4.5:1 outside the dial; it saves screenshots as evidence.
-// Run: npm run test:valuation-gauges-browser
+// Change «valuation-gauge-forward-ratio»: the «forward…» fixtures carry Sapio's dashed forward needle, whose ring must
+// stay inside the dial; every other fixture must draw none.
+// Run: npm run test:valuation-gauges-browser [-- --evidence <dir relative to the repository root>]
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -15,9 +17,14 @@ import { chromium } from "playwright-core";
 import { createServer } from "vite";
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// --evidence <dir> (relative to the repository root) keeps a later change from overwriting this change's evidence.
+const evidenceArgument = process.argv.indexOf("--evidence");
 const evidenceDir = path.resolve(
   frontendRoot,
-  "../../specs/159-capability-source-map-comprehensive-analysis/changes/valuation-gauge-cards-visual-refresh/evidence/browser",
+  "../..",
+  evidenceArgument > 0 && process.argv[evidenceArgument + 1]
+    ? process.argv[evidenceArgument + 1]
+    : "specs/159-capability-source-map-comprehensive-analysis/changes/valuation-gauge-cards-visual-refresh/evidence/browser",
 );
 const fixturePath = "src/components/app/__tests__/valuation-gauge-browser-fixture.html";
 const executablePath = [
@@ -149,6 +156,8 @@ const fixtures = {
   pinned: { cards: ["Pe"], needles: 1 },
   sharak: { cards: ["Pe"], needles: 1 },
   legacy: { cards: ["Pe"], needles: 1 },
+  forward: { cards: ["Pe", "Ps", "Equilibrium"], needles: 3, forward: 2 },
+  "forward-pinned": { cards: ["Pe"], needles: 1, forward: 1 },
 };
 const layouts = [
   { name: "320", width: 320, height: 900 },
@@ -259,6 +268,27 @@ try {
           expected.needles,
           `${label}: needles`,
         );
+        assert.equal(
+          await page.getByTestId("valuation-gauge-forward-needle").count(),
+          expected.forward ?? 0,
+          `${label}: forward needles`,
+        );
+        const ringsOutside = await root.evaluate(
+          (element) =>
+            [
+              ...element.querySelectorAll("[data-testid='valuation-gauge-forward-needle'] circle"),
+            ].filter((ring) => {
+              const box = ring.ownerSVGElement.getBoundingClientRect();
+              const r = ring.getBoundingClientRect();
+              return (
+                r.left < box.left - 0.5 ||
+                r.right > box.right + 0.5 ||
+                r.top < box.top - 0.5 ||
+                r.bottom > box.bottom + 0.5
+              );
+            }).length,
+        );
+        assert.equal(ringsOutside, 0, `${label}: forward needle ring outside the dial`);
 
         // The average marker stem is vertical: it sits at 90°.
         const topMarkers = await root.evaluate((element) =>
@@ -343,7 +373,7 @@ try {
 
         if (
           screenshotLayouts.has(layout.name) ||
-          (["all", "sharak"].includes(fixture) && layout.name !== "320")
+          (["all", "sharak", "forward"].includes(fixture) && layout.name !== "320")
         ) {
           await page.screenshot({
             path: path.join(evidenceDir, `${fixture}-${layout.name}-${theme}.png`),
@@ -351,7 +381,7 @@ try {
           });
         }
         record(
-          `${label}: no overflow, order ${order.join("/")}, ${expected.needles} needle(s), min contrast ${contrast.toFixed(2)}:1`,
+          `${label}: no overflow, order ${order.join("/")}, ${expected.needles} needle(s), ${expected.forward ?? 0} forward needle(s), min contrast ${contrast.toFixed(2)}:1`,
         );
         await context.close();
       }

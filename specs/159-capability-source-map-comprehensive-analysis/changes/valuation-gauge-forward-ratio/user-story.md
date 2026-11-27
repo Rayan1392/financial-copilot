@@ -132,22 +132,22 @@ Unchanged: capability `valuation_gauges` on the V2 path, no LLM in the answer. T
 
 ## Acceptance Criteria
 
-- [ ] AC-01 With the flag off, payloads, text answers and cards are identical to today's (existing tests unchanged).
-- [ ] AC-02 With the flag on and complete inputs, the P/E and P/S cards carry `forward` with the values the formula
+- [x] AC-01 With the flag off, payloads, text answers and cards are identical to today's (existing tests unchanged).
+- [x] AC-02 With the flag on and complete inputs, the P/E and P/S cards carry `forward` with the values the formula
       gives, and the web card shows the dashed needle and the «(برآورد ساپیو)» chip.
-- [ ] AC-03 The estimator reproduces every `expected` member of
+- [x] AC-03 The estimator reproduces every `expected` member of
       `tools/research/forward-pe-reverse-engineering/results/estimator-fixtures.json` (values to two decimals and
       reason codes).
-- [ ] AC-04 Each guard in requirement 3 yields no estimate with its own reason code, and the card is otherwise unchanged.
-- [ ] AC-05 A negative or zero forward margin hides the forward P/E while the forward P/S is still shown.
-- [ ] AC-06 A company in an excluded industry (fixture: شپنا, industry 31) gets no estimate.
-- [ ] AC-07 A reader timeout or exception gives the card without an estimate; caller cancellation propagates.
-- [ ] AC-08 A forward value outside the axis pins the dashed needle at the end; the solid needle is unaffected.
-- [ ] AC-09 Text answer and Telegram show the forward line only when the value exists, with the Sapio label.
-- [ ] AC-10 Cards stored before this change render unchanged from history.
-- [ ] AC-11 Credits charged for gauge answers are unchanged (existing billing tests green).
-- [ ] AC-12 Architecture tests stay green: the estimator and the port have no infrastructure dependency.
-- [ ] AC-13 `docs/providers/cyclicalwaves-v2/README.md` and `docs/domain-glossary.md` state the approved definition.
+- [x] AC-04 Each guard in requirement 3 yields no estimate with its own reason code, and the card is otherwise unchanged.
+- [x] AC-05 A negative or zero forward margin hides the forward P/E while the forward P/S is still shown.
+- [x] AC-06 A company in an excluded industry (fixture: شپنا, industry 31) gets no estimate.
+- [x] AC-07 A reader timeout or exception gives the card without an estimate; caller cancellation propagates.
+- [x] AC-08 A forward value outside the axis pins the dashed needle at the end; the solid needle is unaffected.
+- [x] AC-09 Text answer and Telegram show the forward line only when the value exists, with the Sapio label.
+- [x] AC-10 Cards stored before this change render unchanged from history.
+- [x] AC-11 Credits charged for gauge answers are unchanged (existing billing tests green).
+- [x] AC-12 Architecture tests stay green: the estimator and the port have no infrastructure dependency.
+- [x] AC-13 `docs/providers/cyclicalwaves-v2/README.md` and `docs/domain-glossary.md` state the approved definition.
 
 ## Assumptions
 

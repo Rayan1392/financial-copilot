@@ -50,13 +50,17 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
         // Feature 159 change «standalone-valuation-gauge-cards»: off by default; read-only over Feature 148 snapshots.
         services.AddOptions<ValuationGaugeCardsOptions>()
             .BindConfiguration(ValuationGaugeCardsOptions.SectionName)
-            .Validate(options => options.IsValid(out _), "ValuationGaugeCards settings are invalid: MaxFetchAgeHours 1-720, ReadTimeoutMilliseconds and QuoteTimeoutMilliseconds 100-30000, PercentageDecimals 0-3.")
+            .Validate(options => options.IsValid(out _), "ValuationGaugeCards settings are invalid: MaxFetchAgeHours 1-720, ReadTimeoutMilliseconds and QuoteTimeoutMilliseconds 100-30000, PercentageDecimals 0-3; ForwardEstimate: 0 < MinGrowthFactor < MaxGrowthFactor <= 20, MaxMonthlyReportAgeDays 1-365, ReadTimeoutMilliseconds 100-30000, no empty ExcludedIndustryExternalIds.")
             .ValidateOnStart();
         var valuationGaugeCardsEnabled = configuration.GetValue<bool>($"{ValuationGaugeCardsOptions.SectionName}:Enabled");
         services.AddSingleton(provider => provider.GetRequiredService<IOptions<ValuationGaugeCardsOptions>>().Value);
         services.AddScoped<IValuationGaugeSnapshotReader, ValuationGaugeSnapshotReader>();
         services.AddScoped<IValuationGaugeQuoteReader, ValuationGaugeQuoteReader>();
         services.AddSingleton<IValuationGaugeObserver, ValuationGaugeTelemetry>();
+        // Change «valuation-gauge-forward-ratio»: the estimator input reader exists only when the estimate is enabled;
+        // the use case takes it as an optional dependency, so the flag-off path is today's.
+        if (configuration.GetValue<bool>($"{ValuationGaugeCardsOptions.SectionName}:ForwardEstimate:Enabled"))
+            services.AddScoped<IForwardRatioInputsReader, ForwardRatioInputsReader>();
         services.AddScoped<IValuationGaugeCardsUseCase, ValuationGaugeCardsUseCase>();
         services.AddScoped<IConversationalCapabilityExecutor, ValuationGaugeCapabilityExecutor>();
         services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(

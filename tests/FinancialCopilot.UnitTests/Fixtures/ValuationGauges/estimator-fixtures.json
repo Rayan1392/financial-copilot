@@ -1,0 +1,3158 @@
+{
+ "as_of": "2026-11-26",
+ "thresholds": {
+  "min_growth_factor": 0.5,
+  "max_growth_factor": 4.0,
+  "max_monthly_report_age_days": 75,
+  "excluded_industry_external_ids": [
+   "31"
+  ],
+  "max_month_gap_days": 35,
+  "max_quarter_gap_days": 100
+ },
+ "cases": [
+  {
+   "symbol": "اخشان",
+   "set": "round-1-2",
+   "industry_external_id": "1",
+   "current_pe": 9.388815,
+   "current_ps": 3.09387,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 328018000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 477287000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 613499000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 638086000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 496926000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 441131000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 615717000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 623766000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 403916000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 383583000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 525215000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 557762000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 1192437000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 678606000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 996421000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 922105000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 1249540000000.0,
+     "net_profit": 265345000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 635537000000.0,
+     "net_profit": 254992000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 808253000000.0,
+     "net_profit": 142870000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 1481938000000.0,
+     "net_profit": 476638000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 1584115000000.0,
+     "net_profit": 223787000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 1845073000000.0,
+     "net_profit": 754012000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 1551584000000.0,
+     "net_profit": 353277000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 2969142000000.0,
+     "net_profit": 1288637000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.7,
+    "forward_pe": 6.2,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.842378,
+    "forecast_sales": 14439794617537,
+    "margin": 0.27466
+   },
+   "tahlilapp_forward_pe": 6.17,
+   "tahlilapp_forward_ps": 1.84
+  },
+  {
+   "symbol": "فاذر",
+   "set": "round-1-2",
+   "industry_external_id": "15",
+   "current_pe": 39.478629,
+   "current_ps": 2.76953,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 1670858000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 1410915000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 1875979000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 2201333000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 1660398000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 1685903000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 1855966000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 1640925000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 981476000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 184000000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 455101000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 761889000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 1032963000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 1586822000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 1802262000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 2037240000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 4224367000000.0,
+     "net_profit": 232860000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 6140765000000.0,
+     "net_profit": 251813000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 5502100000000.0,
+     "net_profit": 127927000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 6388536000000.0,
+     "net_profit": 233955000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 4426645000000.0,
+     "net_profit": -3821000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 6122682000000.0,
+     "net_profit": 1826582000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 6250520000000.0,
+     "net_profit": -969374000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 8529166000000.0,
+     "net_profit": 923510000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 4.96,
+    "forward_pe": 127.71,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 0.90225,
+    "forecast_sales": 14151747232253,
+    "margin": 0.038814
+   },
+   "tahlilapp_forward_pe": 100.08,
+   "tahlilapp_forward_ps": 5.01
+  },
+  {
+   "symbol": "ارفع",
+   "set": "round-1-2",
+   "industry_external_id": "14",
+   "current_pe": 7.090116,
+   "current_ps": 1.408265,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 14267207000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 34953551000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 28027902000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 23599821000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 25802909000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 34580093000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 31720783000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 28658076000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 20258470000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 26630503000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 50541639000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 63380834000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 43100900000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 44523345000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 54268485000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 74942247000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 60090164000000.0,
+     "net_profit": 13020935000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 40802147000000.0,
+     "net_profit": 4288557000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 54259107000000.0,
+     "net_profit": 6617506000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 77253778000000.0,
+     "net_profit": 9519462000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 83982823000000.0,
+     "net_profit": 15087665000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 80637329000000.0,
+     "net_profit": 17391418000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 140547858000000.0,
+     "net_profit": 38899526000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 141892730000000.0,
+     "net_profit": 17418242000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 0.59,
+    "forward_pe": 3.88,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.150107,
+    "forecast_sales": 1071630903372253,
+    "margin": 0.151438
+   },
+   "tahlilapp_forward_pe": 2.92,
+   "tahlilapp_forward_ps": 0.48
+  },
+  {
+   "symbol": "اخابر",
+   "set": "round-1-2",
+   "industry_external_id": "33",
+   "current_pe": 8.863224,
+   "current_ps": 3.18994,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 13711128000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 14256735000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 15843573000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 16810699000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 17750110000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 20234399000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 19344660000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 19684281000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 20424325000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 20810817000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 20736837000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 20867253000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 32835603000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 33038297000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 33216662000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 32895736000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 33089741000000.0,
+     "net_profit": 46355000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 150473618000000.0,
+     "net_profit": 43143037000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 59095229000000.0,
+     "net_profit": 3896245000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 70047936000000.0,
+     "net_profit": -3480378000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 10180327000000.0,
+     "net_profit": 1804701000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 200675898000000.0,
+     "net_profit": 111064740000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 100793010000000.0,
+     "net_profit": 9504789000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 111104208000000.0,
+     "net_profit": 29777848000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 2.12,
+    "forward_pe": 15.63,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.177196,
+    "forecast_sales": 635390795495672,
+    "margin": 0.135787
+   },
+   "tahlilapp_forward_pe": 13.09,
+   "tahlilapp_forward_ps": 2.3
+  },
+  {
+   "symbol": "شگل",
+   "set": "round-1-2",
+   "industry_external_id": "11",
+   "current_pe": 14.221765,
+   "current_ps": 1.177169,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 3644197000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 3257633000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 3192188000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 3540512000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 3368647000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 2833504000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 2683699000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 6031112000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 2415657000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 3756438000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 7427292000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 8436066000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 5994987000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 6307822000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 8297157000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 7243105000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 8806136000000.0,
+     "net_profit": 1683205000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 5891489000000.0,
+     "net_profit": 304230000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 7183174000000.0,
+     "net_profit": 658671000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 10063736000000.0,
+     "net_profit": 1052256000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 10010263000000.0,
+     "net_profit": 306759000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 11130468000000.0,
+     "net_profit": 1133936000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 19779795000000.0,
+     "net_profit": 3274278000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 20599966000000.0,
+     "net_profit": 377222000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 0.55,
+    "forward_pe": 5.65,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.0421,
+    "forecast_sales": 132318849067588,
+    "margin": 0.096787
+   },
+   "tahlilapp_forward_pe": 5.57,
+   "tahlilapp_forward_ps": 0.5
+  },
+  {
+   "symbol": "کگهر",
+   "set": "round-1-2",
+   "industry_external_id": "3",
+   "current_pe": 9.469642,
+   "current_ps": 2.125362,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 34880438000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 89800821000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 93220068000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 74179191000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 73783333000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 65043697000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 75900232000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 79057902000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 77564054000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 71330690000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 69097786000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 93685735000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 155570231000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 92156748000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 138103563000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 129113133000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 162215582000000.0,
+     "net_profit": 35830252000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 144749889000000.0,
+     "net_profit": 46602704000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 162922862000000.0,
+     "net_profit": 37659368000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 222925605000000.0,
+     "net_profit": 34937769000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 212406912000000.0,
+     "net_profit": 41187528000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 232492579000000.0,
+     "net_profit": 44164350000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 240405665000000.0,
+     "net_profit": 62417297000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 381807300000000.0,
+     "net_profit": 91733026000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.15,
+    "forward_pe": 5.08,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.76302,
+    "forecast_sales": 1975299672776762,
+    "margin": 0.226014
+   },
+   "tahlilapp_forward_pe": 5.46,
+   "tahlilapp_forward_ps": 1.22
+  },
+  {
+   "symbol": "خزامیا",
+   "set": "round-1-2",
+   "industry_external_id": "20",
+   "current_pe": 14.682533,
+   "current_ps": 0.516284,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 7708724000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 26657539000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 53992741000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 14440191000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 17849605000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 21151523000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 37901550000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 32866724000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 17045996000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 8929072000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 42180132000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 44410484000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 51953529000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 62618365000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 66729092000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 70293806000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 96212114000000.0,
+     "net_profit": 6535222000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 140388332000000.0,
+     "net_profit": 15612620000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 25962054000000.0,
+     "net_profit": 2164260000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 92994995000000.0,
+     "net_profit": 5908666000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 54025796000000.0,
+     "net_profit": 1951498000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 95344168000000.0,
+     "net_profit": -4179889000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 91099339000000.0,
+     "net_profit": 4099309000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 177793933000000.0,
+     "net_profit": 12836540000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 0.19,
+    "forward_pe": 2.83,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.447439,
+    "forecast_sales": 1159914618767154,
+    "margin": 0.065731
+   },
+   "tahlilapp_forward_pe": 3.29,
+   "tahlilapp_forward_ps": 0.19
+  },
+  {
+   "symbol": "فملی",
+   "set": "round-1-2",
+   "industry_external_id": "14",
+   "current_pe": 12.60834,
+   "current_ps": 6.837734,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 145911347000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 188357633000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 219738073000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 291930311000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 305857208000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 283898333000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 394979943000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 424291385000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 505117496000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 254481107000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 623664556000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 419431257000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 513701118000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 663951296000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 823771755000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 770723874000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 505823697000000.0,
+     "net_profit": 193131022000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 608873450000000.0,
+     "net_profit": 281651520000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 458904137000000.0,
+     "net_profit": 200762613000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 554007053000000.0,
+     "net_profit": 178339085000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 881813724000000.0,
+     "net_profit": 413230362000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 1324169596000000.0,
+     "net_profit": 713679905000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 1297573906000000.0,
+     "net_profit": 725886485000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 2001424169000000.0,
+     "net_profit": 1132655644000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.92,
+    "forward_pe": 4.12,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 3.277013,
+    "forecast_sales": 19609219728451344,
+    "margin": 0.465596
+   },
+   "tahlilapp_forward_pe": 3.64,
+   "tahlilapp_forward_ps": 1.86
+  },
+  {
+   "symbol": "فولاد",
+   "set": "round-1-2",
+   "industry_external_id": "14",
+   "current_pe": 7.605971,
+   "current_ps": 2.23161,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 250258603000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 219495723000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 267409389000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 269323842000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 298742142000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 265273912000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 328231964000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 441291641000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 411272226000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 49048553000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 222353179000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 545287525000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 509042840000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 544271929000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 639418160000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 662639489000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 584603914000000.0,
+     "net_profit": 143982004000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 837832420000000.0,
+     "net_profit": 309887934000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 847715717000000.0,
+     "net_profit": 161823705000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 761018521000000.0,
+     "net_profit": 92090260000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 879330176000000.0,
+     "net_profit": 188930866000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 1180795832000000.0,
+     "net_profit": 560156183000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 834166799000000.0,
+     "net_profit": 120356493000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 1675255385000000.0,
+     "net_profit": 471272793000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 0.89,
+    "forward_pe": 3.84,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.34019,
+    "forecast_sales": 11506419811623630,
+    "margin": 0.230574
+   },
+   "tahlilapp_forward_pe": 3.82,
+   "tahlilapp_forward_ps": 0.86
+  },
+  {
+   "symbol": "کگل",
+   "set": "round-1-2",
+   "industry_external_id": "3",
+   "current_pe": 22.674719,
+   "current_ps": 2.485911,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 110608674000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 98485289000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 119506707000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 101518672000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 96076265000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 149878764000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 116734157000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 99128158000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 112396897000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 86483463000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 134900601000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 125448987000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 122243105000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 150281420000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 167488969000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 161444533000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 189997519000000.0,
+     "net_profit": 42462998000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 273917118000000.0,
+     "net_profit": 94192840000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 281602675000000.0,
+     "net_profit": 31309585000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 318633420000000.0,
+     "net_profit": 50030997000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 345230502000000.0,
+     "net_profit": 71963441000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 327977972000000.0,
+     "net_profit": 37001630000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 341806345000000.0,
+     "net_profit": 47172665000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 431350597000000.0,
+     "net_profit": 38016855000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.69,
+    "forward_pe": 14.02,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.398351,
+    "forecast_sales": 2128997596352562,
+    "margin": 0.147514
+   },
+   "tahlilapp_forward_pe": 8.76,
+   "tahlilapp_forward_ps": 1.26
+  },
+  {
+   "symbol": "کچاد",
+   "set": "round-3",
+   "industry_external_id": "3",
+   "current_pe": 9.7,
+   "current_ps": 1.95608,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 50831007000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 69220219000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 79512903000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 76172918000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 84691937000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 78321127000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 85223777000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 83762712000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 81541006000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 52144839000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 90879722000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 131011967000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 69995970000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 109289441000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 208000429000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 132825029000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 133244943000000.0,
+     "net_profit": 51177060000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 206545150000000.0,
+     "net_profit": 46980272000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 220751128000000.0,
+     "net_profit": 75194794000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 200358263000000.0,
+     "net_profit": 48533631000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 235649674000000.0,
+     "net_profit": 28438530000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 249211279000000.0,
+     "net_profit": 75257854000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 281761112000000.0,
+     "net_profit": 54862595000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 408176725000000.0,
+     "net_profit": 78348278000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.01,
+    "forward_pe": 4.3,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.886257,
+    "forecast_sales": 2278009571474064,
+    "margin": 0.234846
+   },
+   "tahlilapp_forward_pe": 4.65,
+   "tahlilapp_forward_ps": 1.06
+  },
+  {
+   "symbol": "فخوز",
+   "set": "round-3",
+   "industry_external_id": "14",
+   "current_pe": 14.81,
+   "current_ps": 0.760489,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 47439238000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 63759889000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 43840687000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 89730116000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 126995928000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 109600469000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 148935385000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 98024277000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 88501626000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 14870971000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 60129702000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 153634591000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 125552174000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 97999385000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 104150859000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 161024852000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 225526738000000.0,
+     "net_profit": 12962768000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 239452485000000.0,
+     "net_profit": 30036681000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 249618469000000.0,
+     "net_profit": 9515846000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 155039814000000.0,
+     "net_profit": -3501760000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 326326512000000.0,
+     "net_profit": 23267379000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 335461288000000.0,
+     "net_profit": 33115937000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 228635264000000.0,
+     "net_profit": 11809634000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 327702418000000.0,
+     "net_profit": -5642569000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 0.36,
+    "forward_pe": 6.59,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.99668,
+    "forecast_sales": 2574559806078598,
+    "margin": 0.054565
+   },
+   "tahlilapp_forward_pe": 10.5,
+   "tahlilapp_forward_ps": 0.39
+  },
+  {
+   "symbol": "فایرا",
+   "set": "round-3",
+   "industry_external_id": "14",
+   "current_pe": 4.9,
+   "current_ps": 1.700412,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 25710687000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 27008165000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 29558051000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 42998865000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 36423340000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 46362306000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 65052264000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 66686002000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 44014390000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 88114304000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 66365275000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 96338833000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 44870413000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 57107929000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 94991621000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 104316849000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 61289348000000.0,
+     "net_profit": 10755657000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 97364366000000.0,
+     "net_profit": 10820846000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 59717223000000.0,
+     "net_profit": 9761913000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 91020750000000.0,
+     "net_profit": 4280516000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 117059903000000.0,
+     "net_profit": 24722337000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 169259196000000.0,
+     "net_profit": 46157208000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 250818413000000.0,
+     "net_profit": 74844433000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 195188019000000.0,
+     "net_profit": 108409787000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 0.64,
+    "forward_pe": 3.3,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.404989,
+    "forecast_sales": 1949588555840896,
+    "margin": 0.193342
+   },
+   "tahlilapp_forward_pe": 1.95,
+   "tahlilapp_forward_ps": 0.48
+  },
+  {
+   "symbol": "فگستر",
+   "set": "round-3",
+   "industry_external_id": "14",
+   "current_pe": 5.7,
+   "current_ps": 1.715773,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 357967000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 427483000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 1681573000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 1841731000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 2036541000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 2176550000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 994178000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 1061713000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 3358036000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 433775000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 4967747000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 4059516000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 322514000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 5068377000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 7667723000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 4403832000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 5884666000000.0,
+     "net_profit": 715083000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 4368296000000.0,
+     "net_profit": 532625000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 1728712000000.0,
+     "net_profit": 269297000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 2467023000000.0,
+     "net_profit": 68537000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 6054822000000.0,
+     "net_profit": 1549109000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 5373457000000.0,
+     "net_profit": 2081015000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 9461038000000.0,
+     "net_profit": 3063049000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 13058614000000.0,
+     "net_profit": 3525591000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": null,
+    "forward_pe": null,
+    "ps_reason": "growth_out_of_range",
+    "pe_reason": "growth_out_of_range",
+    "growth_factor": 4.052783
+   },
+   "tahlilapp_forward_pe": 1.77,
+   "tahlilapp_forward_ps": 0.45
+  },
+  {
+   "symbol": "آپ",
+   "set": "round-3",
+   "industry_external_id": "29",
+   "current_pe": 90.99,
+   "current_ps": 0.488505,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 11174194000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 12312213000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 12302996000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 12024214000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 11962268000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 13708989000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 14190239000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 14330363000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 14330363000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 15041460000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 16456995000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 20439884000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 20394980000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 20028055000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 20517694000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 19510936000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 32827935000000.0,
+     "net_profit": 280953000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 35170374000000.0,
+     "net_profit": -86309000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 36301298000000.0,
+     "net_profit": -295505000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 36366602000000.0,
+     "net_profit": 609114000000.0
+    },
+    {
+     "period_end": "2026-01-20",
+     "revenue": null,
+     "net_profit": null
+    },
+    {
+     "period_end": "2026-04-20",
+     "revenue": 44549514000000.0,
+     "net_profit": 75542000000.0
+    },
+    {
+     "period_end": "2026-07-22",
+     "revenue": 57238338000000.0,
+     "net_profit": 595949000000.0
+    },
+    {
+     "period_end": "2026-10-22",
+     "revenue": 60308953000000.0,
+     "net_profit": 198770000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": null,
+    "forward_pe": null,
+    "ps_reason": "insufficient_quarters",
+    "pe_reason": "insufficient_quarters",
+    "growth_factor": 1.68261
+   },
+   "tahlilapp_forward_pe": 74.44,
+   "tahlilapp_forward_ps": 0.34
+  },
+  {
+   "symbol": "اروند",
+   "set": "round-3",
+   "industry_external_id": "11",
+   "current_pe": 14.76,
+   "current_ps": 2.826159,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 26089226000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 27178945000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 27526476000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 35055358000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 36479151000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 32860431000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 35029906000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 35266184000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 13335868000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 4057891000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 10556478000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 29379912000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 25269567000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 52086118000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 33147973000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 70361853000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 65366861000000.0,
+     "net_profit": 25600978000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 89010761000000.0,
+     "net_profit": 30675738000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 79656973000000.0,
+     "net_profit": 28196770000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 80794649000000.0,
+     "net_profit": 15245329000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 104136941000000.0,
+     "net_profit": 23541901000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 85548666000000.0,
+     "net_profit": -5547502000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 43998765000000.0,
+     "net_profit": 6063966000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 112429028000000.0,
+     "net_profit": 42213411000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.66,
+    "forward_pe": 5.81,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.561204,
+    "forecast_sales": 589871851399494,
+    "margin": 0.285348
+   },
+   "tahlilapp_forward_pe": 7.86,
+   "tahlilapp_forward_ps": 1.79
+  },
+  {
+   "symbol": "کطبس",
+   "set": "round-3",
+   "industry_external_id": "2",
+   "current_pe": 9.01,
+   "current_ps": 3.895698,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 793994000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 680887000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 980581000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 1036250000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 1058974000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 1027161000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 991424000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 935760000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 470286000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 343292000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 1248793000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 1677876000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 1932020000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 2024635000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 2323210000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 2730587000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 1556820000000.0,
+     "net_profit": 332534000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 2347670000000.0,
+     "net_profit": 911753000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 2149576000000.0,
+     "net_profit": 592948000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 2455462000000.0,
+     "net_profit": 759487000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 3122385000000.0,
+     "net_profit": 1068720000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 2397470000000.0,
+     "net_profit": 745316000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 3283693000000.0,
+     "net_profit": 1138766000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 6279865000000.0,
+     "net_profit": 3568887000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.36,
+    "forward_pe": 4.16,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.580526,
+    "forecast_sales": 43259976629268,
+    "margin": 0.326576
+   },
+   "tahlilapp_forward_pe": 4.09,
+   "tahlilapp_forward_ps": 1.35
+  },
+  {
+   "symbol": "شکلر",
+   "set": "round-3",
+   "industry_external_id": "11",
+   "current_pe": 10.49,
+   "current_ps": 5.059381,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 1652485000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 1487138000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 1947209000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 1845867000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 1746889000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 1703747000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 2077052000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 2415264000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 3078830000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 2683653000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 3754878000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 3755681000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 4053360000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 3976910000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 4210616000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 5051130000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-11-20",
+     "revenue": 3616060000000.0,
+     "net_profit": 1308245000000.0
+    },
+    {
+     "period_end": "2025-02-18",
+     "revenue": 3835700000000.0,
+     "net_profit": 1610603000000.0
+    },
+    {
+     "period_end": "2025-05-21",
+     "revenue": 4492811000000.0,
+     "net_profit": 1871225000000.0
+    },
+    {
+     "period_end": "2025-08-22",
+     "revenue": 4735668000000.0,
+     "net_profit": 1634480000000.0
+    },
+    {
+     "period_end": "2025-11-21",
+     "revenue": 5539965000000.0,
+     "net_profit": 3054907000000.0
+    },
+    {
+     "period_end": "2026-02-19",
+     "revenue": 6196063000000.0,
+     "net_profit": 2879098000000.0
+    },
+    {
+     "period_end": "2026-05-21",
+     "revenue": 9517361000000.0,
+     "net_profit": 4476679000000.0
+    },
+    {
+     "period_end": "2026-08-22",
+     "revenue": 11785951000000.0,
+     "net_profit": 5524359000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.74,
+    "forward_pe": 3.93,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.494269,
+    "forecast_sales": 96049334472499,
+    "margin": 0.442282
+   },
+   "tahlilapp_forward_pe": 3.81,
+   "tahlilapp_forward_ps": 1.74
+  },
+  {
+   "symbol": "شپنا",
+   "set": "round-3",
+   "industry_external_id": "31",
+   "current_pe": 3.53,
+   "current_ps": 0.530024,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 622676632000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 652575921000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 648890108000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 619812393000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 710043216000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 657800820000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 646850047000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 1145354210000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 1037954211000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 1085602354000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 1342377447000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 1436382423000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 1760433763000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 2023871451000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 2605576969000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 1617680003000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 1310203721000000.0,
+     "net_profit": 85071733000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 1892451620000000.0,
+     "net_profit": 154816909000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 1605114221000000.0,
+     "net_profit": 142519175000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 1872310385000000.0,
+     "net_profit": 157918225000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 1956682355000000.0,
+     "net_profit": 267083774000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 3037766402000000.0,
+     "net_profit": 328822764000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 3861198381000000.0,
+     "net_profit": 385396040000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 6423273418000000.0,
+     "net_profit": 1312804404000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": null,
+    "forward_pe": null,
+    "ps_reason": "excluded_industry",
+    "pe_reason": "excluded_industry"
+   },
+   "tahlilapp_forward_pe": 5.83,
+   "tahlilapp_forward_ps": null
+  },
+  {
+   "symbol": "بمپنا",
+   "set": "round-3",
+   "industry_external_id": "61",
+   "current_pe": 22.77,
+   "current_ps": 9.502865,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 2318021000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 2213808000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 1861652000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 1406373000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 1199329000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 997663000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 963092000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 1312546000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 1053019000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 1067911000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 3219250000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 3415164000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 3765839000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 3563376000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 3189499000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 3307972000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-09-21",
+     "revenue": 3307343000000.0,
+     "net_profit": 1502327000000.0
+    },
+    {
+     "period_end": "2024-12-20",
+     "revenue": 2833278000000.0,
+     "net_profit": 1729007000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 3373800000000.0,
+     "net_profit": 1813840000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 5142504000000.0,
+     "net_profit": 3363461000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 6652026000000.0,
+     "net_profit": 3425587000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 3782961000000.0,
+     "net_profit": -767680000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 3436503000000.0,
+     "net_profit": 981343000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 7800136000000.0,
+     "net_profit": 5405218000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 4.29,
+    "forward_pe": 8.16,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.772685,
+    "forecast_sales": 47959396247258,
+    "margin": 0.526297
+   },
+   "tahlilapp_forward_pe": 10.09,
+   "tahlilapp_forward_ps": 4.76
+  },
+  {
+   "symbol": "اسیاتک",
+   "set": "round-3",
+   "industry_external_id": "33",
+   "current_pe": 5.42,
+   "current_ps": 1.521792,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 3229506000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 3157720000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 3403424000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 3530402000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 3449201000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 3932224000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 3203180000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 3005626000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 2639651000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 2358968000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 3427704000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 4573356000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 4606726000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 4375118000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 4609681000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 4882445000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 7997213000000.0,
+     "net_profit": 1774652000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 7936766000000.0,
+     "net_profit": 2602779000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 7952109000000.0,
+     "net_profit": 1379615000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 9790650000000.0,
+     "net_profit": 2448988000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 10911827000000.0,
+     "net_profit": 2243160000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 9105499000000.0,
+     "net_profit": 1223380000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 10360028000000.0,
+     "net_profit": 5584765000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 13591525000000.0,
+     "net_profit": 3293987000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.07,
+    "forward_pe": 4.61,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.386825,
+    "forecast_sales": 62495722350127,
+    "margin": 0.232132
+   },
+   "tahlilapp_forward_pe": 4.54,
+   "tahlilapp_forward_ps": 1.05
+  },
+  {
+   "symbol": "ستران",
+   "set": "round-3",
+   "industry_external_id": "39",
+   "current_pe": 9.37,
+   "current_ps": 3.718923,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 4669125000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 4364954000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 4689265000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 5474864000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 5733216000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 5702990000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 5516903000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 5914762000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 4915786000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 4039814000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 9377400000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 9886371000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 8671034000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 9621684000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 9355761000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 10302332000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 12622306000000.0,
+     "net_profit": 3778239000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 11821491000000.0,
+     "net_profit": 13559967000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 15961885000000.0,
+     "net_profit": 3637851000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 13723344000000.0,
+     "net_profit": 5340612000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 16911070000000.0,
+     "net_profit": 2193800000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 16347451000000.0,
+     "net_profit": 19870735000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 23303585000000.0,
+     "net_profit": 4925971000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 27648479000000.0,
+     "net_profit": 6432409000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 1.78,
+    "forward_pe": 6.69,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.976789,
+    "forecast_sales": 176009465113149,
+    "margin": 0.26599
+   },
+   "tahlilapp_forward_pe": 8.03,
+   "tahlilapp_forward_ps": 1.91
+  },
+  {
+   "symbol": "سمازن",
+   "set": "round-3",
+   "industry_external_id": "39",
+   "current_pe": 9.35,
+   "current_ps": 4.614345,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 3907545000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 3676351000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 4135592000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 3955371000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 4318599000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 4147183000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 4489993000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 3983224000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 4363703000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 4933756000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 7850684000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 7068986000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 7291963000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 7016359000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 7895107000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 9962744000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 8217384000000.0,
+     "net_profit": 5382581000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 7962958000000.0,
+     "net_profit": 3648101000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 9999330000000.0,
+     "net_profit": 5610093000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 11719488000000.0,
+     "net_profit": 4629446000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 12421153000000.0,
+     "net_profit": 7474018000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 12836920000000.0,
+     "net_profit": 5147465000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 19853426000000.0,
+     "net_profit": 11856995000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 22203429000000.0,
+     "net_profit": 8742300000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 2.06,
+    "forward_pe": 4.05,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 2.052087,
+    "forecast_sales": 150463734233531,
+    "margin": 0.50959
+   },
+   "tahlilapp_forward_pe": 4.89,
+   "tahlilapp_forward_ps": 2.23
+  },
+  {
+   "symbol": "حفارس",
+   "set": "round-3",
+   "industry_external_id": "25",
+   "current_pe": 79.77,
+   "current_ps": 8.681729,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 3399687000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 4378314000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 2639825000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 1906937000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 2080702000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 2174380000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 2034844000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 2256692000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 1914140000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 1784965000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 1704322000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 1678754000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 2355387000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 4792829000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 5071875000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 4361977000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 4542364000000.0,
+     "net_profit": 890708000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 5388774000000.0,
+     "net_profit": -530530000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 7150765000000.0,
+     "net_profit": 331030000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 10233792000000.0,
+     "net_profit": 826788000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 6705427000000.0,
+     "net_profit": 1731855000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 6472750000000.0,
+     "net_profit": 142327000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 5900699000000.0,
+     "net_profit": 232435000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 13155824000000.0,
+     "net_profit": 1401631000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 6.46,
+    "forward_pe": 101.63,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.345427,
+    "forecast_sales": 43337367780050,
+    "margin": 0.063541
+   },
+   "tahlilapp_forward_pe": 94.8,
+   "tahlilapp_forward_ps": 6.67
+  },
+  {
+   "symbol": "حفاری",
+   "set": "round-3",
+   "industry_external_id": "35",
+   "current_pe": 2.4,
+   "current_ps": 0.79838,
+   "monthly_sales": [
+    {
+     "month_end": "2025-07-22",
+     "sales": 9308842000000.0
+    },
+    {
+     "month_end": "2025-08-22",
+     "sales": 10799673000000.0
+    },
+    {
+     "month_end": "2025-09-22",
+     "sales": 9516790000000.0
+    },
+    {
+     "month_end": "2025-10-22",
+     "sales": 9875142000000.0
+    },
+    {
+     "month_end": "2025-11-21",
+     "sales": 9565713000000.0
+    },
+    {
+     "month_end": "2025-12-21",
+     "sales": 9195840000000.0
+    },
+    {
+     "month_end": "2026-01-20",
+     "sales": 11316425000000.0
+    },
+    {
+     "month_end": "2026-02-19",
+     "sales": 13538725000000.0
+    },
+    {
+     "month_end": "2026-03-20",
+     "sales": 8295959000000.0
+    },
+    {
+     "month_end": "2026-04-20",
+     "sales": 5074633000000.0
+    },
+    {
+     "month_end": "2026-05-21",
+     "sales": 8631286000000.0
+    },
+    {
+     "month_end": "2026-06-21",
+     "sales": 12204206000000.0
+    },
+    {
+     "month_end": "2026-07-22",
+     "sales": 12405975000000.0
+    },
+    {
+     "month_end": "2026-08-22",
+     "sales": 13144010000000.0
+    },
+    {
+     "month_end": "2026-09-22",
+     "sales": 14089427000000.0
+    },
+    {
+     "month_end": "2026-10-22",
+     "sales": 19505116000000.0
+    }
+   ],
+   "quarters": [
+    {
+     "period_end": "2024-12-20",
+     "revenue": 12913348000000.0,
+     "net_profit": 9595414000000.0
+    },
+    {
+     "period_end": "2025-03-20",
+     "revenue": 38467140000000.0,
+     "net_profit": 8013679000000.0
+    },
+    {
+     "period_end": "2025-06-21",
+     "revenue": 37470530000000.0,
+     "net_profit": 3237040000000.0
+    },
+    {
+     "period_end": "2025-09-22",
+     "revenue": 40057166000000.0,
+     "net_profit": -1989566000000.0
+    },
+    {
+     "period_end": "2025-12-21",
+     "revenue": 34834870000000.0,
+     "net_profit": 3428638000000.0
+    },
+    {
+     "period_end": "2026-03-20",
+     "revenue": 53361659000000.0,
+     "net_profit": 41068663000000.0
+    },
+    {
+     "period_end": "2026-06-21",
+     "revenue": 35146504000000.0,
+     "net_profit": 2697680000000.0
+    },
+    {
+     "period_end": "2026-09-22",
+     "revenue": 55324138000000.0,
+     "net_profit": 12240130000000.0
+    }
+   ],
+   "expected": {
+    "forward_ps": 0.7,
+    "forward_pe": 4.53,
+    "ps_reason": "none",
+    "pe_reason": "none",
+    "growth_factor": 1.497313,
+    "forecast_sales": 205082924684430,
+    "margin": 0.153375
+   },
+   "tahlilapp_forward_pe": 5.23,
+   "tahlilapp_forward_ps": 0.66
+  }
+ ]
+}

@@ -2,14 +2,18 @@ using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.CyclicalWavesV2;
+using FinancialCopilot.Domain.Financial.RelativeValuation;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.MarketViews;
+using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.IntegrationTests;
 
@@ -133,6 +137,8 @@ public sealed class CyclicalWavesV2PostgreSqlIntegrationTests(PostgreSqlIntegrat
         Assert.Null(storedGauge.Status);
         Assert.Equal(6, storedGauge.F);
         Assert.Equal(1, await db.CyclicalWavesV2GaugeDetails.CountAsync());
+        // BUG-052: an unchanged fetch still moves the fetch time; the readers age the gauge by it.
+        Assert.Equal(Now.AddMinutes(1), storedGauge.FetchedAtUtc);
 
         var query = new CyclicalWavesV2GaugeQueryService(db);
         var queryTicker = await db.CyclicalWavesV2Tickers.Select(row => row.Ticker).SingleAsync();
@@ -157,6 +163,51 @@ public sealed class CyclicalWavesV2PostgreSqlIntegrationTests(PostgreSqlIntegrat
         Assert.Equal(-1, storedRange.Min!.Value.UnscaledValue.Sign);
         Assert.Equal(1, await db.CyclicalWavesV2EquilibriumRanges.CountAsync());
         Assert.Equal(0, await CountAsync(db, "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'cyclicalwaves' AND table_name IN ('GaugeDetails', 'EquilibriumRanges') AND data_type <> 'numeric' AND column_name LIKE '%High'"));
+    }
+
+    /// <summary>
+    /// BUG-052: on a closed market day the vendor returns the same gauges. The relative valuation inputs must stay
+    /// usable after that sync, although the values were last changed more than the freshness window ago.
+    /// </summary>
+    [SkippableFact]
+    public async Task GaugeStore_UnchangedFetchKeepsRelativeValuationInputsFresh()
+    {
+        await using var database = await fixture.CreateDatabaseAsync();
+        await using var db = database.CreateContext();
+        db.CyclicalWavesV2Tickers.Add(new CyclicalWavesV2TickerRow
+        {
+            Id = Guid.NewGuid(), Ticker = "فولاد", NormalizedTicker = PersianSymbolNormalizer.Normalize("فولاد"),
+            Enticker = "IRO1FOLD0001", IsActive = true, CreatedAt = Now, UpdatedAt = Now, LastSeenInCatalogAt = Now
+        });
+        await db.SaveChangesAsync();
+
+        var store = new EfCoreCyclicalWavesV2GaugeStore(db);
+        await store.ApplyGaugeCatalogAsync(
+            [new CyclicalWavesV2GaugeCatalogItem("فولاد", "IRO1FOLD0001", true, true)], Now, CancellationToken.None);
+        var gauge = JsonSerializer.Deserialize<CyclicalWavesV2Gauge>(
+            """{"A":1,"B":2,"C":3,"D":4,"E":5,"F":6,"Close":4,"Start":1,"End":6,"Min":1,"Avg":2,"Max":6,"Status":null}""")!;
+        var details = new CyclicalWavesV2GaugeDetails("فولاد", "IRO1FOLD0001", gauge, gauge);
+        var lastTradingDaySync = Now;
+        var closedDaySync = Now.AddHours(24);
+        Assert.Equal(CyclicalWavesV2ApplyOutcome.Updated, await store.ApplyGaugeDetailsAsync(details, lastTradingDaySync, CancellationToken.None));
+        Assert.Equal(CyclicalWavesV2ApplyOutcome.Unchanged, await store.ApplyGaugeDetailsAsync(details, closedDaySync, CancellationToken.None));
+
+        var freshness = TimeSpan.FromHours(26);
+        var reader = new CyclicalWavesV2RelativeValuationInputReader(
+            db, new PersistedMarketDataProvider(db, TimeProvider.System), Options.Create(new MarketViewOptions()),
+            NullLogger<CyclicalWavesV2RelativeValuationInputReader>.Instance);
+        var companyId = Guid.NewGuid();
+        var observations = await reader.ReadAsync(
+            [new RelativeValuationSecurity(companyId, "IRO1FOLD0001")], lastTradingDaySync.AddHours(30), freshness, CancellationToken.None);
+
+        Assert.Equal(
+            [RelativeValuationMetric.Pe, RelativeValuationMetric.Ps],
+            observations.Select(row => row.Fact.Metric).OrderBy(metric => metric).ToArray());
+        Assert.All(observations, row =>
+        {
+            Assert.Equal(companyId, row.Fact.CompanyId);
+            Assert.Equal(closedDaySync + freshness, row.ValidUntilUtc);
+        });
     }
 
     [SkippableFact]

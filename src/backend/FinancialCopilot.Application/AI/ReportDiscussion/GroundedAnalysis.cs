@@ -160,6 +160,21 @@ public static class GroundedAnalysis
         "industry, form plausible economic explanations and test them against the evidence you have, judge how " +
         "sustainable the performance is, and point out the risks that the statement alone does not show.\n";
 
+    public static string EditorialJudgmentRules(global::FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth depth) =>
+        depth == global::FinancialCopilot.Application.AI.GroundedAnalysis.AnalysisDepth.Deep
+        ? "For an overall analysis, lead with a clear judgment of the reporting period and the strongest evidence for it. " +
+          "Say whether material strengths or weaknesses carry more weight, or whether the evidence is genuinely mixed. " +
+          "Weight findings by financial significance and strength of evidence, not by how many are positive or negative. " +
+          "For a narrow question, answer it directly without forcing an overall verdict.\n" +
+          "State well-supported findings plainly. Use a contrast or qualification inline only if it changes the meaning " +
+          "of the finding or explains the economics. Do not append a generic caveat to each positive finding. " +
+          "Group other material risks and unresolved drivers in a follow-up item near the end, and name the evidence " +
+          "that could change the judgment. Where relevant, assess operating performance, cash conversion and earnings " +
+          "sustainability separately. " +
+          "Uncertainty about recurrence limits the forward-looking conclusion without undoing the observed result. " +
+          "The verdict concerns the financial performance in the report, not whether the stock is attractive.\n"
+        : string.Empty;
+
     /// <summary>
     /// Possible areas, not a checklist: the model chooses what matters for the question (§12). Amendment A4 adds the
     /// owner's guiding questions for an overall analysis.

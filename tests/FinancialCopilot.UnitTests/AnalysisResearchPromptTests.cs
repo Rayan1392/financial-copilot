@@ -15,6 +15,7 @@ namespace FinancialCopilot.UnitTests;
 public sealed class AnalysisResearchPromptTests
 {
     private const string OldSkipRule = "do not search when the report alone answers the question";
+    private const string EvidenceWeightingInstruction = "Weight findings by financial significance and strength of evidence";
 
     public static TheoryData<AnalysisDepth, bool> Choices() => new()
     {
@@ -44,6 +45,19 @@ public sealed class AnalysisResearchPromptTests
             Assert.Contains("never give a forecast number", prompt);
             Assert.Contains(ReportGroundedAnalysis.NoValuationRules, prompt);
             Assert.DoesNotContain(OldSkipRule, prompt);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Choices))]
+    public void OnlyDeepAnalysis_AsksForAnEvidenceWeightedJudgment(AnalysisDepth depth, bool web)
+    {
+        foreach (var prompt in PromptsFor(new AnalysisChoice(depth, web)))
+        {
+            if (depth == AnalysisDepth.Deep)
+                Assert.Contains(EvidenceWeightingInstruction, prompt);
+            else
+                Assert.DoesNotContain(EvidenceWeightingInstruction, prompt);
         }
     }
 
@@ -111,6 +125,7 @@ public sealed class AnalysisResearchPromptTests
         {
             var prompt = ReportDiscussionContextBuilder.SystemPromptFor(family);
             Assert.DoesNotContain(ReportGroundedAnalysis.ResearchMindset, prompt);
+            Assert.DoesNotContain(EvidenceWeightingInstruction, prompt);
             Assert.DoesNotContain("not merely allowed", prompt);
             Assert.DoesNotContain("not your reasoning", prompt);
             Assert.DoesNotContain("Web research", prompt);

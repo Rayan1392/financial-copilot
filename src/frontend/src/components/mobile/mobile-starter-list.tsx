@@ -11,7 +11,11 @@ import {
   ValuationGaugesIcon,
   type MobileIcon,
 } from "@/components/mobile/icons";
-import { StarterCardDetail } from "@/components/app/starter-card";
+import {
+  StarterCardDetail,
+  StarterExampleMark,
+  StarterPromptPhrase,
+} from "@/components/app/starter-card";
 import type { StarterPrompt, StarterPromptId, StarterPromptTone } from "@/lib/chat/starter-prompts";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +42,10 @@ const ROW_TONES: Record<
   valuation: { tile: "valuation", gradient: "from-valuation/10", topic: "text-valuation" },
 };
 
-/** The phone starter cards, in list order; tapping one sends its question. */
+/**
+ * The phone starter cards, in list order. Tapping a direct card sends its question; a symbol card opens the symbol
+ * picker, which the page hosts.
+ */
 export function MobileStarterList({
   prompts,
   disabled,
@@ -46,7 +53,7 @@ export function MobileStarterList({
 }: {
   prompts: readonly StarterPrompt[];
   disabled: boolean;
-  onSelect: (text: string) => void;
+  onSelect: (prompt: StarterPrompt) => void;
 }) {
   const ordered = [
     ...prompts.filter((prompt) => prompt.featured),
@@ -58,11 +65,11 @@ export function MobileStarterList({
         const tone = ROW_TONES[prompt.tone];
         return (
           <li key={prompt.id}>
-            {/* The question is shown in full: the cards teach how to phrase a question. */}
             <button
               type="button"
-              onClick={() => onSelect(prompt.text)}
+              onClick={() => onSelect(prompt)}
               disabled={disabled}
+              aria-haspopup={prompt.kind === "symbol" ? "dialog" : undefined}
               className={cn(
                 "flex min-h-[72px] w-full items-center gap-3 rounded-2xl bg-surface bg-linear-to-l to-transparent to-65% px-3.5 py-2.5 text-right ring-1 ring-hairline transition-colors active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-50",
                 tone.gradient,
@@ -70,9 +77,14 @@ export function MobileStarterList({
             >
               <IconTile icon={STARTER_ICONS[prompt.id]} tone={tone.tile} className="size-11" />
               <span className="min-w-0 flex-1">
-                <span className={cn("block text-m-cap font-bold", tone.topic)}>{prompt.topic}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className={cn("text-m-cap font-bold", tone.topic)}>{prompt.topic}</span>
+                  {prompt.kind === "direct" && prompt.example && (
+                    <StarterExampleMark className="text-m-cap leading-5" />
+                  )}
+                </span>
                 <span className="block text-balance text-m-sub font-medium leading-7 text-foreground">
-                  {prompt.text}
+                  <StarterPromptPhrase prompt={prompt} />
                 </span>
                 {prompt.detail && <StarterCardDetail detail={prompt.detail} className="block" />}
               </span>

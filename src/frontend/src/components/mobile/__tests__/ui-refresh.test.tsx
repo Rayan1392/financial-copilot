@@ -8,7 +8,7 @@ import { IconTile } from "../icon-tile";
 import * as icons from "../icons";
 import { SignedChange } from "../signed-change";
 import { SymbolRow } from "../symbol-row";
-import { STARTER_PROMPTS } from "@/lib/chat/starter-prompts";
+import { STARTER_PROMPTS, starterPromptTitle } from "@/lib/chat/starter-prompts";
 import { cn } from "@/lib/utils";
 
 vi.mock("@/lib/workspace/queries", () => ({
@@ -154,17 +154,17 @@ describe("TopAppBar", () => {
 });
 
 describe("starter prompts on the phone cards", () => {
-  it("sends the fixed starter questions, the valuation card first, sales cards next and statement cards last", () => {
-    expect(STARTER_PROMPTS.map((prompt) => prompt.text)).toEqual([
-      "گیج‌های ارزش‌گذاری گدنا",
+  it("lists the valuation card first, sales cards next and statement cards last", () => {
+    expect(STARTER_PROMPTS.map((prompt) => starterPromptTitle(prompt))).toEqual([
+      "گیج‌های ارزش‌گذاری نماد",
       "ترکیب فروش محصولات کگهر را بررسی کن",
-      "روند فروش ماهانه کگهر را نشان بده",
+      "روند فروش ماهانه نماد",
       "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
       "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
-      "شاراک را با صنعت خودش مقایسه کن",
-      "عملکرد مالی فصلی فولاد را بررسی کن",
-      "صورت وضعیت مالی فاذر را بررسی کن",
-      "جریان وجه نقد اخابر",
+      "مقایسه نماد با صنعت",
+      "عملکرد مالی فصلی نماد",
+      "صورت وضعیت مالی نماد",
+      "جریان وجه نقد نماد",
     ]);
     expect(STARTER_PROMPTS.map((prompt) => prompt.tone)).toEqual([
       "valuation",
@@ -183,7 +183,7 @@ describe("starter prompts on the phone cards", () => {
     expect(new Set(STARTER_PROMPTS.map((prompt) => prompt.id)).size).toBe(STARTER_PROMPTS.length);
     for (const prompt of STARTER_PROMPTS) {
       expect(prompt.topic.length).toBeGreaterThan(0);
-      expect(prompt.topic.length).toBeLessThan(prompt.text.length);
+      expect(prompt.topic.length).toBeLessThan(starterPromptTitle(prompt).length);
     }
   });
 });

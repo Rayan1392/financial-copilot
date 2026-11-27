@@ -1,21 +1,8 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { SearchIcon } from "@/components/mobile/icons";
 import { BottomSheet } from "@/components/mobile/bottom-sheet";
-import { searchSymbolMetadata } from "@/lib/metadata.functions";
+import { useSymbolSearch } from "@/lib/market/use-symbol-search";
 import { useFollowActions } from "@/lib/workspace/follow-actions";
-
-const DEBOUNCE_MS = 300;
-
-function useDebounced(value: string, delay: number): string {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(value), delay);
-    return () => window.clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
 
 /** Add-symbol sheet (design §6.2): debounced metadata search, follow on tap, API validation shown inline (AC-17). */
 export function AddSymbolSheet({
@@ -29,16 +16,8 @@ export function AddSymbolSheet({
 }) {
   const [query, setQuery] = useState("");
   const [inlineError, setInlineError] = useState<string | null>(null);
-  const search = useServerFn(searchSymbolMetadata);
   const { follow } = useFollowActions();
-  const term = useDebounced(query.trim(), DEBOUNCE_MS);
-  const results = useQuery({
-    queryKey: ["symbol-metadata-search", term],
-    queryFn: () => search({ data: { search: term, limit: 12 } }),
-    enabled: open && term.length >= 1,
-    retry: false,
-    staleTime: 60_000,
-  });
+  const { term, results } = useSymbolSearch(query, { enabled: open });
 
   useEffect(() => {
     if (!open) {

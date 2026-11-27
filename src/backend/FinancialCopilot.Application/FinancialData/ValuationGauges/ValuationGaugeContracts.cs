@@ -92,10 +92,28 @@ public sealed record ValuationGaugeCard(
     ValuationRatioGaugeFacts? Ratio = null,
     ValuationEquilibriumFacts? Equilibrium = null,
     ValuationGaugeGeometry? Geometry = null,
-    ValuationGaugeInsights? Insights = null)
+    ValuationGaugeInsights? Insights = null,
+    // Omitted from JSON when absent, so cards without an estimate keep exactly their previous payload (AC-01).
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ValuationGaugeForwardEstimate? Forward = null)
 {
     public bool IsDisplayable() => State is ValuationGaugeCardState.Available or ValuationGaugeCardState.Partial;
 }
+
+/// <summary>
+/// Sapio's forward estimate of this card's ratio (change «valuation-gauge-forward-ratio»), never the provider's.
+/// <see cref="Value"/> has two decimals; <see cref="Angle"/> and <see cref="Side"/> are on the card's own axis with the
+/// same pin rule as the current needle. <see cref="SalesGrowthFactor"/> is the 4-month year-over-year factor (4
+/// decimals); <see cref="MarginPercent"/> is the median net margin in percent (1 decimal), present on the P/E card only.
+/// </summary>
+public sealed record ValuationGaugeForwardEstimate(
+    string Value,
+    decimal Angle,
+    ValuationGaugeNeedleSide Side,
+    string MethodVersion,
+    string SalesGrowthFactor,
+    string? MarginPercent,
+    DateOnly LatestSalesMonthEnd,
+    DateOnly LatestQuarterEnd);
 
 /// <summary>Provider facts for a P/E or P/S gauge. Values are the provider's exact decimals as invariant strings.</summary>
 public sealed record ValuationRatioGaugeFacts(
@@ -225,6 +243,12 @@ public interface IValuationGaugeObserver
 {
     void CardProjected(ValuationGaugeKind kind, ValuationGaugeCardState state, string reasonCode, TimeSpan? fetchAge);
     void Completed(TimeSpan elapsed, int displayableCards, string matchOutcome);
+
+    /// <summary>Per ratio card when the forward estimate is enabled: shown or not, the reason, and the input read latency.</summary>
+    void ForwardEstimated(ValuationGaugeKind kind, bool shown, string reasonCode, TimeSpan? readElapsed);
+
+    /// <summary>Once per request when the estimator input read timed out or failed; only the estimate is dropped.</summary>
+    void ForwardReadFailed(string reasonCode, TimeSpan elapsed, Exception? error);
 }
 
 public sealed class NullValuationGaugeObserver : IValuationGaugeObserver
@@ -232,6 +256,8 @@ public sealed class NullValuationGaugeObserver : IValuationGaugeObserver
     public static readonly NullValuationGaugeObserver Instance = new();
     public void CardProjected(ValuationGaugeKind kind, ValuationGaugeCardState state, string reasonCode, TimeSpan? fetchAge) { }
     public void Completed(TimeSpan elapsed, int displayableCards, string matchOutcome) { }
+    public void ForwardEstimated(ValuationGaugeKind kind, bool shown, string reasonCode, TimeSpan? readElapsed) { }
+    public void ForwardReadFailed(string reasonCode, TimeSpan elapsed, Exception? error) { }
 }
 
 public interface IValuationGaugeCardsUseCase

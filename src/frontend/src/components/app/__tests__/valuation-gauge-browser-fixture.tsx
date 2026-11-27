@@ -3,6 +3,7 @@ import type { ValuationGaugeCard, ValuationGaugeCardsResult } from "@/lib/chat/v
 import { ValuationGaugeCards } from "../valuation-gauge-cards";
 import {
   equilibriumCard,
+  forwardFixture,
   gaugeResult,
   ratioCard,
   unavailableCard,
@@ -10,7 +11,8 @@ import {
 import "../../../styles.css";
 
 // Feature 159 changes «standalone-valuation-gauge-cards» and «valuation-gauge-cards-visual-refresh» browser fixture:
-// ?fixture=single|all|range-only|stale|missing|pinned|sharak|legacy. The numbers are illustrative except «sharak»,
+// ?fixture=single|all|range-only|stale|missing|pinned|sharak|legacy|forward|forward-pinned («forward…»: change
+// «valuation-gauge-forward-ratio», Sapio's dashed forward needle; every other fixture has no estimate). The numbers are illustrative except «sharak»,
 // which carries the شاراک P/E values of the first production card (2026-11-26) and the figures the server derives.
 const sharakEdges = [
   "2.1059510085",
@@ -84,6 +86,12 @@ const fixtures: Record<string, ValuationGaugeCardsResult> = {
   ]),
   sharak: gaugeResult([sharak]),
   legacy: gaugeResult([ratioCard("Pe", { legacy: true })]),
+  forward: gaugeResult([
+    ratioCard("Pe", { forward: forwardFixture() }),
+    ratioCard("Ps", { forward: forwardFixture("pinnedBelow", "Ps") }),
+    equilibriumCard(),
+  ]),
+  "forward-pinned": gaugeResult([ratioCard("Pe", { forward: forwardFixture("pinnedAbove") })]),
 };
 
 const params = new URLSearchParams(location.search);

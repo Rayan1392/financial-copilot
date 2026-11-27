@@ -59,6 +59,10 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
   released v1.32.1: the light-theme emerald badge and phone topics reach 4.5:1).
   `equilibrium-below-lower-bound-label` (OQ-137, Gate A+B 2026-11-26, implemented locally: «زیر حد پایین» with the
   absolute value below the range, card and text answer).
+  `valuation-gauge-forward-ratio` (OQ-136, Gate A+B 2026-11-26, committed on develop 2026-11-27, not released, flag
+  `ValuationGaugeCards:ForwardEstimate:Enabled` off by default): Sapio's own forward P/E and P/S estimate «(برآورد ساپیو)»
+  from 12 months of sales, 4-month YoY growth and the median 8-quarter margin, as a dashed needle on the card and a
+  line in the text answer; no migration, no billing change.
 
 - `081-ai-financial-statement-period-analysis-query/changes/period-analysis-feature-flag`: Gate A (option B) and Gate B approved 2026-11-20; implemented locally (uncommitted). `FinancialStatementPeriodAnalysis:Enabled` switches 081's fixed statement summary off (off in `appsettings.json`); on V2 a question 081 would answer ends unsupported at zero credits so the Feature 163 analysis offer can follow. Statement tables are unchanged.
 
@@ -66,6 +70,7 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `153-mobile-pwa-workspace` — mobile-first workspace at `/m` (chat, history, market, watchlist, account), device routing behind a rollout flag, and an installable PWA that caches static assets only.
 - `153-mobile-pwa-workspace/changes/mobile-ui-refresh`: Gate B approved 2026-11-12; implemented on branch `feature/153-mobile-ui-refresh` (uncommitted). Larger type scale, self-hosted fonts (app-wide), Phosphor icons behind one mobile icon module, and redesigned `/m` screens with shorter copy. Frontend only; OQ-073 (disclaimer placement) open.
+- `153-mobile-pwa-workspace/changes/starter-cards-symbol-picker`: Gate A and Gate B approved 2026-11-27; implemented 2026-11-27. Six starter cards on `/chat` and `/m` no longer name a fixed symbol: they show a short label with a «نماد» slot and open a symbol picker (dialog on desktop, bottom sheet on the phone) with type-ahead search, the watchlist symbols and an example symbol; the picked symbol sends the card's unchanged question. «ترکیب فروش» and «عملکرد محصول» stay fixed examples marked «نمونه»; the switched-off watchlist personalization of the cards is removed.
 - `153-mobile-pwa-workspace/changes/dastkhat-font-typography`: Gate A and Gate B approved 2026-11-17; implemented locally. Shared Dastkhat Main + FaNum typography for desktop web and `/m`, including offline PWA fonts and Persian typography rules. Verification results and existing suite failures are recorded in `ImplementationReport.md`.
 
 ## Phase 1 Scanner MVP Specs

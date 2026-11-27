@@ -3,6 +3,18 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.33.0
+
+- Published on 2026-11-26 (MINOR at the owner's request; the single Changed item is small, so the rules alone would
+  have allowed a PATCH). OQ-137: «زیر حد پایین» with the absolute value when the price is below the equilibrium range,
+  card and text answer. Change commit `909b7351`, develop release commit `49fab715`, prod merge `515cc066`, annotated tag
+  `v1.33.0` (tag object `4be8d3f6`).
+- Release check passed and release-note tests passed 12/12. No migration, no Telegram gateway change.
+- Deploy run 45850567270 succeeded (deploy job 11m15s). `/releases` lists 1.33.0 first;
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: OQ-136 blocked on the provider (Gate A pending). Untracked `tools/research/` (another session) was left out.
+  Legacy tags `v1.2.3`–`v1.3.6` remain on origin.
+
 ## Release 1.32.1
 
 - Published on 2026-11-26 (PATCH, Fixed: BUG-049, light-theme emerald text on the new-chat page reaches 4.5:1). Fix

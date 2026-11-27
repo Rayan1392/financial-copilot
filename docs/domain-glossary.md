@@ -230,7 +230,9 @@ Optional context that may be supplied to future orchestration beyond persisted c
 ### Valuation Ratios
 
 - P/E
-- Forward P/E, future phase
+- Forward P/E / Forward P/S (Sapio estimate): Sapio's own forward estimate of a gauge ratio, method `sapio-1`
+  (12 months of sales × the 4-month year-over-year growth, median of 8 quarterly net margins), always labelled
+  «(برآورد ساپیو)» and never the provider's figure; see `docs/providers/cyclicalwaves-v2/README.md`
 - P/S
 - P/B, future phase
 - EV/EBITDA, future phase if enterprise value data is available

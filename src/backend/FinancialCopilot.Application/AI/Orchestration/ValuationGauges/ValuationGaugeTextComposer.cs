@@ -61,6 +61,9 @@ public static class ValuationGaugeTextComposer
         else if (ratio.CurrentSide == ValuationGaugeNeedleSide.PinnedAbove)
             builder.Append(" (بیشتر از انتهای محور)");
         builder.AppendLine();
+        // Sapio's own estimate (change «valuation-gauge-forward-ratio»), only when present and never attributed to the provider.
+        if (card.Forward is { } forward)
+            builder.Append(KindName(card.Kind)).Append(ForwardLabel).Append(": ").Append(Ratio2(forward.Value)).AppendLine();
         builder.Append("حد پایین ").Append(Ratio2(ratio.Min))
             .Append("، میانگین ").Append(Ratio2(ratio.Average))
             .Append("، حد بالا ").Append(Ratio2(ratio.Max))
@@ -131,6 +134,9 @@ public static class ValuationGaugeTextComposer
 
     /// <summary>The provider's name for users; the payload keeps the internal source code.</summary>
     public const string SourceName = "تحلیل‌اپ";
+
+    /// <summary>Follows the ratio name, for example «P/E آینده‌نگر (برآورد ساپیو)».</summary>
+    public const string ForwardLabel = " آینده‌نگر (برآورد ساپیو)";
 
     public static string KindName(ValuationGaugeKind kind) => kind switch
     {
@@ -210,7 +216,6 @@ public static class ValuationGaugeTextComposer
     /// <summary>A price or equilibrium bound in whole rials.</summary>
     public static string Rial0(string value) => Exact(RoundHalfAwayFromZero(value, 0));
 
-    /// <summary>A derived percentage («‎+۱۹٫۰٪»); the plus sign is shown only for signed distances.</summary>
     /// <summary>
     /// The price-vs-lower-bound figure (OQ-137, owner 2026-11-26): below the lower bound it reads «زیر حد پایین» with the
     /// absolute value; otherwise «بالای حد پایین» signed, as released. A value that rounds to zero keeps the released label.
@@ -224,6 +229,7 @@ public static class ValuationGaugeTextComposer
         return "بالای حد پایین " + Percent(trimmed, signed: true);
     }
 
+    /// <summary>A derived percentage («‎+۱۹٫۰٪»); the plus sign is shown only for signed distances.</summary>
     private static string Percent(string value, bool signed = false)
     {
         var text = Exact(value) + "٪";

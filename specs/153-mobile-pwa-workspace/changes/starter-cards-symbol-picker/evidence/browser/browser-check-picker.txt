@@ -1,0 +1,12 @@
+picker desktop 1280 watch=1 dark: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.30
+picker desktop 1280 watch=1 light: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.79
+picker desktop 1280 watch=0 dark: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.30
+picker desktop 1280 watch=0 light: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.79
+picker desktop 360 watch=1 dark: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.30
+picker desktop 360 watch=1 light: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.79
+picker mobile 360 watch=1 dark: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.30
+picker mobile 360 watch=1 light: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.79
+picker mobile 360 watch=0 dark: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.30
+picker mobile 360 watch=0 light: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.79
+picker mobile 430 watch=1 dark: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.30
+picker mobile 430 watch=1 light: opens without sending, Escape returns focus, states shown, keyboard choice sends the previewed question, rows >= 48px, contrast >= 5.79

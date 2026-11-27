@@ -2,9 +2,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
 import { StarterCardGrid } from "@/components/app/starter-card-grid";
+import { StarterSymbolPickerDialog } from "@/components/app/starter-symbol-picker-dialog";
 import { useMemo, useState } from "react";
 import { useNewChatIntent } from "@/lib/chat/new-chat-intent";
-import { homeStarterPrompts, starterCoverage } from "@/lib/chat/starter-prompts";
+import {
+  homeStarterPrompts,
+  starterCoverage,
+  starterPickerSymbols,
+} from "@/lib/chat/starter-prompts";
+import { useStarterSelection } from "@/lib/chat/use-starter-selection";
 import { useChatCapabilityAvailability } from "@/lib/chat/use-capability-availability";
 import { useFollowedSymbols } from "@/lib/workspace/queries";
 import { ChatErrorNotice } from "@/components/app/chat-error-notice";
@@ -28,15 +34,19 @@ function NewChatPage() {
       setSeed((current) => ({ text: prefillQuestion, version: current.version + 1 }));
     if (submitQuestion) submit(submitQuestion);
   });
-  // The fixed starter cards; watchlist personalization is switched off in starter-prompts.ts. An optional card (the
-  // valuation gauges) is shown only while the API reports its capability available.
+  // The starter cards; an optional card (the valuation gauges) is shown only while the API reports its capability
+  // available. A symbol card opens the symbol picker, which offers the watchlist symbols first.
   const followed = useFollowedSymbols();
   const { valuationGaugeCards } = useChatCapabilityAvailability();
-  const starterSet = useMemo(
-    () => homeStarterPrompts(followed.data?.symbols ?? [], { valuationGaugeCards }),
-    [followed.data, valuationGaugeCards],
+  const starterPrompts = useMemo(
+    () => homeStarterPrompts({ valuationGaugeCards }),
+    [valuationGaugeCards],
   );
-  const starterPrompts = starterSet.prompts;
+  const watchlistSymbols = useMemo(
+    () => starterPickerSymbols(followed.data?.symbols ?? []),
+    [followed.data],
+  );
+  const starter = useStarterSelection(submit);
   const coverage = starterCoverage(starterPrompts);
 
   return (
@@ -70,19 +80,22 @@ function NewChatPage() {
             <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
               {coverage.sentence}
             </p>
-            {starterSet.personalized && (
-              <p className="mb-3 text-right text-xs text-muted-foreground">
-                پیشنهادها بر اساس نمادهای دیده‌بان شما
-              </p>
-            )}
             <StarterCardGrid
               prompts={starterPrompts}
               disabled={startChat.isPending}
-              onSelect={submit}
+              onSelect={starter.select}
             />
           </div>
         )}
       </div>
+      <StarterSymbolPickerDialog
+        prompt={starter.prompt}
+        open={starter.open}
+        watchlistSymbols={watchlistSymbols}
+        onPick={starter.pick}
+        onClose={starter.close}
+        onCloseAutoFocus={starter.restoreFocus}
+      />
       <ChatErrorNotice failure={startChat.failure} />
       <PromptInput
         key={seed.version}

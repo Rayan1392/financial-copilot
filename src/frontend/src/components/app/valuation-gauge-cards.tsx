@@ -1,6 +1,7 @@
 import { useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import {
   EQUILIBRIUM_POSITION_TEXT,
+  FORWARD_LABEL,
   KIND_TITLE,
   RATIO_POSITION_TEXT,
   SOURCE_NAME,
@@ -13,6 +14,8 @@ import {
   formatRial0,
   formatTehranDate,
   formatTehranDateTime,
+  forwardEstimate,
+  forwardMethodText,
   isDisplayable,
   quoteSourceText,
   unavailableText,
@@ -63,6 +66,17 @@ function activeBandIndex(card: ValuationGaugeCard): number {
   const needle = card.geometry?.needle;
   if (!needle || needle.side !== "Inside") return -1;
   return Math.min(5, Math.floor(needle.angle / 30));
+}
+
+/** Accessible name of the forward needle; it names Sapio, the value and a pin. */
+function forwardNeedleName(name: string, value: string, side: string): string {
+  const pin =
+    side === "PinnedBelow"
+      ? "؛ روی ابتدای محور نگه داشته شده است"
+      : side === "PinnedAbove"
+        ? "؛ روی انتهای محور نگه داشته شده است"
+        : "";
+  return `نشانگر خط‌چین: ${name} ${FORWARD_LABEL} ${formatRatio2(value)}${pin}`;
 }
 
 function Num({ children, className }: { children: ReactNode; className?: string }) {
@@ -282,6 +296,52 @@ function RatioDial({
     );
   }
 
+  // Sapio's forward estimate (change «valuation-gauge-forward-ratio»): a thinner, finely dashed needle with a ring at
+  // its tip, so it never reads as the solid current needle or as the current needle pinned at an axis end.
+  const forward = forwardEstimate(card);
+  let forwardPointer: ReactNode = null;
+  if (forward) {
+    const from = dialPoint(forward.angle, INNER - 10, CX, CY);
+    const to = dialPoint(forward.angle, OUTER + 14, CX, CY);
+    const ring = dialPoint(forward.angle, OUTER + 21, CX, CY);
+    forwardPointer = (
+      <g
+        data-testid="valuation-gauge-forward-needle"
+        data-side={forward.side}
+        aria-label={forwardNeedleName(name, forward.value, forward.side)}
+      >
+        <title>{forwardNeedleName(name, forward.value, forward.side)}</title>
+        <line
+          x1={from.x}
+          y1={from.y}
+          x2={to.x}
+          y2={to.y}
+          stroke="var(--card)"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+        <line
+          x1={from.x}
+          y1={from.y}
+          x2={to.x}
+          y2={to.y}
+          stroke="var(--foreground)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray="2 3.5"
+        />
+        <circle
+          cx={ring.x}
+          cy={ring.y}
+          r="5.5"
+          fill="var(--card)"
+          stroke="var(--foreground)"
+          strokeWidth="2"
+        />
+      </g>
+    );
+  }
+
   return (
     <div className="relative mx-auto w-full max-w-[380px] [container-type:inline-size]">
       <svg
@@ -345,6 +405,7 @@ function RatioDial({
         {bound("max", "حد بالا", "var(--gauge-high)", "start", -8)}
         {foot(0, ratio.start)}
         {foot(180, ratio.end)}
+        {forwardPointer}
         {pointer}
       </svg>
       <div className="pointer-events-none absolute inset-x-0 bottom-[1%] grid justify-items-center">
@@ -515,6 +576,11 @@ function RatioDetails({ card }: { card: ValuationGaugeCard }) {
           همیشه بالای گیج است. درصد هر بازه سهم روزهایی است که {name} در آن بازه بوده است. نشانگر
           جای {name} امروز را نشان می‌دهد.
         </p>
+        {forwardEstimate(card) && (
+          <p data-testid="valuation-gauge-forward-method">
+            نشانگر خط‌چین با حلقه {name} {FORWARD_LABEL} است. {forwardMethodText(card.kind)}
+          </p>
+        )}
         {ratio.dayPercentages && ratio.dayPercentages.length === 6 && (
           <table className="w-full text-xs">
             <thead>
@@ -579,8 +645,10 @@ function RatioCard({ card, symbol, companyName, showCompany }: CardProps) {
       : ratio.currentSide === "PinnedAbove"
         ? "نشانگر روی انتهای محور نگه داشته شده است"
         : null;
+  const forward = forwardEstimate(card);
+  const forwardSummary = forward ? `؛ ${name} ${FORWARD_LABEL} ${formatRatio2(forward.value)}` : "";
   const summary = ratio.current
-    ? `${name} ${symbol}: ${formatRatio2(ratio.current)}، ${position}${pinnedText ? `؛ ${pinnedText}` : ""}`
+    ? `${name} ${symbol}: ${formatRatio2(ratio.current)}، ${position}${pinnedText ? `؛ ${pinnedText}` : ""}${forwardSummary}`
     : `${name} ${symbol}: نسبت امروز در دسترس نیست؛ فقط محور تاریخی نمایش داده شده است`;
   const tone = WARM_POSITIONS.includes(ratio.position)
     ? "warm"
@@ -619,6 +687,30 @@ function RatioCard({ card, symbol, companyName, showCompany }: CardProps) {
             >
               <span aria-hidden className="size-1.5 rounded-full bg-current" />
               {position}
+            </span>
+          )}
+          {forward && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1 text-sm font-bold ring-1 ring-hairline"
+              data-testid="valuation-gauge-forward"
+              data-side={forward.side}
+            >
+              <svg width="18" height="10" viewBox="0 0 18 10" aria-hidden className="shrink-0">
+                <line
+                  x1="1"
+                  y1="5"
+                  x2="11"
+                  y2="5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="2 3"
+                />
+                <circle cx="14" cy="5" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              </svg>
+              <span>
+                {name} {FORWARD_LABEL} <Num>{formatRatio2(forward.value)}</Num>
+              </span>
             </span>
           )}
           {pinnedText && <span className="text-xs text-muted-foreground">{pinnedText}</span>}

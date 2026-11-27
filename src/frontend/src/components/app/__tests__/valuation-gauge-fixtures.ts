@@ -1,4 +1,8 @@
-import type { ValuationGaugeCard, ValuationGaugeCardsResult } from "@/lib/chat/valuation-gauges";
+import type {
+  ValuationGaugeCard,
+  ValuationGaugeCardsResult,
+  ValuationGaugeForwardEstimate,
+} from "@/lib/chat/valuation-gauges";
 
 /* Wire-shaped fixtures (camelCase JSON from the API) shared by the unit tests and the browser evidence page. */
 
@@ -19,6 +23,8 @@ export function ratioCard(
     side?: "Inside" | "PinnedBelow" | "PinnedAbove";
     /** A card as stored by v1.29.2: no insights and no sector ranges. */
     legacy?: boolean;
+    /** Sapio's forward estimate (change «valuation-gauge-forward-ratio»); absent by default, as on today's cards. */
+    forward?: ValuationGaugeForwardEstimate | null;
   } = {},
 ): ValuationGaugeCard {
   const current = overrides.current === undefined ? "6.4291" : overrides.current;
@@ -86,6 +92,33 @@ export function ratioCard(
           : { angle: needleAngle, value: current, side },
     },
     ...(insights ? { insights } : {}),
+    ...(overrides.forward ? { forward: overrides.forward } : {}),
+  };
+}
+
+/**
+ * A forward estimate on the fixture axis 2…10: «inside» is 5.12 between the split point 5 (60°) and the average 6
+ * (90°); «pinnedAbove» is 14.25, past the axis end; «pinnedBelow» is 1.40, before the axis start.
+ */
+export function forwardFixture(
+  where: "inside" | "pinnedAbove" | "pinnedBelow" = "inside",
+  kind: "Pe" | "Ps" = "Pe",
+): ValuationGaugeForwardEstimate {
+  const [value, angle, side] =
+    where === "pinnedAbove"
+      ? (["14.25", 180, "PinnedAbove"] as const)
+      : where === "pinnedBelow"
+        ? (["1.40", 0, "PinnedBelow"] as const)
+        : (["5.12", 63.6, "Inside"] as const);
+  return {
+    value,
+    angle,
+    side,
+    methodVersion: "sapio-1",
+    salesGrowthFactor: "1.5000",
+    marginPercent: kind === "Pe" ? "10.0" : null,
+    latestSalesMonthEnd: "2026-10-22",
+    latestQuarterEnd: "2026-09-22",
   };
 }
 

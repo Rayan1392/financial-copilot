@@ -7,6 +7,8 @@ using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
@@ -23,7 +25,7 @@ public sealed class ValuationGaugeSnapshotReader(FinancialIngestionDbContext db)
         IReadOnlyCollection<ValuationGaugeKind> kinds,
         CancellationToken cancellationToken)
     {
-        var (match, ticker) = await MatchAsync(security, cancellationToken);
+        var (match, ticker) = await ValuationGaugeTickerMatcher.MatchAsync(db, security, cancellationToken);
         if (match != ValuationGaugeMatchOutcome.Matched || ticker is null)
             return new ValuationGaugeSnapshotSet(match);
 
@@ -69,7 +71,32 @@ public sealed class ValuationGaugeSnapshotReader(FinancialIngestionDbContext db)
             equilibrium);
     }
 
-    private async Task<(ValuationGaugeMatchOutcome, CyclicalWavesV2TickerRow?)> MatchAsync(
+    private static RatioGaugeSnapshot? Ratio(CyclicalWavesV2GaugeDetailRow? row) => row is null
+        ? null
+        : new RatioGaugeSnapshot(
+            Text(row.Close),
+            row.Start.ToString(),
+            row.Min.ToString(),
+            row.Avg.ToString(),
+            row.Max.ToString(),
+            row.End.ToString(),
+            [row.A, row.B, row.C, row.D, row.E, row.F],
+            row.Status,
+            row.FetchedAtUtc);
+
+    private static string? Text(ExactDecimal? value) => value?.ToString();
+
+    internal static string NormalizeIsin(string? value) => value?.Trim().ToUpperInvariant() ?? string.Empty;
+}
+
+/// <summary>
+/// The one vendor-ticker match for a gauge security, shared by the snapshot reader and the forward-estimate input
+/// reader: the CyclicalWaves identity (<c>cw2:</c> external id), or a unique active ticker with the company's ISIN.
+/// </summary>
+internal static class ValuationGaugeTickerMatcher
+{
+    public static async Task<(ValuationGaugeMatchOutcome, CyclicalWavesV2TickerRow?)> MatchAsync(
+        FinancialIngestionDbContext db,
         ValuationGaugeSecurity security,
         CancellationToken cancellationToken)
     {
@@ -90,7 +117,7 @@ public sealed class ValuationGaugeSnapshotReader(FinancialIngestionDbContext db)
             .Where(row => row.Id == companyId)
             .Select(row => row.SymbolIsin)
             .FirstOrDefaultAsync(cancellationToken);
-        var isin = NormalizeIsin(symbolIsin);
+        var isin = ValuationGaugeSnapshotReader.NormalizeIsin(symbolIsin);
         if (isin.Length == 0)
             return (ValuationGaugeMatchOutcome.Missing, null);
 
@@ -105,23 +132,6 @@ public sealed class ValuationGaugeSnapshotReader(FinancialIngestionDbContext db)
             _ => (ValuationGaugeMatchOutcome.Ambiguous, null)
         };
     }
-
-    private static RatioGaugeSnapshot? Ratio(CyclicalWavesV2GaugeDetailRow? row) => row is null
-        ? null
-        : new RatioGaugeSnapshot(
-            Text(row.Close),
-            row.Start.ToString(),
-            row.Min.ToString(),
-            row.Avg.ToString(),
-            row.Max.ToString(),
-            row.End.ToString(),
-            [row.A, row.B, row.C, row.D, row.E, row.F],
-            row.Status,
-            row.FetchedAtUtc);
-
-    private static string? Text(ExactDecimal? value) => value?.ToString();
-
-    internal static string NormalizeIsin(string? value) => value?.Trim().ToUpperInvariant() ?? string.Empty;
 }
 
 /// <summary>Canonical quote for the equilibrium needle; same market-session rules as relative valuation.</summary>
@@ -148,15 +158,21 @@ public sealed class ValuationGaugeQuoteReader(
     }
 }
 
-/// <summary>Low-cardinality metrics: per-kind outcomes, snapshot age, latency and coverage.</summary>
-public sealed class ValuationGaugeTelemetry : IValuationGaugeObserver
+/// <summary>
+/// Low-cardinality metrics: per-kind outcomes, snapshot age, latency and coverage, and the forward-estimate outcome per
+/// ratio card. A failed or timed-out estimator input read is logged once per request, without values.
+/// </summary>
+public sealed class ValuationGaugeTelemetry(ILogger<ValuationGaugeTelemetry>? logger = null) : IValuationGaugeObserver
 {
+    private readonly ILogger _logger = logger ?? (ILogger)NullLogger.Instance;
     public const string MeterName = "FinancialCopilot.ValuationGauges";
     private static readonly Meter Meter = new(MeterName);
     private static readonly Counter<long> Cards = Meter.CreateCounter<long>("valuation_gauge.cards", description: "Projected gauge cards by kind, state and reason.");
     private static readonly Histogram<double> FetchAge = Meter.CreateHistogram<double>("valuation_gauge.snapshot_age", unit: "h", description: "Vendor snapshot fetch age at answer time.");
     private static readonly Histogram<double> Latency = Meter.CreateHistogram<double>("valuation_gauge.latency", unit: "ms", description: "Card generation latency.");
     private static readonly Counter<long> Requests = Meter.CreateCounter<long>("valuation_gauge.requests", description: "Gauge requests by vendor match outcome and usability.");
+    private static readonly Counter<long> Forward = Meter.CreateCounter<long>("valuation_gauge.forward_estimates", description: "Sapio forward estimates by kind, shown and reason.");
+    private static readonly Histogram<double> ForwardLatency = Meter.CreateHistogram<double>("valuation_gauge.forward_read_latency", unit: "ms", description: "Forward-estimate input read latency.");
 
     public void CardProjected(ValuationGaugeKind kind, ValuationGaugeCardState state, string reasonCode, TimeSpan? fetchAge)
     {
@@ -171,4 +187,14 @@ public sealed class ValuationGaugeTelemetry : IValuationGaugeObserver
         Latency.Record(elapsed.TotalMilliseconds, new TagList { { "match", matchOutcome } });
         Requests.Add(1, new TagList { { "match", matchOutcome }, { "usable", displayableCards > 0 } });
     }
+
+    public void ForwardEstimated(ValuationGaugeKind kind, bool shown, string reasonCode, TimeSpan? readElapsed)
+    {
+        Forward.Add(1, new TagList { { "kind", kind.ToString() }, { "shown", shown }, { "reason", reasonCode } });
+        if (readElapsed is { } elapsed)
+            ForwardLatency.Record(elapsed.TotalMilliseconds, new TagList { { "kind", kind.ToString() } });
+    }
+
+    public void ForwardReadFailed(string reasonCode, TimeSpan elapsed, Exception? error) =>
+        _logger.LogWarning(error, "Valuation gauge forward estimate dropped: {ReasonCode} after {ElapsedMs} ms.", reasonCode, (long)elapsed.TotalMilliseconds);
 }

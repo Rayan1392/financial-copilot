@@ -16,6 +16,7 @@ import {
 } from "@/lib/chat/valuation-gauges";
 import {
   equilibriumCard,
+  forwardFixture,
   gaugeResult,
   ratioCard,
   unavailableCard,
@@ -244,6 +245,122 @@ describe("ValuationGaugeCards ratio card", () => {
     // The active band still follows the needle angle; the table drops the range column.
     expect(screen.getAllByTestId("valuation-gauge-band")[3]).toHaveAttribute("data-active");
     expect(within(card.querySelector("details")!).queryByText("محدوده")).not.toBeInTheDocument();
+  });
+});
+
+// Change «valuation-gauge-forward-ratio»: Sapio's forward estimate, never attributed to the provider.
+describe("ValuationGaugeCards forward estimate", () => {
+  it("draws a dashed needle with a ring, the «(برآورد ساپیو)» chip and the method sentence", () => {
+    render(
+      <ValuationGaugeCards data={gaugeResult([ratioCard("Pe", { forward: forwardFixture() })])} />,
+    );
+
+    const card = screen.getByTestId("valuation-gauge-card-Pe");
+    const needle = within(card).getByTestId("valuation-gauge-forward-needle");
+    expect(needle).toHaveAttribute("data-side", "Inside");
+    expect(needle).toHaveAttribute(
+      "aria-label",
+      "نشانگر خط‌چین: P/E آینده‌نگر (برآورد ساپیو) ۵٫۱۲",
+    );
+    expect(needle.querySelector("title")).toHaveTextContent("P/E آینده‌نگر (برآورد ساپیو) ۵٫۱۲");
+    expect(needle.querySelector("circle")).not.toBeNull();
+    expect(needle.querySelectorAll("line")[1]).toHaveAttribute("stroke-dasharray", "2 3.5");
+    // The ring sits at the server angle, outside the bands.
+    const ring = dialPoint(63.6, 138 + 21, 170, 168);
+    expect(Number(needle.querySelector("circle")!.getAttribute("cx"))).toBeCloseTo(ring.x, 5);
+    expect(Number(needle.querySelector("circle")!.getAttribute("cy"))).toBeCloseTo(ring.y, 5);
+
+    expect(within(card).getByTestId("valuation-gauge-forward")).toHaveTextContent(
+      "P/E آینده‌نگر (برآورد ساپیو) ۵٫۱۲",
+    );
+    expect(within(card).getByTestId("valuation-gauge-forward")).not.toHaveTextContent("تحلیل‌اپ");
+    expect(within(card).getByTestId("valuation-gauge-dial")).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("؛ P/E آینده‌نگر (برآورد ساپیو) ۵٫۱۲"),
+    );
+    expect(within(card).getByTestId("valuation-gauge-forward-method")).toHaveTextContent(
+      "برآورد ساپیو بر پایهٔ فروش ۱۲ ماه اخیر، رشد سالانهٔ ۴ ماه اخیر و میانهٔ حاشیهٔ سود ۸ فصل؛ پیش‌بینی قطعی و توصیهٔ سرمایه‌گذاری نیست.",
+    );
+    // The current needle and the provider source line are unchanged.
+    expect(within(card).getByTestId("valuation-gauge-needle")).toHaveAttribute(
+      "data-side",
+      "Inside",
+    );
+    expect(within(card).getByTestId("valuation-gauge-hero")).toHaveTextContent("۶٫۴۳");
+    expect(within(card).getByTestId("valuation-gauge-source")).toHaveTextContent("تحلیل‌اپ");
+  });
+
+  it("leaves the margin out of the P/S method sentence", () => {
+    render(
+      <ValuationGaugeCards
+        data={gaugeResult([ratioCard("Ps", { forward: forwardFixture("inside", "Ps") })])}
+      />,
+    );
+    const card = screen.getByTestId("valuation-gauge-card-Ps");
+    expect(within(card).getByTestId("valuation-gauge-forward")).toHaveTextContent(
+      "P/S آینده‌نگر (برآورد ساپیو) ۵٫۱۲",
+    );
+    const method = within(card).getByTestId("valuation-gauge-forward-method");
+    expect(method).toHaveTextContent(
+      "برآورد ساپیو بر پایهٔ فروش ۱۲ ماه اخیر و رشد سالانهٔ ۴ ماه اخیر؛",
+    );
+    expect(method).not.toHaveTextContent("حاشیهٔ سود");
+  });
+
+  it.each([
+    ["pinnedAbove", "PinnedAbove", "روی انتهای محور نگه داشته شده است", "۱۴٫۲۵"],
+    ["pinnedBelow", "PinnedBelow", "روی ابتدای محور نگه داشته شده است", "۱٫۴۰"],
+  ] as const)("pins the dashed needle at the axis end when it is %s", (where, side, pin, value) => {
+    render(
+      <ValuationGaugeCards
+        data={gaugeResult([ratioCard("Pe", { forward: forwardFixture(where) })])}
+      />,
+    );
+
+    const card = screen.getByTestId("valuation-gauge-card-Pe");
+    const needle = within(card).getByTestId("valuation-gauge-forward-needle");
+    expect(needle).toHaveAttribute("data-side", side);
+    expect(needle.getAttribute("aria-label")).toContain(pin);
+    expect(within(card).getByTestId("valuation-gauge-forward")).toHaveTextContent(value);
+    expect(within(card).getByTestId("valuation-gauge-needle")).toHaveAttribute(
+      "data-side",
+      "Inside",
+    );
+  });
+
+  it("draws nothing extra without an estimate", () => {
+    render(<ValuationGaugeCards data={gaugeResult([ratioCard("Pe")])} />);
+    const card = screen.getByTestId("valuation-gauge-card-Pe");
+    expect(within(card).queryByTestId("valuation-gauge-forward-needle")).not.toBeInTheDocument();
+    expect(within(card).queryByTestId("valuation-gauge-forward")).not.toBeInTheDocument();
+    expect(within(card).queryByTestId("valuation-gauge-forward-method")).not.toBeInTheDocument();
+    expect(card).not.toHaveTextContent("آینده‌نگر");
+  });
+
+  it.each([
+    ["a value that is not a decimal", { value: "abc" }],
+    ["an angle off the dial", { angle: 400 }],
+    ["an unknown side", { side: "Sideways" }],
+  ])("ignores a malformed estimate with %s and still renders the card", (_, broken) => {
+    const forward = { ...forwardFixture(), ...broken } as unknown as ReturnType<
+      typeof forwardFixture
+    >;
+    render(<ValuationGaugeCards data={gaugeResult([ratioCard("Pe", { forward })])} />);
+
+    const card = screen.getByTestId("valuation-gauge-card-Pe");
+    expect(within(card).queryByTestId("valuation-gauge-forward-needle")).not.toBeInTheDocument();
+    expect(within(card).queryByTestId("valuation-gauge-forward")).not.toBeInTheDocument();
+    expect(within(card).getByTestId("valuation-gauge-hero")).toHaveTextContent("۶٫۴۳");
+  });
+
+  it("ignores an estimate on the equilibrium card", () => {
+    render(
+      <ValuationGaugeCards
+        data={gaugeResult([{ ...equilibriumCard(), forward: forwardFixture() }])}
+      />,
+    );
+    expect(screen.queryByTestId("valuation-gauge-forward-needle")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("valuation-gauge-forward")).not.toBeInTheDocument();
   });
 });
 

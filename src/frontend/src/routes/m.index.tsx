@@ -7,9 +7,12 @@ import { MobileUserBubble, PendingAnswer } from "@/components/mobile/pending-exc
 import { SymbolSheet, type SymbolSheetSubject } from "@/components/mobile/symbol-sheet";
 import { InstallCard } from "@/components/mobile/install-card";
 import { MobileStarterList } from "@/components/mobile/mobile-starter-list";
+import { BottomSheet } from "@/components/mobile/bottom-sheet";
+import { StarterSymbolPicker } from "@/components/app/starter-symbol-picker";
 import { SignedChange } from "@/components/mobile/signed-change";
 import { ReleaseVersionLink } from "@/components/release-notes/release-version-link";
-import { homeStarterPrompts } from "@/lib/chat/starter-prompts";
+import { homeStarterPrompts, starterPickerSymbols } from "@/lib/chat/starter-prompts";
+import { useStarterSelection } from "@/lib/chat/use-starter-selection";
 import { useChatCapabilityAvailability } from "@/lib/chat/use-capability-availability";
 import { formatNumber } from "@/lib/format/persian";
 import { useStartChat } from "@/lib/chat/use-start-chat";
@@ -64,9 +67,10 @@ function MobileNewChat() {
 
   const failure = startChat.failure;
   const exchangeText = startChat.pendingMessage ?? failure?.draft ?? null;
-  // The fixed starter cards; watchlist personalization is switched off in starter-prompts.ts. An optional card (the
-  // valuation gauges) is shown only while the API reports its capability available.
-  const starters = homeStarterPrompts(watchlist.followed, { valuationGaugeCards }).prompts;
+  // The starter cards; an optional card (the valuation gauges) is shown only while the API reports its capability
+  // available. A symbol card opens the symbol picker, which offers the watchlist symbols first.
+  const starters = homeStarterPrompts({ valuationGaugeCards });
+  const starter = useStarterSelection(submit);
   const symbols = watchlist.join?.rows ?? [];
 
   return (
@@ -99,7 +103,7 @@ function MobileNewChat() {
           <MobileStarterList
             prompts={starters}
             disabled={startChat.isPending || !online}
-            onSelect={submit}
+            onSelect={starter.select}
           />
           {symbols.length > 0 && (
             <section aria-labelledby="my-symbols" className="mt-5">
@@ -143,6 +147,22 @@ function MobileNewChat() {
           </div>
         </div>
       )}
+      <BottomSheet
+        open={starter.open}
+        onOpenChange={(open) => !open && starter.close()}
+        title={starter.prompt?.topic ?? ""}
+        onCloseAutoFocus={starter.restoreFocus}
+        fullHeight
+      >
+        {starter.prompt && (
+          <StarterSymbolPicker
+            key={starter.prompt.id}
+            prompt={starter.prompt}
+            watchlistSymbols={starterPickerSymbols(watchlist.followed)}
+            onPick={starter.pick}
+          />
+        )}
+      </BottomSheet>
       <SymbolSheet
         subject={sheetSubject}
         onOpenChange={(open) => !open && setSheetSubject(null)}

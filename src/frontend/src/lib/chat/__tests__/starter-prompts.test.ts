@@ -1,148 +1,128 @@
 import { describe, expect, it } from "vitest";
 import {
-  availableStarterPrompts,
   homeStarterPrompts,
-  personalizedStarterPrompts,
+  STARTER_PICKER_WATCHLIST_LIMIT,
   STARTER_PROMPTS,
-  WATCHLIST_STARTER_PROMPTS_ENABLED,
+  starterPickerSymbols,
+  starterPromptTitle,
+  type SymbolStarterPrompt,
 } from "../starter-prompts";
 
 const followed = (symbol: string, followedAtUtc: string) => ({ symbol, followedAtUtc });
+const symbolCards = STARTER_PROMPTS.filter(
+  (prompt): prompt is SymbolStarterPrompt => prompt.kind === "symbol",
+);
 
-describe("homeStarterPrompts", () => {
-  it("shows the fixed eight cards whatever the watchlist holds while personalization is off", () => {
-    expect(WATCHLIST_STARTER_PROMPTS_ENABLED).toBe(false);
-
-    const set = homeStarterPrompts([
-      followed("ثبهساز", "2026-11-06T10:00:00Z"),
-      followed("فاذر", "2026-11-05T10:00:00Z"),
+// Change «starter-cards-symbol-picker»: six cards ask for the symbol, three send in one tap.
+describe("the starter card kinds", () => {
+  it("shows a symbol-free label with the «نماد» slot on the six symbol cards", () => {
+    expect(symbolCards.map((prompt) => [prompt.id, starterPromptTitle(prompt)])).toEqual([
+      ["valuation-gauges", "گیج‌های ارزش‌گذاری نماد"],
+      ["monthly-sales", "روند فروش ماهانه نماد"],
+      ["industry-comparison", "مقایسه نماد با صنعت"],
+      ["quarterly-report", "عملکرد مالی فصلی نماد"],
+      ["balance-sheet", "صورت وضعیت مالی نماد"],
+      ["cash-flow", "جریان وجه نقد نماد"],
     ]);
-
-    expect(set.personalized).toBe(false);
-    expect(set.prompts).toEqual(availableStarterPrompts());
-    expect(set.prompts).toHaveLength(8);
-    expect(set.prompts.every((prompt) => !prompt.text.includes("ثبهساز"))).toBe(true);
-  });
-});
-
-describe("personalizedStarterPrompts", () => {
-  it("falls back to the current static cards when the watchlist is empty", () => {
-    const set = personalizedStarterPrompts([]);
-
-    expect(set.personalized).toBe(false);
-    expect(set.prompts).toEqual(availableStarterPrompts());
+    for (const prompt of symbolCards)
+      expect(starterPromptTitle(prompt)).not.toContain(prompt.exampleSymbol);
   });
 
-  it("keeps the same capability cards and only swaps in watchlist symbols, newest first", () => {
-    const set = personalizedStarterPrompts([
-      followed("شگل", "2026-11-01T10:00:00Z"),
-      followed("فاذر", "2026-11-05T10:00:00Z"),
-      followed("کگهر", "2026-11-03T10:00:00Z"),
-      followed("اخابر", "2026-11-04T10:00:00Z"),
-    ]);
-
-    expect(set.personalized).toBe(true);
-    // Same topics, same order, each once: no capability is dropped or repeated.
-    expect(set.prompts.map((prompt) => prompt.topic)).toEqual(
-      availableStarterPrompts().map((prompt) => prompt.topic),
-    );
-    expect(set.prompts.map((prompt) => prompt.text)).toEqual([
-      // Sales mix stays static by owner decision (not yet reliable for every company).
-      "ترکیب فروش محصولات کگهر را بررسی کن",
-      "روند فروش ماهانه فاذر را نشان بده",
-      // Product card: the product name is company-specific, so its static example stays.
-      "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
-      "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
-      "اخابر را با صنعت خودش مقایسه کن",
-      "عملکرد مالی فصلی کگهر را بررسی کن",
-      "صورت وضعیت مالی شگل را بررسی کن",
-      "جریان وجه نقد فاذر",
-    ]);
-  });
-
-  it("uses a single followed symbol on every card that takes one", () => {
-    const set = personalizedStarterPrompts([followed("فاذر", "2026-11-05T10:00:00Z")]);
-    const texts = set.prompts.map((prompt) => prompt.text);
-
-    expect(texts).toHaveLength(availableStarterPrompts().length);
-    expect(new Set(texts).size).toBe(texts.length);
-    expect(texts).toEqual([
-      "ترکیب فروش محصولات کگهر را بررسی کن",
-      "روند فروش ماهانه فاذر را نشان بده",
-      "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
-      "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
-      "فاذر را با صنعت خودش مقایسه کن",
-      "عملکرد مالی فصلی فاذر را بررسی کن",
+  it("sends, for the example symbol, exactly the question the card sent before the change", () => {
+    expect(symbolCards.map((prompt) => prompt.forSymbol(prompt.exampleSymbol))).toEqual([
+      "گیج‌های ارزش‌گذاری گدنا",
+      "روند فروش ماهانه کگهر را نشان بده",
+      "شاراک را با صنعت خودش مقایسه کن",
+      "عملکرد مالی فصلی فولاد را بررسی کن",
       "صورت وضعیت مالی فاذر را بررسی کن",
-      "جریان وجه نقد فاذر",
+      "جریان وجه نقد اخابر",
     ]);
   });
 
-  it("leaves rights issues (symbol + «ح») out, falling back when only they are followed", () => {
-    const mixed = personalizedStarterPrompts([
-      followed("شگلح", "2026-11-06T10:00:00Z"),
-      followed("شگل", "2026-11-05T10:00:00Z"),
-    ]);
-    expect(mixed.prompts.every((prompt) => !prompt.text.includes("شگلح"))).toBe(true);
-    expect(mixed.prompts[1].text).toBe("روند فروش ماهانه شگل را نشان بده");
+  it("sends the gauge question for the picked symbol, with zero-width non-joiners", () => {
+    const gauge = symbolCards.find((prompt) => prompt.id === "valuation-gauges")!;
 
-    const onlyRights = personalizedStarterPrompts([followed("شگلح", "2026-11-06T10:00:00Z")]);
-    expect(onlyRights.personalized).toBe(false);
-    expect(onlyRights.prompts).toEqual(availableStarterPrompts());
+    expect(gauge.forSymbol("فولاد")).toBe("گیج‌های ارزش‌گذاری فولاد");
   });
 
-  it("ignores blank and repeated symbols", () => {
-    const set = personalizedStarterPrompts([
-      followed(" ", "2026-11-05T10:00:00Z"),
-      followed("کگهر", "2026-11-04T10:00:00Z"),
-      followed("کگهر", "2026-11-03T10:00:00Z"),
-    ]);
+  it("keeps the ranking card and the two fixed examples as one-tap cards (OQ-151)", () => {
+    const direct = STARTER_PROMPTS.flatMap((prompt) =>
+      prompt.kind === "direct" ? [[prompt.id, prompt.text, prompt.example ?? false]] : [],
+    );
 
-    expect(set.prompts[1].text).toBe("روند فروش ماهانه کگهر را نشان بده");
-    expect(set.prompts.every((prompt) => !prompt.text.includes("  "))).toBe(true);
+    expect(direct).toEqual([
+      ["sales-mix", "ترکیب فروش محصولات کگهر را بررسی کن", true],
+      ["product-trend", "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟", true],
+      ["ranking", "رتبه‌بندی گزارش‌های ماهانه را نشان بده", false],
+    ]);
   });
 });
 
 // Change «valuation-gauge-starter-card»: the gauge card is shown first, and only while the API reports it available.
-describe("the valuation gauge starter card", () => {
+describe("homeStarterPrompts", () => {
   const eight = [
-    "ترکیب فروش محصولات کگهر را بررسی کن",
-    "روند فروش ماهانه کگهر را نشان بده",
-    "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
-    "رتبه‌بندی گزارش‌های ماهانه را نشان بده",
-    "شاراک را با صنعت خودش مقایسه کن",
-    "عملکرد مالی فصلی فولاد را بررسی کن",
-    "صورت وضعیت مالی فاذر را بررسی کن",
-    "جریان وجه نقد اخابر",
+    "sales-mix",
+    "monthly-sales",
+    "product-trend",
+    "ranking",
+    "industry-comparison",
+    "quarterly-report",
+    "balance-sheet",
+    "cash-flow",
   ];
 
-  it("comes first with nine cards while gauge cards are available", () => {
-    const set = homeStarterPrompts([], { valuationGaugeCards: true });
+  it("puts the gauge card first, with nine cards, while gauge cards are available", () => {
+    const prompts = homeStarterPrompts({ valuationGaugeCards: true });
 
-    expect(set.prompts.map((prompt) => prompt.text)).toEqual(["گیج‌های ارزش‌گذاری گدنا", ...eight]);
-    expect(set.prompts[0]).toMatchObject({
-      id: "valuation-gauges",
+    expect(prompts.map((prompt) => prompt.id)).toEqual(["valuation-gauges", ...eight]);
+    expect(prompts[0]).toMatchObject({
       topic: "ارزش‌گذاری",
       detail: "P/E · P/S · قیمت تعادلی",
       tone: "valuation",
       featured: true,
     });
-    expect(new Set(set.prompts.map((prompt) => prompt.id)).size).toBe(9);
   });
 
   it.each([undefined, {}, { valuationGaugeCards: false }])(
-    "leaves today's eight cards in today's order otherwise (%o)",
+    "leaves the other eight cards in their order otherwise (%o)",
     (availability) => {
-      expect(homeStarterPrompts([], availability).prompts.map((prompt) => prompt.text)).toEqual(
-        eight,
-      );
+      expect(homeStarterPrompts(availability).map((prompt) => prompt.id)).toEqual(eight);
     },
   );
+});
 
-  it("sends the routed phrase with zero-width non-joiners", () => {
-    const gauge = STARTER_PROMPTS.find((prompt) => prompt.id === "valuation-gauges")!;
+describe("starterPickerSymbols", () => {
+  it("lists the watchlist symbols newest first", () => {
+    expect(
+      starterPickerSymbols([
+        followed("شگل", "2026-11-01T10:00:00Z"),
+        followed("فاذر", "2026-11-05T10:00:00Z"),
+        followed("کگهر", "2026-11-03T10:00:00Z"),
+      ]),
+    ).toEqual(["فاذر", "کگهر", "شگل"]);
+  });
 
-    expect(gauge.text).toBe("گیج‌های ارزش‌گذاری گدنا");
-    expect(gauge.forSymbol?.("شاراک")).toBe("گیج‌های ارزش‌گذاری شاراک");
+  it("leaves out rights issues (symbol + «ح»), blank and repeated symbols", () => {
+    expect(
+      starterPickerSymbols([
+        followed("شگلح", "2026-11-06T10:00:00Z"),
+        followed(" ", "2026-11-05T10:00:00Z"),
+        followed(" کگهر ", "2026-11-04T10:00:00Z"),
+        followed("کگهر", "2026-11-03T10:00:00Z"),
+      ]),
+    ).toEqual(["کگهر"]);
+  });
+
+  it("offers at most eight symbols", () => {
+    const many = Array.from({ length: 12 }, (_, index) =>
+      followed(`نماد${index}`, `2026-11-${String(index + 1).padStart(2, "0")}T10:00:00Z`),
+    );
+
+    expect(starterPickerSymbols(many)).toHaveLength(STARTER_PICKER_WATCHLIST_LIMIT);
+    expect(starterPickerSymbols(many)[0]).toBe("نماد11");
+  });
+
+  it("is empty for an empty watchlist", () => {
+    expect(starterPickerSymbols([])).toEqual([]);
   });
 });

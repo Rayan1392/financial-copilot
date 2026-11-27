@@ -1,6 +1,10 @@
 import { Fragment } from "react";
 import { ArrowLeft } from "lucide-react";
-import type { StarterPrompt, StarterPromptTone } from "@/lib/chat/starter-prompts";
+import {
+  STARTER_SYMBOL_SLOT,
+  type StarterPrompt,
+  type StarterPromptTone,
+} from "@/lib/chat/starter-prompts";
 
 /** Theme-aware classes per card tone; literal strings so Tailwind keeps them. */
 const STARTER_TONE_CLASSES: Record<
@@ -35,7 +39,10 @@ const STARTER_TONE_CLASSES: Record<
 const CARD_BASE =
   "group relative flex items-center overflow-hidden rounded-2xl border border-border py-3.5 pe-4 ps-5 text-right shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0";
 
-/** One new-chat suggestion card on the desktop landing page; clicking sends `prompt.text`. */
+/**
+ * One new-chat suggestion card on the desktop landing page. Selecting a direct card sends its question; a symbol card
+ * opens the symbol picker, which the page hosts.
+ */
 export function StarterCard({
   prompt,
   disabled,
@@ -43,7 +50,7 @@ export function StarterCard({
 }: {
   prompt: StarterPrompt;
   disabled: boolean;
-  onSelect: (text: string) => void;
+  onSelect: (prompt: StarterPrompt) => void;
 }) {
   const tone = STARTER_TONE_CLASSES[prompt.tone];
   const Icon = prompt.icon;
@@ -52,8 +59,9 @@ export function StarterCard({
   return (
     <button
       type="button"
-      onClick={() => onSelect(prompt.text)}
+      onClick={() => onSelect(prompt)}
       disabled={disabled}
+      aria-haspopup={prompt.kind === "symbol" ? "dialog" : undefined}
       className={`${CARD_BASE} min-h-[5.25rem] gap-3.5 bg-gradient-to-l from-surface to-surface-2/60 ${tone.card}`}
     >
       <span
@@ -77,13 +85,48 @@ export function StarterCard({
 function StarterCardText({ prompt, topicClass }: { prompt: StarterPrompt; topicClass: string }) {
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span className={`text-[11px] font-semibold tracking-wide ${topicClass}`}>
-        {prompt.topic}
+      <span className="flex items-center gap-1.5">
+        <span className={`text-[11px] font-semibold tracking-wide ${topicClass}`}>
+          {prompt.topic}
+        </span>
+        {prompt.kind === "direct" && prompt.example && <StarterExampleMark />}
       </span>
       <span className="text-sm font-medium leading-6 text-foreground text-pretty">
-        {prompt.text}
+        <StarterPromptPhrase prompt={prompt} />
       </span>
       {prompt.detail && <StarterCardDetail detail={prompt.detail} />}
+    </span>
+  );
+}
+
+/**
+ * The phrase on a card: a direct card's question, or a symbol card's label with the «نماد» slot drawn as a dashed
+ * pill, which tells the user that a symbol is asked for next.
+ */
+export function StarterPromptPhrase({ prompt }: { prompt: StarterPrompt }) {
+  if (prompt.kind === "direct") return <>{prompt.text}</>;
+  return (
+    <>
+      {prompt.label.before}
+      <span
+        className="inline-block rounded-md border border-dashed border-muted-foreground/60 px-1.5 text-[0.85em] font-normal leading-[1.5] text-muted-foreground"
+        data-testid="starter-symbol-slot"
+      >
+        {STARTER_SYMBOL_SLOT}
+      </span>
+      {prompt.label.after}
+    </>
+  );
+}
+
+/** Marks a card whose question names one fixed symbol (OQ-151). */
+export function StarterExampleMark({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`rounded-full border border-border px-1.5 text-[10px] leading-4 text-muted-foreground ${className}`}
+      data-testid="starter-example-mark"
+    >
+      نمونه
     </span>
   );
 }
@@ -125,14 +168,15 @@ function FeaturedStarterCard({
 }: {
   prompt: StarterPrompt;
   disabled: boolean;
-  onSelect: (text: string) => void;
+  onSelect: (prompt: StarterPrompt) => void;
 }) {
   const tone = STARTER_TONE_CLASSES[prompt.tone];
   return (
     <button
       type="button"
-      onClick={() => onSelect(prompt.text)}
+      onClick={() => onSelect(prompt)}
       disabled={disabled}
+      aria-haspopup={prompt.kind === "symbol" ? "dialog" : undefined}
       data-featured=""
       className={`${CARD_BASE} min-h-[6.5rem] gap-4 bg-gradient-to-l from-surface via-surface to-valuation/8 md:col-span-2 ${tone.card}`}
     >

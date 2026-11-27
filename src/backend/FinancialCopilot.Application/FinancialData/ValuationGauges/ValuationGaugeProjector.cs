@@ -62,7 +62,7 @@ public static class ValuationGaugeProjector
         ValuationGaugeGeometry? geometry = null;
         if (renderable)
         {
-            var anchors = new[] { start!.Value, min!.Value, (min.Value + average!.Value) / 2m, average.Value, (average.Value + max!.Value) / 2m, max.Value, end!.Value };
+            var anchors = RatioAnchors(start!.Value, min!.Value, average!.Value, max!.Value, end!.Value);
             // Provider strings for the five provider anchors; the two split points are display geometry.
             var edges = new[] { snapshot.Start, snapshot.Min, Format(anchors[2]), snapshot.Average, Format(anchors[4]), snapshot.Max, snapshot.End };
             var sectors = Enumerable.Range(0, 6).Select(order => new ValuationGaugeSector(
@@ -110,6 +110,42 @@ public static class ValuationGaugeProjector
         return new ValuationGaugeCard(kind, state, reason, Source, snapshot.FetchedAtUtc, Ratio: facts, Geometry: geometry,
             Insights: RatioInsights(current, average, geometry?.Needle, shares, percentageDecimals));
     }
+
+    /// <summary>
+    /// Attaches Sapio's forward estimate to a displayable ratio card with a rendered dial. The value is rounded to two
+    /// decimals and placed with the same angle and pin rule as the current needle; nothing else on the card changes.
+    /// A card without a rendered dial is returned unchanged.
+    /// </summary>
+    public static ValuationGaugeCard WithForward(ValuationGaugeCard card, decimal forwardValue, ForwardRatioEstimate estimate)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        ArgumentNullException.ThrowIfNull(estimate);
+        if (card.Kind == ValuationGaugeKind.Equilibrium || !card.IsDisplayable() || card.Ratio is not { } ratio || card.Geometry is null ||
+            Parse(ratio.Start) is not { } start || Parse(ratio.Min) is not { } min || Parse(ratio.Average) is not { } average ||
+            Parse(ratio.Max) is not { } max || Parse(ratio.End) is not { } end ||
+            estimate is not { GrowthFactor: { } growth, LatestSalesMonthEnd: { } latestMonth, LatestQuarterEnd: { } latestQuarter })
+            return card;
+
+        var value = decimal.Round(forwardValue, 2, MidpointRounding.AwayFromZero);
+        var side = value < start ? ValuationGaugeNeedleSide.PinnedBelow
+            : value > end ? ValuationGaugeNeedleSide.PinnedAbove
+            : ValuationGaugeNeedleSide.Inside;
+        var margin = card.Kind == ValuationGaugeKind.Pe && estimate.Margin is { } median ? Percent(median) : null;
+        var forward = new ValuationGaugeForwardEstimate(
+            value.ToString("F2", CultureInfo.InvariantCulture),
+            Angle(value, RatioAnchors(start, min, average, max, end), RatioAnchorAngles),
+            side,
+            ForwardRatioEstimator.MethodVersion,
+            decimal.Round(growth, 4, MidpointRounding.AwayFromZero).ToString("F4", CultureInfo.InvariantCulture),
+            margin,
+            latestMonth,
+            latestQuarter);
+        return card with { Forward = forward };
+    }
+
+    /// <summary>The seven ratio anchors: the five provider values and the two display split points.</summary>
+    private static decimal[] RatioAnchors(decimal start, decimal min, decimal average, decimal max, decimal end) =>
+        [start, min, (min + average) / 2m, average, (average + max) / 2m, max, end];
 
     /// <summary>
     /// Distance to the average needs a current value and a positive average. The band figures need an inside needle

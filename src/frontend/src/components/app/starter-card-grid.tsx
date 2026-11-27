@@ -12,7 +12,7 @@ export function StarterCardGrid({
 }: {
   prompts: readonly StarterPrompt[];
   disabled: boolean;
-  onSelect: (text: string) => void;
+  onSelect: (prompt: StarterPrompt) => void;
 }) {
   const ordered = [
     ...prompts.filter((prompt) => prompt.featured),
@@ -24,7 +24,7 @@ export function StarterCardGrid({
       data-testid="starter-card-grid"
     >
       {ordered.map((prompt) => (
-        <StarterCard key={prompt.text} prompt={prompt} disabled={disabled} onSelect={onSelect} />
+        <StarterCard key={prompt.id} prompt={prompt} disabled={disabled} onSelect={onSelect} />
       ))}
     </div>
   );

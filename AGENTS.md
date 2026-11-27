@@ -12,7 +12,9 @@ this file adds agent-neutral pointers and does not duplicate it.
   material). Persian sample questions, symbols, or UI text inside a request are product input and do not by
   themselves make the message Persian.
 - The same applies to progress reports, technical explanations, questions, and task completion summaries
-  within that conversation turn.
+  within that conversation turn, and to every short message: updates between tool calls, status notes while
+  waiting for background work, and replies to brief prompts such as «ادامه بده». Once the owner writes in Persian,
+  keep replying in Persian until they write in English or ask for another language.
 - Code, identifiers, file and folder names, commit messages, and technical terms in backticks stay English
   in every language.
 - Use English for newly created technical specifications, implementation plans, task descriptions, and

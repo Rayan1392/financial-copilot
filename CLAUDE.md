@@ -2,6 +2,15 @@
 
 read [README](README.md)
 
+## Reply Language
+
+- When the owner writes in Persian, reply in Persian. This covers every message you write in that conversation:
+  short replies to short messages such as «ادامه بده», progress updates between tool calls, questions, status notes
+  while waiting for background work, and the final report.
+- Reply in English only when the owner writes in English or asks for English.
+- Code, identifiers, file names, commit messages and new technical specs stay English. Full rule: "Agent
+  Communication Language" in [AGENTS.md](AGENTS.md).
+
 ## Rules to read before coding
 
 - `.claude/rules/clean-architecture.mini.md`

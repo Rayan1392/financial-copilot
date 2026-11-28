@@ -59,7 +59,8 @@ internal sealed class MessagePersistenceFunction(
         FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisRun? groundedAnalysisRun = null,
         IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? externalSources = null,
         bool? groundedAnalysisAvailable = null,
-        FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? valuationGaugeCards = null)
+        FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? valuationGaugeCards = null,
+        FinancialCopilot.Application.FinancialData.Options.OptionComparison? optionComparison = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -144,7 +145,8 @@ internal sealed class MessagePersistenceFunction(
                     GroundedAnalysisRun: groundedAnalysisRun,
                     ExternalSources: externalSources,
                     GroundedAnalysisAvailable: groundedAnalysisAvailable,
-                    ValuationGaugeCards: valuationGaugeCards)),
+                    ValuationGaugeCards: valuationGaugeCards,
+                    OptionComparison: optionComparison)),
             createConversation,
             cancellationToken);
         return persisted with { SuggestedActions = suggestions };

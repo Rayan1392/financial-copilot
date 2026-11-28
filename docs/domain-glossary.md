@@ -294,6 +294,18 @@ This list is illustrative only. EPS, P/E, margins, growth measures, and cash-flo
 - **Effective purchase cost:** strike price + best ask of a call; the cost per share of buying the call and exercising it.
 - **Premium over spot:** (effective purchase cost − underlying last price) ÷ underlying last price.
 - **Call exercise ranking:** the calls of one underlying and expiry ordered by ascending effective purchase cost. A call is ranked only when its best ask has volume for the requested number of contracts and the order book was observed in the underlying's latest trading session.
+- **Fill price:** the volume-weighted price of buying (ask side) or writing (bid side) a number of contracts across order-book levels 1 to 5. A contract is fillable when those levels hold that many contracts.
+- **Intrinsic value:** for a call, underlying price − strike when positive, otherwise zero.
+- **Time value:** fill price − intrinsic value.
+- **Implied annual rate:** time value ÷ strike × 365 ÷ days to expiry, for an in-the-money call: the yearly price of deferring the strike payment until expiry.
+- **Leverage (option):** underlying price ÷ fill price of the call.
+- **Effective sale price:** strike after exercise fee and transfer tax, minus the price paid for the put; what a share is sold for through the put.
+- **Covered call (کاورد کال):** writing a call against a held share. Premium income is the fill bid after the trade fee; yield is quoted for the exercised and the not-exercised case.
+- **Downside cushion:** premium income ÷ underlying price: how far the share can fall before a covered call loses against today's price.
+- **Option fees:** trade fee on the premium, exercise fee on the strike, and transfer tax on the strike for the side that delivers a share (none for fund units). Rates are configuration (`OptionAnswers`).
+- **Theoretical price:** Black–Scholes price of a European option from the underlying price, strike, days to expiry, the configured risk-free rate and the underlying's historical volatility. Informational, never a target.
+- **Implied volatility:** the volatility at which the theoretical price equals the fill price.
+- **Option comparison (Feature 168):** the assistant answer that lists the calls, puts or covered calls of one underlying per expiry with these measures and neutral highlights. It compares and does not rank by quality.
 - **Instrument stub:** an instrument row created from a feed that carries no symbol; its symbol is the numeric instrument code until the daily trade feed or the instruments sync names it.
 
 ## Ambiguity Rules

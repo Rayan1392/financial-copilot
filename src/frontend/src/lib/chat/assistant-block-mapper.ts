@@ -50,6 +50,7 @@ export function mapAssistantBlock(
     monthlyProductTrendResult: content?.monthlyProductTrendResult,
     symbolSnapshotResult: content?.symbolSnapshotResult,
     valuationGaugeCards: content?.valuationGaugeCards ?? undefined,
+    optionComparison: content?.optionComparison ?? undefined,
     disclosureListingResult: content?.disclosureListingResult,
     psVisualizationResult: content?.psVisualizationResult,
     financialStatementAnalysisResult,

@@ -34,10 +34,10 @@ function NewChatPage() {
   // The starter cards; an optional card (the valuation gauges) is shown only while the API reports its capability
   // available. A symbol card opens the symbol picker, which offers the watchlist symbols first.
   const followed = useFollowedSymbols();
-  const { valuationGaugeCards } = useChatCapabilityAvailability();
+  const { valuationGaugeCards, optionComparison } = useChatCapabilityAvailability();
   const starterPrompts = useMemo(
-    () => homeStarterPrompts({ valuationGaugeCards }),
-    [valuationGaugeCards],
+    () => homeStarterPrompts({ valuationGaugeCards, optionComparison }),
+    [valuationGaugeCards, optionComparison],
   );
   const watchlistSymbols = useMemo(
     () => starterPickerSymbols(followed.data?.symbols ?? []),

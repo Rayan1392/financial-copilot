@@ -55,7 +55,9 @@ public sealed class AiFacadeController(
     public ActionResult<ChatCapabilityAvailabilityHttpResponse> GetCapabilityAvailability() =>
         Ok(new ChatCapabilityAvailabilityHttpResponse(
             ValuationGaugeCards: routingScope?.IsActive == true &&
-                capabilityAvailability?.EvaluateForV2(CapabilityExecutionRoutes.ValuationGauges, ValuationGaugeCapability.Code).IsAvailable == true));
+                capabilityAvailability?.EvaluateForV2(CapabilityExecutionRoutes.ValuationGauges, ValuationGaugeCapability.Code).IsAvailable == true,
+            OptionComparison: routingScope?.IsActive == true &&
+                capabilityAvailability?.EvaluateForV2(CapabilityExecutionRoutes.OptionComparison, OptionComparisonCapability.Code).IsAvailable == true));
 
     [HttpPost("query")]
     public async Task<ActionResult<AiQueryHttpResponse>> Query(

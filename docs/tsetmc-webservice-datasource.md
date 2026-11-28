@@ -181,7 +181,7 @@ as the name, and the sync does not store the raw payload.
 | Check | Result |
 |---|---|
 | `Option` | 1,867 contracts, 89 underlyings, no expired contract, expiries 2026-11-28 to 2028-05-10. `BuyOP` equals `SellOP` on every row. One row has a non-positive strike. Contract size 1,000 on 1,762 rows. |
-| Side | 897 calls and 897 puts by ISIN prefix; the symbol prefix agrees on every one. 73 other rows. |
+| Side | 897 calls and 897 puts by ISIN prefix; the symbol prefix agrees on every one. 73 other rows. The listed calls and puts are written on 31 underlyings (20 shares with `IRO…` ISINs, 11 tradable funds with `IRT…`); the other 58 underlyings belong to the 73 unlisted kinds. |
 | `Instrument(Flow = 3)` | 64,693 rows, 3,130 valid, 2,044 valid listed options. Contains all `Option` contracts; 1,768 of the 1,794 listed ones are valid. Underlyings are not in flow 3. |
 | `BestLimitsAllIns(Flow = 3)` | 8,877 rows for 1,899 instruments. 1,557 option contracts have at least one level, 923 have a level-1 ask. 342 instruments are not option contracts. No level-1 ask below its bid. |
 | `TradeLastDay(Flow = 3)` | 644 rows; 633 are option contracts. |

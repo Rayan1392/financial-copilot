@@ -10,7 +10,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Options;
 /// Builds the option chain of one underlying from the stored contracts, order book and quotes
 /// (Feature 167). Read-only; a fixed number of queries per call regardless of chain size.
 /// </summary>
-public sealed class EfCoreOptionChainReader(
+public sealed partial class EfCoreOptionChainReader(
     FinancialIngestionDbContext dbContext,
     TimeProvider timeProvider) : IOptionChainReader
 {

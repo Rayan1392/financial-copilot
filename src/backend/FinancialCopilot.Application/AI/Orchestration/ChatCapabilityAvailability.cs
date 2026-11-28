@@ -59,7 +59,8 @@ public interface IChatCapabilityAvailability
 /// There is no fallback between providers: an unavailable capability gets an explicit answer.
 /// </summary>
 public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provider, ChatCapabilitySourceMap sources,
-    bool cyclicalWavesV2RelativeValuationEnabled = false, bool valuationGaugeCardsEnabled = false)
+    bool cyclicalWavesV2RelativeValuationEnabled = false, bool valuationGaugeCardsEnabled = false,
+    bool optionAnswersEnabled = false)
     : IChatCapabilityAvailability
 {
     public ChatCapabilityAvailability(FinancialDataChatProvider provider)
@@ -74,6 +75,9 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
     public const string ValuationGaugesUnavailableReasonCode = "valuation_gauges_unavailable";
     public const string ValuationGaugesUnavailableMessageFa = "گیج‌های ارزش‌گذاری در منبع دادهٔ فعال در دسترس نیست.";
     public const string ValuationGaugesUnavailableMessageEn = "Valuation gauges are not available from the active data source.";
+    public const string OptionComparisonUnavailableReasonCode = "option_comparison_unavailable";
+    public const string OptionComparisonUnavailableMessageFa = "پاسخ‌های اختیار معامله در حال حاضر فعال نیست.";
+    public const string OptionComparisonUnavailableMessageEn = "Option answers are not enabled.";
 
     public const string RetiredMessageFa = "این قابلیت به‌دلیل توقف منبع دادهٔ قبلی غیرفعال شده است.";
     public const string UnavailableForProviderMessageFa = "این پرسش با دادهٔ منبع فعال (CyclicalWaves) قابل پاسخ نیست.";
@@ -119,6 +123,12 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
         ValuationGaugesUnavailableMessageFa,
         ValuationGaugesUnavailableMessageEn);
 
+    private static readonly ChatCapabilityAvailabilityOutcome OptionComparisonUnavailable = new(
+        ChatCapabilityAvailabilityStatus.UnavailableForProvider,
+        OptionComparisonUnavailableReasonCode,
+        OptionComparisonUnavailableMessageFa,
+        OptionComparisonUnavailableMessageEn);
+
     private static readonly ChatCapabilityAvailabilityOutcome ComprehensiveAnalysisUnavailable = new(
         ChatCapabilityAvailabilityStatus.UnavailableForProvider,
         ComprehensiveAnalysisUnavailableReasonCode,
@@ -146,6 +156,10 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
                 : ValuationGaugesUnavailable;
         }
 
+        // Feature 168: option answers read stored TSETMC option data, whatever the chat provider; behind OptionAnswers:Enabled.
+        if (executionRoute == CapabilityExecutionRoutes.OptionComparison)
+            return optionAnswersEnabled ? ChatCapabilityAvailabilityOutcome.Available : OptionComparisonUnavailable;
+
         // Feature 159: an overridden capability is judged by its own source's matrix.
         return SourceFor(executionRoute) switch
         {
@@ -170,6 +184,7 @@ public sealed class ChatCapabilityAvailability(FinancialDataChatProvider provide
     {
         RetiredReasonCode => persian ? RetiredMessageFa : RetiredMessageEn,
         ValuationGaugesUnavailableReasonCode => persian ? ValuationGaugesUnavailableMessageFa : ValuationGaugesUnavailableMessageEn,
+        OptionComparisonUnavailableReasonCode => persian ? OptionComparisonUnavailableMessageFa : OptionComparisonUnavailableMessageEn,
         UnavailableForProviderReasonCode => persian ? UnavailableForProviderMessageFa : UnavailableForProviderMessageEn,
         ComprehensiveAnalysisUnavailableReasonCode => persian
             ? ComprehensiveAnalysisUnavailableMessageFa

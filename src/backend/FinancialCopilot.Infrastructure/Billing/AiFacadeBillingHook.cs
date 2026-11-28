@@ -307,7 +307,8 @@ public sealed class AiFacadeBillingHook(
         var fixedCredits = (groundedAnalysisPricing is null
                 ? null
                 : GroundedAnalysisBillingPolicy.FixedCredits(request.CompletionStatus, groundedAnalysisPricing))
-            ?? ValuationGaugeBillingPolicy.FixedCredits(request.CompletionStatus);
+            ?? ValuationGaugeBillingPolicy.FixedCredits(request.CompletionStatus)
+            ?? OptionComparisonBillingPolicy.FixedCredits(request.CompletionStatus);
         if (fixedCredits is { } tierCredits)
         {
             charge = charge with { CreditsCharged = tierCredits };

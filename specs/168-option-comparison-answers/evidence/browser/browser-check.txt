@@ -1,0 +1,16 @@
+ok - calls/dark/1280px: no page overflow, min contrast 4.80:1
+ok - calls/dark/390px: no page overflow, min contrast 4.80:1
+ok - calls/dark/360px: no page overflow, min contrast 4.80:1
+ok - calls/dark/320px: no page overflow, min contrast 4.80:1
+ok - calls/light/1280px: no page overflow, min contrast 6.59:1
+ok - calls/light/390px: no page overflow, min contrast 6.59:1
+ok - calls/light/360px: no page overflow, min contrast 6.59:1
+ok - calls/light/320px: no page overflow, min contrast 6.59:1
+ok - stale/dark/1280px: no page overflow, min contrast 4.80:1
+ok - stale/dark/390px: no page overflow, min contrast 4.80:1
+ok - stale/dark/360px: no page overflow, min contrast 4.80:1
+ok - stale/dark/320px: no page overflow, min contrast 4.80:1
+ok - stale/light/1280px: no page overflow, min contrast 6.59:1
+ok - stale/light/390px: no page overflow, min contrast 6.59:1
+ok - stale/light/360px: no page overflow, min contrast 6.59:1
+ok - stale/light/320px: no page overflow, min contrast 6.59:1

@@ -11,6 +11,7 @@ import {
 import { symbolAnalysisPrompts } from "@/lib/chat/symbol-prompts";
 import { useOpenNewChat } from "@/lib/chat/new-chat-intent";
 import { useChatCapabilityAvailability } from "@/lib/chat/use-capability-availability";
+import { useHasListedOptions } from "@/lib/chat/use-option-underlyings";
 
 /**
  * Desktop counterpart of the mobile symbol sheet: the same analysis prompts (one owner, `symbol-prompts.ts`) and a
@@ -27,6 +28,7 @@ export function SymbolActionsMenu({
 }) {
   const { ask, askAbout } = useOpenNewChat("/chat");
   const { valuationGaugeCards } = useChatCapabilityAvailability();
+  const optionCalls = useHasListedOptions(symbol);
   return (
     <DropdownMenu dir="rtl">
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
@@ -40,12 +42,14 @@ export function SymbolActionsMenu({
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {symbolAnalysisPrompts(symbol, { valuationGauges: valuationGaugeCards }).map((prompt) => (
-          <DropdownMenuItem key={prompt.id} onSelect={() => ask(prompt.text)}>
-            <Sparkles className="size-3.5 text-emerald" aria-hidden="true" />
-            {prompt.text}
-          </DropdownMenuItem>
-        ))}
+        {symbolAnalysisPrompts(symbol, { valuationGauges: valuationGaugeCards, optionCalls }).map(
+          (prompt) => (
+            <DropdownMenuItem key={prompt.id} onSelect={() => ask(prompt.text)}>
+              <Sparkles className="size-3.5 text-emerald" aria-hidden="true" />
+              {prompt.text}
+            </DropdownMenuItem>
+          ),
+        )}
         <DropdownMenuItem onSelect={() => askAbout(symbol)}>
           <MessageSquarePlus className="size-3.5 text-muted-foreground" aria-hidden="true" />
           پرسش دیگری درباره <bdi>{symbol}</bdi>…

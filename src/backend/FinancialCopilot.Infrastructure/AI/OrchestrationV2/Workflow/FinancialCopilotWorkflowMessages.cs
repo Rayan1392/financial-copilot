@@ -94,7 +94,8 @@ internal sealed record AgentExecutedMessage(
      ReportDiscussionTurn? ReportDiscussion = null,
      GroundedAnalysisOfferTurn? OfferTurn = null,
      IndustryRelativeValuationReadModel? IndustryComparison = null,
-     FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
+     FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null,
+     FinancialCopilot.Application.FinancialData.Options.OptionComparison? OptionComparison = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -140,7 +141,8 @@ internal sealed record ResultsComputedMessage(
     FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisOffer? GroundedAnalysisOffer = null,
     // Change «sol-deep-analysis-web-search»: set when this turn resolved a 163 offer action (the dialogue gate did not run).
     GroundedAnalysisOfferTurn? OfferTurn = null,
-    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null,
+    FinancialCopilot.Application.FinancialData.Options.OptionComparison? OptionComparison = null);
 
 /// <summary>Feature 163: what an answered symbol-grounded fallback adds to the persisted turn.</summary>
 internal sealed record SymbolGroundedFallbackAnswer(
@@ -188,4 +190,5 @@ internal sealed record PersistenceCompletedMessage(
     // Change «sol-deep-analysis-web-search»: the response hint (prices, defaults, offer) and an answer's cited sources.
     FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisHint? GroundedAnalysis = null,
     IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null,
-    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null,
+    FinancialCopilot.Application.FinancialData.Options.OptionComparison? OptionComparison = null);

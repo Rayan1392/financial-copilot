@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace FinancialCopilot.Application.FinancialData.Options;
 
 /// <summary>Why a call option is left out of the exercise ranking.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<CallExerciseIneligibility>))]
 public enum CallExerciseIneligibility
 {
     /// <summary>Nobody is offering the contract.</summary>

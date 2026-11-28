@@ -10,6 +10,7 @@ import { mapAssistantBlock } from "@/lib/chat/assistant-block-mapper";
 import type { BalanceSheetReportResult } from "@/components/app/balance-sheet-report/balance-sheet-report-types";
 import type { CashFlowReportResult } from "@/components/app/cash-flow-report/cash-flow-report-types";
 import type { ValuationGaugeCardsResult } from "@/lib/chat/valuation-gauges";
+import type { OptionComparison } from "@/lib/chat/option-comparison";
 
 export interface ChatThread {
   id: string;
@@ -45,6 +46,8 @@ export interface AssistantChatBlock {
   symbolSnapshotResult?: SymbolSnapshotResult | null;
   /** Feature 159 change «standalone-valuation-gauge-cards»: typed P/E, P/S and equilibrium cards (live and history). */
   valuationGaugeCards?: ValuationGaugeCardsResult | null;
+  /** Feature 168: the option comparison of one underlying (live and history). */
+  optionComparison?: OptionComparison | null;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
@@ -468,6 +471,8 @@ export interface AssistantContentResponse {
   symbolSnapshotResult?: SymbolSnapshotResult | null;
   /** Feature 159 change «standalone-valuation-gauge-cards»: typed P/E, P/S and equilibrium cards (live and history). */
   valuationGaugeCards?: ValuationGaugeCardsResult | null;
+  /** Feature 168: the option comparison of one underlying (live and history). */
+  optionComparison?: OptionComparison | null;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   financialStatementAnalysisResult?: FinancialStatementAnalysisResult;
@@ -745,6 +750,8 @@ export const getCapabilityStarterPrompts = createServerFn({ method: "GET" })
 /** Feature 159 change «standalone-valuation-gauge-cards»: which optional chat shortcuts this user may see. */
 export interface ChatCapabilityAvailability {
   valuationGaugeCards: boolean;
+  /** Feature 168: option comparison answers; absent on an older API. */
+  optionComparison?: boolean;
 }
 
 export const getChatCapabilityAvailability = createServerFn({ method: "GET" })
@@ -754,6 +761,13 @@ export const getChatCapabilityAvailability = createServerFn({ method: "GET" })
       context,
       "/api/ai/v1/capabilities/availability",
     ),
+  );
+
+/** Feature 168: symbols that have listed options; decides whether a symbol's option shortcut is offered. */
+export const getOptionUnderlyings = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .handler(async ({ context }) =>
+    financialCopilotServerApi<string[]>(context, "/api/v1/market/options/underlyings"),
   );
 
 function mapThread(row: ConversationSummaryResponse): ChatThread {

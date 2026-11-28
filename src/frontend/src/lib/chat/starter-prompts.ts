@@ -4,6 +4,7 @@ import {
   BarChart3,
   FileText,
   Gauge,
+  Layers,
   ListOrdered,
   PieChart,
   Scale,
@@ -24,10 +25,11 @@ export type StarterPromptId =
   | "industry-comparison"
   | "quarterly-report"
   | "balance-sheet"
-  | "cash-flow";
+  | "cash-flow"
+  | "option-calls";
 
 /** An optional capability the API can switch off; a card that needs one is shown only while it is available. */
-export type StarterPromptCapability = "valuationGaugeCards";
+export type StarterPromptCapability = "valuationGaugeCards" | "optionComparison";
 
 /** What the API reports as available (`useChatCapabilityAvailability`); a missing entry means unavailable. */
 export type StarterPromptAvailability = Partial<Record<StarterPromptCapability, boolean>>;
@@ -97,6 +99,20 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     tone: "valuation",
     featured: true,
     requires: "valuationGaugeCards",
+  },
+  {
+    // Feature 168: the question is the routed phrase «اختیار خرید ‹نماد›». The picker is not restricted: a symbol
+    // without listed options gets a plain sentence from the assistant.
+    id: "option-calls",
+    kind: "symbol",
+    label: { before: "اختیار خرید ", after: "" },
+    exampleSymbol: "اخابر",
+    forSymbol: (s) => `اختیار خرید ${s}`,
+    icon: Layers,
+    topic: "اختیار معامله",
+    detail: "هزینهٔ مؤثر · سربه‌سر · نرخ ضمنی",
+    tone: "valuation",
+    requires: "optionComparison",
   },
   {
     // Kept on one symbol by owner decision: the sales-mix answer is not yet reliable for every company

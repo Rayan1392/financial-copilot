@@ -41,6 +41,8 @@ import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import { SymbolSnapshotCard } from "@/components/app/symbol-snapshot-card";
 import { ValuationGaugeCards } from "@/components/app/valuation-gauge-cards";
+import { OptionComparisonCard } from "@/components/app/option-comparison-card";
+import { optionViewsWithRows } from "@/lib/chat/option-comparison";
 import { AnswerDensityContext, useAnswerDensity } from "@/components/app/answer-density";
 import { AnalysisOfferCard } from "@/components/app/analysis-settings";
 import { withInlineSources } from "@/lib/chat/external-sources";
@@ -233,6 +235,11 @@ function AssistantBlock({
   const valuationGauges = block.valuationGaugeCards?.cards.length
     ? block.valuationGaugeCards
     : null;
+  // Feature 168: the option comparison card replaces its text on screen (the text stays for Telegram and history).
+  const optionComparison =
+    block.optionComparison && optionViewsWithRows(block.optionComparison).length > 0
+      ? block.optionComparison
+      : null;
   // Change «valuation-gauge-answer-image-share»: a gauge answer can leave the app as a picture of its cards. The picture
   // is wide enough for the side-by-side layout, so it shows every card also when the screen shows one at a time.
   const gaugeImage = valuationGauges
@@ -279,7 +286,8 @@ function AssistantBlock({
     !typedBalanceSheet &&
     !typedCashFlow &&
     !symbolSnapshot &&
-    !valuationGauges;
+    !valuationGauges &&
+    !optionComparison;
   // Feature 125 change «comparison-answer-image-share»: an own-industry comparison leaves the app as a picture of the
   // whole answer. The picture is recognised by the parser the screen uses and has a fixed width; inside it the
   // comparison renders its full table, also where the screen shows cards.
@@ -325,7 +333,8 @@ function AssistantBlock({
           typedBalanceSheet ||
           typedCashFlow ||
           symbolSnapshot ||
-          valuationGauges) && (
+          valuationGauges ||
+          optionComparison) && (
           <div className="space-y-1">
             {showsMarkdown && (
               <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
@@ -341,6 +350,7 @@ function AssistantBlock({
               />
             )}
             {valuationGauges && <ValuationGaugeCards data={valuationGauges} />}
+            {optionComparison && <OptionComparisonCard data={optionComparison} />}
             {financialStatementAnalysis && (
               <FinancialStatementAnalysisCard data={financialStatementAnalysis} />
             )}

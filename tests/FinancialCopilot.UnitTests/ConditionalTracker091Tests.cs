@@ -24,6 +24,20 @@ public sealed class ConditionalTracker091Tests
             TimeSpan.Zero, AlertRuleResetPolicy.CrossBack, AlertRuleSessionPolicy.Any, null));
     }
 
+    [Fact]
+    public void Governance_AcceptsTheOptionDiscountRule_OnlyInPercentWithItsCode()
+    {
+        AlertRuleGovernance.Validate(AlertRuleType.OptionDiscount, AlertRuleGovernance.OptionDiscountCode,
+            AlertRuleOperator.GreaterThanOrEqual, AlertRuleUnit.Percent, null);
+
+        Assert.Throws<ArgumentException>(() => AlertRuleGovernance.Validate(
+            AlertRuleType.OptionDiscount, AlertRuleGovernance.OptionDiscountCode, AlertRuleOperator.GreaterThanOrEqual, AlertRuleUnit.Rial, null));
+        Assert.Throws<ArgumentException>(() => AlertRuleGovernance.Validate(
+            AlertRuleType.OptionDiscount, "LATEST_PRICE", AlertRuleOperator.GreaterThanOrEqual, AlertRuleUnit.Percent, null));
+        Assert.Throws<ArgumentException>(() => AlertRuleGovernance.Validate(
+            AlertRuleType.OptionDiscount, AlertRuleGovernance.OptionDiscountCode, AlertRuleOperator.GreaterThanOrEqual, AlertRuleUnit.Percent, 20));
+    }
+
     [Theory]
     [InlineData(AlertRuleType.Price, "LATEST_PRICE", AlertRuleUnit.Rial)]
     [InlineData(AlertRuleType.PercentageChange, "DAILY_CHANGE_PCT", AlertRuleUnit.Percent)]

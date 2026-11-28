@@ -165,6 +165,10 @@ services:
         TsetmcPolling__OptionContractsIntervalSeconds: ${TSETMC_OPTION_CONTRACTS_INTERVAL_SECONDS:-300}
         TsetmcPolling__OptionOrderBookEnabled: ${TSETMC_OPTION_ORDER_BOOK_ENABLED:-false}
         TsetmcPolling__OptionOrderBookIntervalSeconds: ${TSETMC_OPTION_ORDER_BOOK_INTERVAL_SECONDS:-60}
+        # Feature 168: option comparison answers. Off until an operator turns the switch on. The
+        # risk-free rate is the compounded yearly yield of fixed-income funds (OQ-178).
+        OptionAnswers__Enabled: ${OPTION_ANSWERS_ENABLED:-false}
+        OptionAnswers__RiskFreeAnnualRate: ${OPTION_ANSWERS_RISK_FREE_ANNUAL_RATE:-0.415}
         TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
         TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
         CyclicalWaves__BaseAddress: ${CYCLICAL_WAVES_BASE_ADDRESS:-https://back1.cyclicalwaves.com/api/}

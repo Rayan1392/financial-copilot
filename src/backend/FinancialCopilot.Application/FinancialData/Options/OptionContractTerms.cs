@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace FinancialCopilot.Application.FinancialData.Options;
 
 /// <summary>The right an option contract gives its holder.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<OptionSide>))]
 public enum OptionSide
 {
     /// <summary>اختیار خرید: the right to buy the underlying at the strike price.</summary>

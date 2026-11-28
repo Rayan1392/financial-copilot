@@ -36,7 +36,7 @@ function MobileNewChat() {
   const [sheetSubject, setSheetSubject] = useState<SymbolSheetSubject | null>(null);
   const { askAbout } = useOpenNewChat();
   const watchlist = useWatchlistWithNames({ freshness: true });
-  const { valuationGaugeCards } = useChatCapabilityAvailability();
+  const { valuationGaugeCards, optionComparison } = useChatCapabilityAvailability();
   const startChat = useStartChat({
     navigateToThread: (threadId) => {
       markAnswered();
@@ -69,7 +69,7 @@ function MobileNewChat() {
   const exchangeText = startChat.pendingMessage ?? failure?.draft ?? null;
   // The starter cards; an optional card (the valuation gauges) is shown only while the API reports its capability
   // available. A symbol card opens the symbol picker, which offers the watchlist symbols first.
-  const starters = homeStarterPrompts({ valuationGaugeCards });
+  const starters = homeStarterPrompts({ valuationGaugeCards, optionComparison });
   const starter = useStarterSelection(submit);
   const symbols = watchlist.join?.rows ?? [];
 

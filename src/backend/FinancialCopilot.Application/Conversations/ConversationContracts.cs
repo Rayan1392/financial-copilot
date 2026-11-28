@@ -83,7 +83,8 @@ public sealed record AssistantMessagePayload(
     bool? GroundedAnalysisAvailable = null,
     // Feature 159 change «standalone-valuation-gauge-cards»: the cards exactly as answered, replayed from history.
     // Null on every other turn and on old payloads; stays readable after the feature flag is turned off.
-    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null,
+    FinancialCopilot.Application.FinancialData.Options.OptionComparison? OptionComparison = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

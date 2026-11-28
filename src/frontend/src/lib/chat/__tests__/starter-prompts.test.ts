@@ -13,11 +13,13 @@ const symbolCards = STARTER_PROMPTS.filter(
   (prompt): prompt is SymbolStarterPrompt => prompt.kind === "symbol",
 );
 
-// Change «starter-cards-symbol-picker»: six cards ask for the symbol, three send in one tap.
+// Change «starter-cards-symbol-picker»: the symbol cards ask for the symbol, three send in one tap. Feature 168
+// added the option card, so there are seven symbol cards.
 describe("the starter card kinds", () => {
-  it("shows a symbol-free label with the «نماد» slot on the six symbol cards", () => {
+  it("shows a symbol-free label with the «نماد» slot on the seven symbol cards", () => {
     expect(symbolCards.map((prompt) => [prompt.id, starterPromptTitle(prompt)])).toEqual([
       ["valuation-gauges", "گیج‌های ارزش‌گذاری نماد"],
+      ["option-calls", "اختیار خرید نماد"],
       ["monthly-sales", "روند فروش ماهانه نماد"],
       ["industry-comparison", "مقایسه نماد با صنعت"],
       ["quarterly-report", "عملکرد مالی فصلی نماد"],
@@ -31,6 +33,7 @@ describe("the starter card kinds", () => {
   it("sends, for the example symbol, exactly the question the card sent before the change", () => {
     expect(symbolCards.map((prompt) => prompt.forSymbol(prompt.exampleSymbol))).toEqual([
       "گیج‌های ارزش‌گذاری گدنا",
+      "اختیار خرید اخابر",
       "روند فروش ماهانه کگهر را نشان بده",
       "شاراک را با صنعت خودش مقایسه کن",
       "عملکرد مالی فصلی فولاد را بررسی کن",

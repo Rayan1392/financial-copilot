@@ -30,6 +30,7 @@ const STARTER_ICONS: Record<StarterPromptId, MobileIcon> = {
   "quarterly-report": QuarterlyReportIcon,
   "balance-sheet": BalanceSheetIcon,
   "cash-flow": CashFlowIcon,
+  "option-calls": ValuationGaugesIcon,
 };
 
 /** Literal class strings per tone so Tailwind keeps them. */

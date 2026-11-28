@@ -8,7 +8,10 @@ export const CHAT_CAPABILITY_AVAILABILITY_QUERY_KEY = ["chat-capability-availabi
  * the only owner of the decision (flag, source mapping, V2 routing). While the answer is loading, or when the request
  * fails, every optional shortcut stays hidden, so a rollback or an outage never shows a shortcut that would not work.
  */
-export function useChatCapabilityAvailability(): { valuationGaugeCards: boolean } {
+export function useChatCapabilityAvailability(): {
+  valuationGaugeCards: boolean;
+  optionComparison: boolean;
+} {
   const { data } = useQuery({
     queryKey: CHAT_CAPABILITY_AVAILABILITY_QUERY_KEY,
     queryFn: () => getChatCapabilityAvailability(),
@@ -17,5 +20,8 @@ export function useChatCapabilityAvailability(): { valuationGaugeCards: boolean 
     throwOnError: false,
     refetchOnWindowFocus: false,
   });
-  return { valuationGaugeCards: data?.valuationGaugeCards === true };
+  return {
+    valuationGaugeCards: data?.valuationGaugeCards === true,
+    optionComparison: data?.optionComparison === true,
+  };
 }

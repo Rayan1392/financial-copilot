@@ -22,6 +22,8 @@ public static class AiQueryBillingOperationSelector
                 "monthly_activity_trend" or "monthly_product_trend" => MonthlySalesTrendOperationCode,
                 // Standalone valuation gauge cards: one minimum credit per usable answer (OQ-131), however many cards.
                 ValuationGaugeCapability.Code => DefaultOperationCode,
+                // Option comparison: one credit per answer with rows (OQ-173).
+                OptionComparisonCapability.Code => DefaultOperationCode,
                 _ => DefaultOperationCode
             };
         }

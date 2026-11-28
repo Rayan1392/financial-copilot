@@ -210,44 +210,54 @@ the follow-up button, and the tracker list entry for the new rule type. Telegram
 
 Step 1
 
-- [ ] AC-01: With fees 0.001 and 0.0005, strike 1,000, asks 544 × 10 contracts, underlying 1,489: effective purchase cost is 1,545.044, break-even distance 3.8%, time value 55, leverage 2.74.
-- [ ] AC-02: Quantity 15 against asks 544 × 10 and 550 × 10 fills at 546; quantity 25 is "not fillable" with available volume 20; a call with no ask is "no order".
-- [ ] AC-03: Implied annual rate is present only for in-the-money calls with at least 3 days to expiry.
-- [ ] AC-04: Highlights appear only with two or more fillable rows and follow the tie rule.
-- [ ] AC-05: With an order book older than the underlying's session, rows carry trade prices and open interest only and the answer is marked "order book not current".
-- [ ] AC-06: «اختیار خرید اخابر» and «زنجیره اختیار اخابر» route to the call view on the V2 path; «اخابر بخرم؟» does not; with the flag off none of them routes to the capability.
-- [ ] AC-07: Each outcome of requirement 16 returns its sentence and is not charged; an answer with rows is charged one credit.
-- [ ] AC-08: The payload survives persistence: reopening the conversation shows the same card.
-- [ ] AC-09: The web card renders views, expiries, highlights, collapsed empty rows, notes and the not-current state on desktop and `/m`, in both themes, with contrast of at least 4.5:1 for text.
-- [ ] AC-10: The Telegram text of an answer contains the title, underlying price, at most eight rows, highlights, notes and data time, and is valid MarkdownV2.
-- [ ] AC-11: No label, note, text rendering or alert contains «بهترین», «مناسب», «پیشنهاد» or «فرصت» (automated check over the string tables).
-- [ ] AC-12: The starter card, menu item and follow-up button produce a question that routes to the capability; the menu item and follow-up button are absent for a symbol without options and when the capability is unavailable.
+- [x] AC-01: With fees 0.001 and 0.0005, strike 1,000, asks 544 × 10 contracts, underlying 1,489: effective purchase cost is 1,545.044, break-even distance 3.8%, time value 55, leverage 2.74.
+- [x] AC-02: Quantity 15 against asks 544 × 10 and 550 × 10 fills at 546; quantity 25 is "not fillable" with available volume 20; a call with no ask is "no order".
+- [x] AC-03: Implied annual rate is present only for in-the-money calls with at least 3 days to expiry.
+- [x] AC-04: Highlights appear only with two or more fillable rows and follow the tie rule.
+- [x] AC-05: With an order book older than the underlying's session, rows carry trade prices and open interest only and the answer is marked "order book not current".
+- [x] AC-06: «اختیار خرید اخابر» and «زنجیره اختیار اخابر» route to the call view on the V2 path; «اخابر بخرم؟» does not; with the flag off none of them routes to the capability.
+- [x] AC-07: Each outcome of requirement 16 returns its sentence and is not charged; an answer with rows is charged one credit.
+- [x] AC-08: The payload survives persistence: reopening the conversation shows the same card.
+- [x] AC-09: The web card renders views, expiries, highlights, collapsed empty rows, notes and the not-current state on desktop and `/m`, in both themes, with contrast of at least 4.5:1 for text.
+- [~] AC-10 (text content tested; MarkdownV2 validity of an option answer not tested): The Telegram text of an answer contains the title, underlying price, at most eight rows, highlights, notes and data time, and is valid MarkdownV2.
+- [x] AC-11: No label, note, text rendering or alert contains «بهترین», «مناسب», «پیشنهاد» or «فرصت» (automated check over the string tables).
+- [~] AC-12 (starter card and menu item done and tested; follow-up button not done, OQ-185): The starter card, menu item and follow-up button produce a question that routes to the capability; the menu item and follow-up button are absent for a symbol without options and when the capability is unavailable.
 
 Step 2
 
-- [ ] AC-13: Put on a share, strike 1,400, fill ask 20: effective sale price is 1,400 × (1 − 0.0055) − 20.02 = 1,372.28; on a fund unit it is 1,400 × (1 − 0.0005) − 20.02 = 1,379.28.
-- [ ] AC-14: Covered call on a share, underlying 1,489, strike 1,500, fill bid 120, 30 days: premium income 119.88; yield if exercised (1,491.75 + 119.88 − 1,489) ÷ 1,489 = 8.2%; yield if not exercised 8.1%; both annualized.
-- [ ] AC-15: «اختیار فروش اخابر» routes to the put view and «کاورد کال اخابر» to the covered-call view; the card offers only views that have rows.
+- [x] AC-13: Put on a share, strike 1,400, fill ask 20: effective sale price is 1,400 × (1 − 0.0055) − 20.02 = 1,372.28; on a fund unit it is 1,400 × (1 − 0.0005) − 20.02 = 1,379.28.
+- [x] AC-14: Covered call on a share, underlying 1,489, strike 1,500, fill bid 120, 30 days: premium income 119.88; yield if exercised (1,491.75 + 119.88 − 1,489) ÷ 1,489 = 8.2%; yield if not exercised 8.1%; both annualized.
+- [x] AC-15: «اختیار فروش اخابر» routes to the put view and «کاورد کال اخابر» to the covered-call view; the card offers only views that have rows.
 
 Step 3
 
-- [ ] AC-16: «اختیار خرید اخابر ۵ قرارداد سررسید دی» answers for quantity 5 and the expiry in Dey; an unlisted expiry returns the listed ones; a quantity outside the range is rejected with a sentence.
+- [x] AC-16: «اختیار خرید اخابر ۵ قرارداد سررسید دی» answers for quantity 5 and the expiry in Dey; an unlisted expiry returns the listed ones; a quantity outside the range is rejected with a sentence.
 
 Step 4
 
-- [ ] AC-17: For reference inputs the Black–Scholes call and put prices match published values to four decimals, and the implied volatility of a price computed at 60% returns 60% ± 0.1.
-- [ ] AC-18: The columns are absent, with a reason, when the rate is not configured, the volatility window has too few closes, or expiry is today.
+- [x] AC-17: For reference inputs the Black–Scholes call and put prices match published values to four decimals, and the implied volatility of a price computed at 60% returns 60% ± 0.1.
+- [x] AC-18: The columns are absent, with a reason, when the rate is not configured, the volatility window has too few closes, or expiry is today.
 
 Step 5
 
-- [ ] AC-19: A rule on an underlying fires when a call becomes fillable at an effective purchase cost at or below the underlying price minus the margin, and not again for the same contract in the same session.
-- [ ] AC-20: A rule does not fire on a book that is not current, outside the session, or when the quantity is not fillable.
+- [~] AC-19 (rule and evaluation implemented; repeats follow the rule's cooldown and re-arm policy, not once per contract per session; no automated test): A rule on an underlying fires when a call becomes fillable at an effective purchase cost at or below the underlying price minus the margin, and not again for the same contract in the same session.
+- [~] AC-20 (implemented: no observation without a current book or a fillable call, and a 20-minute maximum age; no automated test): A rule does not fire on a book that is not current, outside the session, or when the quantity is not fillable.
 - [ ] AC-21: The rule can be created from the card and from a question, appears in the tracker list, and can be paused and removed; plan limits apply.
 
 All steps
 
-- [ ] AC-22: Routing, payloads and credits of existing capabilities are unchanged with the flag off and on (existing routing regression tests pass).
+- [~] AC-22 (flag-off E2E and the related unit and integration groups pass; the full integration suite was not rerun): Routing, payloads and credits of existing capabilities are unchanged with the flag off and on (existing routing regression tests pass).
 - [ ] AC-23 (owner, real environment): with Feature 167 polling on, «اختیار خرید اخابر» returns a card whose figures match the option chain endpoint for the same moment.
+
+## Deviations From The Approved Plan (2026-11-28)
+
+- **Follow-up button** (requirement 20) not built: it would replace one of the four existing buttons under single-symbol answers (OQ-185).
+- **Discount alert** (requirements 21 to 24): the rule type and its evaluation exist; creation from the card or a question, a tracker list entry and a dedicated notification text do not (OQ-186). The alert measures the discount in percent of the share price (`OPTION_CALL_DISCOUNT_PCT`), because tracker thresholds are constants: "cost at or below price minus margin" is "discount ≥ margin %". Evaluation is on the tracker timer, and repeats follow the rule's cooldown.
+- **Outcomes without data** (requirement 16): an unknown symbol gets the existing unknown-symbol answer from the dialogue gate; "provider data never synchronized" has no sentence of its own and reads as "no listed options".
+- **Order book not current** (requirement 9): rows are reported with state `NoOrder` and no measures; the answer-level flag tells clients why.
+- **Read endpoints**: `GET /api/v1/market/options/underlyings` was added so the menu item can be limited to symbols with options.
+- **Phone starter icon**: the option card reuses the valuation icon; no new icon was drawn.
+- Option enums are serialized as strings, also on the Feature 167 chain and ranking endpoints (`side`, ineligibility reason), which are not released yet.
 
 ## Assumptions
 

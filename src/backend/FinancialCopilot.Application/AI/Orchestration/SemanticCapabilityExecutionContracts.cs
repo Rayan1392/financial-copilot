@@ -304,6 +304,10 @@ public static class SemanticBillingCompletionStatus
             Payload: FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult gauges }
             when ValuationGaugeBillingPolicy.ChargedCards(gauges) > 0
             => ValuationGaugeBillingPolicy.AnsweredStatus(ValuationGaugeBillingPolicy.ChargedCards(gauges)),
+        // Feature 168 (OQ-173): an option comparison that shows rows settles at one credit.
+        { Status: CapabilityExecutionStatus.Executed or CapabilityExecutionStatus.Partial,
+            Payload: FinancialCopilot.Application.FinancialData.Options.OptionComparison options } when options.HasRows()
+            => OptionComparisonBillingPolicy.AnsweredStatus,
         _ => For(result.Status)
     };
 
@@ -452,6 +456,7 @@ public static class SemanticRouteMapping
         DetectedIntent.Clarification => "clarification",
         DetectedIntent.SymbolSnapshot => SymbolSnapshotCapability.Code,
         DetectedIntent.ValuationGauges => ValuationGaugeCapability.Code,
+        DetectedIntent.OptionComparison => OptionComparisonCapability.Code,
         _ => "unknown"
     };
 }

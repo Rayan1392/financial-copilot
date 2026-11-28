@@ -274,7 +274,7 @@ public sealed class CyclicalWavesV2ClientTests
         var options = new CyclicalWavesV2Options();
 
         Assert.True(options.IsValid(out _));
-        Assert.Equal("30 23 * * *", options.DailySyncCronUtc);
+        Assert.Equal("30 2,15 * * *", options.DailySyncCronUtc);
         Assert.False(options.IngestionEnabled);
     }
 

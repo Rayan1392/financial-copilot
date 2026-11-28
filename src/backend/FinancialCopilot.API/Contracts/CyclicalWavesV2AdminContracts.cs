@@ -14,7 +14,8 @@ public sealed record CyclicalWavesV2RunResponse(
     DateTimeOffset? CompletedAt,
     CyclicalWavesV2RunCountsResponse Counts,
     string? ErrorSummary,
-    string? RequestedBy);
+    string? RequestedBy,
+    DateTimeOffset? NotBeforeUtc = null);
 
 public sealed record CyclicalWavesV2InlineRunResponse(
     Guid? RunId,
@@ -37,4 +38,11 @@ public sealed record CyclicalWavesV2StatusResponse(
     string ChatProvider,
     CyclicalWavesV2RunResponse? ActiveRun,
     IReadOnlyList<CyclicalWavesV2LastSuccessResponse> LastSuccessByScope,
-    IReadOnlyList<CyclicalWavesV2RunResponse> RecentRuns);
+    IReadOnlyList<CyclicalWavesV2RunResponse> RecentRuns,
+    bool IntradaySyncEnabled = false,
+    string IntradayWindowStartTehran = "",
+    string IntradayWindowEndTehran = "",
+    int IntradayIntervalMinutes = 0,
+    DateTimeOffset? NextIntradayRunUtc = null,
+    bool CodalGaugeRefreshEnabled = false,
+    int CodalGaugeRecheckMinutes = 0);

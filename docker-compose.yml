@@ -158,6 +158,17 @@ services:
         TsetmcWebService__InstrumentFlows__3: ${TSETMC_INSTRUMENT_FLOW_3:-1}
         TsetmcWebService__InstrumentFlows__4: ${TSETMC_INSTRUMENT_FLOW_4:-2}
         TsetmcWebService__InstrumentFlows__5: ${TSETMC_INSTRUMENT_FLOW_5:-4}
+        # Feature 167: flow 3 (derivatives) gives listed option contracts their symbol and ISIN.
+        TsetmcWebService__InstrumentFlows__6: ${TSETMC_INSTRUMENT_FLOW_6:-3}
+        # Feature 167: option polling is off until an operator turns each switch on.
+        TsetmcPolling__OptionContractsEnabled: ${TSETMC_OPTION_CONTRACTS_ENABLED:-false}
+        TsetmcPolling__OptionContractsIntervalSeconds: ${TSETMC_OPTION_CONTRACTS_INTERVAL_SECONDS:-300}
+        TsetmcPolling__OptionOrderBookEnabled: ${TSETMC_OPTION_ORDER_BOOK_ENABLED:-false}
+        TsetmcPolling__OptionOrderBookIntervalSeconds: ${TSETMC_OPTION_ORDER_BOOK_INTERVAL_SECONDS:-60}
+        # Feature 168: option comparison answers. Off until an operator turns the switch on. The
+        # risk-free rate is the compounded yearly yield of fixed-income funds (OQ-178).
+        OptionAnswers__Enabled: ${OPTION_ANSWERS_ENABLED:-false}
+        OptionAnswers__RiskFreeAnnualRate: ${OPTION_ANSWERS_RISK_FREE_ANNUAL_RATE:-0.415}
         TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
         TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
         CyclicalWaves__BaseAddress: ${CYCLICAL_WAVES_BASE_ADDRESS:-https://back1.cyclicalwaves.com/api/}
@@ -186,7 +197,13 @@ services:
         CyclicalWavesV2__GaugeBaseUrl: ${CYCLICALWAVES_V2_GAUGE_BASE_URL:-https://api.tahlilapp.com/api/}
         CyclicalWavesV2__IngestionEnabled: ${CYCLICALWAVES_V2_INGESTION_ENABLED:-false}
         CyclicalWavesV2__DailySyncEnabled: ${CYCLICALWAVES_V2_DAILY_SYNC_ENABLED:-false}
-        CyclicalWavesV2__DailySyncCronUtc: ${CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC:-30 23 * * *}
+        CyclicalWavesV2__DailySyncCronUtc: ${CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC:-30 2,15 * * *}
+        CyclicalWavesV2__IntradaySyncEnabled: ${CYCLICALWAVES_V2_INTRADAY_SYNC_ENABLED:-false}
+        CyclicalWavesV2__IntradayWindowStartTehran: ${CYCLICALWAVES_V2_INTRADAY_WINDOW_START_TEHRAN:-09:00}
+        CyclicalWavesV2__IntradayWindowEndTehran: ${CYCLICALWAVES_V2_INTRADAY_WINDOW_END_TEHRAN:-12:30}
+        CyclicalWavesV2__IntradayIntervalMinutes: ${CYCLICALWAVES_V2_INTRADAY_INTERVAL_MINUTES:-30}
+        CyclicalWavesV2__CodalGaugeRefreshEnabled: ${CYCLICALWAVES_V2_CODAL_GAUGE_REFRESH_ENABLED:-false}
+        CyclicalWavesV2__CodalGaugeRecheckMinutes: ${CYCLICALWAVES_V2_CODAL_GAUGE_RECHECK_MINUTES:-30}
         CyclicalWavesV2__IncomeStatementLimit: ${CYCLICALWAVES_V2_INCOME_STATEMENT_LIMIT:-12}
         CyclicalWavesV2__AnalysisPageSize: ${CYCLICALWAVES_V2_ANALYSIS_PAGE_SIZE:-100}
         CyclicalWavesV2__AnalysisIncrementalOverlapDays: ${CYCLICALWAVES_V2_ANALYSIS_INCREMENTAL_OVERLAP_DAYS:-2}

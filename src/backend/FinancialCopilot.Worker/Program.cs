@@ -111,7 +111,10 @@ builder.Services
     .ValidateOnStart();
 builder.Services
     .AddOptions<TsetmcPollingOptions>()
-    .BindConfiguration(TsetmcPollingOptions.SectionName);
+    .BindConfiguration(TsetmcPollingOptions.SectionName)
+    .Validate(options => options.HasValidIntervals,
+        "TsetmcPolling intervals must be positive; option intervals must be at least 10 seconds.")
+    .ValidateOnStart();
 builder.Services
     .AddOptions<ComprehensiveAnalysisBlogOptions>()
     .BindConfiguration(ComprehensiveAnalysisBlogOptions.SectionName);

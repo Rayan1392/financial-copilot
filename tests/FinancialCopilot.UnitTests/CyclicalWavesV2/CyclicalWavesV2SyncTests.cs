@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.UnitTests.CyclicalWavesV2;
 
-public sealed class CyclicalWavesV2SyncTests
+public sealed partial class CyclicalWavesV2SyncTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 31, 10, 0, 0, TimeSpan.Zero);
 
@@ -375,6 +375,18 @@ public sealed class CyclicalWavesV2SyncTests
         private readonly List<(Guid Id, CyclicalWavesV2SyncRequest Request)> _requested = [];
         public bool Busy { get; set; }
         public DateTimeOffset? LastFullStart { get; set; }
+        public List<(string Ticker, string? RequestedBy, DateTimeOffset? NotBeforeUtc, int MaximumPending)> Announcements { get; } = [];
+        public Func<DateTimeOffset?, CyclicalWavesV2AnnouncementEnqueueResult> AnnouncementResult { get; set; } =
+            _ => CyclicalWavesV2AnnouncementEnqueueResult.Queued;
+        public Exception? AnnouncementFailure { get; set; }
+
+        public Task<CyclicalWavesV2AnnouncementEnqueueResult> EnqueueAnnouncementRefreshAsync(
+            string ticker, string? requestedBy, DateTimeOffset now, DateTimeOffset? notBeforeUtc, int maximumPending, CancellationToken cancellationToken)
+        {
+            if (AnnouncementFailure is not null) throw AnnouncementFailure;
+            Announcements.Add((ticker, requestedBy, notBeforeUtc, maximumPending));
+            return Task.FromResult(AnnouncementResult(notBeforeUtc));
+        }
         public Dictionary<Guid, (CyclicalWavesV2SyncRunStatus Status, string? Summary)> Completed { get; } = [];
 
         public Task<CyclicalWavesV2RequestResult> RequestAsync(CyclicalWavesV2SyncRequest request, DateTimeOffset now, CancellationToken cancellationToken)

@@ -117,6 +117,8 @@ public sealed class CyclicalWavesV2SyncRunRow
     public string TriggerSource { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTimeOffset RequestedAt { get; set; }
+    /// <summary>A queued run is not claimed before this time; null means it is due at once.</summary>
+    public DateTimeOffset? NotBeforeUtc { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public int TotalItems { get; set; }

@@ -11,7 +11,13 @@ public enum AlertRuleType
     BuyQueue,
     SellQueue,
     CodalPublication,
-    FinancialMetric
+    FinancialMetric,
+
+    /// <summary>
+    /// Feature 168: how far below the share price the share can be bought through a call option
+    /// of the company, in percent of the share price. Positive means cheaper than the market.
+    /// </summary>
+    OptionDiscount
 }
 
 public enum AlertRuleOperator
@@ -132,6 +138,9 @@ public sealed record AlertRuleDefinition
 
 public static class AlertRuleGovernance
 {
+    /// <summary>Governed code of <see cref="AlertRuleType.OptionDiscount"/>.</summary>
+    public const string OptionDiscountCode = "OPTION_CALL_DISCOUNT_PCT";
+
     public static void Validate(
         AlertRuleType type,
         string metricOrEventCode,
@@ -150,6 +159,7 @@ public static class AlertRuleGovernance
             AlertRuleType.BuyQueue or AlertRuleType.SellQueue => unit is AlertRuleUnit.Shares or AlertRuleUnit.Rial or AlertRuleUnit.Toman,
             AlertRuleType.CodalPublication => unit == AlertRuleUnit.None,
             AlertRuleType.FinancialMetric => unit is not AlertRuleUnit.None,
+            AlertRuleType.OptionDiscount => unit == AlertRuleUnit.Percent,
             _ => false
         };
         if (!allowedUnit) throw new ArgumentException($"Unit '{unit}' is not supported for rule type '{type}'.");
@@ -168,6 +178,7 @@ public static class AlertRuleGovernance
             AlertRuleType.RealMoneyFlow => "REAL_MONEY_FLOW",
             AlertRuleType.BuyQueue => "BUY_QUEUE",
             AlertRuleType.SellQueue => "SELL_QUEUE",
+            AlertRuleType.OptionDiscount => OptionDiscountCode,
             _ => null
         };
         if (expectedCode is not null && !metricOrEventCode.Equals(expectedCode, StringComparison.Ordinal))

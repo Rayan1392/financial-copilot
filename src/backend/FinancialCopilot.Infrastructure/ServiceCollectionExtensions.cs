@@ -1761,6 +1761,27 @@ public static class ServiceCollectionExtensions
                 : new NullTsetmcDirectFeedSyncService();
         });
         services.AddScoped<ITsetmcValidationService, TsetmcValidationService>();
+
+        // Feature 167 — listed option contracts: terms, open interest, order book, chain and ranking.
+        services.AddHttpClient<ITsetmcOptionWebServiceClient, TsetmcWebServiceClient>((provider, client) =>
+        {
+            var opts = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TsetmcWebServiceOptions>>().Value;
+            client.BaseAddress = new Uri(opts.ServiceUrl);
+            client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
+        });
+        services.AddScoped<TsetmcOptionFeedSyncService>();
+        services.AddScoped<FinancialCopilot.Application.FinancialData.Options.IOptionMarketSyncService>(provider =>
+        {
+            var opts = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TsetmcWebServiceOptions>>().Value;
+            return opts.Enabled && !string.IsNullOrWhiteSpace(opts.UserName)
+                ? provider.GetRequiredService<TsetmcOptionFeedSyncService>()
+                : new NullOptionMarketSyncService();
+        });
+        services.AddScoped<FinancialCopilot.Application.FinancialData.Options.IInstrumentStubSymbolBackfill,
+            TsetmcInstrumentStubSymbolBackfill>();
+        services.AddScoped<FinancialCopilot.Application.FinancialData.Options.IOptionChainReader,
+            FinancialCopilot.Infrastructure.Financial.Options.EfCoreOptionChainReader>();
+        services.AddScoped<FinancialCopilot.Application.FinancialData.Options.CallExerciseRankingUseCase>();
         services.AddScoped<IMarketQuoteMismatchReader, MarketQuoteMismatchReader>();
         services
             .AddOptions<MarketQuoteSourcePriorityOptions>()

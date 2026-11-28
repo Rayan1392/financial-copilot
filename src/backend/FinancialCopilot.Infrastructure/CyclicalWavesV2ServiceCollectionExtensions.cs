@@ -63,8 +63,23 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
             services.AddScoped<IForwardRatioInputsReader, ForwardRatioInputsReader>();
         services.AddScoped<IValuationGaugeCardsUseCase, ValuationGaugeCardsUseCase>();
         services.AddScoped<IConversationalCapabilityExecutor, ValuationGaugeCapabilityExecutor>();
+        // Feature 168: option comparison answers; off by default, read-only over Feature 167 data.
+        services.AddOptions<FinancialCopilot.Application.FinancialData.Options.OptionAnswersOptions>()
+            .BindConfiguration(FinancialCopilot.Application.FinancialData.Options.OptionAnswersOptions.SectionName)
+            .Validate(options => options.IsValid(out _), "OptionAnswers settings are invalid: fee rates 0-0.05, AnnualizationFloorDays 0-365, MaxExpiries 1-12, RiskFreeAnnualRate 0-5, VolatilityWindowDays 20-500, TradingDaysPerYear 200-366.")
+            .ValidateOnStart();
+        var optionAnswersEnabled = configuration.GetValue<bool>(
+            $"{FinancialCopilot.Application.FinancialData.Options.OptionAnswersOptions.SectionName}:Enabled");
+        services.AddSingleton(provider => provider.GetRequiredService<IOptions<FinancialCopilot.Application.FinancialData.Options.OptionAnswersOptions>>().Value);
+        services.AddScoped<FinancialCopilot.Application.FinancialData.Options.IOptionMarketSnapshotReader>(provider =>
+            (FinancialCopilot.Infrastructure.Financial.Options.EfCoreOptionChainReader)provider
+                .GetRequiredService<FinancialCopilot.Application.FinancialData.Options.IOptionChainReader>());
+        services.AddScoped<FinancialCopilot.Application.FinancialData.Options.IOptionComparisonUseCase,
+            FinancialCopilot.Application.FinancialData.Options.OptionComparisonUseCase>();
+        services.AddScoped<IConversationalCapabilityExecutor, OptionComparisonCapabilityExecutor>();
         services.AddSingleton<IChatCapabilityAvailability>(new ChatCapabilityAvailability(
-            financialData.ChatProvider, capabilitySources, relativeValuationEnabled, valuationGaugeCardsEnabled));
+            financialData.ChatProvider, capabilitySources, relativeValuationEnabled, valuationGaugeCardsEnabled,
+            optionAnswersEnabled));
         services.AddScoped<CyclicalWavesV2RelativeValuationInputReader>();
         services.AddOptions<ComprehensiveAnalysisPresentationOptions>()
             .BindConfiguration(ComprehensiveAnalysisPresentationOptions.SectionName)
@@ -198,6 +213,16 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
                 TimeSpan.FromMinutes(options.LeaseMinutes));
         });
         services.AddScoped<ICyclicalWavesV2SyncCoordinator, CyclicalWavesV2SyncCoordinator>();
+        // Change «intraday-gauge-sync-and-codal-trigger»: CodalMirror posts queue a gauge refresh of their symbol.
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<CyclicalWavesV2Options>>().Value;
+            return new CodalAnnouncementGaugeRefreshSettings(
+                options.IngestionEnabled && options.CodalGaugeRefreshEnabled,
+                TimeSpan.FromMinutes(options.CodalGaugeRecheckMinutes));
+        });
+        services.AddScoped<CodalAnnouncementGaugeRefresh>();
+        services.AddSingleton<ICodalAnnouncementGaugeRefreshTrigger, ScopedCodalAnnouncementGaugeRefreshTrigger>();
         services.AddScoped<CyclicalWavesV2ReadModel>();
     }
 

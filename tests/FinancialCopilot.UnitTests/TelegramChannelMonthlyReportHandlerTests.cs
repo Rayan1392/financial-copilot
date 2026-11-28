@@ -27,6 +27,41 @@ public sealed class TelegramChannelMonthlyReportHandlerTests
     }
 
     [Fact]
+    public async Task New_post_requests_one_gauge_refresh_and_a_replay_requests_none()
+    {
+        using var fixture = new Fixture();
+        await fixture.HandleAsync();
+        await fixture.HandleAsync();
+
+        var request = Assert.Single(fixture.GaugeRefresh.Requests);
+        Assert.Equal(FinancialCopilot.Application.FinancialData.CyclicalWavesV2.CodalAnnouncementKind.MonthlyReport, request.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(request.Symbol));
+        Assert.Equal(fixture.Update.TelegramChatId, request.TelegramChatId);
+        Assert.Equal(fixture.Update.TelegramMessageId, request.TelegramMessageId);
+    }
+
+    [Fact]
+    public async Task Gauge_refresh_does_not_depend_on_the_noavaran_backfill_switch_or_company()
+    {
+        using var fixture = new Fixture();
+        fixture.Options.AutoBackfillEnabled = false;
+        fixture.Company = null;
+        await fixture.HandleAsync();
+
+        Assert.Single(fixture.GaugeRefresh.Requests);
+    }
+
+    [Fact]
+    public async Task Unsupported_update_requests_no_gauge_refresh()
+    {
+        using var fixture = new Fixture();
+        await fixture.Handler.HandleAsync(
+            fixture.Update with { Kind = TelegramAssistantUpdateKind.Message }, fixture.Actor, default);
+
+        Assert.Empty(fixture.GaugeRefresh.Requests);
+    }
+
+    [Fact]
     public async Task Disabled_backfill_completes_without_ingestion()
     {
         using var fixture = new Fixture();
@@ -240,8 +275,10 @@ public sealed class TelegramChannelMonthlyReportHandlerTests
             Handler = new TelegramChannelMonthlyReportHandler(
                 Auth, Financial, companies, ingestion, snapshots,
                 orchestration, conversations, renderer, new TelegramMonthlyReportRecognizer(),
-                Microsoft.Extensions.Options.Options.Create(Options), TimeProvider.System, new RecordingLogger(Logs));
+                Microsoft.Extensions.Options.Options.Create(Options), GaugeRefresh, TimeProvider.System, new RecordingLogger(Logs));
         }
+
+        public RecordingCodalGaugeRefreshTrigger GaugeRefresh { get; } = new();
 
         public Task<TelegramAssistantResult> HandleAsync() => Handler.HandleAsync(Update, Actor, default);
         public void Dispose()

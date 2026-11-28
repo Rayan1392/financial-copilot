@@ -7,8 +7,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Tsetmc;
 public sealed record TsetmcInstrumentRecord(
     long InsCode,
     string InstrumentId,     // InstrumentID (ISIN-like 12-char code)
-    string Symbol,           // CValMne (5-char symbol)
-    string SymbolFull,       // LVal18AFC (18-char Persian symbol)
+    string Symbol,           // CValMne (Latin mnemonic, e.g. MKBT1) — not the trading symbol
+    string SymbolFull,       // LVal18AFC (Persian trading symbol, e.g. اخابر) — stored as the instrument symbol
     string CompanyName,      // LSoc30 (Persian company name)
     string MarketCode,       // YMarNSC
     string InstrumentKind,   // CGdSVal (single char)

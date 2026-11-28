@@ -123,12 +123,42 @@ public sealed class CyclicalWavesV2AdminEndpointTests : IClassFixture<CyclicalWa
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(root.GetProperty("ingestionEnabled").GetBoolean());
-        Assert.Equal("30 23 * * *", root.GetProperty("dailySyncCronUtc").GetString());
+        Assert.Equal("30 2,15 * * *", root.GetProperty("dailySyncCronUtc").GetString());
         Assert.Equal(JsonValueKind.String, root.GetProperty("nextScheduledRunUtc").ValueKind);
         Assert.True(root.GetProperty("credentialsConfigured").GetBoolean());
         Assert.Equal("Requested", root.GetProperty("activeRun").GetProperty("status").GetString());
         Assert.Single(root.GetProperty("recentRuns").EnumerateArray());
         Assert.DoesNotContain("integration-secret", json.RootElement.GetRawText(), StringComparison.Ordinal);
+        // Change «intraday-gauge-sync-and-codal-trigger»: both switches are off unless configured.
+        Assert.False(root.GetProperty("intradaySyncEnabled").GetBoolean());
+        Assert.Equal("09:00", root.GetProperty("intradayWindowStartTehran").GetString());
+        Assert.Equal("12:30", root.GetProperty("intradayWindowEndTehran").GetString());
+        Assert.Equal(30, root.GetProperty("intradayIntervalMinutes").GetInt32());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("nextIntradayRunUtc").ValueKind);
+        Assert.False(root.GetProperty("codalGaugeRefreshEnabled").GetBoolean());
+        Assert.Equal(30, root.GetProperty("codalGaugeRecheckMinutes").GetInt32());
+    }
+
+    [Fact]
+    public async Task StatusDoesNotReportARunThatIsNotYetDueAsActive()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await _factory.Runs.EnqueueAnnouncementRefreshAsync("فولاد", "codal:MonthlyReport:-1001:42", now, now.AddMinutes(30), 500, CancellationToken.None);
+
+        using var response = await Client().GetAsync("/api/v1/admin/cyclicalwaves-v2/status?recent=5");
+        using var json = await ReadJsonAsync(response);
+        var root = json.RootElement;
+
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("activeRun").ValueKind);
+        var run = Assert.Single(root.GetProperty("recentRuns").EnumerateArray());
+        Assert.Equal("CodalAnnouncement", run.GetProperty("trigger").GetString());
+        Assert.Equal("TickerGaugeEquilibrium", run.GetProperty("scope").GetString());
+        Assert.Equal(JsonValueKind.String, run.GetProperty("notBeforeUtc").ValueKind);
+
+        await _factory.Runs.EnqueueAnnouncementRefreshAsync("فولاد", "codal:MonthlyReport:-1001:42", now, null, 500, CancellationToken.None);
+        using var dueResponse = await Client().GetAsync("/api/v1/admin/cyclicalwaves-v2/status?recent=5");
+        using var dueJson = await ReadJsonAsync(dueResponse);
+        Assert.Equal("Requested", dueJson.RootElement.GetProperty("activeRun").GetProperty("status").GetString());
     }
 
     private HttpClient Client(bool dataAdmin = true)
@@ -217,6 +247,15 @@ public sealed class CyclicalWavesV2AdminApiFactory : AuthenticationApiFactory
 
         public Task<Guid?> TryStartAsync(CyclicalWavesV2SyncRequest request, string lockOwner, DateTimeOffset now, DateTimeOffset leaseExpiresAt, CancellationToken cancellationToken) =>
             Task.FromResult<Guid?>(Guid.NewGuid());
+
+        public Task<CyclicalWavesV2AnnouncementEnqueueResult> EnqueueAnnouncementRefreshAsync(
+            string ticker, string? requestedBy, DateTimeOffset now, DateTimeOffset? notBeforeUtc, int maximumPending, CancellationToken cancellationToken)
+        {
+            _runs.Add(new CyclicalWavesV2SyncRunSummary(Guid.NewGuid(), CyclicalWavesV2SyncScope.TickerGaugeEquilibrium, ticker, null,
+                CyclicalWavesV2SyncTrigger.CodalAnnouncement, CyclicalWavesV2SyncRunStatus.Requested, now, null, null,
+                new(0, 0, 0, 0, 0), null, requestedBy, notBeforeUtc));
+            return Task.FromResult(CyclicalWavesV2AnnouncementEnqueueResult.Queued);
+        }
 
         public Task<CyclicalWavesV2ClaimedRun?> ClaimNextRequestedAsync(string lockOwner, DateTimeOffset now, DateTimeOffset leaseExpiresAt, CancellationToken cancellationToken) =>
             Task.FromResult<CyclicalWavesV2ClaimedRun?>(null);

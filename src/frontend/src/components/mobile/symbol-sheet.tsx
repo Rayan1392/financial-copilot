@@ -16,6 +16,7 @@ import { formatNumber, relativeTime } from "@/lib/format/persian";
 import { symbolAnalysisPrompts, type SymbolPrompt } from "@/lib/chat/symbol-prompts";
 import { useFollowActions } from "@/lib/workspace/follow-actions";
 import { useChatCapabilityAvailability } from "@/lib/chat/use-capability-availability";
+import { useHasListedOptions } from "@/lib/chat/use-option-underlyings";
 
 export interface SymbolSheetSubject {
   symbol: string;
@@ -34,6 +35,7 @@ const PROMPT_ICONS: Record<SymbolPrompt["id"], MobileIcon> = {
   "balance-sheet": BalanceSheetIcon,
   "industry-comparison": IndustryComparisonIcon,
   "valuation-gauges": ValuationGaugesIcon,
+  "option-calls": ValuationGaugesIcon,
 };
 const chevron = <ChevronIcon className="size-4 text-muted-foreground" aria-hidden="true" />;
 
@@ -55,6 +57,7 @@ export function SymbolSheet({
   const { unfollow, followBySymbol } = useFollowActions();
   const { valuationGaugeCards } = useChatCapabilityAvailability();
   const symbol = subject?.symbol ?? "";
+  const optionCalls = useHasListedOptions(symbol);
   const title = subject?.companyName ? `${symbol} · ${subject.companyName}` : symbol;
   const close = () => onOpenChange(false);
 
@@ -77,26 +80,27 @@ export function SymbolSheet({
             تحلیل با دستیار
           </h3>
           <div className="py-1">
-            {symbolAnalysisPrompts(symbol, { valuationGauges: valuationGaugeCards }).map(
-              (prompt) => (
-                <SheetAction
-                  key={prompt.id}
-                  icon={PROMPT_ICONS[prompt.id]}
-                  iconTone={
-                    prompt.id === "monthly-sales" || prompt.id === "industry-comparison"
-                      ? "emerald"
-                      : "gold"
-                  }
-                  onClick={() => {
-                    close();
-                    onAsk(prompt.text);
-                  }}
-                  trailing={chevron}
-                >
-                  {prompt.text}
-                </SheetAction>
-              ),
-            )}
+            {symbolAnalysisPrompts(symbol, {
+              valuationGauges: valuationGaugeCards,
+              optionCalls,
+            }).map((prompt) => (
+              <SheetAction
+                key={prompt.id}
+                icon={PROMPT_ICONS[prompt.id]}
+                iconTone={
+                  prompt.id === "monthly-sales" || prompt.id === "industry-comparison"
+                    ? "emerald"
+                    : "gold"
+                }
+                onClick={() => {
+                  close();
+                  onAsk(prompt.text);
+                }}
+                trailing={chevron}
+              >
+                {prompt.text}
+              </SheetAction>
+            ))}
             <SheetAction
               icon={NavChatIcon}
               onClick={() => {

@@ -4,7 +4,6 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.FinancialData.ValuationGauges;
 using FinancialCopilot.Domain.Financial.CyclicalWavesV2;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
-using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -135,28 +134,38 @@ internal static class ValuationGaugeTickerMatcher
     }
 }
 
-/// <summary>Canonical quote for the equilibrium needle; same market-session rules as relative valuation.</summary>
+/// <summary>
+/// Canonical quote for the equilibrium needle: today's intraday trade or the daily row, chosen by
+/// <see cref="ValuationGaugeQuoteSelection"/> (change «equilibrium-intraday-price»). Unlike relative valuation, an intraday
+/// trade of today has no freshness limit, because the intraday poll stops when the market closes.
+/// </summary>
 public sealed class ValuationGaugeQuoteReader(
     PersistedMarketDataProvider marketData,
-    IOptions<MarketViewOptions> marketOptions) : IValuationGaugeQuoteReader
+    IOptions<ValuationGaugeCardsOptions> options) : IValuationGaugeQuoteReader
 {
     public async Task<ValuationGaugeQuote?> ReadAsync(string isin, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var normalized = ValuationGaugeSnapshotReader.NormalizeIsin(isin);
         if (normalized.Length == 0) return null;
-        var quotes = await marketData.GetCanonicalTradePricesAsync(
-            [normalized], now, TimeSpan.FromMinutes(marketOptions.Value.StaleAfterMinutes), cancellationToken);
-        var quote = quotes.FirstOrDefault(item => string.Equals(item.SymbolCode.Value, normalized, StringComparison.Ordinal));
-        if (quote is null || quote.LatestPrice <= 0) return null;
-        return new ValuationGaugeQuote(
-            quote.LatestPrice,
-            quote.SourceEvidence.SourceProvider,
-            string.IsNullOrWhiteSpace(quote.SourceLabel)
-                ? quote.Source == MarketQuoteSource.LiveQuote ? "IntradayToday" : "LatestDailyFallback"
-                : quote.SourceLabel,
-            quote.AsOf,
-            quote.TradingDate == default ? null : quote.TradingDate);
+        // Options are validated at startup; the fallback only guards a host that skipped validation.
+        var threshold = ValuationGaugeQuoteSelection.TryParseTehranTime(options.Value.DailyPriceReadyTehran, out var parsed)
+            ? parsed
+            : new TimeOnly(19, 0);
+        var (intraday, daily) = await marketData.GetSessionTradeCandidatesAsync(normalized, now, cancellationToken);
+        return ValuationGaugeQuoteSelection.Select(Map(intraday), Map(daily), now, threshold);
     }
+
+    private static ValuationGaugeQuote? Map(MarketQuoteObservation? quote) =>
+        quote is null || quote.LatestPrice <= 0
+            ? null
+            : new ValuationGaugeQuote(
+                quote.LatestPrice,
+                quote.SourceEvidence.SourceProvider,
+                string.IsNullOrWhiteSpace(quote.SourceLabel)
+                    ? quote.Source == MarketQuoteSource.LiveQuote ? "IntradayToday" : "LatestDailyFallback"
+                    : quote.SourceLabel,
+                quote.AsOf,
+                quote.TradingDate == default ? null : quote.TradingDate);
 }
 
 /// <summary>

@@ -154,9 +154,10 @@ describe("TopAppBar", () => {
 });
 
 describe("starter prompts on the phone cards", () => {
-  it("lists the valuation card first, sales cards next and statement cards last", () => {
+  it("lists the valuation cards first, sales cards next and statement cards last", () => {
     expect(STARTER_PROMPTS.map((prompt) => starterPromptTitle(prompt))).toEqual([
       "گیج‌های ارزش‌گذاری نماد",
+      "اختیار خرید نماد",
       "ترکیب فروش محصولات کگهر را بررسی کن",
       "روند فروش ماهانه نماد",
       "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟",
@@ -167,6 +168,7 @@ describe("starter prompts on the phone cards", () => {
       "جریان وجه نقد نماد",
     ]);
     expect(STARTER_PROMPTS.map((prompt) => prompt.tone)).toEqual([
+      "valuation",
       "valuation",
       "sales",
       "sales",

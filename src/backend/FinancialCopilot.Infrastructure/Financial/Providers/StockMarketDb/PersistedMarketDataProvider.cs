@@ -112,6 +112,60 @@ public sealed class PersistedMarketDataProvider(
     }
 
     /// <summary>
+    /// Both canonical trade candidates for one ISIN, for callers that choose between them by time of day (equilibrium
+    /// card, change «equilibrium-intraday-price»): today's latest intraday snapshot with no freshness limit, and the latest
+    /// daily trade up to today. Rows received after <paramref name="now"/> and zero prices are ignored.
+    /// </summary>
+    public async Task<(MarketQuoteObservation? TodayIntraday, MarketQuoteObservation? LatestDaily)> GetSessionTradeCandidatesAsync(
+        string isin,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var ids = await dbContext.TradingInstruments.AsNoTracking()
+            .Where(row => row.IsActive && row.InstrumentIsin.Trim().ToUpper() == isin)
+            .Select(row => row.Id)
+            .ToListAsync(cancellationToken);
+        if (ids.Count == 0) return (null, null);
+        var today = DateOnly.FromDateTime(now.ToOffset(TimeSpan.FromHours(3.5)).DateTime);
+
+        var intraday = await dbContext.IntradayTradeSnapshots.AsNoTracking()
+            .Where(row => ids.Contains(row.TradingInstrumentId) && row.TradingDate == today &&
+                row.LastTradedPrice > 0 && row.TradingTime != null && row.ReceivedAt <= now)
+            .OrderByDescending(row => row.TradingTime)
+            .ThenByDescending(row => row.ReceivedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        var daily = await dbContext.DailyInstrumentTrades.AsNoTracking()
+            .Where(row => ids.Contains(row.TradingInstrumentId) && row.LastTradedPrice > 0 &&
+                row.TradingDate <= today && row.SourceInsertedAt <= now)
+            .OrderByDescending(row => row.TradingDate)
+            .ThenByDescending(row => row.SourceInsertedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var symbol = new SymbolCode(isin);
+        return (
+            intraday is null ? null : new MarketQuoteObservation(
+                symbol,
+                intraday.LastTradedPrice,
+                CalculatePriceChangePercentage(intraday.LastTradedPrice, intraday.PriceYesterday),
+                intraday.ReceivedAt,
+                MarketQuoteSource.LiveQuote,
+                new FinancialSourceEvidence(intraday.ProviderName, intraday.ReceivedAt, intraday.ReceivedAt),
+                intraday.TradingDate,
+                "IntradayToday",
+                intraday.TradingInstrumentId),
+            daily is null ? null : new MarketQuoteObservation(
+                symbol,
+                daily.LastTradedPrice,
+                CalculatePriceChangePercentage(daily.LastTradedPrice, daily.PriceYesterday),
+                daily.SourceInsertedAt,
+                MarketQuoteSource.PreviousTradingDay,
+                new FinancialSourceEvidence(daily.ProviderName, daily.SourceInsertedAt, daily.SourceInsertedAt),
+                daily.TradingDate,
+                "LatestDailyFallback",
+                daily.TradingInstrumentId));
+    }
+
+    /// <summary>
     /// Latest canonical trade per symbol, for all symbols in two aggregate queries: today's latest intraday
     /// snapshot per instrument, else the latest daily trade per instrument. Same precedence as before (intraday
     /// today wins; latest TradingTime/TradingDate, then latest ReceivedAt/SourceInsertedAt), but the "latest per

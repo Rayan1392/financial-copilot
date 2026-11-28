@@ -71,6 +71,8 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<DailyIndexSnapshotRow> DailyIndexSnapshots => Set<DailyIndexSnapshotRow>();
     public DbSet<LatestMarketQuoteRow> LatestMarketQuotes => Set<LatestMarketQuoteRow>();
     public DbSet<StockMarketSyncStateRow> StockMarketSyncStates => Set<StockMarketSyncStateRow>();
+    public DbSet<OptionContractRow> OptionContracts => Set<OptionContractRow>();
+    public DbSet<OptionOrderBookLevelRow> OptionOrderBookLevels => Set<OptionOrderBookLevelRow>();
     public DbSet<MarketQuoteMismatchRow> MarketQuoteMismatches => Set<MarketQuoteMismatchRow>();
     public DbSet<WatchlistSymbolRow> WatchlistSymbols => Set<WatchlistSymbolRow>();
 

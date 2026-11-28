@@ -6,7 +6,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2;
 
 /// <summary>
 /// Run tracking. The partial unique index on <c>Status = 'Running'</c> is the lease: a second start
-/// fails at the database, so two processes can never run a sync at the same time.
+/// fails at the database, so two processes can never run a sync at the same time. A queued run with a
+/// <c>NotBeforeUtc</c> in the future is neither claimed nor counted as active until that time.
 /// </summary>
 public sealed class EfCoreCyclicalWavesV2SyncRunStore(FinancialIngestionDbContext db) : ICyclicalWavesV2SyncRunStore
 {
@@ -18,7 +19,7 @@ public sealed class EfCoreCyclicalWavesV2SyncRunStore(FinancialIngestionDbContex
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var active = await FindActiveRunIdAsync(cancellationToken);
+        var active = await FindActiveRunIdAsync(now, cancellationToken);
         if (active is not null)
         {
             return new CyclicalWavesV2RequestResult(active.Value, Accepted: false);
@@ -29,6 +30,48 @@ public sealed class EfCoreCyclicalWavesV2SyncRunStore(FinancialIngestionDbContex
         await db.SaveChangesAsync(cancellationToken);
         db.ChangeTracker.Clear();
         return new CyclicalWavesV2RequestResult(row.Id, Accepted: true);
+    }
+
+    public async Task<CyclicalWavesV2AnnouncementEnqueueResult> EnqueueAnnouncementRefreshAsync(
+        string ticker,
+        string? requestedBy,
+        DateTimeOffset now,
+        DateTimeOffset? notBeforeUtc,
+        int maximumPending,
+        CancellationToken cancellationToken)
+    {
+        var request = new CyclicalWavesV2SyncRequest(
+            CyclicalWavesV2SyncScope.TickerGaugeEquilibrium,
+            ticker,
+            null,
+            CyclicalWavesV2SyncTrigger.CodalAnnouncement,
+            requestedBy);
+        var trigger = request.Trigger.ToString();
+        var scope = request.Scope.ToString();
+        var deferred = notBeforeUtc is not null;
+        var pending = db.CyclicalWavesV2SyncRuns
+            .AsNoTracking()
+            .Where(run => run.Status == Requested && run.TriggerSource == trigger);
+
+        // Two near-simultaneous posts of one symbol can both pass this check; the extra run costs two calls.
+        if (await pending.AnyAsync(
+                run => run.Scope == scope && run.TickerFilter == ticker && (run.NotBeforeUtc != null) == deferred,
+                cancellationToken))
+        {
+            return CyclicalWavesV2AnnouncementEnqueueResult.Duplicate;
+        }
+
+        if (await pending.CountAsync(cancellationToken) >= maximumPending)
+        {
+            return CyclicalWavesV2AnnouncementEnqueueResult.QueueFull;
+        }
+
+        var row = NewRow(request, Requested, now);
+        row.NotBeforeUtc = notBeforeUtc;
+        db.CyclicalWavesV2SyncRuns.Add(row);
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+        return CyclicalWavesV2AnnouncementEnqueueResult.Queued;
     }
 
     public async Task<Guid?> TryStartAsync(
@@ -75,7 +118,7 @@ public sealed class EfCoreCyclicalWavesV2SyncRunStore(FinancialIngestionDbContex
         CancellationToken cancellationToken)
     {
         var row = await db.CyclicalWavesV2SyncRuns
-            .Where(run => run.Status == Requested)
+            .Where(run => run.Status == Requested && (run.NotBeforeUtc == null || run.NotBeforeUtc <= now))
             .OrderBy(run => run.RequestedAt)
             .FirstOrDefaultAsync(cancellationToken);
         if (row is null)
@@ -194,14 +237,16 @@ public sealed class EfCoreCyclicalWavesV2SyncRunStore(FinancialIngestionDbContex
                 row.CompletedAt,
                 new CyclicalWavesV2RunCounts(row.TotalItems, row.ProcessedItems, row.UpdatedItems, row.UnchangedItems, row.FailedItems),
                 row.ErrorSummary,
-                row.RequestedBy))
+                row.RequestedBy,
+                row.NotBeforeUtc))
             .ToList();
     }
 
-    private async Task<Guid?> FindActiveRunIdAsync(CancellationToken cancellationToken) =>
+    private async Task<Guid?> FindActiveRunIdAsync(DateTimeOffset now, CancellationToken cancellationToken) =>
         await db.CyclicalWavesV2SyncRuns
             .AsNoTracking()
-            .Where(run => run.Status == Requested || run.Status == Running)
+            .Where(run => run.Status == Running ||
+                          (run.Status == Requested && (run.NotBeforeUtc == null || run.NotBeforeUtc <= now)))
             .OrderBy(run => run.RequestedAt)
             .Select(run => (Guid?)run.Id)
             .FirstOrDefaultAsync(cancellationToken);

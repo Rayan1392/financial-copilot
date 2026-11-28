@@ -66,6 +66,15 @@ public sealed class TelegramAssistantResponseRenderer(
             return RenderDisclosureListing(response, response.DisclosureListingResult);
         }
 
+        // Feature 168: the option comparison as text (asked view, nearest expiry); no image.
+        if (response.OptionComparison is { } optionComparison)
+        {
+            var optionText = new StringBuilder(OptionComparisonTextComposer.Compose(optionComparison)).AppendLine();
+            AppendUsage(optionText, response);
+            AppendSuggestedActions(optionText, response);
+            return Split(EscapeMarkdownV2(optionText.ToString().Trim()));
+        }
+
         // Feature 159 change «standalone-valuation-gauge-cards»: the same typed facts as the web cards, as text.
         if (response.ValuationGaugeCards is { } valuationGauges)
         {

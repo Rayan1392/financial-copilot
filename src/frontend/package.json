@@ -22,6 +22,7 @@
     "test:cash-flow-browser": "node scripts/cash-flow-report.browser.mjs",
     "test:symbol-snapshot-browser": "node scripts/symbol-snapshot-card.browser.mjs",
     "test:valuation-gauges-browser": "node scripts/valuation-gauge-cards.browser.mjs",
+    "test:option-comparison-browser": "node scripts/option-comparison-card.browser.mjs",
     "test:answer-image-browser": "node scripts/answer-image-share.browser.mjs",
     "test:product-mix-image-browser": "node scripts/answer-image-share.browser.mjs --fixtures mix,mix-long --evidence specs/075-company-product-revenue-mix/changes/product-mix-answer-image-share/evidence/browser",
     "test:comparison-image-browser": "node scripts/answer-image-share.browser.mjs --fixtures comparison,comparison-four,comparison-large --evidence specs/125-industry-relative-valuation-ranking/changes/comparison-answer-image-share/evidence/browser",

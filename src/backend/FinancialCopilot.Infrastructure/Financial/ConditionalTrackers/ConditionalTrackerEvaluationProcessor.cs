@@ -18,7 +18,10 @@ public sealed class ConditionalTrackerEvaluationProcessor(
     IConditionalTrackerEntitlementPolicy entitlements,
     INotificationIntentPublisher notifications,
     TimeProvider timeProvider,
-    ILogger<ConditionalTrackerEvaluationProcessor> logger) : IConditionalTrackerEvaluationProcessor
+    ILogger<ConditionalTrackerEvaluationProcessor> logger,
+    FinancialCopilot.Application.FinancialData.Options.IOptionComparisonUseCase? optionComparison = null,
+    FinancialCopilot.Application.FinancialData.Options.OptionAnswersOptions? optionAnswers = null)
+    : IConditionalTrackerEvaluationProcessor
 {
     // Feature 148 N1: a financial-metric alert whose current value is legacy CyclicalWaves-derived is not
     // evaluated, triggered or notified; the rule itself is kept and records this reason.
@@ -241,8 +244,64 @@ public sealed class ConditionalTrackerEvaluationProcessor(
                 await ResolveFeatureAsync(rule, cancellationToken),
             AlertRuleType.FinancialMetric => await ResolveFinancialMetricAsync(rule, cancellationToken),
             AlertRuleType.CodalPublication => await ResolveCodalAsync(rule, cancellationToken),
+            AlertRuleType.OptionDiscount => await ResolveOptionDiscountAsync(rule, cancellationToken),
             _ => null
         };
+    }
+
+    /// <summary>
+    /// Feature 168 discount alert: the largest discount, in percent of the share price, at which
+    /// one contract of any call of the company can be bought and exercised, with fees and at the
+    /// fillable ask. No observation (so no trigger) while option answers are off, the company has
+    /// no listed call with a fillable offer, or the order book is not current; an order book that
+    /// stopped updating ages out through the maximum age.
+    /// </summary>
+    private async Task<ResolvedAlertObservation?> ResolveOptionDiscountAsync(AlertRule rule, CancellationToken cancellationToken)
+    {
+        if (optionComparison is null || optionAnswers is not { Enabled: true }) return null;
+
+        var symbol = await dbContext.Companies.AsNoTracking()
+            .Where(company => company.ExternalCompanyId == rule.ExternalCompanyId && company.TseSymbol != null)
+            .Select(company => company.TseSymbol)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(symbol)) return null;
+
+        var outcome = await optionComparison.ExecuteAsync(
+            new FinancialCopilot.Application.FinancialData.Options.OptionComparisonQuery(
+                symbol, FinancialCopilot.Application.FinancialData.Options.OptionComparisonView.Call),
+            cancellationToken);
+        if (outcome.Comparison is not { OrderBookIsCurrent: true, OrderBookObservedAt: { } observedAt } comparison)
+            return null;
+
+        var best = comparison.Views
+            .Where(view => view.View == FinancialCopilot.Application.FinancialData.Options.OptionComparisonView.Call)
+            .SelectMany(view => view.Expiries, (_, expiry) => expiry)
+            .SelectMany(expiry => expiry.Rows, (expiry, row) => new { expiry.ExpiryDate, Row = row })
+            .Where(item => item.Row.EffectivePurchaseCost is not null)
+            .OrderBy(item => item.Row.EffectivePurchaseCost)
+            .ThenByDescending(item => item.Row.AvailableVolume)
+            .FirstOrDefault();
+        if (best is null) return null;
+
+        var cost = best.Row.EffectivePurchaseCost!.Value;
+        var discountPercent = Math.Round((comparison.UnderlyingPrice - cost) / comparison.UnderlyingPrice * 100m, 4);
+        return Build(rule, discountPercent, observedAt, observedAt, "TsetmcWebService",
+            comparison.UnderlyingTradingDate.ToString("yyyy-MM-dd"),
+            $"option-discount:{best.Row.Symbol}:{observedAt:O}",
+            new
+            {
+                symbol = comparison.UnderlyingSymbol,
+                contract = best.Row.Symbol,
+                expiryDate = best.ExpiryDate.ToString("yyyy-MM-dd"),
+                strikePrice = best.Row.StrikePrice,
+                askPrice = best.Row.FillPrice,
+                effectivePurchaseCost = cost,
+                underlyingPrice = comparison.UnderlyingPrice,
+                discountPercent,
+                availableVolume = best.Row.AvailableVolume,
+                note = "Price holds only for the shown volume; exercising means paying the strike at expiry. Not investment advice."
+            },
+            TimeSpan.FromMinutes(20));
     }
 
     private async Task<ResolvedAlertObservation?> ResolveQuoteAsync(

@@ -3,6 +3,7 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -25,6 +26,7 @@ public sealed class TelegramChannelMonthlyReportHandler(
     ITelegramAssistantResponseRenderer renderer,
     ITelegramMonthlyReportRecognizer recognizer,
     IOptions<TelegramChannelMonthlyReportOptions> configured,
+    ICodalAnnouncementGaugeRefreshTrigger gaugeRefresh,
     TimeProvider clock,
     ILogger<TelegramChannelMonthlyReportHandler> logger) : ITelegramChannelMonthlyReportHandler
 {
@@ -56,6 +58,12 @@ public sealed class TelegramChannelMonthlyReportHandler(
         var (claim, replay) = await ClaimOrReplayAsync(update, actor, cancellationToken);
         if (replay is not null)
             return replay;
+
+        // First delivery only: the CyclicalWaves v2 gauges of the symbol are refreshed whatever happens to the
+        // Noavaran Amin refresh below. The trigger queues and never throws.
+        await gaugeRefresh.RequestAsync(new CodalAnnouncementGaugeRefreshRequest(
+            recognition.Symbol, CodalAnnouncementKind.MonthlyReport, update.TelegramChatId,
+            update.TelegramMessageId ?? 0, update.CorrelationId), cancellationToken);
 
         return await ProcessClaimAsync(claim!, update, actor, recognition, options, cancellationToken);
     }

@@ -78,6 +78,7 @@ public static class CapabilityExecutionRoutes
     public const string AssistantHelp = "assistant_help";
     public const string UnavailableTopic = "unavailable_topic";
     public const string ValuationGauges = "valuation_gauges";
+    public const string OptionComparison = "option_comparison";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -85,7 +86,8 @@ public static class CapabilityExecutionRoutes
         ProductSalesValue, ProductSalesTrend,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
         MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch,
-        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot, AssistantHelp, UnavailableTopic, ValuationGauges
+        RegisteredFinancialSource, MonthlyProductComparison, SymbolSnapshot, AssistantHelp, UnavailableTopic, ValuationGauges,
+        OptionComparison
     };
 }
 
@@ -299,6 +301,11 @@ public static class InitialConversationalCapabilityCatalog
             [Alias("en", "valuation gauges"), Alias("fa", "گیج‌های ارزش‌گذاری")],
             [Example("en", "P/E gauge شاراک"), Example("fa", "گیج‌های ارزش‌گذاری شاراک")],
             [Slot("symbol", "symbol", true)], [Slot("metricSet", "metric-list", false)], false) with { GateRoutedOnly = true },
+        // Feature 168: explicit option questions only (gate routed, V2). The view, quantity and expiry travel in metricSet.
+        Definition(OptionComparisonCapability.Code, CapabilityExecutionRoutes.OptionComparison, "summary", "option-comparison",
+            [Alias("en", "option comparison"), Alias("fa", "مقایسهٔ اختیار معامله")],
+            [Example("en", "call options اخابر"), Example("fa", "اختیار خرید اخابر")],
+            [Slot("symbol", "symbol", true)], [Slot("metricSet", "metric-list", false)], false) with { GateRoutedOnly = true },
         // Feature 150 change: technical analysis, valuation, and advice questions get a fixed refusal (gate only).
         Definition(UnavailableTopicCapability.Code, CapabilityExecutionRoutes.UnavailableTopic, "summary", "unavailable-topic",
             [Alias("en", "topic not available yet"), Alias("fa", "موضوع پشتیبانی‌نشده")],
@@ -342,6 +349,7 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.AssistantHelp => ["assistant_help_copy"],
         CapabilityExecutionRoutes.UnavailableTopic => ["unavailable_topic_copy"],
         CapabilityExecutionRoutes.ValuationGauges => ["canonical_company_identity", "cyclicalwaves_v2_gauge_snapshots"],
+        CapabilityExecutionRoutes.OptionComparison => ["canonical_company_identity", "tsetmc_option_contracts", "tsetmc_option_order_book"],
         _ => throw new InvalidOperationException($"No governed data requirements exist for route '{route}'.")
     };
 

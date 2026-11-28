@@ -31,7 +31,9 @@ public enum DetectedIntent
     // Feature 162: a turn answered by Report Discussion from the conversation's active report.
     ReportDiscussion,
     // Feature 159 change «standalone-valuation-gauge-cards»: standalone valuation gauge cards (V2).
-    ValuationGauges
+    ValuationGauges,
+    // Feature 168: option comparison answers (V2).
+    OptionComparison
 }
 
 public sealed record IntentDetectionInput(
@@ -184,7 +186,8 @@ public sealed record AiQueryResponse(
     // sources an answer cited (FR-10).
     FinancialCopilot.Application.AI.GroundedAnalysis.GroundedAnalysisHint? GroundedAnalysis = null,
     IReadOnlyList<FinancialCopilot.Application.AI.GroundedAnalysis.ExternalSource>? Sources = null,
-    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null);
+    FinancialCopilot.Application.FinancialData.ValuationGauges.ValuationGaugeCardsResult? ValuationGaugeCards = null,
+    FinancialCopilot.Application.FinancialData.Options.OptionComparison? OptionComparison = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

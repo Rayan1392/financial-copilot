@@ -118,6 +118,46 @@ public sealed class TsetmcInstrumentSyncTests(PostgreSqlIntegrationFixture fixtu
         Assert.NotNull(state.Watermark);
     }
 
+    [Fact]
+    public async Task InstrumentSymbolIsThePersianTradingSymbol_NotTheLatinMnemonic()
+    {
+        await using var db = CreateDb();
+        // 101: already overwritten with the Latin mnemonic by an earlier sync (BUG-055).
+        // 102: Persian symbol from the daily feed; the provider row has no Persian symbol.
+        // 103: numeric stub; the provider row has no Persian symbol.
+        AddInstrument(db, 101, "IRO1MKBT0001");
+        AddInstrument(db, 102, "IRO1FOLD0001");
+        AddInstrument(db, 103, "IRO1TEST0003");
+        await db.SaveChangesAsync();
+        Row(db, 101).Symbol = "MKBT1";
+        Row(db, 102).Symbol = "فولاد";
+        Row(db, 103).Symbol = "103";
+        await db.SaveChangesAsync();
+
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = CreateService(db, cache, new Dictionary<byte, TsetmcInstrumentRecord[]>
+        {
+            [1] =
+            [
+                Instrument(101, "IRO1MKBT0001") with { Symbol = "MKBT1", SymbolFull = " اخابر " },
+                Instrument(102, "IRO1FOLD0001") with { Symbol = "FOLD1", SymbolFull = "" },
+                Instrument(103, "IRO1TEST0003") with { Symbol = "TEST3", SymbolFull = "" },
+                Instrument(104, "IRO1IKCO0001") with { Symbol = "IKCO1", SymbolFull = "خودرو" }
+            ]
+        }, 1);
+
+        await service.SynchronizeInstrumentsAsync(default);
+        await service.SynchronizeInstrumentsAsync(default);
+
+        Assert.Equal("اخابر", Row(db, 101).Symbol);   // repaired by the next sync
+        Assert.Equal("فولاد", Row(db, 102).Symbol);   // a real symbol is never replaced by the mnemonic
+        Assert.Equal("TEST3", Row(db, 103).Symbol);   // mnemonic only when nothing better exists
+        Assert.Equal("خودرو", Row(db, 104).Symbol);   // new instrument
+    }
+
+    private static TradingInstrumentRow Row(FinancialIngestionDbContext db, long code) =>
+        db.TradingInstruments.Local.Single(row => row.InstrumentCode == code);
+
     private static TsetmcInstrumentRecord Instrument(long code, string isin, bool? active = true) =>
         new(code, isin, "TEST", "Test instrument", "Test company", "NO", "A", "N1",
             active, new DateOnly(2024, 1, 1), 1000);

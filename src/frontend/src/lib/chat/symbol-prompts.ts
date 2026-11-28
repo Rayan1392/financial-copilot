@@ -9,7 +9,8 @@ export interface SymbolPrompt {
     | "quarterly-report"
     | "balance-sheet"
     | "industry-comparison"
-    | "valuation-gauges";
+    | "valuation-gauges"
+    | "option-calls";
   text: string;
 }
 
@@ -19,6 +20,11 @@ export interface SymbolPromptOptions {
    * are available to this user. The shortcut sends the same phrase a user can type.
    */
   valuationGauges?: boolean;
+  /**
+   * Feature 168: offered only when option answers are available and the symbol has listed options. The shortcut
+   * sends the same phrase a user can type.
+   */
+  optionCalls?: boolean;
 }
 
 export function symbolAnalysisPrompts(
@@ -34,6 +40,9 @@ export function symbolAnalysisPrompts(
     { id: "industry-comparison", text: `${ticker} را با صنعت خودش مقایسه کن` },
     ...(options.valuationGauges
       ? [{ id: "valuation-gauges" as const, text: `گیج‌های ارزش‌گذاری ${ticker}` }]
+      : []),
+    ...(options.optionCalls
+      ? [{ id: "option-calls" as const, text: `اختیار خرید ${ticker}` }]
       : []),
   ];
 }

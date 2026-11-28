@@ -2459,6 +2459,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<DateTimeOffset?>("NotBeforeUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ProcessedItems")
                         .HasColumnType("integer");
 
@@ -6265,6 +6268,105 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("NotificationSymbolPreferences", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.OptionContractRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("BeginDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("ContractSize")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSynchronizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("OpenInterest")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("OpenInterestObservedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("PreviousOpenInterest")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Side")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<decimal>("StrikePrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UnderlyingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TradingInstrumentId")
+                        .IsUnique();
+
+                    b.HasIndex("UnderlyingInstrumentId", "ExpiryDate", "StrikePrice");
+
+                    b.ToTable("OptionContracts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OptionContracts_Side", "\"Side\" IN ('Call', 'Put')");
+
+                            t.HasCheckConstraint("CK_OptionContracts_Terms", "\"StrikePrice\" > 0 AND \"ContractSize\" > 0 AND \"ExpiryDate\" >= \"BeginDate\"");
+                        });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.OptionOrderBookLevelRow", b =>
+                {
+                    b.Property<Guid>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<short>("Level")
+                        .HasColumnType("smallint");
+
+                    b.Property<int?>("AskOrderCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("AskPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<long?>("AskVolume")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("BidOrderCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("BidPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<long?>("BidVolume")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ObservedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<TimeOnly>("ProviderTime")
+                        .HasColumnType("time without time zone");
+
+                    b.HasKey("TradingInstrumentId", "Level");
+
+                    b.ToTable("OptionOrderBookLevels", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OptionOrderBookLevels_Level", "\"Level\" BETWEEN 1 AND 5");
+                        });
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.RadarEventMatchRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7629,6 +7731,30 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NotificationPreferenceRow", null)
                         .WithMany()
                         .HasForeignKey("PreferenceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.OptionContractRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
+                        .WithMany()
+                        .HasForeignKey("TradingInstrumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
+                        .WithMany()
+                        .HasForeignKey("UnderlyingInstrumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.OptionOrderBookLevelRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
+                        .WithMany()
+                        .HasForeignKey("TradingInstrumentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

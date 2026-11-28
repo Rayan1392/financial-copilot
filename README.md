@@ -262,7 +262,9 @@ $env:CyclicalWavesV2__Identifier = "<account-identifier>"
 $env:CyclicalWavesV2__Password = "<account-password>"
 $env:CyclicalWavesV2__GaugeBaseUrl = "https://api.tahlilapp.com/api/" # optional independent gauge/equilibrium host
 $env:CyclicalWavesV2__IngestionEnabled = "true"      # Worker and Admin sync
-$env:CyclicalWavesV2__DailySyncEnabled = "true"      # daily Full run, cron CyclicalWavesV2__DailySyncCronUtc (default 30 23 * * *)
+$env:CyclicalWavesV2__DailySyncEnabled = "true"      # daily Full run, cron CyclicalWavesV2__DailySyncCronUtc (default 30 2,15 * * * = 06:00 and 19:00 Tehran)
+$env:CyclicalWavesV2__IntradaySyncEnabled = "true"   # gauges and equilibrium ranges, Sat-Wed 09:00-12:30 Tehran every IntradayIntervalMinutes (30)
+$env:CyclicalWavesV2__CodalGaugeRefreshEnabled = "true" # CodalMirror posts refresh the symbol's gauges, again after CodalGaugeRecheckMinutes (30)
 ```
 
 Data lands in schema `cyclicalwaves` only. Gauge/equilibrium reads use the separately configurable

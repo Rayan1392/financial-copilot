@@ -91,8 +91,11 @@ public sealed class CyclicalWavesV2AdminController(
         var settings = options.Value;
         var runs = await runStore.GetRecentRunsAsync(Math.Clamp(recent, 1, 50), cancellationToken);
         var history = await runStore.GetRecentRunsAsync(100, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        // A queued run that is not yet due (the later re-fetch after a CodalMirror announcement) is not active.
         var active = runs.Concat(history).FirstOrDefault(run =>
-            run.Status is CyclicalWavesV2SyncRunStatus.Running or CyclicalWavesV2SyncRunStatus.Requested);
+            run.Status == CyclicalWavesV2SyncRunStatus.Running ||
+            (run.Status == CyclicalWavesV2SyncRunStatus.Requested && (run.NotBeforeUtc is null || run.NotBeforeUtc <= now)));
         var lastSuccess = history
             .Where(run => run.Status is CyclicalWavesV2SyncRunStatus.Succeeded or CyclicalWavesV2SyncRunStatus.CompletedWithErrors &&
                           run.CompletedAt is not null)
@@ -106,13 +109,24 @@ public sealed class CyclicalWavesV2AdminController(
             settings.DailySyncEnabled,
             settings.DailySyncCronUtc,
             settings.IngestionEnabled && settings.DailySyncEnabled
-                ? CyclicalWavesUtcCronSchedule.Parse(settings.DailySyncCronUtc).GetNextOccurrence(timeProvider.GetUtcNow())
+                ? CyclicalWavesUtcCronSchedule.Parse(settings.DailySyncCronUtc).GetNextOccurrence(now)
                 : null,
             !string.IsNullOrWhiteSpace(settings.Identifier) && !string.IsNullOrWhiteSpace(settings.Password),
             financialDataOptions.Value.ChatProvider.ToString(),
             active is null ? null : ToResponse(active),
             lastSuccess,
-            runs.Select(ToResponse).ToList()));
+            runs.Select(ToResponse).ToList(),
+            settings.IntradaySyncEnabled,
+            settings.IntradayWindowStartTehran,
+            settings.IntradayWindowEndTehran,
+            settings.IntradayIntervalMinutes,
+            settings.IngestionEnabled && settings.IntradaySyncEnabled
+                ? CyclicalWavesV2IntradaySchedule
+                    .Create(settings.IntradayWindowStartTehran, settings.IntradayWindowEndTehran, settings.IntradayIntervalMinutes)
+                    .GetNextOccurrence(now)
+                : null,
+            settings.CodalGaugeRefreshEnabled,
+            settings.CodalGaugeRecheckMinutes));
     }
 
     private async Task<ActionResult<CyclicalWavesV2InlineRunResponse>> RunInlineAsync(
@@ -190,5 +204,6 @@ public sealed class CyclicalWavesV2AdminController(
             run.CompletedAt,
             ToResponse(run.Counts),
             run.ErrorSummary,
-            run.RequestedBy);
+            run.RequestedBy,
+            run.NotBeforeUtc);
 }

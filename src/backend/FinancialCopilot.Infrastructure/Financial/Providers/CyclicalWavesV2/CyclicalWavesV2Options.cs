@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
 namespace FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWavesV2;
@@ -18,7 +19,17 @@ public sealed class CyclicalWavesV2Options
     public string Password { get; set; } = string.Empty;
     public bool IngestionEnabled { get; set; }
     public bool DailySyncEnabled { get; set; }
-    public string DailySyncCronUtc { get; set; } = "30 23 * * *";
+    /// <summary>Full runs. Default 02:30 and 15:30 UTC: 06:00 (before the market) and 19:00 Tehran, every day.</summary>
+    public string DailySyncCronUtc { get; set; } = "30 2,15 * * *";
+    /// <summary>Gauge details and equilibrium ranges during market hours (Saturday to Wednesday, Tehran time).</summary>
+    public bool IntradaySyncEnabled { get; set; }
+    public string IntradayWindowStartTehran { get; set; } = "09:00";
+    public string IntradayWindowEndTehran { get; set; } = "12:30";
+    public int IntradayIntervalMinutes { get; set; } = 30;
+    /// <summary>A CodalMirror monthly report or financial statement post refreshes the symbol's gauges.</summary>
+    public bool CodalGaugeRefreshEnabled { get; set; }
+    /// <summary>Minutes until the second fetch after an announcement; 0 turns the second fetch off.</summary>
+    public int CodalGaugeRecheckMinutes { get; set; } = 30;
     public int IncomeStatementLimit { get; set; } = 12;
     public int AnalysisPageSize { get; set; } = 100;
     public int AnalysisIncrementalOverlapDays { get; set; } = 2;
@@ -50,6 +61,17 @@ public sealed class CyclicalWavesV2Options
         if (!CyclicalWavesUtcCronSchedule.IsValid(DailySyncCronUtc))
         {
             return "CyclicalWavesV2:DailySyncCronUtc must be a five-field UTC cron expression.";
+        }
+
+        if (!CyclicalWavesV2IntradaySchedule.IsValid(IntradayWindowStartTehran, IntradayWindowEndTehran, IntradayIntervalMinutes))
+        {
+            return "CyclicalWavesV2 market-hours sync needs IntradayWindowStartTehran before IntradayWindowEndTehran (HH:mm) " +
+                   $"and IntradayIntervalMinutes {CyclicalWavesV2IntradaySchedule.MinimumIntervalMinutes}-{CyclicalWavesV2IntradaySchedule.MaximumIntervalMinutes}.";
+        }
+
+        if (CodalGaugeRecheckMinutes is < 0 or > 1_440)
+        {
+            return "CyclicalWavesV2:CodalGaugeRecheckMinutes must be between 0 and 1440.";
         }
 
         if (IncomeStatementLimit is < 1 or > 40 ||

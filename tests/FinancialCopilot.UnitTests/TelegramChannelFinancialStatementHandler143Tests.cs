@@ -39,6 +39,33 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     }
 
     [Fact]
+    public async Task First_delivery_requests_one_gauge_refresh_and_later_passes_request_none()
+    {
+        using var f = new Fixture(enabled: true);
+        f.StatementOptions.InitialDelayMinutes = 7;
+
+        await f.Call();
+        await f.Call();
+        var checkpoint = f.Auth.TelegramProcessedUpdates.Single();
+        f.Clock.Advance(TimeSpan.FromMinutes(7));
+        Assert.True(await f.Handler.ProcessScheduledAsync(checkpoint.Id, default));
+
+        var request = Assert.Single(f.GaugeRefresh.Requests);
+        Assert.Equal(FinancialCopilot.Application.FinancialData.CyclicalWavesV2.CodalAnnouncementKind.FinancialStatement, request.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(request.Symbol));
+        Assert.Equal(checkpoint.TelegramChatId, request.TelegramChatId);
+    }
+
+    [Fact]
+    public async Task Gauge_refresh_does_not_depend_on_the_noavaran_statement_switch()
+    {
+        using var f = new Fixture(enabled: false);
+        await f.Call();
+
+        Assert.Single(f.GaugeRefresh.Requests);
+    }
+
+    [Fact]
     public async Task Disabled_feature_records_skip_without_resolving_company_or_calling_provider()
     {
         using var f = new Fixture(enabled: false);
@@ -473,8 +500,10 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
                 new TelegramFinancialStatementRecognizer(),
                 Options.Create(ChannelOptions),
                 Options.Create(StatementOptions),
-                Clock, new RecordingLogger(logs));
+                GaugeRefresh, Clock, new RecordingLogger(logs));
         }
+
+        public RecordingCodalGaugeRefreshTrigger GaugeRefresh { get; } = new();
 
         public FinancialIngestionDbContext Financial => financial;
         public void SeedComparableThreeMonthIncome()

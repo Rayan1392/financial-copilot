@@ -123,7 +123,8 @@ public sealed class ConversationDialogueGate(
     SymbolSnapshotOptions? symbolSnapshotOptions = null,
     IConversationalCapabilityRegistry? capabilityRegistry = null,
     IChatCapabilityAvailability? capabilityAvailability = null,
-    Feature161CashFlowRoutingScope? feature161 = null) : IConversationDialogueGate
+    Feature161CashFlowRoutingScope? feature161 = null,
+    FinancialCopilot.Application.FinancialData.Options.IOptionMarketSnapshotReader? optionMarket = null) : IConversationDialogueGate
 {
     private readonly Feature154RoutingScope _scope = feature154 ?? Feature154RoutingScope.V2;
     private bool _feature154 => _scope.IsActive;
@@ -141,9 +142,32 @@ public sealed class ConversationDialogueGate(
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
         var gaugeRequest = isV2 ? TryMatchValuationGauges(request) : null;
+        var optionRequest = isV2 && gaugeRequest is null ? TryMatchOptionComparison(request) : null;
+        // A question that names one option contract («ضمخا9021») is about that contract's underlying:
+        // the entity resolver knows companies, not contracts, so the contract is looked up here.
+        if (optionRequest?.CompanyText is { } optionText && optionMarket is not null && optionText.Any(char.IsAsciiDigit) &&
+            await optionMarket.FindContractAsync(optionText, cancellationToken) is { } optionContract)
+        {
+            optionRequest = optionRequest with
+            {
+                CompanyText = optionContract.UnderlyingSymbol,
+                ContractSymbol = optionContract.ContractSymbol,
+                ExpiryDate = optionContract.ExpiryDate,
+                ExpiryMonth = null,
+                NearestExpiryOnly = false,
+                View = optionContract.Side == FinancialCopilot.Application.FinancialData.Options.OptionSide.Put
+                    ? FinancialCopilot.Application.FinancialData.Options.OptionComparisonView.Put
+                    : optionRequest.View == FinancialCopilot.Application.FinancialData.Options.OptionComparisonView.Put
+                        ? FinancialCopilot.Application.FinancialData.Options.OptionComparisonView.Call
+                        : optionRequest.View
+            };
+        }
         var earlyInterpretation = (gaugeRequest is null || capabilityRegistry is null
                 ? null
                 : ValuationGaugeIntentRules.BuildInterpretation(request.Message, gaugeRequest, capabilityRegistry.Version))
+            ?? (optionRequest is null || capabilityRegistry is null
+                ? null
+                : OptionComparisonIntentRules.BuildInterpretation(request.Message, optionRequest, capabilityRegistry.Version))
             ?? (isV2 ? TryInterpretPeerComparison(request) : null)
             ?? (isV2 && SalesReportIntentRules.IsExplicitDataRequest(request) ? interpreter.Interpret(request.Message) : null)
             ?? await TryInterpretSymbolSnapshotAsync(request, scope, cancellationToken)
@@ -273,6 +297,18 @@ public sealed class ConversationDialogueGate(
                 .Append(new ResolvedQuerySlot(
                     QuerySlotType.MetricSet,
                     gaugeRequest.KindsSlotValue,
+                    QueryValueProvenance.UserExplicit,
+                    1m,
+                    QuerySlotValidationState.Valid,
+                    capability))
+                .ToArray();
+        // Option comparison: view, quantity and expiry travel in the task state, so a clarified symbol keeps them.
+        if (optionRequest is not null && capability == OptionComparisonCapability.Code)
+            validatedFrameSlots = validatedFrameSlots
+                .Where(slot => slot.Type != QuerySlotType.MetricSet)
+                .Append(new ResolvedQuerySlot(
+                    QuerySlotType.MetricSet,
+                    optionRequest.SlotValue,
                     QueryValueProvenance.UserExplicit,
                     1m,
                     QuerySlotValidationState.Valid,
@@ -638,6 +674,16 @@ public sealed class ConversationDialogueGate(
         !capabilityAvailability.EvaluateForV2(CapabilityExecutionRoutes.ValuationGauges, ValuationGaugeCapability.Code).IsAvailable
             ? null
             : ValuationGaugeIntentRules.TryMatch(request.Message);
+
+    /// <summary>
+    /// Option comparison (Feature 168, V2): an explicit option question while OptionAnswers:Enabled is on.
+    /// Otherwise the message keeps today's routing.
+    /// </summary>
+    private OptionComparisonRequest? TryMatchOptionComparison(AiQueryRequest request) =>
+        capabilityRegistry is null || capabilityAvailability is null || request.Context?.InsightEventId is not null ||
+        !capabilityAvailability.EvaluateForV2(CapabilityExecutionRoutes.OptionComparison, OptionComparisonCapability.Code).IsAvailable
+            ? null
+            : OptionComparisonIntentRules.TryMatch(request.Message);
 
     private QueryInterpretation? TryInterpretPeerComparison(AiQueryRequest request)
     {

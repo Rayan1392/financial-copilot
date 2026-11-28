@@ -3,6 +3,21 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.40.0
+
+- Released on 2026-11-28 (MINOR: one Added item). Added year-wide manual acquisition of completed Shamsi monthly
+  company production/sales reports; the operator can still refresh one chosen month. Feature commit `ddf96c19`;
+  release commit `3343f5f2`; prod merge `41de3e80`; annotated tag `v1.40.0` (tag object
+  `70082bb2`). No database migration.
+- Release check passed and release-note tests passed 12/12. Focused calendar tests passed 22/22, completed-month
+  endpoint integration tests passed 3/3, and frontend production build passed. Full solution and frontend Vitest
+  suites were not run. Frontend repository-wide ESLint reported pervasive CRLF errors; typecheck reported known
+  existing failures.
+- Deploy run 46119466994 succeeded in 14m11s. `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`;
+  `https://sapioai.ir/releases` lists 1.40.0 as «نسخهٔ جاری».
+- Open: targeted monthly form Vitest coverage remains outstanding. Full frontend test suite and full solution
+  suite remain unverified.
+
 ## Release 1.39.0
 
 - Tagged on 2026-11-28 (MINOR: one notable Changed item). The equilibrium range card measures the distance to the

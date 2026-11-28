@@ -15,6 +15,8 @@
 - Repository-wide ESLint reports pervasive CRLF formatting errors across existing frontend files. Focused Vitest coverage and the full frontend test suite remain outstanding.
 - Frontend production build passed. Vite reports the existing route-file warning for `auth-closed-registration.test.tsx` and large chunks.
 - `git diff --check` passed.
+- Released as v1.40.0 on 2026-11-28. Deploy run 46119466994 succeeded in 14m11s. Production API health
+  returned HTTP 200 `Healthy`, and `/releases` lists 1.40.0 as the current version.
 
 ## Remaining
 

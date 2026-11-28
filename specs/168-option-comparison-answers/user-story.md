@@ -221,7 +221,7 @@ Step 1
 - [x] AC-09: The web card renders views, expiries, highlights, collapsed empty rows, notes and the not-current state on desktop and `/m`, in both themes, with contrast of at least 4.5:1 for text.
 - [~] AC-10 (text content tested; MarkdownV2 validity of an option answer not tested): The Telegram text of an answer contains the title, underlying price, at most eight rows, highlights, notes and data time, and is valid MarkdownV2.
 - [x] AC-11: No label, note, text rendering or alert contains «بهترین», «مناسب», «پیشنهاد» or «فرصت» (automated check over the string tables).
-- [~] AC-12 (starter card and menu item done and tested; follow-up button not done, OQ-185): The starter card, menu item and follow-up button produce a question that routes to the capability; the menu item and follow-up button are absent for a symbol without options and when the capability is unavailable.
+- [x] AC-12 (starter card and menu item done and tested; the follow-up button was taken out of scope by the owner, OQ-185): The starter card, menu item and follow-up button produce a question that routes to the capability; the menu item and follow-up button are absent for a symbol without options and when the capability is unavailable.
 
 Step 2
 
@@ -242,7 +242,7 @@ Step 5
 
 - [~] AC-19 (rule and evaluation implemented; repeats follow the rule's cooldown and re-arm policy, not once per contract per session; no automated test): A rule on an underlying fires when a call becomes fillable at an effective purchase cost at or below the underlying price minus the margin, and not again for the same contract in the same session.
 - [~] AC-20 (implemented: no observation without a current book or a fillable call, and a 20-minute maximum age; no automated test): A rule does not fire on a book that is not current, outside the session, or when the quantity is not fillable.
-- [ ] AC-21: The rule can be created from the card and from a question, appears in the tracker list, and can be paused and removed; plan limits apply.
+- [-] AC-21 (out of scope by the owner's decision of 2026-11-28, OQ-186: API only; deferred to `specs/backlog.md`): The rule can be created from the card and from a question, appears in the tracker list, and can be paused and removed; plan limits apply.
 
 All steps
 
@@ -251,8 +251,8 @@ All steps
 
 ## Deviations From The Approved Plan (2026-11-28)
 
-- **Follow-up button** (requirement 20) not built: it would replace one of the four existing buttons under single-symbol answers (OQ-185).
-- **Discount alert** (requirements 21 to 24): the rule type and its evaluation exist; creation from the card or a question, a tracker list entry and a dedicated notification text do not (OQ-186). The alert measures the discount in percent of the share price (`OPTION_CALL_DISCOUNT_PCT`), because tracker thresholds are constants: "cost at or below price minus margin" is "discount ≥ margin %". Evaluation is on the tracker timer, and repeats follow the rule's cooldown.
+- **Follow-up button** (requirement 20) not built: it would replace one of the four existing buttons under single-symbol answers. Approved by the owner on 2026-11-28 (OQ-185).
+- **Discount alert** (requirements 21 to 24): the rule type and its evaluation exist; creation from the card or a question, a tracker list entry and a dedicated notification text do not; the owner approved API-only creation and management on 2026-11-28 (OQ-186). The alert measures the discount in percent of the share price (`OPTION_CALL_DISCOUNT_PCT`), because tracker thresholds are constants: "cost at or below price minus margin" is "discount ≥ margin %". Evaluation is on the tracker timer, and repeats follow the rule's cooldown.
 - **Outcomes without data** (requirement 16): an unknown symbol gets the existing unknown-symbol answer from the dialogue gate; "provider data never synchronized" has no sentence of its own and reads as "no listed options".
 - **Order book not current** (requirement 9): rows are reported with state `NoOrder` and no measures; the answer-level flag tells clients why.
 - **Read endpoints**: `GET /api/v1/market/options/underlyings` was added so the menu item can be limited to symbols with options.

@@ -107,7 +107,8 @@ tracker rule. The trigger's evidence names the contract, expiry, strike, ask, ef
 cost, underlying price and fillable volume.
 
 Today the rule can only be created through `POST /api/v1/trackers/me`; there is no web or chat
-path and no dedicated notification text (OQ-186).
+path and no dedicated notification text; the owner decided on 2026-11-28 to keep it API-only
+until trackers get a web surface (OQ-186).
 
 ## Configuration (`OptionAnswers`)
 

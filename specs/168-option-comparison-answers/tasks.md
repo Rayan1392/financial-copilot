@@ -1,6 +1,6 @@
 # Tasks: Option Comparison Answers
 
-Status: Gate A: Approved by the owner on 2026-11-28 (amended scope) — Gate B: Approved by the owner on 2026-11-28 («با گیت B موافقم», with the risk-free rate for OQ-178) — implemented 2026-11-28, uncommitted, flag off; open items marked `[ ]` and `[~]` below
+Status: Gate A: Approved by the owner on 2026-11-28 (amended scope) — Gate B: Approved by the owner on 2026-11-28 («با گیت B موافقم», with the risk-free rate for OQ-178) — implemented 2026-11-28 and pushed to `develop` (`024e420f`), not released, flag off; open items marked `[ ]` and `[~]` below
 
 ## Feature Folder
 
@@ -41,7 +41,7 @@ flag off. Groups 1 to 4 are delivery step 1.
 
 - [x] 3.1 Types and block mapping for `optionComparison`.
 - [x] 3.2 Card component: view tabs, expiry tabs, rows, highlights, collapsed empty rows, notes, not-current state; desktop and `/m`; both themes (AC-09).
-- [~] 3.3 Starter card and symbol actions menu item (desktop menu and phone sheet) with their visibility rules are done (AC-12). The follow-up button is not: follow-up providers are a first-match chain with four buttons per answer, so an option button would displace an existing one (OQ-185).
+- [x] 3.3 Starter card and symbol actions menu item (desktop menu and phone sheet) with their visibility rules are done (AC-12). The follow-up button was taken out of scope by the owner on 2026-11-28 (OQ-185): follow-up providers are a first-match chain with four buttons per answer, so an option button would displace an existing one.
 - [x] 3.4 Browser check of the card on desktop and phone widths in both themes, with contrast measured.
 
 ### 4. Telegram
@@ -64,7 +64,7 @@ flag off. Groups 1 to 4 are delivery step 1.
 
 - [x] 7.1 Read the conditional tracker model end to end (rule definition storage, governance, evaluation trigger, notification, limits). Report to the owner before coding if a schema change or a new evaluation trigger is needed.
 - [~] 7.2 Rule type `OptionDiscount` (code `OPTION_CALL_DISCOUNT_PCT`, unit percent), governance entry and evaluation in the existing tracker processor are done; no migration was needed. Not as planned: evaluation runs on the tracker worker's 60-second timer, not right after the order-book sync, and repeats are limited by the rule's cooldown and re-arm policy, not once per contract per session. No automated test of the evaluation path (governance is unit-tested).
-- [ ] 7.3 Not done; needs the owner's decision (OQ-186). Found in task 7.1: the web app has no tracker list or creation screen, the assistant has no chat path that creates trackers, tracker notifications go to Telegram only and use one generic text for every rule type. A rule can be created today through `POST /api/v1/trackers/me` with `ruleType = OptionDiscount`.
+- [x] 7.3 Closed without code by the owner's decision of 2026-11-28 (OQ-186): the rule is created and managed through the tracker API only until trackers get a web surface; creation from the card or a question, a tracker list entry and a dedicated notification text are in `specs/backlog.md`. Found in task 7.1: the web app has no tracker list or creation screen, the assistant has no chat path that creates trackers, tracker notifications go to Telegram only and use one generic text for every rule type. A rule can be created today through `POST /api/v1/trackers/me` with `ruleType = OptionDiscount`.
 
 ### 8. Documentation
 

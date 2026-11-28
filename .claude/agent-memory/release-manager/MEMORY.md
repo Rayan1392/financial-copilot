@@ -3,6 +3,17 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.41.2
+
+- Released on 2026-11-28 (PATCH: one small Changed item). The new-chat option starter card is behind its own switch
+  `OptionAnswers:StarterCardEnabled` (default off); typed option questions and the symbol menu follow
+  `OptionAnswers:Enabled` only (change 168 `option-starter-card-switch`, `853c6ad2`). Option answers are still off
+  on production, so users see no difference yet. Release commit `de7fc44e`; prod merge `8ead7e21`; annotated tag
+  `v1.41.2` (tag object `97130068`). No migration, no Telegram gateway change.
+- Release check passed and release-note tests passed 12/12. Full solution and frontend suites were not run.
+- Deploy run 46162999085 succeeded in 14m54s. `https://api.sapioai.ir/health` returned `Healthy`;
+  `https://sapioai.ir/releases` shows 1.41.2 first.
+
 ## Release 1.41.1
 
 - Released on 2026-11-28 (PATCH: release-note correction only, no code). OQ-184 answered: TahlilApp updates P/E, P/S

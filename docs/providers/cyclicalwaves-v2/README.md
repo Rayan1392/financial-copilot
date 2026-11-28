@@ -145,11 +145,24 @@ route.
   average, the midpoint of average and max, max, end).
 - **Stored cards:** cards stored before this change lack `insights` and `from`/`to`. They still render, without those
   figures.
-- **Forward P/E** is not in the provider contract (OQ-136). Sapio shows its own estimate instead; see below.
+- **Forward P/E and P/S from the provider:** each gauge object carries `forward` (live contract of 2026-11-28). It is
+  ingested and stored in `cyclicalwaves."GaugeDetails"` (`Forward*` columns, null when the provider has none) by change
+  `148-…/changes/gauge-forward-field`.
+- **Forward value on a ratio card, source order** (change `valuation-gauge-provider-forward`, OQ-136):
+  1. the provider value, when the stored gauge has a positive one and `ValuationGaugeCards:ProviderForward:Enabled`
+     (default true) is on. It comes with the gauge snapshot (same freshness, no extra read), needs a displayable card
+     with a dial but no current value, and is named «P/E آینده‌نگر» / «P/S آینده‌نگر» without a qualifier; «جزئیات» says
+     it is تحلیل‌اپ's calculation and neither a certain forecast nor advice;
+  2. otherwise the Sapio estimate below, when its flag is on and its guards pass, always labelled «(برآورد ساپیو)»;
+  3. otherwise no forward needle.
+  The estimate is not computed for a card that has a provider value. The card's `forward.source` is `provider` or
+  `sapio`; a stored `forward` without it is a Sapio estimate. Reasons for no provider value:
+  `provider_forward_missing`, `provider_forward_not_positive`, `provider_forward_out_of_range`,
+  `card_not_displayable`, `axis_not_renderable`.
 
 ### Sapio forward P/E and P/S estimate (change `valuation-gauge-forward-ratio`)
 
-The provider supplies no forward ratio. Behind a flag, Sapio adds **its own** estimate to the P/E and P/S cards. It is
+Behind a flag, Sapio adds **its own** estimate to a P/E or P/S card that has no provider forward value. It is
 always labelled «(برآورد ساپیو)», never attributed to تحلیل‌اپ, and never changes the provider `status`, the position,
 the insights, the card state or the credits.
 
@@ -183,5 +196,5 @@ the insights, the card state or the credits.
   `MaxGrowthFactor` (4), `MaxMonthlyReportAgeDays` (75), `ExcludedIndustryExternalIds` (`["31"]`, default in code: the
   configuration binder appends to it), `ReadTimeoutMilliseconds` (1000). Invalid values fail startup. The input reader
   is registered only when `Enabled` is true; turning it off restores today's cards and is the rollback path.
-- **Telemetry:** `valuation_gauge.forward_estimates` (kind, shown, reason), `valuation_gauge.forward_read_latency`, and
+- **Telemetry:** `valuation_gauge.forward_estimates` (kind, shown, reason, source), `valuation_gauge.forward_read_latency`, and
   one warning log per request when the input read times out or fails.

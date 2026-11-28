@@ -92,23 +92,29 @@ export interface ValuationGaugeCard {
   } | null;
   geometry?: ValuationGaugeGeometry | null;
   insights?: ValuationGaugeInsights | null;
-  /** Sapio's own forward estimate (change «valuation-gauge-forward-ratio»); absent on most and on older cards. */
+  /** The forward value of a P/E or P/S card, from the provider or Sapio's estimate; absent on older cards. */
   forward?: ValuationGaugeForwardEstimate | null;
 }
 
+/** Whose forward value it is. A stored card without a source carries a Sapio estimate. */
+export type ValuationGaugeForwardSource = "provider" | "sapio";
+
 /**
- * Sapio's forward estimate of a P/E or P/S card's ratio, never the provider's. The value has two decimals; the angle
- * and side are on the card's own axis with the same pin rule as the current needle.
+ * The forward value of a P/E or P/S card's ratio: the provider's own forward ratio (change
+ * «valuation-gauge-provider-forward») or Sapio's estimate (change «valuation-gauge-forward-ratio»). The value has two
+ * decimals; the angle and side are on the card's own axis with the same pin rule as the current needle. The method
+ * members exist for a Sapio estimate only.
  */
 export interface ValuationGaugeForwardEstimate {
   value: string;
   angle: number;
   side: ValuationGaugeNeedleSide;
-  methodVersion: string;
-  salesGrowthFactor: string;
+  source?: ValuationGaugeForwardSource | null;
+  methodVersion?: string | null;
+  salesGrowthFactor?: string | null;
   marginPercent?: string | null;
-  latestSalesMonthEnd: string;
-  latestQuarterEnd: string;
+  latestSalesMonthEnd?: string | null;
+  latestQuarterEnd?: string | null;
 }
 
 export interface ValuationGaugeCardsResult {
@@ -195,6 +201,19 @@ export const SOURCE_NAME = "تحلیل‌اپ";
 /** Follows the ratio name, for example «P/E آینده‌نگر (برآورد ساپیو)»; the same label the backend text uses. */
 export const FORWARD_LABEL = "آینده‌نگر (برآورد ساپیو)";
 
+/** Follows the ratio name for the provider's own forward ratio, for example «P/E آینده‌نگر». */
+export const PROVIDER_FORWARD_LABEL = "آینده‌نگر";
+
+/** True when the forward value is the provider's own and not Sapio's estimate. */
+export function isProviderForward(forward: ValuationGaugeForwardEstimate): boolean {
+  return forward.source === "provider";
+}
+
+/** The label that follows the ratio name: no qualifier for the provider's value, «(برآورد ساپیو)» for the estimate. */
+export function forwardLabel(forward: ValuationGaugeForwardEstimate): string {
+  return isProviderForward(forward) ? PROVIDER_FORWARD_LABEL : FORWARD_LABEL;
+}
+
 const NEEDLE_SIDES: ValuationGaugeNeedleSide[] = ["Inside", "PinnedBelow", "PinnedAbove"];
 
 /**
@@ -211,7 +230,21 @@ export function forwardEstimate(card: ValuationGaugeCard): ValuationGaugeForward
   return forward;
 }
 
-/** The method sentence for «جزئیات»; the P/S estimate does not use the margin. */
+/** The provider's forward value in «جزئیات»: whose calculation it is, and that it is neither certain nor advice. */
+export const PROVIDER_FORWARD_NOTE = `به محاسبهٔ ${SOURCE_NAME} است؛ پیش‌بینی قطعی و توصیهٔ سرمایه‌گذاری نیست.`;
+
+/** The sentence for «جزئیات» that explains the dashed needle of a card, by the source of its forward value. */
+export function forwardDetailsText(
+  name: string,
+  kind: ValuationGaugeKind,
+  forward: ValuationGaugeForwardEstimate,
+): string {
+  return isProviderForward(forward)
+    ? `نشانگر خط‌چین با حلقه ${name} ${PROVIDER_FORWARD_LABEL} ${PROVIDER_FORWARD_NOTE}`
+    : `نشانگر خط‌چین با حلقه ${name} ${FORWARD_LABEL} است. ${forwardMethodText(kind)}`;
+}
+
+/** The method sentence of Sapio's estimate for «جزئیات»; the P/S estimate does not use the margin. */
 export function forwardMethodText(kind: ValuationGaugeKind): string {
   return kind === "Pe"
     ? "برآورد ساپیو بر پایهٔ فروش ۱۲ ماه اخیر، رشد سالانهٔ ۴ ماه اخیر و میانهٔ حاشیهٔ سود ۸ فصل؛ پیش‌بینی قطعی و توصیهٔ سرمایه‌گذاری نیست."

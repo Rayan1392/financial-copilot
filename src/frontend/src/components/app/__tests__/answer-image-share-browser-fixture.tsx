@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
-import { comparisonImageFileName, gaugeImageFileName } from "@/lib/chat/answer-image";
+import {
+  comparisonImageFileName,
+  gaugeImageFileName,
+  productMixImageFileName,
+} from "@/lib/chat/answer-image";
 import type { ValuationGaugeCardsResult } from "@/lib/chat/valuation-gauges";
 import { AnswerSharePicture } from "../answer-share-frame";
 import { AnswerActions } from "../answer-actions";
@@ -58,10 +62,66 @@ function comparisonMessage(rows: number, sixColumns: boolean): string {
     "این اطلاعات توصیه به سرمایه گذاری نیست",
   ].join("\n");
 }
-const comparisons: Record<string, { message: string; width: number }> = {
-  comparison: { message: comparisonMessage(4, true), width: 800 },
-  "comparison-four": { message: comparisonMessage(4, false), width: 560 },
-  "comparison-large": { message: comparisonMessage(40, true), width: 800 },
+// Feature 075 change «product-mix-answer-image-share»: ?fixture=mix|mix-long renders a product revenue mix answer.
+const PRODUCTS = [
+  "گندله بورس کالا",
+  "گندله",
+  "کلوخه سنگ آهن",
+  "کنسانتره سنگ آهن",
+  "سنگ آهن دانه بندی شده",
+  "آهن اسفنجی",
+  "کنسانتره بورس کالا",
+  "میلگرد",
+];
+const persian = (value: string) => value.replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+function productMixMessage(rows: number, longNames: boolean): string {
+  const products = Array.from({ length: rows }, (_, index) => {
+    const name =
+      index < PRODUCTS.length && !longNames
+        ? PRODUCTS[index]
+        : `${PRODUCTS[index % PRODUCTS.length]} صادراتی با عیار بالا و بسته‌بندی ویژه شماره ${persian(String(index + 1))}`;
+    const sales = persian(
+      (5_467_502_800_000 / (index + 1)).toLocaleString("en-US", { maximumFractionDigits: 0 }),
+    );
+    const share = persian((42.3 / (index + 1)).toFixed(1)).replace(".", "٫");
+    return `| ${persian(String(index + 1))} | ${name} | ${sales} | ${share}٪ | ${index < 2 ? "✓" : ""} |`;
+  });
+  return [
+    "### ترکیب درآمد محصولات — معدنی و صنعتی گهر زمین (کگهر)",
+    "دوره: ۱۴۰۵/۰۷",
+    "",
+    "| ردیف | محصول | فروش (تومان) | سهم (٪) | غالب |",
+    "|------|-------|------------|---------|------|",
+    ...products,
+  ].join("\n");
+}
+
+const comparisons: Record<string, { message: string; width: number; fileName: string }> = {
+  comparison: {
+    message: comparisonMessage(4, true),
+    width: 800,
+    fileName: comparisonImageFileName(),
+  },
+  "comparison-four": {
+    message: comparisonMessage(4, false),
+    width: 560,
+    fileName: comparisonImageFileName(),
+  },
+  "comparison-large": {
+    message: comparisonMessage(40, true),
+    width: 800,
+    fileName: comparisonImageFileName(),
+  },
+  mix: {
+    message: productMixMessage(8, false),
+    width: 640,
+    fileName: productMixImageFileName("کگهر"),
+  },
+  "mix-long": {
+    message: productMixMessage(25, true),
+    width: 640,
+    fileName: productMixImageFileName("کگهر"),
+  },
 };
 
 const params = new URLSearchParams(location.search);
@@ -77,7 +137,7 @@ const image: { content: ReactNode; width: number; fileName: string } = compariso
   ? {
       content: <MarkdownMessage content={comparison.message} direction="rtl" />,
       width: comparison.width,
-      fileName: comparisonImageFileName(),
+      fileName: comparison.fileName,
     }
   : {
       content: <ValuationGaugeCards data={data} />,

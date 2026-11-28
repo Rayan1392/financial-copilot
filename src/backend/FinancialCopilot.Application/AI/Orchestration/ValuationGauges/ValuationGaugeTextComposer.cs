@@ -61,9 +61,11 @@ public static class ValuationGaugeTextComposer
         else if (ratio.CurrentSide == ValuationGaugeNeedleSide.PinnedAbove)
             builder.Append(" (بیشتر از انتهای محور)");
         builder.AppendLine();
-        // Sapio's own estimate (change «valuation-gauge-forward-ratio»), only when present and never attributed to the provider.
+        // Only when present. The provider's own forward ratio carries no qualifier; Sapio's estimate is named as such
+        // and is never attributed to the provider.
         if (card.Forward is { } forward)
-            builder.Append(KindName(card.Kind)).Append(ForwardLabel).Append(": ").Append(Ratio2(forward.Value)).AppendLine();
+            builder.Append(KindName(card.Kind)).Append(forward.IsProviderValue() ? ProviderForwardLabel : ForwardLabel)
+                .Append(": ").Append(Ratio2(forward.Value)).AppendLine();
         builder.Append("حد پایین ").Append(Ratio2(ratio.Min))
             .Append("، میانگین ").Append(Ratio2(ratio.Average))
             .Append("، حد بالا ").Append(Ratio2(ratio.Max))
@@ -134,6 +136,9 @@ public static class ValuationGaugeTextComposer
 
     /// <summary>The provider's name for users; the payload keeps the internal source code.</summary>
     public const string SourceName = "تحلیل‌اپ";
+
+    /// <summary>Follows the ratio name for the provider's own forward ratio, for example «P/E آینده‌نگر».</summary>
+    public const string ProviderForwardLabel = " آینده‌نگر";
 
     /// <summary>Follows the ratio name, for example «P/E آینده‌نگر (برآورد ساپیو)».</summary>
     public const string ForwardLabel = " آینده‌نگر (برآورد ساپیو)";

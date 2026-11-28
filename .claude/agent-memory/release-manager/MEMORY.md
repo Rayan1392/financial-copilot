@@ -3,6 +3,21 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.37.0
+
+- Tagged on 2026-11-28 (MINOR: an Added item). Added the public market research guide `/market-guide`
+  (feature 166, `3e530c2f`); Changed the new-chat introduction (`ea317ab0`). Frontend and docs only; no backend,
+  migration or Telegram gateway change.
+- Develop release commit `79b01656`, prod merge `776ef099` (temporary worktree), annotated tag `v1.37.0`
+  (tag object `98232ddd`), created and pushed by the owner. Release check passed; release-note, market-guide,
+  experience, starter-card and auth tests passed (6 files, 105 tests); frontend build passed. The full frontend
+  suite, lint, type check and backend tests were not run.
+- Deploy run 46066135101 succeeded (deploy job about 4m). `/releases` shows 1.37.0 as «نسخهٔ جاری»;
+  `/market-guide` returned HTTP 200 and `https://api.sapioai.ir/health` returned `Healthy`.
+- Open: feature 166 verification tasks 5–7 are unchecked. `specs/bugs.md` still says "Not yet released" for
+  BUG-052 and BUG-049, and `specs/README.md` still says feature 166 is "implemented locally"; both are outside
+  the release records and were left for the owner. Legacy tags `v1.2.3`–`v1.3.6` remain on origin.
+
 ## Release 1.36.0
 
 - Tagged on 2026-11-27 (MINOR: one Added item). Added copy/share of an own-industry comparison answer as an

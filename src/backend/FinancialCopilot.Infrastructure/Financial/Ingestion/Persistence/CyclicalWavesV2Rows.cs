@@ -178,6 +178,12 @@ public sealed class CyclicalWavesV2GaugeDetailRow
     public BigInteger MaxLow { get; set; }
     public short MaxSign { get; set; }
     public short MaxScale { get; set; }
+    public BigInteger? ForwardHigh { get; set; }
+    public BigInteger? ForwardMiddle { get; set; }
+    public BigInteger? ForwardLow { get; set; }
+    public short? ForwardSign { get; set; }
+    public short? ForwardScale { get; set; }
+    [NotMapped] public ExactDecimal? Forward { get => ExactDecimalValueConverter.Restore(ForwardHigh, ForwardMiddle, ForwardLow, ForwardSign, ForwardScale); set => Set(value, (h, m, l, s, sc) => (ForwardHigh, ForwardMiddle, ForwardLow, ForwardSign, ForwardScale) = (h, m, l, s, sc)); }
     [NotMapped] public ExactDecimal? Close { get => ExactDecimalValueConverter.Restore(CloseHigh, CloseMiddle, CloseLow, CloseSign, CloseScale); set => Set(value, (h, m, l, s, sc) => (CloseHigh, CloseMiddle, CloseLow, CloseSign, CloseScale) = (h, m, l, s, sc)); }
     [NotMapped] public ExactDecimal Start { get => ExactDecimalValueConverter.Restore(StartHigh, StartMiddle, StartLow, StartSign, StartScale)!.Value; set => Set(value, (h, m, l, s, sc) => (StartHigh, StartMiddle, StartLow, StartSign, StartScale) = (h!.Value, m!.Value, l!.Value, s!.Value, sc!.Value)); }
     [NotMapped] public ExactDecimal End { get => ExactDecimalValueConverter.Restore(EndHigh, EndMiddle, EndLow, EndSign, EndScale)!.Value; set => Set(value, (h, m, l, s, sc) => (EndHigh, EndMiddle, EndLow, EndSign, EndScale) = (h!.Value, m!.Value, l!.Value, s!.Value, sc!.Value)); }

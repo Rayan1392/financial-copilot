@@ -5,6 +5,7 @@ import type { Components } from "react-markdown";
 import { Fragment, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { parseQuarterlyFinancialTable, QuarterlyFinancialTable } from "./quarterly-financial-table";
+import { useIsAnswerPicture } from "./answer-picture";
 import { IndustryComparison } from "./industry-comparison/industry-comparison";
 import {
   isIndustryComparisonMarkdown,
@@ -382,6 +383,8 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
     : null;
   const isFinancialStatement = isFinancialStatementMarkdown(content);
   const quarterlyTable = parseQuarterlyFinancialTable(content);
+  // A shared answer picture sets its own width; the reading-width limit would leave an empty band beside the text.
+  const picture = useIsAnswerPicture();
   const industryTable = isIndustryComparisonMarkdown(content)
     ? parseIndustryComparison(content)
     : null;
@@ -394,7 +397,7 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
 
   return (
     <div
-      className={`text-foreground/90 leading-relaxed text-[15px] space-y-3 ${isMonthlySalesQualityRankingTable || quarterlyTable || industryTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
+      className={`text-foreground/90 leading-relaxed text-[15px] space-y-3 ${picture || isMonthlySalesQualityRankingTable || quarterlyTable || industryTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
       dir={isRtl ? "rtl" : direction}
     >
       {quarterlyTable ? (

@@ -257,10 +257,16 @@ public sealed class CyclicalWavesV2GaugeAvailabilityRowConfiguration : IEntityTy
 
 public sealed class CyclicalWavesV2GaugeDetailRowConfiguration : IEntityTypeConfiguration<CyclicalWavesV2GaugeDetailRow>
 {
+    // Shared with the migration that adds the columns, so the two cannot drift.
+    internal const string ForwardPartsSql = "(\"ForwardHigh\" IS NULL) = (\"ForwardMiddle\" IS NULL) AND (\"ForwardHigh\" IS NULL) = (\"ForwardLow\" IS NULL) AND (\"ForwardHigh\" IS NULL) = (\"ForwardSign\" IS NULL) AND (\"ForwardHigh\" IS NULL) = (\"ForwardScale\" IS NULL)";
+    internal const string ForwardRangesSql = "(\"ForwardScale\" IS NULL OR \"ForwardScale\" BETWEEN 0 AND 16383) AND (\"ForwardSign\" IS NULL OR \"ForwardSign\" BETWEEN -1 AND 1)";
+
     public void Configure(EntityTypeBuilder<CyclicalWavesV2GaugeDetailRow> builder)
     {
         builder.ToTable("GaugeDetails", CyclicalWavesV2Schema.Name, table =>
         {
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_ForwardParts", ForwardPartsSql);
+            table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_ForwardRanges", ForwardRangesSql);
             table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_Type", "\"GaugeType\" IN ('PE', 'PS')");
             table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_Status", "\"Status\" IS NULL OR \"Status\" BETWEEN 1 AND 4");
             table.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_DayCounts", "\"A\" >= 0 AND \"B\" >= 0 AND \"C\" >= 0 AND \"D\" >= 0 AND \"E\" >= 0 AND \"F\" >= 0");
@@ -278,6 +284,7 @@ public sealed class CyclicalWavesV2GaugeDetailRowConfiguration : IEntityTypeConf
             nameof(CyclicalWavesV2GaugeDetailRow.MinHigh), nameof(CyclicalWavesV2GaugeDetailRow.MinMiddle), nameof(CyclicalWavesV2GaugeDetailRow.MinLow),
             nameof(CyclicalWavesV2GaugeDetailRow.AvgHigh), nameof(CyclicalWavesV2GaugeDetailRow.AvgMiddle), nameof(CyclicalWavesV2GaugeDetailRow.AvgLow),
             nameof(CyclicalWavesV2GaugeDetailRow.MaxHigh), nameof(CyclicalWavesV2GaugeDetailRow.MaxMiddle), nameof(CyclicalWavesV2GaugeDetailRow.MaxLow),
+            nameof(CyclicalWavesV2GaugeDetailRow.ForwardHigh), nameof(CyclicalWavesV2GaugeDetailRow.ForwardMiddle), nameof(CyclicalWavesV2GaugeDetailRow.ForwardLow),
         })
         {
             builder.Property(propertyName).HasColumnType("numeric");

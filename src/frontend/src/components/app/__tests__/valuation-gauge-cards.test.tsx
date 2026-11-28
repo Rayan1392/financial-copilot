@@ -248,6 +248,73 @@ describe("ValuationGaugeCards ratio card", () => {
   });
 });
 
+// Change «valuation-gauge-provider-forward»: the provider's own forward ratio, named without a qualifier.
+describe("ValuationGaugeCards provider forward value", () => {
+  const providerForward = (kind: "Pe" | "Ps" = "Pe") => ({
+    value: kind === "Pe" ? "3.82" : "0.86",
+    angle: 63.6,
+    side: "Inside" as const,
+    source: "provider" as const,
+  });
+
+  it("draws the dashed needle and names the value «P/E آینده‌نگر» without «برآورد ساپیو»", () => {
+    render(
+      <ValuationGaugeCards data={gaugeResult([ratioCard("Pe", { forward: providerForward() })])} />,
+    );
+
+    const card = screen.getByTestId("valuation-gauge-card-Pe");
+    const needle = within(card).getByTestId("valuation-gauge-forward-needle");
+    expect(needle).toHaveAttribute("aria-label", "نشانگر خط‌چین: P/E آینده‌نگر ۳٫۸۲");
+    expect(needle.querySelector("circle")).not.toBeNull();
+
+    const chip = within(card).getByTestId("valuation-gauge-forward");
+    expect(chip).toHaveAttribute("data-source", "provider");
+    expect(chip).toHaveTextContent("P/E آینده‌نگر ۳٫۸۲");
+    expect(chip).not.toHaveTextContent("برآورد ساپیو");
+    expect(within(card).getByTestId("valuation-gauge-dial")).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("؛ P/E آینده‌نگر ۳٫۸۲"),
+    );
+
+    const method = within(card).getByTestId("valuation-gauge-forward-method");
+    expect(method).toHaveAttribute("data-source", "provider");
+    expect(method).toHaveTextContent(
+      "نشانگر خط‌چین با حلقه P/E آینده‌نگر به محاسبهٔ تحلیل‌اپ است؛ پیش‌بینی قطعی و توصیهٔ سرمایه‌گذاری نیست.",
+    );
+    expect(method).not.toHaveTextContent("برآورد ساپیو");
+    // The current needle is unchanged.
+    expect(within(card).getByTestId("valuation-gauge-hero")).toHaveTextContent("۶٫۴۳");
+  });
+
+  it("uses the same wording on the P/S card", () => {
+    render(
+      <ValuationGaugeCards
+        data={gaugeResult([ratioCard("Ps", { forward: providerForward("Ps") })])}
+      />,
+    );
+
+    const card = screen.getByTestId("valuation-gauge-card-Ps");
+    expect(within(card).getByTestId("valuation-gauge-forward")).toHaveTextContent(
+      "P/S آینده‌نگر ۰٫۸۶",
+    );
+    expect(within(card).getByTestId("valuation-gauge-forward-method")).toHaveTextContent(
+      "P/S آینده‌نگر به محاسبهٔ تحلیل‌اپ است",
+    );
+  });
+
+  it("treats a stored forward value without a source as the Sapio estimate", () => {
+    render(
+      <ValuationGaugeCards data={gaugeResult([ratioCard("Pe", { forward: forwardFixture() })])} />,
+    );
+
+    const chip = within(screen.getByTestId("valuation-gauge-card-Pe")).getByTestId(
+      "valuation-gauge-forward",
+    );
+    expect(chip).toHaveAttribute("data-source", "sapio");
+    expect(chip).toHaveTextContent("P/E آینده‌نگر (برآورد ساپیو) ۵٫۱۲");
+  });
+});
+
 // Change «valuation-gauge-forward-ratio»: Sapio's forward estimate, never attributed to the provider.
 describe("ValuationGaugeCards forward estimate", () => {
   it("draws a dashed needle with a ring, the «(برآورد ساپیو)» chip and the method sentence", () => {

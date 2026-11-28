@@ -6,9 +6,11 @@ namespace FinancialCopilot.Application.FinancialData.ValuationGauges;
 /// Builds standalone valuation gauge cards for one security from Feature 148 snapshots and the canonical quote.
 /// Expected read timeouts become <see cref="ValuationGaugeCardState.TemporarilyUnavailable"/> cards (or a range-only
 /// equilibrium card for a quote timeout); caller cancellation is always rethrown. No LLM, vendor HTTP, legacy table
-/// or cross-provider fallback is involved. When <see cref="ValuationGaugeForwardOptions.Enabled"/> is on and a P/E or
-/// P/S card is displayable, Sapio's forward estimate is added to those cards; its input read has its own budget and a
-/// timeout or failure drops only the estimate. The reader is optional so the flag-off path needs no registration.
+/// or cross-provider fallback is involved. A P/E or P/S card shows the provider's own forward ratio when the snapshot
+/// has a positive one (<see cref="ValuationGaugeProviderForwardOptions.Enabled"/>). Only for ratio cards still without
+/// a forward value, and only when <see cref="ValuationGaugeForwardOptions.Enabled"/> is on, Sapio's estimate fills in;
+/// its input read has its own budget and a timeout or failure drops only the estimate. The reader is optional so the
+/// flag-off path needs no registration.
 /// </summary>
 public sealed class ValuationGaugeCardsUseCase(
     IValuationGaugeSnapshotReader snapshots,
@@ -96,9 +98,13 @@ public sealed class ValuationGaugeCardsUseCase(
                 if (listed != true)
                     return ValuationGaugeProjector.Unavailable(kind, ValuationGaugeCardState.NoData, ValuationGaugeReasonCodes.NotInCatalog);
                 var snapshot = kind == ValuationGaugeKind.Pe ? set.Pe : set.Ps;
-                return snapshot is null
-                    ? ValuationGaugeProjector.Unavailable(kind, ValuationGaugeCardState.NoData, ValuationGaugeReasonCodes.SnapshotMissing)
-                    : ValuationGaugeProjector.ProjectRatio(kind, snapshot, now, maxAge, options.PercentageDecimals);
+                if (snapshot is null)
+                    return ValuationGaugeProjector.Unavailable(kind, ValuationGaugeCardState.NoData, ValuationGaugeReasonCodes.SnapshotMissing);
+                var card = ValuationGaugeProjector.ProjectRatio(kind, snapshot, now, maxAge, options.PercentageDecimals);
+                if (!options.ProviderForward.Enabled) return card;
+                var (withForward, reason) = ValuationGaugeProjector.WithProviderForward(card, snapshot.Forward);
+                _observer.ProviderForwardProjected(kind, withForward.Forward is not null, reason);
+                return withForward;
             }
             default:
             {
@@ -129,7 +135,9 @@ public sealed class ValuationGaugeCardsUseCase(
 
     /// <summary>
     /// Reads the estimator inputs once for the P/E and P/S cards that can carry an estimate (displayable, with a current
-    /// value and a rendered dial) and attaches each ratio's estimate. Every ratio card gets one observer call.
+    /// value and a rendered dial) and attaches each ratio's estimate. A card that already shows the provider's forward
+    /// value keeps it: no estimate is computed for it and no input is read when every ratio card has one. Every other
+    /// ratio card gets one observer call.
     /// </summary>
     private async Task<List<ValuationGaugeCard>> AddForwardEstimatesAsync(
         ValuationGaugeSecurity security,
@@ -138,7 +146,7 @@ public sealed class ValuationGaugeCardsUseCase(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var ratioCards = cards.Where(card => card.Kind is ValuationGaugeKind.Pe or ValuationGaugeKind.Ps).ToArray();
+        var ratioCards = cards.Where(card => card.Kind is (ValuationGaugeKind.Pe or ValuationGaugeKind.Ps) && card.Forward is null).ToArray();
         if (ratioCards.Length == 0) return cards;
         var eligible = ratioCards.Where(card => ForwardBlocker(card) is null).ToArray();
         if (eligible.Length == 0 || string.IsNullOrWhiteSpace(vendorTicker))
@@ -182,7 +190,7 @@ public sealed class ValuationGaugeCardsUseCase(
         var result = new List<ValuationGaugeCard>(cards.Count);
         foreach (var card in cards)
         {
-            if (card.Kind is not (ValuationGaugeKind.Pe or ValuationGaugeKind.Ps))
+            if (card.Kind is not (ValuationGaugeKind.Pe or ValuationGaugeKind.Ps) || card.Forward is not null)
             {
                 result.Add(card);
                 continue;

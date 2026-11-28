@@ -1,0 +1,8 @@
+mix phone-390 dark: 1280x953 px, markdown table with 8 rows, copied in 1764 ms, 0.83% pixels differ from the screenshot, 145111 bytes
+mix phone-390 light: 1280x953 px, markdown table with 8 rows, copied in 1688 ms, 0.93% pixels differ from the screenshot, 144242 bytes
+mix desktop-1280 dark: 1280x953 px, markdown table with 8 rows, copied in 1430 ms, 0.83% pixels differ from the screenshot, 145111 bytes
+mix desktop-1280 light: 1280x953 px, markdown table with 8 rows, copied in 1512 ms, 0.93% pixels differ from the screenshot, 144242 bytes
+mix-long phone-390 dark: 1280x3050 px, markdown table with 25 rows, copied in 2649 ms, 1.98% pixels differ from the screenshot, 656741 bytes
+mix-long phone-390 light: 1280x3050 px, markdown table with 25 rows, copied in 3112 ms, 1.98% pixels differ from the screenshot, 644769 bytes
+mix-long desktop-1280 dark: 1280x3050 px, markdown table with 25 rows, copied in 3237 ms, 1.98% pixels differ from the screenshot, 656741 bytes
+mix-long desktop-1280 light: 1280x3050 px, markdown table with 25 rows, copied in 2768 ms, 1.98% pixels differ from the screenshot, 644769 bytes

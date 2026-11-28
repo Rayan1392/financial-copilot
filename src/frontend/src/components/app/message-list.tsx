@@ -29,7 +29,12 @@ import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-tre
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
 import { MonthlyTrendSummaryCards } from "@/components/app/monthly-trend-summary-cards";
 import { AnswerActions } from "@/components/app/answer-actions";
-import { comparisonImageFileName, gaugeImageFileName } from "@/lib/chat/answer-image";
+import {
+  comparisonImageFileName,
+  gaugeImageFileName,
+  productMixImageFileName,
+} from "@/lib/chat/answer-image";
+import { parseProductRevenueMix } from "@/lib/chat/product-revenue-mix";
 import { parseIndustryComparison } from "@/components/app/industry-comparison/industry-comparison-model";
 import { AnalysisProgress, AssistantAvatar } from "@/components/app/analysis-progress";
 import { PsGauge } from "@/components/app/ps-gauge";
@@ -279,15 +284,25 @@ function AssistantBlock({
   // whole answer. The picture is recognised by the parser the screen uses and has a fixed width; inside it the
   // comparison renders its full table, also where the screen shows cards.
   const industryComparison = showsMarkdown ? parseIndustryComparison(displayMessage) : null;
+  // Feature 075 change «product-mix-answer-image-share»: the product revenue mix table leaves the app the same way.
+  const productMix =
+    showsMarkdown && !industryComparison ? parseProductRevenueMix(displayMessage) : null;
+  const markdownPicture = industryComparison
+    ? {
+        width: industryComparison.hasPriceEvidence ? 800 : 560,
+        fileName: comparisonImageFileName(),
+      }
+    : productMix
+      ? { width: 640, fileName: productMixImageFileName(productMix.symbol) }
+      : null;
   const answerImage =
     gaugeImage ??
-    (industryComparison
+    (markdownPicture
       ? {
+          ...markdownPicture,
           content: (
             <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
           ),
-          width: industryComparison.hasPriceEvidence ? 800 : 560,
-          fileName: comparisonImageFileName(),
         }
       : undefined);
 

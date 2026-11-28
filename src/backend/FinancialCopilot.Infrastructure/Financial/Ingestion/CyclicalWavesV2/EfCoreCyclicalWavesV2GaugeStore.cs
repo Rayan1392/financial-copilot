@@ -153,7 +153,7 @@ public sealed class EfCoreCyclicalWavesV2GaugeStore(FinancialIngestionDbContext 
             return true;
         }
         var changed = row is null || row.A != gauge.A || row.B != gauge.B || row.C != gauge.C || row.D != gauge.D || row.E != gauge.E || row.F != gauge.F ||
-                      row.Close != gauge.Close || row.Start != gauge.Start || row.End != gauge.End || row.Min != gauge.Min || row.Avg != gauge.Avg || row.Max != gauge.Max || row.Status != gauge.Status;
+                      row.Close != gauge.Close || row.Start != gauge.Start || row.End != gauge.End || row.Min != gauge.Min || row.Avg != gauge.Avg || row.Max != gauge.Max || row.Status != gauge.Status || row.Forward != gauge.Forward;
         if (!changed)
         {
             // FetchedAtUtc is the last time the vendor confirmed these values, not the last time they changed: the
@@ -163,7 +163,7 @@ public sealed class EfCoreCyclicalWavesV2GaugeStore(FinancialIngestionDbContext 
         }
         row ??= new CyclicalWavesV2GaugeDetailRow { TickerId = tickerId, GaugeType = type };
         row.A = gauge.A; row.B = gauge.B; row.C = gauge.C; row.D = gauge.D; row.E = gauge.E; row.F = gauge.F;
-        row.Close = gauge.Close; row.Start = gauge.Start; row.End = gauge.End; row.Min = gauge.Min; row.Avg = gauge.Avg; row.Max = gauge.Max; row.Status = gauge.Status; row.FetchedAtUtc = now;
+        row.Close = gauge.Close; row.Start = gauge.Start; row.End = gauge.End; row.Min = gauge.Min; row.Avg = gauge.Avg; row.Max = gauge.Max; row.Status = gauge.Status; row.Forward = gauge.Forward; row.FetchedAtUtc = now;
         if (db.Entry(row).State == EntityState.Detached) db.CyclicalWavesV2GaugeDetails.Add(row);
         return changed;
     }

@@ -7,6 +7,7 @@
 // answer with the full table, also where the screen (phone density) shows cards.
 // Run: npm run test:answer-image-browser [-- --evidence <dir relative to the repository root>]
 //      npm run test:comparison-image-browser   (the comparison fixtures, evidence under the Feature 125 change)
+//      npm run test:product-mix-image-browser  (the product revenue mix fixtures, Feature 075 change)
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -45,14 +46,43 @@ const PIXEL_RATIO = 2;
 // check also asserts that nothing in the frame is animated.
 const MAX_DIFFERENT_PIXELS = 0.015;
 
+const comparisonTexts = [
+  "مقایسه نماد با هم‌گروهی‌ها",
+  "گروه صنعتی:",
+  "اندازه گروه:",
+  "کمتر از میانگین گروه",
+  "این اطلاعات توصیه به سرمایه گذاری نیست",
+];
+const mixTexts = [
+  "ترکیب درآمد محصولات — معدنی و صنعتی گهر زمین (کگهر)",
+  "دوره: ۱۴۰۵/۰۷",
+  "فروش (تومان)",
+  "گندله بورس کالا",
+];
 const allFixtures = {
   single: { cards: 1, width: 480 },
   all: { cards: 3, width: 800 },
   forward: { cards: 3, width: 800 },
-  // rows: member rows plus the group-average row.
-  comparison: { comparison: true, layout: "wide", rows: 5, width: 800 },
-  "comparison-four": { comparison: true, layout: "compact-table", rows: 5, width: 560 },
-  "comparison-large": { comparison: true, layout: "wide", rows: 41, width: 800 },
+  // Markdown answers. rows: body rows of the table in the picture (a comparison adds the group-average row).
+  comparison: { markdown: true, layout: "wide", rows: 5, width: 800, texts: comparisonTexts },
+  "comparison-four": {
+    markdown: true,
+    layout: "compact-table",
+    rows: 5,
+    width: 560,
+    texts: comparisonTexts,
+  },
+  "comparison-large": {
+    markdown: true,
+    layout: "wide",
+    rows: 41,
+    width: 800,
+    texts: comparisonTexts,
+  },
+  mix: { markdown: true, rows: 8, width: 640, texts: mixTexts },
+  // Wrapped product names fill this picture with text, so more edge pixels differ between the two rasterisers
+  // (measured 2.0%). A wrong wrap or a missing row moves whole lines and changes the height, which is checked apart.
+  "mix-long": { markdown: true, rows: 25, width: 640, texts: mixTexts, maxDifferent: 0.03 },
 };
 const fixturesArgument = process.argv.indexOf("--fixtures");
 const selected =
@@ -83,7 +113,9 @@ async function open(context, port, query, theme) {
     timeout: 120000,
   });
   await page
-    .locator("[data-testid='valuation-gauge-cards'], [data-testid='industry-comparison']")
+    .locator(
+      "[data-testid='valuation-gauge-cards'], [data-testid='industry-comparison'], [role='region'][aria-label='جدول']",
+    )
     .first()
     .waitFor({ timeout: 120000 });
   await page.evaluate(
@@ -189,15 +221,12 @@ try {
               layouts: [...picture.querySelectorAll("[data-layout]")]
                 .filter(visible)
                 .map((node) => node.dataset.layout),
-              rows: [...picture.querySelectorAll("[data-layout] tbody tr")].filter(visible).length,
-              missingText: [
-                "مقایسه نماد با هم‌گروهی‌ها",
-                "گروه صنعتی:",
-                "اندازه گروه:",
-                "کمتر از میانگین گروه",
-                "این اطلاعات توصیه به سرمایه گذاری نیست",
-                "sapioai.ir",
-              ].filter((part) => !picture.textContent.includes(part)),
+              rows: [...picture.querySelectorAll("tbody tr")].filter(visible).length,
+              text: picture.textContent,
+              // A table wider than the picture would be cut off at its scroll container.
+              clipped: [...picture.querySelectorAll("[role=region]")].filter(
+                (node) => node.scrollWidth > node.clientWidth + 1,
+              ).length,
               buttons: picture.querySelectorAll("button").length,
               inert: picture.parentElement.inert,
               hidden: picture.parentElement.getAttribute("aria-hidden"),
@@ -221,12 +250,12 @@ try {
 
         const frames = await page.evaluate(() => window.__frames);
         assert.equal(frames.length, 1, `${label}: one frame is drawn`);
-        const { layouts, rows, missingText, buttons, ...frame } = frames[0];
+        const { layouts, rows, text, clipped, buttons, ...frame } = frames[0];
         assert.deepEqual(
           frame,
           {
             width: expected.width,
-            cards: expected.comparison ? 0 : expected.cards,
+            cards: expected.markdown ? 0 : expected.cards,
             tabs: 0,
             details: 0,
             animated: 0,
@@ -236,13 +265,22 @@ try {
           },
           `${label}: the frame while mounted`,
         );
-        if (expected.comparison) {
+        if (expected.markdown) {
+          const missingText = [...expected.texts, "sapioai.ir"].filter(
+            (part) => !text.includes(part),
+          );
           assert.deepEqual(
-            { layouts, rows, missingText, buttons },
-            { layouts: [expected.layout], rows: expected.rows, missingText: [], buttons: 0 },
+            { layouts, rows, missingText, clipped, buttons },
+            {
+              layouts: expected.layout ? [expected.layout] : [],
+              rows: expected.rows,
+              missingText: [],
+              clipped: 0,
+              buttons: 0,
+            },
             `${label}: the picture is the whole answer with the full table and no button`,
           );
-          if (viewport.width < 720)
+          if (expected.layout && viewport.width < 720)
             assert.deepEqual(onScreenLayouts, ["cards"], `${label}: the screen shows cards`);
           assert.ok(
             await page.getByTestId("follow-up").isVisible(),
@@ -256,7 +294,7 @@ try {
           0,
           `${label}: the frame is removed`,
         );
-        if (!expected.comparison && viewport.width < 720 && expected.cards > 1)
+        if (!expected.markdown && viewport.width < 720 && expected.cards > 1)
           assert.ok(onScreenTabs, `${label}: the screen shows one card at a time`);
 
         const produced = await page.evaluate(async () => {
@@ -297,7 +335,7 @@ try {
         const name = `${fixture}-${viewport.name}-${theme}`;
         await writeFile(path.join(evidenceDir, `${name}.png`), png);
         // On a mismatch the browser's screenshot is kept beside the picture, so the two can be looked at.
-        if (result.different > MAX_DIFFERENT_PIXELS)
+        if (result.different > (expected.maxDifferent ?? MAX_DIFFERENT_PIXELS))
           await writeFile(path.join(evidenceDir, `${name}.mismatch-reference.png`), screenshot);
         assert.equal(result.produced[0], expected.width * PIXEL_RATIO, `${label}: picture width`);
         assert.ok(
@@ -309,15 +347,15 @@ try {
           `${label}: the picture is not blank (${result.colours} colours)`,
         );
         assert.ok(
-          result.different <= MAX_DIFFERENT_PIXELS,
+          result.different <= (expected.maxDifferent ?? MAX_DIFFERENT_PIXELS),
           `${label}: ${(result.different * 100).toFixed(2)}% of pixels differ from the screenshot`,
         );
         assert.deepEqual(errors, [], `${label}: no page error`);
 
         record(
           `${label}: ${result.produced[0]}x${result.produced[1]} px, ` +
-            (expected.comparison
-              ? `${expected.layout} table with ${expected.rows} rows, copied in ${drawMs} ms, `
+            (expected.markdown
+              ? `${expected.layout ?? "markdown"} table with ${expected.rows} rows, copied in ${drawMs} ms, `
               : `${expected.cards} card(s), `) +
             `${(result.different * 100).toFixed(2)}% pixels differ from the screenshot, ${png.length} bytes`,
         );

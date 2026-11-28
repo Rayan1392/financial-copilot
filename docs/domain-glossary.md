@@ -230,6 +230,9 @@ Optional context that may be supplied to future orchestration beyond persisted c
 ### Valuation Ratios
 
 - P/E
+- Forward P/E / Forward P/S (provider): تحلیل‌اپ's own forward ratio of a gauge, the `forward` member of the gauge
+  response, stored per gauge and shown on the card as «P/E آینده‌نگر» / «P/S آینده‌نگر». It has priority over the Sapio
+  estimate
 - Forward P/E / Forward P/S (Sapio estimate): Sapio's own forward estimate of a gauge ratio, method `sapio-1`
   (12 months of sales × the 4-month year-over-year growth, median of 8 quarterly net margins), always labelled
   «(برآورد ساپیو)» and never the provider's figure; see `docs/providers/cyclicalwaves-v2/README.md`

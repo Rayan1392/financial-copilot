@@ -381,6 +381,57 @@ describe("MessageList image actions", () => {
     expect(screen.queryByRole("button", { name: "کپی تصویر" })).not.toBeInTheDocument();
   });
 
+  // Feature 075 change «product-mix-answer-image-share».
+  it("offers the picture of a product revenue mix answer: the whole answer at the fixed width", async () => {
+    stubClipboard();
+    const share = vi.fn().mockResolvedValue(undefined);
+    stubShare(share);
+    const mix = [
+      "### ترکیب درآمد محصولات — معدنی و صنعتی گهر زمین (کگهر)",
+      "دوره: 1405/07",
+      "",
+      "| ردیف | محصول | فروش (تومان) | سهم (٪) | غالب |",
+      "|------|-------|------------|---------|------|",
+      "| 1 | گندله بورس کالا | 5,467,502,800,000 | 42.3٪ | ✓ |",
+      "| 2 | گندله | 4,364,296,200,000 | 33.8٪ | ✓ |",
+    ].join("\n");
+    let captured: Record<string, unknown> | undefined;
+    draw.mockImplementation(async (node) => {
+      const element = await node;
+      captured = {
+        width: element.style.width,
+        rows: element.querySelectorAll("tbody tr").length,
+        heading: element.textContent?.includes(
+          "ترکیب درآمد محصولات — معدنی و صنعتی گهر زمین (کگهر)",
+        ),
+        period: element.textContent?.includes("دوره:"),
+        // Inside a picture the text is not held to the reading width.
+        readingWidth: element.querySelector("[class*='max-w-[64ch]']") !== null,
+        buttons: element.querySelectorAll("button").length,
+      };
+      return png;
+    });
+    renderBlock(block({ message: mix, intent: "ProductRevenueMix" }));
+    expect(document.querySelector("[class*='max-w-[64ch]']")).not.toBeNull();
+
+    await click("کپی تصویر");
+    await waitFor(() =>
+      expect(captured).toEqual({
+        width: "640px",
+        rows: 2,
+        heading: true,
+        period: true,
+        readingWidth: false,
+        buttons: 0,
+      }),
+    );
+
+    await click("اشتراک‌گذاری");
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    const [file] = share.mock.calls[0][0].files as File[];
+    expect(file.name).toMatch(/^ترکیب-فروش-کگهر-.+\.png$/u);
+  });
+
   it("offers no picture for a text answer", () => {
     stubClipboard();
     renderBlock(block({}));

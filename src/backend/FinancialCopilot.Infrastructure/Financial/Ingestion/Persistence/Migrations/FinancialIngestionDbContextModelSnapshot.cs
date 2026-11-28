@@ -1883,6 +1883,21 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<DateTimeOffset>("FetchedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<BigInteger?>("ForwardHigh")
+                        .HasColumnType("numeric");
+
+                    b.Property<BigInteger?>("ForwardLow")
+                        .HasColumnType("numeric");
+
+                    b.Property<BigInteger?>("ForwardMiddle")
+                        .HasColumnType("numeric");
+
+                    b.Property<short?>("ForwardScale")
+                        .HasColumnType("smallint");
+
+                    b.Property<short?>("ForwardSign")
+                        .HasColumnType("smallint");
+
                     b.Property<BigInteger>("MaxHigh")
                         .HasColumnType("numeric");
 
@@ -1941,6 +1956,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                             t.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_CloseParts", "(\"CloseHigh\" IS NULL) = (\"CloseMiddle\" IS NULL) AND (\"CloseHigh\" IS NULL) = (\"CloseLow\" IS NULL) AND (\"CloseHigh\" IS NULL) = (\"CloseSign\" IS NULL) AND (\"CloseHigh\" IS NULL) = (\"CloseScale\" IS NULL)");
 
                             t.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_DayCounts", "\"A\" >= 0 AND \"B\" >= 0 AND \"C\" >= 0 AND \"D\" >= 0 AND \"E\" >= 0 AND \"F\" >= 0");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_ForwardParts", "(\"ForwardHigh\" IS NULL) = (\"ForwardMiddle\" IS NULL) AND (\"ForwardHigh\" IS NULL) = (\"ForwardLow\" IS NULL) AND (\"ForwardHigh\" IS NULL) = (\"ForwardSign\" IS NULL) AND (\"ForwardHigh\" IS NULL) = (\"ForwardScale\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_ForwardRanges", "(\"ForwardScale\" IS NULL OR \"ForwardScale\" BETWEEN 0 AND 16383) AND (\"ForwardSign\" IS NULL OR \"ForwardSign\" BETWEEN -1 AND 1)");
 
                             t.HasCheckConstraint("CK_CyclicalWavesV2GaugeDetails_Scales", "(\"CloseScale\" IS NULL OR \"CloseScale\" BETWEEN 0 AND 16383) AND \"StartScale\" BETWEEN 0 AND 16383 AND \"EndScale\" BETWEEN 0 AND 16383 AND \"MinScale\" BETWEEN 0 AND 16383 AND \"AvgScale\" BETWEEN 0 AND 16383 AND \"MaxScale\" BETWEEN 0 AND 16383");
 

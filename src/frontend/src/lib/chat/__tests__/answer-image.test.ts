@@ -6,6 +6,7 @@ import {
   canSharePngFiles,
   comparisonImageFileName,
   gaugeImageFileName,
+  productMixImageFileName,
   renderNodeToPngBlob,
 } from "@/lib/chat/answer-image";
 
@@ -98,5 +99,13 @@ describe("gaugeImageFileName", () => {
 describe("comparisonImageFileName", () => {
   it("names the picture by the Jalali date", () => {
     expect(comparisonImageFileName()).toMatch(/^مقایسه-با-صنعت-[۰-۹]{4}-[۰-۹]{2}-[۰-۹]{2}\.png$/u);
+  });
+});
+
+describe("productMixImageFileName", () => {
+  it("names the picture by symbol and Jalali date", () => {
+    expect(productMixImageFileName("کگهر")).toMatch(
+      /^ترکیب-فروش-کگهر-[۰-۹]{4}-[۰-۹]{2}-[۰-۹]{2}\.png$/u,
+    );
   });
 });

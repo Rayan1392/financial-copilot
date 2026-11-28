@@ -338,6 +338,7 @@ public sealed class ValuationGaugeForwardEstimateTests
         public void Completed(TimeSpan elapsed, int displayableCards, string matchOutcome) { }
         public void ForwardEstimated(ValuationGaugeKind kind, bool shown, string reasonCode, TimeSpan? readElapsed) => Forward.Add((kind, shown, reasonCode));
         public void ForwardReadFailed(string reasonCode, TimeSpan elapsed, Exception? error) => ReadFailures.Add((reasonCode, error));
+        public void ProviderForwardProjected(ValuationGaugeKind kind, bool shown, string reasonCode) { }
     }
 
     private sealed class FakeSnapshotReader(ValuationGaugeSnapshotSet set) : IValuationGaugeSnapshotReader

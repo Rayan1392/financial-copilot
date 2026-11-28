@@ -84,7 +84,8 @@ public sealed class CyclicalWavesV2GaugeDataClient(HttpClient httpClient) : ICyc
             throw Invalid("status must be between 1 and 4 or null");
         return new CyclicalWavesV2Gauge(a, b, c, d, e, f, OptionalDecimal(gauge, "close"),
             RequiredDecimal(gauge, "start"), RequiredDecimal(gauge, "end"), RequiredDecimal(gauge, "min"),
-            RequiredDecimal(gauge, "avg"), RequiredDecimal(gauge, "max"), status);
+            RequiredDecimal(gauge, "avg"), RequiredDecimal(gauge, "max"), status,
+            OptionalDecimal(gauge, "forward"));
     }
 
     private static ExactDecimal RequiredDecimal(JsonElement root, string name) => OptionalDecimal(root, name)

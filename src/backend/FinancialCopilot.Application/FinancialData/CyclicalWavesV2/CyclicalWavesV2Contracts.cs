@@ -84,7 +84,9 @@ public sealed record CyclicalWavesV2EquilibriumCatalogItem(string Ticker, string
 public sealed record CyclicalWavesV2Gauge(
     int A, int B, int C, int D, int E, int F,
     ExactDecimal? Close, ExactDecimal Start, ExactDecimal End,
-    ExactDecimal Min, ExactDecimal Avg, ExactDecimal Max, int? Status);
+    ExactDecimal Min, ExactDecimal Avg, ExactDecimal Max, int? Status,
+    // The provider's own forward ratio (live contract of 2026-11-28). Null when the provider sends null or omits it.
+    ExactDecimal? Forward = null);
 public sealed record CyclicalWavesV2GaugeDetails(
     string Ticker, string? Enticker, CyclicalWavesV2Gauge? Pe, CyclicalWavesV2Gauge? Ps);
 public sealed record CyclicalWavesV2EquilibriumRange(ExactDecimal Min, ExactDecimal Avg, ExactDecimal Max);

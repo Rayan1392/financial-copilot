@@ -209,6 +209,37 @@ export function CyclicalWavesV2Page() {
             </span>
           </div>
           <div>
+            <div className="text-xs text-muted-foreground">همگام‌سازی حین بازار فعال</div>
+            <YesNo value={status.intradaySyncEnabled} />
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">بازهٔ حین بازار (به وقت تهران)</div>
+            <span className="text-xs">
+              <span dir="ltr">
+                {status.intradayWindowStartTehran}–{status.intradayWindowEndTehran}
+              </span>
+              {" · "}هر {status.intradayIntervalMinutes} دقیقه
+            </span>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">نوبت بعدی حین بازار (UTC)</div>
+            <span className="text-xs" dir="ltr">
+              {formatDt(status.nextIntradayRunUtc)}
+            </span>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">به‌روزرسانی با اطلاعیهٔ کدال فعال</div>
+            <YesNo value={status.codalGaugeRefreshEnabled} />
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">دریافت دوباره پس از اطلاعیه</div>
+            <span className="text-xs">
+              {status.codalGaugeRecheckMinutes > 0
+                ? `${status.codalGaugeRecheckMinutes} دقیقه بعد`
+                : "غیرفعال"}
+            </span>
+          </div>
+          <div>
             <div className="text-xs text-muted-foreground">اعتبارنامه پیکربندی شده</div>
             <YesNo value={status.credentialsConfigured} />
           </div>

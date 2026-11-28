@@ -2459,6 +2459,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<DateTimeOffset?>("NotBeforeUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ProcessedItems")
                         .HasColumnType("integer");
 

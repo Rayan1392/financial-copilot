@@ -381,6 +381,93 @@ public sealed class CyclicalWavesV2PostgreSqlIntegrationTests(PostgreSqlIntegrat
     }
 
     [SkippableFact]
+    public async Task RunStore_AnnouncementRefreshesQueueBehindAnActiveRunAndWaitForTheirDueTime()
+    {
+        await using var database = await fixture.CreateDatabaseAsync();
+        await using var db = database.CreateContext();
+        var runs = new EfCoreCyclicalWavesV2SyncRunStore(db);
+        var full = new CyclicalWavesV2SyncRequest(CyclicalWavesV2SyncScope.Full, null, null, CyclicalWavesV2SyncTrigger.Scheduled, "system");
+        var fullRunId = await runs.TryStartAsync(full, "worker", Now, Now.AddMinutes(30), CancellationToken.None);
+        Assert.NotNull(fullRunId);
+
+        // Accepted while a run holds the lease; RequestAsync (Admin) is refused in the same state.
+        Assert.Equal(CyclicalWavesV2AnnouncementEnqueueResult.Queued,
+            await runs.EnqueueAnnouncementRefreshAsync("فولاد", "codal:MonthlyReport:-1001:42", Now, null, 500, CancellationToken.None));
+        Assert.Equal(CyclicalWavesV2AnnouncementEnqueueResult.Queued,
+            await runs.EnqueueAnnouncementRefreshAsync("فولاد", "codal:MonthlyReport:-1001:42", Now, Now.AddMinutes(30), 500, CancellationToken.None));
+        Assert.False((await runs.RequestAsync(full, Now, CancellationToken.None)).Accepted);
+
+        // One pending run per ticker and kind; another ticker is not a duplicate.
+        Assert.Equal(CyclicalWavesV2AnnouncementEnqueueResult.Duplicate,
+            await runs.EnqueueAnnouncementRefreshAsync("فولاد", "codal:FinancialStatement:-1001:43", Now, null, 500, CancellationToken.None));
+        Assert.Equal(CyclicalWavesV2AnnouncementEnqueueResult.Duplicate,
+            await runs.EnqueueAnnouncementRefreshAsync("فولاد", "codal:FinancialStatement:-1001:43", Now, Now.AddMinutes(45), 500, CancellationToken.None));
+        Assert.Equal(CyclicalWavesV2AnnouncementEnqueueResult.Queued,
+            await runs.EnqueueAnnouncementRefreshAsync("فملی", "codal:FinancialStatement:-1001:44", Now, null, 500, CancellationToken.None));
+        // The cap counts every pending announcement run.
+        Assert.Equal(CyclicalWavesV2AnnouncementEnqueueResult.QueueFull,
+            await runs.EnqueueAnnouncementRefreshAsync("شپنا", "codal:MonthlyReport:-1001:45", Now, null, 3, CancellationToken.None));
+        Assert.Equal(3, await db.CyclicalWavesV2SyncRuns.CountAsync(run => run.Status == "Requested" && run.TriggerSource == "CodalAnnouncement"));
+
+        // Nothing is claimed while the Full run is running.
+        Assert.Null(await runs.ClaimNextRequestedAsync("worker", Now.AddMinutes(1), Now.AddMinutes(31), CancellationToken.None));
+        await runs.CompleteAsync(fullRunId!.Value, CyclicalWavesV2SyncRunStatus.Succeeded, new(1, 1, 1, 0, 0), null, Now.AddMinutes(19), CancellationToken.None);
+
+        // The two immediate runs, oldest first; the deferred one stays queued until its due time.
+        foreach (var expectedTicker in new[] { "فولاد", "فملی" })
+        {
+            var claimed = await runs.ClaimNextRequestedAsync("worker", Now.AddMinutes(20), Now.AddMinutes(50), CancellationToken.None);
+            Assert.NotNull(claimed);
+            Assert.Equal(expectedTicker, claimed!.Request.Ticker);
+            Assert.Equal(CyclicalWavesV2SyncScope.TickerGaugeEquilibrium, claimed.Request.Scope);
+            Assert.Equal(CyclicalWavesV2SyncTrigger.CodalAnnouncement, claimed.Request.Trigger);
+            await runs.CompleteAsync(claimed.RunId, CyclicalWavesV2SyncRunStatus.Succeeded, new(2, 2, 2, 0, 0), null, Now.AddMinutes(20), CancellationToken.None);
+        }
+
+        Assert.Null(await runs.ClaimNextRequestedAsync("worker", Now.AddMinutes(29), Now.AddMinutes(59), CancellationToken.None));
+        // A run that is not yet due does not block an Admin request, and that request is claimed first.
+        var screener = new CyclicalWavesV2SyncRequest(CyclicalWavesV2SyncScope.Screener, null, null, CyclicalWavesV2SyncTrigger.Admin, "User:1");
+        Assert.True((await runs.RequestAsync(screener, Now.AddMinutes(29), CancellationToken.None)).Accepted);
+        var admin = await runs.ClaimNextRequestedAsync("worker", Now.AddMinutes(29), Now.AddMinutes(59), CancellationToken.None);
+        Assert.Equal(CyclicalWavesV2SyncScope.Screener, admin!.Request.Scope);
+        await runs.CompleteAsync(admin.RunId, CyclicalWavesV2SyncRunStatus.Succeeded, new(1, 1, 1, 0, 0), null, Now.AddMinutes(29), CancellationToken.None);
+
+        var deferred = await runs.ClaimNextRequestedAsync("worker", Now.AddMinutes(30), Now.AddMinutes(60), CancellationToken.None);
+        Assert.Equal("فولاد", deferred!.Request.Ticker);
+        var history = await runs.GetRecentRunsAsync(20, CancellationToken.None);
+        Assert.Equal(Now.AddMinutes(30), history.Single(run => run.RunId == deferred.RunId).NotBeforeUtc);
+        Assert.Null(history.Single(run => run.RunId == admin.RunId).NotBeforeUtc);
+    }
+
+    [SkippableFact]
+    public async Task Migration_AddsOnlyTheRunDueTimeAndRollsBackCleanly()
+    {
+        const string previousMigration = "20261128095025_Feature167OptionMarket";
+        const string columnCount = "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'cyclicalwaves' AND table_name = 'SyncRuns'";
+        const string dueTimeColumn = columnCount + " AND column_name = 'NotBeforeUtc' AND is_nullable = 'YES' AND data_type = 'timestamp with time zone'";
+        await using var database = await fixture.CreateDatabaseAsync();
+        await using var db = database.CreateContext();
+        var migrator = db.GetService<IMigrator>();
+        var withColumn = await CountAsync(db, columnCount);
+        Assert.Equal(1, await CountAsync(db, dueTimeColumn));
+
+        // A run stored before the migration reads as due at once after it.
+        await migrator.MigrateAsync(previousMigration);
+        Assert.Equal(withColumn - 1, await CountAsync(db, columnCount));
+        Assert.Equal(0, await CountAsync(db, dueTimeColumn));
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO cyclicalwaves.\"SyncRuns\" (\"Id\", \"Scope\", \"TriggerSource\", \"Status\", \"RequestedAt\", \"TotalItems\", \"ProcessedItems\", \"UpdatedItems\", \"UnchangedItems\", \"FailedItems\") " +
+            "VALUES ('11111111-1111-1111-1111-111111111111', 'Screener', 'Admin', 'Requested', now(), 0, 0, 0, 0, 0)");
+
+        await migrator.MigrateAsync();
+        Assert.Equal(withColumn, await CountAsync(db, columnCount));
+        db.ChangeTracker.Clear();
+        var claimed = await new EfCoreCyclicalWavesV2SyncRunStore(db)
+            .ClaimNextRequestedAsync("worker", DateTimeOffset.UtcNow.AddMinutes(1), DateTimeOffset.UtcNow.AddMinutes(31), CancellationToken.None);
+        Assert.Equal(Guid.Parse("11111111-1111-1111-1111-111111111111"), claimed!.RunId);
+    }
+
+    [SkippableFact]
     public async Task FullRunThroughTheCoordinator_TouchesOnlyTheCyclicalWavesSchema()
     {
         await using var database = await fixture.CreateDatabaseAsync();

@@ -318,6 +318,8 @@ export type CyclicalWavesV2Run = {
   counts: CyclicalWavesV2RunCounts;
   errorSummary: string | null;
   requestedBy: string | null;
+  /** A queued run is not started before this time; null means it is due at once. */
+  notBeforeUtc?: string | null;
 };
 
 export type CyclicalWavesV2InlineRunResponse = {
@@ -342,6 +344,15 @@ export type CyclicalWavesV2StatusResponse = {
   activeRun: CyclicalWavesV2Run | null;
   lastSuccessByScope: { scope: string; completedAt: string }[];
   recentRuns: CyclicalWavesV2Run[];
+  /** Gauge and equilibrium runs during market hours (Saturday to Wednesday, Tehran time). */
+  intradaySyncEnabled: boolean;
+  intradayWindowStartTehran: string;
+  intradayWindowEndTehran: string;
+  intradayIntervalMinutes: number;
+  nextIntradayRunUtc: string | null;
+  /** A CodalMirror monthly report or financial statement post refreshes the symbol's gauges. */
+  codalGaugeRefreshEnabled: boolean;
+  codalGaugeRecheckMinutes: number;
 };
 
 const CYCLICAL_WAVES_V2_BASE = "/api/v1/admin/cyclicalwaves-v2";

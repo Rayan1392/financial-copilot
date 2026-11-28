@@ -57,6 +57,13 @@ function status(overrides: Partial<CyclicalWavesV2StatusResponse> = {}): Cyclica
     activeRun: null,
     lastSuccessByScope: [],
     recentRuns: [run({ errorSummary: "ticker X: timeout" })],
+    intradaySyncEnabled: true,
+    intradayWindowStartTehran: "09:00",
+    intradayWindowEndTehran: "12:30",
+    intradayIntervalMinutes: 30,
+    nextIntradayRunUtc: "2026-10-31T05:30:00Z",
+    codalGaugeRefreshEnabled: true,
+    codalGaugeRecheckMinutes: 30,
     ...overrides,
   };
 }
@@ -85,6 +92,38 @@ describe("CyclicalWavesV2Page", () => {
       expect(actionButton(label)).toBeEnabled();
     // Single-ticker sync stays disabled until a ticker is typed.
     expect(actionButton("همگام‌سازی یک نماد")).toBeDisabled();
+  });
+
+  it("shows the market-hours schedule and the announcement refresh", async () => {
+    getCyclicalWavesV2Status.mockResolvedValue(
+      status({
+        recentRuns: [
+          run({ scope: "TickerGaugeEquilibrium", ticker: "فولاد", trigger: "CodalAnnouncement" }),
+        ],
+      }),
+    );
+
+    render(<CyclicalWavesV2Page />);
+
+    const header = await screen.findByRole("region", { name: "وضعیت CyclicalWaves v2" });
+    expect(within(header).getByText("همگام‌سازی حین بازار فعال")).toBeInTheDocument();
+    expect(within(header).getByText("09:00–12:30")).toBeInTheDocument();
+    expect(within(header).getByText(/هر 30 دقیقه/)).toBeInTheDocument();
+    expect(within(header).getByText("31/10/2026, 05:30:00")).toBeInTheDocument();
+    expect(within(header).getByText("به‌روزرسانی با اطلاعیهٔ کدال فعال")).toBeInTheDocument();
+    expect(within(header).getByText("30 دقیقه بعد")).toBeInTheDocument();
+    expect(screen.getByText("CodalAnnouncement")).toBeInTheDocument();
+  });
+
+  it("says that the second fetch after an announcement is off", async () => {
+    getCyclicalWavesV2Status.mockResolvedValue(
+      status({ codalGaugeRecheckMinutes: 0, nextIntradayRunUtc: null }),
+    );
+
+    render(<CyclicalWavesV2Page />);
+
+    const header = await screen.findByRole("region", { name: "وضعیت CyclicalWaves v2" });
+    expect(within(header).getByText("غیرفعال")).toBeInTheDocument();
   });
 
   it("disables every action button while a run is active", async () => {

@@ -25,7 +25,9 @@ public enum CyclicalWavesV2SyncTrigger
 {
     Scheduled,
     StartupCatchUp,
-    Admin
+    Admin,
+    /// <summary>A CodalMirror monthly report or financial statement post asked for the symbol's gauges.</summary>
+    CodalAnnouncement
 }
 
 public enum CyclicalWavesV2SyncRunStatus
@@ -64,7 +66,16 @@ public sealed record CyclicalWavesV2SyncRunSummary(
     DateTimeOffset? CompletedAt,
     CyclicalWavesV2RunCounts Counts,
     string? ErrorSummary,
-    string? RequestedBy);
+    string? RequestedBy,
+    // Null: due as soon as the Worker is free. Otherwise the run is not claimed before this time.
+    DateTimeOffset? NotBeforeUtc = null);
+
+public enum CyclicalWavesV2AnnouncementEnqueueResult
+{
+    Queued,
+    Duplicate,
+    QueueFull
+}
 
 public sealed record CyclicalWavesV2RequestResult(Guid RunId, bool Accepted);
 
@@ -73,7 +84,10 @@ public sealed record CyclicalWavesV2ClaimedRun(Guid RunId, CyclicalWavesV2SyncRe
 /// <summary>Run tracking with one global lease: at most one run is <c>Running</c> at a time.</summary>
 public interface ICyclicalWavesV2SyncRunStore
 {
-    /// <summary>Queues a run, or returns the active run's id with <c>Accepted = false</c>.</summary>
+    /// <summary>
+    /// Queues a run, or returns the active run's id with <c>Accepted = false</c>. A queued run whose
+    /// due time is still in the future does not count as active.
+    /// </summary>
     Task<CyclicalWavesV2RequestResult> RequestAsync(
         CyclicalWavesV2SyncRequest request,
         DateTimeOffset now,
@@ -87,6 +101,21 @@ public interface ICyclicalWavesV2SyncRunStore
         DateTimeOffset leaseExpiresAt,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Queues a gauge and equilibrium refresh of one ticker for a CodalMirror announcement. Unlike
+    /// <see cref="RequestAsync"/> it is accepted while another run is active. A pending announcement run
+    /// of the same ticker and the same kind (immediate, deferred) makes it a duplicate; at
+    /// <paramref name="maximumPending"/> pending announcement runs it is refused.
+    /// </summary>
+    Task<CyclicalWavesV2AnnouncementEnqueueResult> EnqueueAnnouncementRefreshAsync(
+        string ticker,
+        string? requestedBy,
+        DateTimeOffset now,
+        DateTimeOffset? notBeforeUtc,
+        int maximumPending,
+        CancellationToken cancellationToken);
+
+    /// <summary>Claims the oldest queued run that is due at <paramref name="now"/>.</summary>
     Task<CyclicalWavesV2ClaimedRun?> ClaimNextRequestedAsync(
         string lockOwner,
         DateTimeOffset now,

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using FinancialCopilot.Application.Authentication;
+using FinancialCopilot.Application.FinancialData.CyclicalWavesV2;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Telegram;
@@ -21,6 +22,7 @@ public sealed class TelegramChannelFinancialStatementHandler(
     ITelegramFinancialStatementRecognizer recognizer,
     IOptions<TelegramChannelMonthlyReportOptions> channelAuthorization,
     IOptions<TelegramChannelFinancialStatementOptions> configured,
+    ICodalAnnouncementGaugeRefreshTrigger gaugeRefresh,
     TimeProvider clock,
     ILogger<TelegramChannelFinancialStatementHandler> logger) : ITelegramChannelFinancialStatementHandler
 {
@@ -126,6 +128,14 @@ public sealed class TelegramChannelFinancialStatementHandler(
                 update.TelegramChatId, update.TelegramMessageId, update.CorrelationId);
             return Empty(TelegramAssistantResultStatus.Replayed, update);
         }
+
+        // First delivery only (a scheduled, reconciled or recovered pass has an existing checkpoint): the
+        // CyclicalWaves v2 gauges of the symbol are refreshed whatever the Noavaran Amin switches say. The
+        // trigger queues and never throws.
+        if (existing is null)
+            await gaugeRefresh.RequestAsync(new CodalAnnouncementGaugeRefreshRequest(
+                announcement.Symbol, CodalAnnouncementKind.FinancialStatement, update.TelegramChatId,
+                update.TelegramMessageId ?? 0, update.CorrelationId), cancellationToken);
 
         if (!options.AutoBackfillEnabled)
         {

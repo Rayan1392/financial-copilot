@@ -213,6 +213,16 @@ public static class CyclicalWavesV2ServiceCollectionExtensions
                 TimeSpan.FromMinutes(options.LeaseMinutes));
         });
         services.AddScoped<ICyclicalWavesV2SyncCoordinator, CyclicalWavesV2SyncCoordinator>();
+        // Change «intraday-gauge-sync-and-codal-trigger»: CodalMirror posts queue a gauge refresh of their symbol.
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<CyclicalWavesV2Options>>().Value;
+            return new CodalAnnouncementGaugeRefreshSettings(
+                options.IngestionEnabled && options.CodalGaugeRefreshEnabled,
+                TimeSpan.FromMinutes(options.CodalGaugeRecheckMinutes));
+        });
+        services.AddScoped<CodalAnnouncementGaugeRefresh>();
+        services.AddSingleton<ICodalAnnouncementGaugeRefreshTrigger, ScopedCodalAnnouncementGaugeRefreshTrigger>();
         services.AddScoped<CyclicalWavesV2ReadModel>();
     }
 

@@ -197,7 +197,13 @@ services:
         CyclicalWavesV2__GaugeBaseUrl: ${CYCLICALWAVES_V2_GAUGE_BASE_URL:-https://api.tahlilapp.com/api/}
         CyclicalWavesV2__IngestionEnabled: ${CYCLICALWAVES_V2_INGESTION_ENABLED:-false}
         CyclicalWavesV2__DailySyncEnabled: ${CYCLICALWAVES_V2_DAILY_SYNC_ENABLED:-false}
-        CyclicalWavesV2__DailySyncCronUtc: ${CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC:-30 23 * * *}
+        CyclicalWavesV2__DailySyncCronUtc: ${CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC:-30 2,15 * * *}
+        CyclicalWavesV2__IntradaySyncEnabled: ${CYCLICALWAVES_V2_INTRADAY_SYNC_ENABLED:-false}
+        CyclicalWavesV2__IntradayWindowStartTehran: ${CYCLICALWAVES_V2_INTRADAY_WINDOW_START_TEHRAN:-09:00}
+        CyclicalWavesV2__IntradayWindowEndTehran: ${CYCLICALWAVES_V2_INTRADAY_WINDOW_END_TEHRAN:-12:30}
+        CyclicalWavesV2__IntradayIntervalMinutes: ${CYCLICALWAVES_V2_INTRADAY_INTERVAL_MINUTES:-30}
+        CyclicalWavesV2__CodalGaugeRefreshEnabled: ${CYCLICALWAVES_V2_CODAL_GAUGE_REFRESH_ENABLED:-false}
+        CyclicalWavesV2__CodalGaugeRecheckMinutes: ${CYCLICALWAVES_V2_CODAL_GAUGE_RECHECK_MINUTES:-30}
         CyclicalWavesV2__IncomeStatementLimit: ${CYCLICALWAVES_V2_INCOME_STATEMENT_LIMIT:-12}
         CyclicalWavesV2__AnalysisPageSize: ${CYCLICALWAVES_V2_ANALYSIS_PAGE_SIZE:-100}
         CyclicalWavesV2__AnalysisIncrementalOverlapDays: ${CYCLICALWAVES_V2_ANALYSIS_INCREMENTAL_OVERLAP_DAYS:-2}

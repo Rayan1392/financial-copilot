@@ -35,6 +35,33 @@ remain disabled. NoavaranAmin never reads these tables and remains unchanged.
 `docs/Cyclical Waves_api_document_2026_05_26.pdf` describe the retired `back1.cyclicalwaves.com` integration.
 No code calls those endpoints any more.
 
+## Synchronization schedule and announcement refresh (Feature 148 change `intraday-gauge-sync-and-codal-trigger`)
+
+`CyclicalWavesV2SyncWorker` (Worker process) runs everything below one after another, so these runs never compete with
+each other for the run lease (one `Running` row at a time). `IngestionEnabled` gates all of it.
+
+| Run | Switch | When | Content |
+|---|---|---|---|
+| Full | `DailySyncEnabled` | `DailySyncCronUtc`, default `30 2,15 * * *`: 06:00 and 19:00 Tehran, every day | catalog, statement lines, screener and income statements, gauge and equilibrium catalogs and details, analyses |
+| Market hours | `IntradaySyncEnabled` | Saturday to Wednesday, `IntradayWindowStartTehran` (09:00) to `IntradayWindowEndTehran` (12:30) inclusive, every `IntradayIntervalMinutes` (30) | `GaugeDetails`, then `EquilibriumDetails` (two rows in the run history, trigger `Scheduled`) |
+| Announcement | `CodalGaugeRefreshEnabled` | first delivery of a CodalMirror monthly report (Feature 133) or financial statement (Feature 143) post | `TickerGaugeEquilibrium` of the announced symbol, trigger `CodalAnnouncement`: once at once and once more after `CodalGaugeRecheckMinutes` (30; 0 turns the second fetch off) |
+| Queued | — | every `RequestedRunPollSeconds` | Admin requests and announcement runs that are due, oldest first, up to 50 per poll |
+
+- Market-hours times are Tehran local time, a fixed UTC+03:30. Public holidays are not known; a run on a closed day
+  finds unchanged data. A slot that is a whole interval late is dropped and logged; slots are not caught up after a
+  restart. A startup catch-up exists only for the Full run.
+- The announcement refresh is requested in the API process by the two Telegram channel handlers and only queued there;
+  the Worker calls the provider. It does not depend on the Noavaran Amin switches or outcome, and a failure to queue is
+  logged and never changes the handling of the post. A symbol that is not in the v2 ticker catalog is skipped. One
+  pending run per ticker and kind (immediate, deferred); at 500 pending announcement runs further requests are dropped
+  with a warning.
+- `cyclicalwaves."SyncRuns"."NotBeforeUtc"` is the due time of a queued run (null: due at once). A run that is not yet
+  due is not claimed, does not block an Admin request and is not reported as the active run.
+- An announcement run waits behind a running Full or market-hours run (about 19 and 12 minutes on production figures of
+  2026-11-28). An Admin inline run that holds the lease at a slot makes that slot's run `SkippedAlreadyRunning`.
+- Load: a market-hours slot is about 1,156 provider calls (656 gauge and 500 equilibrium tickers on 2026-11-28), eight
+  slots a trading day. The provider's request limits are not known (OQ-184).
+
 ## Comprehensive analysis in NoavaranAmin mode (Feature 159)
 
 `FinancialData:CapabilitySources:comprehensive_analysis=CyclicalWaves` lets Chat answer comprehensive analysis from

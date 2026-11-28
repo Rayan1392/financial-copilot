@@ -210,6 +210,30 @@ public sealed class CyclicalWavesV2CompositionTests
 
     private static ServiceDescriptor Last<T>(IServiceCollection services) => services.Last(descriptor => descriptor.ServiceType == typeof(T));
 
+    [Theory]
+    [InlineData("false", "true", false)]
+    [InlineData("true", "false", false)]
+    [InlineData("true", "true", true)]
+    public void AnnouncementGaugeRefresh_IsComposedAndNeedsIngestionAndItsOwnSwitch(string ingestion, string refresh, bool expected)
+    {
+        using var provider = Build(
+            "NoavaranAmin",
+            null,
+            ("CyclicalWavesV2:IngestionEnabled", ingestion),
+            ("CyclicalWavesV2:Identifier", "user"),
+            ("CyclicalWavesV2:Password", "secret"),
+            ("CyclicalWavesV2:CodalGaugeRefreshEnabled", refresh),
+            ("CyclicalWavesV2:CodalGaugeRecheckMinutes", "45"));
+
+        Assert.IsType<FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWavesV2.ScopedCodalAnnouncementGaugeRefreshTrigger>(
+            provider.GetRequiredService<FinancialCopilot.Application.FinancialData.CyclicalWavesV2.ICodalAnnouncementGaugeRefreshTrigger>());
+        var settings = provider.GetRequiredService<FinancialCopilot.Application.FinancialData.CyclicalWavesV2.CodalAnnouncementGaugeRefreshSettings>();
+        Assert.Equal(expected, settings.Enabled);
+        Assert.Equal(TimeSpan.FromMinutes(45), settings.RecheckDelay);
+        using var scope = provider.CreateScope();
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<FinancialCopilot.Application.FinancialData.CyclicalWavesV2.CodalAnnouncementGaugeRefresh>());
+    }
+
     private static IServiceCollection Compose(string chatProvider, params (string Key, string? Value)[] extra)
     {
         var configuration = Configuration(chatProvider, extra);

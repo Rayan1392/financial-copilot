@@ -53,3 +53,6 @@ Ideas and deferred work that are not yet a spec.
 - Feature 167: ranking refinements — exchange and exercise fees, annualizing by days to expiry, a minimum open interest, filling a quantity across several ask levels (today only level 1 counts); OQ-168.
 - Feature 167: order-book history, Black–Scholes price and implied volatility, writer margin (`AFactor`, `BFactor`, `CFactor`).
 - Feature 167: an automated test of `TsetmcPollingWorker`'s loop (schedule windows, per-dataset isolation); none exists for the worker today.
+- 148 change `intraday-gauge-sync-and-codal-trigger`: on a CodalMirror post also refresh the v2 screener and income statement of the announced symbol (scope `Ticker`); the owner asked for the gauge services only (OQ-183).
+- 148 change `intraday-gauge-sync-and-codal-trigger`: a public-holiday calendar for the market-hours runs (today they also run on closed days and find unchanged data), shared with `TsetmcPollingWorker`, which hard-codes the same Saturday-to-Wednesday rule.
+- 148 change `intraday-gauge-sync-and-codal-trigger`: the screener in the market-hours run, if price-dependent screener values are ever shown during the day (OQ-180: not needed for now).

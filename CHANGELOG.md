@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.38.0] - 2026-11-28
+
+کارت‌های گیج P/E و P/S نسبت آینده‌نگرِ تحلیل‌اپ را نشان می‌دهند و پاسخ «ترکیب فروش محصولات» به‌صورت تصویر قابل ارسال است.
+
 ### Added
 
 - کارت‌های گیج P/E و P/S نسبت آینده‌نگرِ محاسبه‌شده توسط تحلیل‌اپ را با عقربهٔ خط‌چین نشان می‌دهند. «برآورد ساپیو» فقط وقتی نمایش داده می‌شود که این عدد برای آن نماد موجود نباشد.
@@ -647,7 +651,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.37.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.38.0...develop
+[1.38.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.37.0...v1.38.0
 [1.37.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.36.0...v1.37.0
 [1.36.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.35.0...v1.36.0
 [1.35.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.34.0...v1.35.0

@@ -21,5 +21,4 @@
 ## Remaining
 
 - Add focused Vitest coverage for monthly form behavior.
-- Complete unit test verification and frontend build/test checks.
-- Add the Persian Unreleased entry when the user-visible change merges to `develop`, following `AGENTS.md`.
+- Full backend solution suite and frontend Vitest suite were not run for this release.

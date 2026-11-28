@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+## [1.40.0] - 2026-11-28
+
+امکان دریافت و ذخیرهٔ داده‌های تولید و فروش ماهانهٔ شرکت برای همهٔ ماه‌های کامل‌شدهٔ سال اضافه شد.
+
 ### Added
 
 - داده‌های تولید و فروش ماهانهٔ شرکت را برای همهٔ ماه‌های کامل‌شدهٔ یک سال، یک‌جا دریافت و ذخیره کنید.
@@ -663,7 +667,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.39.0...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.40.0...develop
+[1.40.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.38.0...v1.39.0
 [1.38.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.37.0...v1.38.0
 [1.37.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.36.0...v1.37.0

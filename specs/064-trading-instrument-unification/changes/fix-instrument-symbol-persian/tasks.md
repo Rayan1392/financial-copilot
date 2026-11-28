@@ -1,6 +1,6 @@
 # Fix: Instrument Symbol Is The Persian Trading Symbol (BUG-055)
 
-Status: Gate A and Gate B: Approved by the owner on 2026-11-28 in one message («این باگ رو فیکس کن», after the cause, the proposed correction and the production sample were on the table) — implemented 2026-11-28, uncommitted, not released
+Status: Gate A and Gate B: Approved by the owner on 2026-11-28 in one message («این باگ رو فیکس کن», after the cause, the proposed correction and the production sample were on the table) — implemented 2026-11-28 on `develop` (`a3ae4633`), not released
 
 ## Feature Folder
 

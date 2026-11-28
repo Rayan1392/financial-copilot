@@ -253,9 +253,10 @@ describe("OptionComparisonCard", () => {
 });
 
 describe("option entry points", () => {
-  it("offers the starter card only while option answers are available", () => {
+  // Change «option-starter-card-switch»: the card follows the API's starter-card answer, not the capability alone.
+  it("offers the starter card only while the API offers the option starter card", () => {
     expect(homeStarterPrompts().some((prompt) => prompt.id === "option-calls")).toBe(false);
-    const card = homeStarterPrompts({ optionComparison: true }).find(
+    const card = homeStarterPrompts({ optionComparisonStarterCard: true }).find(
       (prompt) => prompt.id === "option-calls",
     );
     expect(card?.kind).toBe("symbol");

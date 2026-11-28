@@ -29,7 +29,7 @@ export type StarterPromptId =
   | "option-calls";
 
 /** An optional capability the API can switch off; a card that needs one is shown only while it is available. */
-export type StarterPromptCapability = "valuationGaugeCards" | "optionComparison";
+export type StarterPromptCapability = "valuationGaugeCards" | "optionComparisonStarterCard";
 
 /** What the API reports as available (`useChatCapabilityAvailability`); a missing entry means unavailable. */
 export type StarterPromptAvailability = Partial<Record<StarterPromptCapability, boolean>>;
@@ -102,7 +102,8 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
   },
   {
     // Feature 168: the question is the routed phrase «اختیار خرید ‹نماد›». The picker is not restricted: a symbol
-    // without listed options gets a plain sentence from the assistant.
+    // without listed options gets a plain sentence from the assistant. Change «option-starter-card-switch»: the card
+    // has its own server key, so it can be hidden while typed option questions still work.
     id: "option-calls",
     kind: "symbol",
     label: { before: "اختیار خرید ", after: "" },
@@ -112,7 +113,7 @@ export const STARTER_PROMPTS: readonly StarterPrompt[] = [
     topic: "اختیار معامله",
     detail: "هزینهٔ مؤثر · سربه‌سر · نرخ ضمنی",
     tone: "valuation",
-    requires: "optionComparison",
+    requires: "optionComparisonStarterCard",
   },
   {
     // Kept on one symbol by owner decision: the sales-mix answer is not yet reliable for every company

@@ -752,6 +752,8 @@ export interface ChatCapabilityAvailability {
   valuationGaugeCards: boolean;
   /** Feature 168: option comparison answers; absent on an older API. */
   optionComparison?: boolean;
+  /** Change «option-starter-card-switch»: the new-chat option card (`.env` key); absent on an older API. */
+  optionComparisonStarterCard?: boolean;
 }
 
 export const getChatCapabilityAvailability = createServerFn({ method: "GET" })

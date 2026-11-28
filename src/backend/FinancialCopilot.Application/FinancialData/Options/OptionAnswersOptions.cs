@@ -13,6 +13,15 @@ public sealed class OptionAnswersOptions
     /// <summary>Master switch of the assistant capability and the discount alert. Off by default.</summary>
     public bool Enabled { get; init; }
 
+    /// <summary>
+    /// Change «option-starter-card-switch»: shows the «اختیار خرید نماد» card among the new-chat starter cards.
+    /// Off by default. Typed option questions and the symbol-menu item do not depend on it.
+    /// </summary>
+    public bool StarterCardEnabled { get; init; }
+
+    /// <summary>The starter card is offered only while the capability itself is available.</summary>
+    public bool ShowsStarterCard(bool capabilityAvailable) => capabilityAvailable && Enabled && StarterCardEnabled;
+
     /// <summary>Fee on buying or selling an option, as a fraction of the premium.</summary>
     public decimal TradeFeeRate { get; init; } = 0.001m;
 

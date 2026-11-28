@@ -130,6 +130,18 @@ public sealed class OptionComparison168E2ETests : IClassFixture<OptionAnswersApi
     public async Task AvailabilityEndpoint_ReportsTheCapability() =>
         Assert.True((await ValuationGaugeChat.AvailabilityAsync(_factory)).GetProperty("optionComparison").GetBoolean());
 
+    // Change «option-starter-card-switch» AC-01: the starter-card key is off by default, typed questions still answer.
+    [Fact]
+    public async Task StarterCardKeyOff_HidesOnlyTheStarterCard()
+    {
+        var availability = await ValuationGaugeChat.AvailabilityAsync(_factory);
+        Assert.True(availability.GetProperty("optionComparison").GetBoolean());
+        Assert.False(availability.GetProperty("optionComparisonStarterCard").GetBoolean());
+
+        var root = await ValuationGaugeChat.AskAsync(_factory, "اختیار خرید شاراک");
+        Assert.Equal("option_comparison", root.GetProperty("semanticCapabilityCode").GetString());
+    }
+
     private static JsonElement[] Rows(JsonElement comparison, string view) =>
         comparison.GetProperty("views").EnumerateArray()
             .Single(item => item.GetProperty("view").GetString() == view)
@@ -163,6 +175,27 @@ public sealed class OptionComparison168FlagOffE2ETests : IClassFixture<OptionAns
     [Fact]
     public async Task AvailabilityEndpoint_HidesTheCapability() =>
         Assert.False((await ValuationGaugeChat.AvailabilityAsync(_factory)).GetProperty("optionComparison").GetBoolean());
+
+    // Change «option-starter-card-switch» AC-03: the starter-card key alone never shows the card.
+    [Fact]
+    public async Task StarterCardKeyOn_StaysHiddenWhileTheCapabilityIsOff() =>
+        Assert.False((await ValuationGaugeChat.AvailabilityAsync(_factory)).GetProperty("optionComparisonStarterCard").GetBoolean());
+}
+
+/// <summary>Change «option-starter-card-switch» AC-02: with both keys on the starter card is offered.</summary>
+public sealed class OptionStarterCardOnE2ETests : IClassFixture<OptionStarterCardOnApiFactory>
+{
+    private readonly OptionStarterCardOnApiFactory _factory;
+
+    public OptionStarterCardOnE2ETests(OptionStarterCardOnApiFactory factory) => _factory = factory;
+
+    [Fact]
+    public async Task AvailabilityEndpoint_OffersTheStarterCard()
+    {
+        var availability = await ValuationGaugeChat.AvailabilityAsync(_factory);
+        Assert.True(availability.GetProperty("optionComparison").GetBoolean());
+        Assert.True(availability.GetProperty("optionComparisonStarterCard").GetBoolean());
+    }
 }
 
 /// <summary>
@@ -177,12 +210,14 @@ public class OptionAnswersApiFactory : ValuationGaugeCardsApiFactory
     protected override string ChatProvider => "NoavaranAmin";
     protected override string? GaugeSource => "CyclicalWaves";
     protected virtual bool OptionAnswersEnabled => true;
+    protected virtual bool StarterCardEnabled => false;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
         // Read while services are composed, so it must be a host setting.
         builder.UseSetting("OptionAnswers:Enabled", OptionAnswersEnabled ? "true" : "false");
+        builder.UseSetting("OptionAnswers:StarterCardEnabled", StarterCardEnabled ? "true" : "false");
     }
 
     public void EnsureOptionsSeeded()
@@ -204,6 +239,12 @@ public class OptionAnswersApiFactory : ValuationGaugeCardsApiFactory
 public sealed class OptionAnswersFlagOffApiFactory : OptionAnswersApiFactory
 {
     protected override bool OptionAnswersEnabled => false;
+    protected override bool StarterCardEnabled => true;
+}
+
+public sealed class OptionStarterCardOnApiFactory : OptionAnswersApiFactory
+{
+    protected override bool StarterCardEnabled => true;
 }
 
 /// <summary>شاراک at 1,489 with two calls and one put expiring in 11 days, plus a later expiry.</summary>

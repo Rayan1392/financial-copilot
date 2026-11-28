@@ -637,12 +637,74 @@ public sealed class ValuationGaugeCardsTests
         // Owner, 2026-11-26: the price line names its source and time, not the provider.
         Assert.Contains("قیمت: معاملات امروز، ", text);
         Assert.DoesNotContain("StockMarketDb", text);
-        Assert.Contains("تا میانهٔ بازه \u200e−۶٫۴٪، بالای حد پایین \u200e+۸٫۴٪", text);
+        // Change «equilibrium-distance-from-price»: distances are measured from today's price, direction as a word.
+        Assert.Contains("فاصلهٔ قیمت روز: تا حد پایین ۷٫۸٪ افت، تا میانه ۶٫۸٪ رشد، تا حد بالا ۲۱٫۳٪ رشد", text);
+        Assert.DoesNotContain("تا میانهٔ بازه", text);
+        Assert.DoesNotContain("بالای حد پایین", text);
     }
 
-    // OQ-137 (owner, 2026-11-26): below the lower bound the text reads «زیر حد پایین» with the absolute value.
+    // The owner's example (گدنا, 2026-11-28): 12,800 against 5,537 / 17,055 / 28,573.
     [Fact]
-    public void EquilibriumTextBelowTheLowerBoundSaysBelowWithTheAbsoluteValue()
+    public void EquilibriumDistancesAreMeasuredFromTodaysPrice()
+    {
+        var card = ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "5537", "17055", "28573", Now.AddHours(-1)),
+            Quote(12800m), ValuationGaugeQuoteState.Available, Now, MaxAge);
+
+        Assert.Equal(("-56.7", "33.2", "123.2"),
+            (card.Insights!.LowerDistancePercent, card.Insights.MidpointDistancePercent, card.Insights.UpperDistancePercent));
+        // The released figures stay in the payload for clients that still read them.
+        Assert.Equal(("-24.9", "131.2"), (card.Insights.PriceVsMidpointPercent, card.Insights.PriceVsLowerPercent));
+    }
+
+    [Theory]
+    [InlineData(30000, "-81.5", "-43.2", "-4.8")]   // above the range: every level is a fall away
+    [InlineData(20000, "-72.3", "-14.7", "42.9")]   // upper half
+    [InlineData(17055, "-67.5", "0.0", "67.5")]     // at the midpoint
+    [InlineData(5000, "10.7", "241.1", "471.5")]    // below the range: every level is a rise away
+    public void EquilibriumDistancesFollowThePriceAcrossTheRange(double price, string lower, string midpoint, string upper)
+    {
+        var card = ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "5537", "17055", "28573", Now.AddHours(-1)),
+            Quote((decimal)price), ValuationGaugeQuoteState.Available, Now, MaxAge);
+
+        Assert.Equal((lower, midpoint, upper),
+            (card.Insights!.LowerDistancePercent, card.Insights.MidpointDistancePercent, card.Insights.UpperDistancePercent));
+    }
+
+    [Fact]
+    public void APriceThatIsNotPositiveHasNoDistances()
+    {
+        var card = ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "-10", "5", "20", Now.AddHours(-1)),
+            Quote(0m), ValuationGaugeQuoteState.Available, Now, MaxAge);
+
+        Assert.Equal((null, null, null),
+            (card.Insights!.LowerDistancePercent, card.Insights.MidpointDistancePercent, card.Insights.UpperDistancePercent));
+    }
+
+    [Theory]
+    [InlineData("33.2", "۳۳٫۲٪ رشد")]
+    [InlineData("-56.7", "۵۶٫۷٪ افت")]
+    [InlineData("0.0", "هم‌سطح")]
+    [InlineData("-0.04", "هم‌سطح")]
+    public void ALevelDistanceNamesItsDirectionWithAWordAndNoSign(string value, string expected) =>
+        Assert.Equal(expected, ValuationGaugeTextComposer.LevelDistance(value));
+
+    [Fact]
+    public void AResultWithoutDistancesKeepsItsReleasedComparisons()
+    {
+        var card = ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "3800", "4400.6", "5000", Now.AddHours(-1)),
+            Quote(4120.4m), ValuationGaugeQuoteState.Available, Now, MaxAge);
+        var stored = card with { Insights = new ValuationGaugeInsights(PriceVsMidpointPercent: "-6.4", PriceVsLowerPercent: "8.4") };
+
+        var text = ValuationGaugeTextComposer.Compose(new ValuationGaugeCardsResult(
+            1, "شاراک", null, "شاراک", [ValuationGaugeKind.Equilibrium], [stored], Now, 48));
+
+        Assert.Contains("تا میانهٔ بازه \u200e−۶٫۴٪، بالای حد پایین \u200e+۸٫۴٪", text);
+        Assert.DoesNotContain("فاصلهٔ قیمت روز", text);
+    }
+
+    // Replaces OQ-137's «زیر حد پایین» (owner, 2026-11-28): below the range every level is a rise away from the price.
+    [Fact]
+    public void EquilibriumTextBelowTheLowerBoundSaysHowFarThePriceMustRise()
     {
         var result = new ValuationGaugeCardsResult(1, "شاراک", null, "شاراک", [ValuationGaugeKind.Equilibrium],
             [ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "3800", "4400.6", "5000", Now.AddHours(-1)),
@@ -650,13 +712,13 @@ public sealed class ValuationGaugeCardsTests
 
         var text = ValuationGaugeTextComposer.Compose(result);
 
-        Assert.Contains("زیر حد پایین ۵٫۰٪", text);
-        Assert.DoesNotContain("بالای حد پایین", text);
+        Assert.Contains("تا حد پایین ۵٫۳٪ رشد، تا میانه ۲۱٫۹٪ رشد، تا حد بالا ۳۸٫۵٪ رشد", text);
+        Assert.DoesNotContain("زیر حد پایین", text);
         Assert.DoesNotContain("حد پایین ‎−", text);
     }
 
     [Fact]
-    public void EquilibriumTextAtTheLowerBoundKeepsTheReleasedLabel()
+    public void EquilibriumTextAtTheLowerBoundSaysLevel()
     {
         var result = new ValuationGaugeCardsResult(1, "شاراک", null, "شاراک", [ValuationGaugeKind.Equilibrium],
             [ValuationGaugeProjector.ProjectEquilibrium(new EquilibriumRangeSnapshot(true, "3800", "4400.6", "5000", Now.AddHours(-1)),
@@ -664,8 +726,8 @@ public sealed class ValuationGaugeCardsTests
 
         var text = ValuationGaugeTextComposer.Compose(result);
 
-        Assert.DoesNotContain("زیر حد پایین", text);
-        Assert.Contains("بالای حد پایین", text);
+        Assert.Contains("تا حد پایین هم‌سطح", text);
+        Assert.DoesNotContain("بالای حد پایین", text);
     }
 
     [Fact]

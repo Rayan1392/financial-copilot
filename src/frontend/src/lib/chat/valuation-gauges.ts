@@ -55,6 +55,13 @@ export interface ValuationGaugeInsights {
   daysInBandPercent?: string | null;
   priceVsMidpointPercent?: string | null;
   priceVsLowerPercent?: string | null;
+  /**
+   * Equilibrium card (change «equilibrium-distance-from-price»): how far today's price must move to reach each level,
+   * as a percentage of the price. Positive when the level is above the price. Absent on cards stored before the change.
+   */
+  lowerDistancePercent?: string | null;
+  midpointDistancePercent?: string | null;
+  upperDistancePercent?: string | null;
 }
 
 export interface ValuationGaugeCard {
@@ -194,6 +201,30 @@ export function lowerBoundComparison(value: string): { label: string; percent: s
     return { label: "زیر حد پایین", percent: formatPercent(magnitude) };
   return { label: "بالای حد پایین", percent: formatPercent(trimmed, true) };
 }
+
+export type LevelDistanceDirection = "rise" | "fall" | "level";
+
+/**
+ * The distance from today's price to an equilibrium level, with the direction as a word instead of a sign: «۳۳٫۲٪ رشد»
+ * when the level is above the price, «۵۶٫۷٪ افت» when below, «هم‌سطح» when it rounds to zero. The backend text applies
+ * the same rule (`ValuationGaugeTextComposer.LevelDistance`). Null for a value that is not a decimal.
+ */
+export function levelDistance(
+  value: string,
+): { text: string; direction: LevelDistanceDirection } | null {
+  const trimmed = value.trim();
+  if (!/^[+-]?\d+(\.\d+)?$/.test(trimmed)) return null;
+  const falls = trimmed.startsWith("-");
+  const magnitude = trimmed.replace(/^[+-]/, "");
+  if (roundDecimalString(magnitude, 1) === "0.0") return { text: "هم‌سطح", direction: "level" };
+  return falls
+    ? { text: `${formatPercent(magnitude)} افت`, direction: "fall" }
+    : { text: `${formatPercent(magnitude)} رشد`, direction: "rise" };
+}
+
+/** Under the distance tiles: what the percentages measure, and that they promise nothing. */
+export const LEVEL_DISTANCE_NOTE =
+  "درصدها فاصلهٔ قیمت روز تا هر سطح بازه‌اند؛ پیش‌بینی و توصیهٔ سرمایه‌گذاری نیست.";
 
 /** The provider's name for users; the payload keeps the internal source code. */
 export const SOURCE_NAME = "تحلیل‌اپ";

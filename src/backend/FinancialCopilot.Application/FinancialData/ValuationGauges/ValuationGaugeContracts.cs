@@ -202,7 +202,13 @@ public sealed record ValuationGaugeInsights(
     string? DaysBelowBandPercent = null,
     string? DaysInBandPercent = null,
     string? PriceVsMidpointPercent = null,
-    string? PriceVsLowerPercent = null);
+    string? PriceVsLowerPercent = null,
+    // Equilibrium card (change «equilibrium-distance-from-price»): how far today's price must move to reach each level,
+    // as a percentage of the price. Positive when the level is above the price (a rise), negative when below (a fall).
+    // Omitted when absent, so ratio cards and cards without a quote keep their payload.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? LowerDistancePercent = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MidpointDistancePercent = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UpperDistancePercent = null);
 
 /// <summary>Role is one of start, min, average, max, end (ratio) or lower, midpoint, upper (equilibrium).</summary>
 public sealed record ValuationGaugeMarker(string Role, decimal Angle, string Value);

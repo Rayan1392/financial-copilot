@@ -206,6 +206,13 @@ public static class ValuationGaugeProjector
         return distance is null && band is null ? null : new ValuationGaugeInsights(distance, band, below, within);
     }
 
+    /// <summary>
+    /// How far the price must move to reach <paramref name="level"/>, as a percentage of the price: positive when the
+    /// level is above the price. Null without a level or with a price that is not positive.
+    /// </summary>
+    private static string? DistanceFromPrice(decimal? level, decimal price) =>
+        level is { } target && price > 0m ? Percent((target - price) / price) : null;
+
     /// <summary>A ratio as a percentage with one decimal, rounded half away from zero.</summary>
     private static string Percent(decimal ratio) =>
         decimal.Round(ratio * 100m, 1, MidpointRounding.AwayFromZero).ToString("F1", CultureInfo.InvariantCulture);
@@ -278,8 +285,16 @@ public static class ValuationGaugeProjector
         {
             var vsMid = midpoint is { } m0 && m0 != 0m ? Percent((quote.Price - m0) / Math.Abs(m0)) : null;
             var vsLow = lower is { } l0 && l0 != 0m ? Percent((quote.Price - l0) / Math.Abs(l0)) : null;
-            if (vsMid is not null || vsLow is not null)
-                insights = new ValuationGaugeInsights(PriceVsMidpointPercent: vsMid, PriceVsLowerPercent: vsLow);
+            var toLower = DistanceFromPrice(lower, quote.Price);
+            var toMidpoint = DistanceFromPrice(midpoint, quote.Price);
+            var toUpper = DistanceFromPrice(upper, quote.Price);
+            if (vsMid is not null || vsLow is not null || toLower is not null || toMidpoint is not null || toUpper is not null)
+                insights = new ValuationGaugeInsights(
+                    PriceVsMidpointPercent: vsMid,
+                    PriceVsLowerPercent: vsLow,
+                    LowerDistancePercent: toLower,
+                    MidpointDistancePercent: toMidpoint,
+                    UpperDistancePercent: toUpper);
         }
 
         return new ValuationGaugeCard(kind, state, reason, Source, snapshot.FetchedAtUtc, Equilibrium: facts, Geometry: geometry, Insights: insights);

@@ -248,6 +248,97 @@ describe("ValuationGaugeCards ratio card", () => {
   });
 });
 
+// Change «equilibrium-distance-from-price» (owner, 2026-11-28): distances are measured from today's price and the
+// direction is a word, not a sign. A card stored before the change has no distances and keeps its released tiles.
+describe("ValuationGaugeCards equilibrium distances from today's price", () => {
+  const withDistances = (
+    insights: Record<string, string>,
+    price = "4120",
+    position: "LowerHalf" | "BelowRange" | "AboveRange" = "LowerHalf",
+  ) => {
+    const base = equilibriumCard();
+    return {
+      ...base,
+      equilibrium: {
+        ...base.equilibrium!,
+        quote: { ...base.equilibrium!.quote!, price },
+        position,
+      },
+      insights: { priceVsMidpointPercent: "-6.4", priceVsLowerPercent: "8.4", ...insights },
+    };
+  };
+
+  it("shows the three levels in axis order as «رشد» or «افت» with the level in rials", () => {
+    const card = withDistances({
+      lowerDistancePercent: "-7.8",
+      midpointDistancePercent: "6.8",
+      upperDistancePercent: "21.4",
+    });
+    render(<ValuationGaugeCards data={gaugeResult([card], "اخابر")} />);
+
+    const root = screen.getByTestId("valuation-gauge-card-Equilibrium");
+    expect(within(root).getByTestId("valuation-gauge-distance-lower")).toHaveTextContent(
+      "تا حد پایین۷٫۸٪ افت۳٬۸۰۰ ریال",
+    );
+    expect(within(root).getByTestId("valuation-gauge-distance-midpoint")).toHaveTextContent(
+      "تا میانه۶٫۸٪ رشد۴٬۴۰۰ ریال",
+    );
+    expect(within(root).getByTestId("valuation-gauge-distance-upper")).toHaveTextContent(
+      "تا حد بالا۲۱٫۴٪ رشد۵٬۰۰۰ ریال",
+    );
+    expect(root).toHaveTextContent("جایگاهدر نیمهٔ پایین بازه");
+    // The released, level-based figures and every sign are gone.
+    expect(root).not.toHaveTextContent("تا میانهٔ بازه");
+    expect(root).not.toHaveTextContent("بالای حد پایین");
+    expect(root).not.toHaveTextContent("+");
+    expect(root).not.toHaveTextContent("−۶٫۴");
+    expect(within(root).getByTestId("valuation-gauge-distance-note")).toHaveTextContent(
+      "درصدها فاصلهٔ قیمت روز تا هر سطح بازه‌اند؛ پیش‌بینی و توصیهٔ سرمایه‌گذاری نیست.",
+    );
+  });
+
+  it("reads every level as a rise below the range, replacing «زیر حد پایین»", () => {
+    const card = withDistances(
+      {
+        lowerDistancePercent: "5.3",
+        midpointDistancePercent: "21.9",
+        upperDistancePercent: "38.5",
+      },
+      "3610",
+      "BelowRange",
+    );
+    render(<ValuationGaugeCards data={gaugeResult([card], "اخابر")} />);
+
+    const root = screen.getByTestId("valuation-gauge-card-Equilibrium");
+    expect(within(root).getByTestId("valuation-gauge-distance-lower")).toHaveTextContent(
+      "تا حد پایین۵٫۳٪ رشد",
+    );
+    expect(root).not.toHaveTextContent("زیر حد پایین");
+  });
+
+  it("says «هم‌سطح» for a level at today's price", () => {
+    const card = withDistances({
+      lowerDistancePercent: "-7.8",
+      midpointDistancePercent: "0.0",
+      upperDistancePercent: "21.4",
+    });
+    render(<ValuationGaugeCards data={gaugeResult([card], "اخابر")} />);
+
+    expect(screen.getByTestId("valuation-gauge-distance-midpoint")).toHaveTextContent(
+      "تا میانههم‌سطح",
+    );
+  });
+
+  it("keeps the released tiles and adds no note on a card stored before the change", () => {
+    render(<ValuationGaugeCards data={gaugeResult([equilibriumCard()], "اخابر")} />);
+
+    const root = screen.getByTestId("valuation-gauge-card-Equilibrium");
+    expect(root).toHaveTextContent("تا میانهٔ بازه‎−۶٫۴٪");
+    expect(within(root).queryByTestId("valuation-gauge-distance-midpoint")).not.toBeInTheDocument();
+    expect(within(root).queryByTestId("valuation-gauge-distance-note")).not.toBeInTheDocument();
+  });
+});
+
 // Change «valuation-gauge-provider-forward»: the provider's own forward ratio, named without a qualifier.
 describe("ValuationGaugeCards provider forward value", () => {
   const providerForward = (kind: "Pe" | "Ps" = "Pe") => ({

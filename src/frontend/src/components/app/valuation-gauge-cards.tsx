@@ -13,9 +13,11 @@ import {
   formatRial0,
   formatTehranDate,
   formatTehranDateTime,
+  LEVEL_DISTANCE_NOTE,
   forwardDetailsText,
   forwardEstimate,
   forwardLabel,
+  levelDistance,
   isDisplayable,
   quoteSourceText,
   unavailableText,
@@ -461,10 +463,17 @@ function Tile({
 
 function Tiles({ children }: { children: ReactNode[] }) {
   const items = children.filter(Boolean);
+  // Four tiles (the equilibrium position and its three distances) do not fit one row on a phone: two rows of two
+  // there, one row once the card is wide enough.
+  const wraps = items.length === 4;
   return (
     <div
-      className="grid divide-x divide-hairline rounded-xl bg-surface ring-1 ring-hairline"
-      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+      className={cn(
+        "grid divide-x divide-hairline rounded-xl bg-surface ring-1 ring-hairline",
+        wraps &&
+          "grid-cols-2 @lg:grid-cols-4 [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-hairline @lg:[&>*:nth-child(n+3)]:border-t-0",
+      )}
+      style={wraps ? undefined : { gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
     >
       {items}
     </div>
@@ -811,6 +820,40 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
       ? `بازهٔ قیمت تعادلی ${symbol}: قیمت بازار ${formatRial0(quote.price)} ریال، ${position}`
       : `بازهٔ قیمت تعادلی ${symbol}: از ${formatRial0(range.lower)} تا ${formatRial0(range.upper)} ریال؛ قیمت بازار در دسترس نیست`;
   const bubbleShift = at === null ? "-50%" : at < 0.15 ? "-12%" : at > 0.85 ? "-88%" : "-50%";
+  // Change «equilibrium-distance-from-price»: the three distances from today's price, in axis order. A card stored
+  // before the change has none of them and keeps its released tiles.
+  const distances = (
+    [
+      ["lower", "تا حد پایین", insights?.lowerDistancePercent, range.lower],
+      ["midpoint", "تا میانه", insights?.midpointDistancePercent, range.midpoint],
+      ["upper", "تا حد بالا", insights?.upperDistancePercent, range.upper],
+    ] as const
+  ).flatMap(([key, label, value, level]) => {
+    const distance = value ? levelDistance(value) : null;
+    return distance ? [{ key, label, distance, level }] : [];
+  });
+  const distanceTiles =
+    distances.length > 0
+      ? [
+          position ? <Tile key="position" label="جایگاه" value={position} /> : null,
+          ...distances.map(({ key, label, distance, level }) => (
+            <div key={key} data-testid={`valuation-gauge-distance-${key}`} className="min-w-0">
+              <Tile
+                label={label}
+                value={distance.text}
+                note={`${formatRial0(level)} ریال`}
+                tone={
+                  distance.direction === "rise"
+                    ? "cool"
+                    : distance.direction === "fall"
+                      ? "warm"
+                      : undefined
+                }
+              />
+            </div>
+          )),
+        ]
+      : null;
 
   return (
     <CardShell card={card} symbol={symbol} companyName={companyName} showCompany={showCompany}>
@@ -886,7 +929,7 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
         )}
         {quote ? (
           <Tiles>
-            {[
+            {distanceTiles ?? [
               position ? <Tile key="position" label="جایگاه" value={position} /> : null,
               insights?.priceVsMidpointPercent ? (
                 <Tile
@@ -909,6 +952,14 @@ function EquilibriumCard({ card, symbol, companyName, showCompany }: CardProps) 
         ) : (
           <p className="text-sm text-muted-foreground">
             قیمت بازار در دسترس نیست؛ فقط بازه نمایش داده شده است
+          </p>
+        )}
+        {quote && distanceTiles && (
+          <p
+            className="text-xs leading-5 text-muted-foreground"
+            data-testid="valuation-gauge-distance-note"
+          >
+            {LEVEL_DISTANCE_NOTE}
           </p>
         )}
         {quote && (

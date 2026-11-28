@@ -3,6 +3,25 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.38.0
+
+- Tagged on 2026-11-28 (MINOR: two Added items). Added the provider's forward P/E and P/S on the valuation gauge
+  cards, with ingestion and storage of the gauge `forward` member (changes `148-…/gauge-forward-field` and
+  `159-…/valuation-gauge-provider-forward`), and copy/share of the product revenue mix answer as an image
+  (feature 075 change). All in commit `1c42ec79` (subject "valuation", committed by the owner).
+- Develop release commit `0d9e3497`, prod merge `dfb8e858` (temporary worktree), annotated tag `v1.38.0`
+  (tag object `3bbdf228`). Release check passed; release-note tests 12/12. Gauge unit tests (452), architecture
+  tests (24) and the gauge card frontend tests (49) passed before the release; the product-mix change was not
+  tested by the releasing session.
+- **Migration:** `20261128090000_AddCyclicalWavesV2GaugeForwardValue` (five nullable `Forward*` columns and two
+  check constraints on `cyclicalwaves."GaugeDetails"`). The owner acknowledged the missing database backup.
+- Deploy run 46107436341 succeeded (about 11m30s). `/releases` lists 1.38.0 and
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: the stored forward values fill on the next gauge sync (daily 23:30 UTC, or
+  `POST /api/v1/admin/cyclicalwaves-v2/gauges/sync`); comparing them with TahlilApp's page and the read-only count in
+  the 148 change's `tasks.md` are with the owner. BUG-053 still blocks the gauge card E2E tests. The production
+  value of the Sapio estimate flag was not verified. `specs/README.md` still says "not released" for these changes.
+
 ## Release 1.37.0
 
 - Tagged on 2026-11-28 (MINOR: an Added item). Added the public market research guide `/market-guide`

@@ -59,8 +59,10 @@ each other for the run lease (one `Running` row at a time). `IngestionEnabled` g
   due is not claimed, does not block an Admin request and is not reported as the active run.
 - An announcement run waits behind a running Full or market-hours run (about 19 and 12 minutes on production figures of
   2026-11-28). An Admin inline run that holds the lease at a slot makes that slot's run `SkippedAlreadyRunning`.
-- Load: a market-hours slot is about 1,156 provider calls (656 gauge and 500 equilibrium tickers on 2026-11-28), eight
-  slots a trading day. The provider's request limits are not known (OQ-184).
+- Production setting (OQ-184, answered 2026-11-28): TahlilApp updates P/E, P/S and the equilibrium range once a day and
+  when a new report is published, so the market-hours run stays off. Production uses the two Full runs and the
+  announcement refresh; its second fetch is set with `CYCLICALWAVES_V2_CODAL_GAUGE_RECHECK_MINUTES` in the server `.env`.
+  A market-hours slot would be about 1,156 provider calls (656 gauge and 500 equilibrium tickers on 2026-11-28).
 
 ## Comprehensive analysis in NoavaranAmin mode (Feature 159)
 

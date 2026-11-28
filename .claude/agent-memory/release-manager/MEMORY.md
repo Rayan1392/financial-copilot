@@ -3,6 +3,18 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.41.1
+
+- Released on 2026-11-28 (PATCH: release-note correction only, no code). OQ-184 answered: TahlilApp updates P/E, P/S
+  and the equilibrium range once a day and on a new report, so production keeps the market-hours run off. Wording fix
+  of the released 1.41.0 entry (summary line and first Changed bullet) in its own commit `6c8ad0a3`; 1.41.1 Fixed
+  entry says the 1.41.0 note was wrong. Release commit `86855fda`; prod merge `f5a9df40` (merge-tree, dirty main
+  worktree held another session's Feature 168 work); annotated tag `v1.41.1` (tag object `be6c1bce`).
+- Release check passed; release-note tests 12/12. Deploy run 46162524677 succeeded (deploy job 4m41s). `/health`
+  HTTP 200 `Healthy`; `/releases` lists 1.41.1.
+- Open: the notes describe 06:00/19:00 Full runs and the CodalMirror refresh; the server `.env` steps (cron
+  `30 2,15 * * *`, `CYCLICALWAVES_V2_CODAL_GAUGE_REFRESH_ENABLED=true`) were not verified by the release session.
+
 ## Release 1.41.0
 
 - Released on 2026-11-28 (MINOR: two notable Changed items). Changed: CyclicalWaves v2 gauges and equilibrium

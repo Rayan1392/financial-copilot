@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { financialCopilotApi } from "@/integrations/financial-copilot/api-client";
+import { FinancialCopilotApiError, financialCopilotApi } from "@/integrations/financial-copilot/api-client";
 
 export function GetCompanyIdPage() {
   const [activeTab, setActiveTab] = useState("company-id");
@@ -16,6 +16,9 @@ export function GetCompanyIdPage() {
   const [backfillLoading, setBackfillLoading] = useState(false);
   const [backfillError, setBackfillError] = useState<string | null>(null);
   const [backfillResult, setBackfillResult] = useState<SingleCompanyMonthResponse | null>(null);
+  const [backfillMonthResults, setBackfillMonthResults] = useState<MonthlyBackfillResult[]>([]);
+  const [backfillProgress, setBackfillProgress] = useState<string | null>(null);
+  const backfillController = useRef<AbortController | null>(null);
   const [financialSymbol, setFinancialSymbol] = useState("");
   const [financialYear, setFinancialYear] = useState("");
   const [financialPeriod, setFinancialPeriod] = useState("3");
@@ -33,6 +36,8 @@ export function GetCompanyIdPage() {
   const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [expandedStatementId, setExpandedStatementId] = useState<string | null>(null);
   const inventoryRequestId = useRef(0);
+
+  useEffect(() => () => backfillController.current?.abort(), []);
 
   function handleInventoryTickerChange(value: string) {
     inventoryRequestId.current += 1;
@@ -114,7 +119,8 @@ export function GetCompanyIdPage() {
     event.preventDefault();
     const normalizedBackfillSymbol = backfillSymbol.trim();
     const parsedYear = Number(shamsiYear);
-    const parsedMonth = Number(shamsiMonth);
+    const hasMonth = shamsiMonth.trim() !== "";
+    const parsedMonth = hasMonth ? Number(shamsiMonth) : null;
 
     if (!normalizedBackfillSymbol) {
       setBackfillError("لطفاً نماد را وارد کنید.");
@@ -126,7 +132,7 @@ export function GetCompanyIdPage() {
       setBackfillResult(null);
       return;
     }
-    if (!Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
+    if (parsedMonth !== null && (!Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12)) {
       setBackfillError("ماه شمسی باید بین ۱ و ۱۲ باشد.");
       setBackfillResult(null);
       return;
@@ -135,29 +141,71 @@ export function GetCompanyIdPage() {
     setBackfillLoading(true);
     setBackfillError(null);
     setBackfillResult(null);
+    setBackfillMonthResults([]);
+    setBackfillProgress(null);
+    const controller = new AbortController();
+    backfillController.current = controller;
 
     try {
-      const result = await financialCopilotApi<SingleCompanyMonthResponse>(
-        "/api/v1/admin/noavaran-current/monthly-backfill/single-company-month",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            symbol: normalizedBackfillSymbol,
-            shamsiYear: parsedYear,
-            shamsiMonth: parsedMonth,
-          }),
-        },
-      );
-      setBackfillResult(result);
+      const months = parsedMonth === null
+        ? (await financialCopilotApi<CompletedMonthsResponse>(
+            `/api/v1/admin/noavaran-current/monthly-backfill/completed-months?shamsiYear=${parsedYear}`,
+            { signal: controller.signal },
+          )).months
+        : [parsedMonth];
+
+      if (months.length === 0) {
+        setBackfillProgress("برای سال انتخاب‌شده هنوز ماه کامل‌شده‌ای وجود ندارد.");
+        return;
+      }
+
+      for (const [index, month] of months.entries()) {
+        if (controller.signal.aborted) return;
+        setBackfillProgress(`در حال دریافت ماه ${month} از ${months.length}...`);
+        try {
+          const result = await financialCopilotApi<SingleCompanyMonthResponse>(
+            "/api/v1/admin/noavaran-current/monthly-backfill/single-company-month",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              signal: controller.signal,
+              body: JSON.stringify({
+                symbol: normalizedBackfillSymbol,
+                shamsiYear: parsedYear,
+                shamsiMonth: month,
+              }),
+            },
+          );
+          setBackfillMonthResults((previous) => [...previous, { month, result, error: null }]);
+          if (parsedMonth !== null) setBackfillResult(result);
+        } catch (requestError) {
+          if (controller.signal.aborted) return;
+          setBackfillMonthResults((previous) => [...previous, {
+            month,
+            result: null,
+            error: requestError instanceof Error ? requestError.message : "دریافت این ماه ناموفق بود.",
+          }]);
+          if (requestError instanceof FinancialCopilotApiError &&
+              [401, 403, 404, 429].includes(requestError.status)) {
+            setBackfillError(requestError.message);
+            setBackfillProgress(`عملیات در ماه ${month} متوقف شد. ${months.length - index - 1} ماه باقی مانده اجرا نشد.`);
+            return;
+          }
+        }
+      }
+      setBackfillProgress(`پایان عملیات: ${months.length} ماه بررسی شد.`);
     } catch (requestError) {
+      if (controller.signal.aborted) return;
       setBackfillError(
         requestError instanceof Error
           ? requestError.message
           : "اجرای بازپردازش ماهانه ناموفق بود.",
       );
     } finally {
-      setBackfillLoading(false);
+      if (backfillController.current === controller) {
+        backfillController.current = null;
+        setBackfillLoading(false);
+      }
     }
   }
 
@@ -306,7 +354,7 @@ export function GetCompanyIdPage() {
           <div className="mb-4">
             <h2 className="font-semibold">دریافت تولید و فروش ماهانه یک شرکت</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              نماد و بازه ماه شمسی را وارد کنید تا اطلاعات تولید و فروش آن ماه دریافت و ذخیره شود.
+              نماد و سال را وارد کنید. ماه را خالی بگذارید تا همه ماه‌های کامل‌شده همان سال دریافت شوند.
             </p>
           </div>
 
@@ -344,6 +392,9 @@ export function GetCompanyIdPage() {
               max={12}
               disabled={backfillLoading}
             />
+            <p className="text-sm text-muted-foreground sm:col-span-3">
+              واردکردن ماه اختیاری است. در حالت خالی، دریافت از فروردین تا آخرین ماه کامل‌شده به‌ترتیب انجام می‌شود.
+            </p>
             <div className="sm:col-span-3">
               <Button type="submit" disabled={backfillLoading}>
                 {backfillLoading ? "در حال اجرا..." : "اجرا"}
@@ -357,7 +408,26 @@ export function GetCompanyIdPage() {
             </p>
           )}
 
-          {backfillResult && (
+          {backfillProgress && <p className="mt-4 text-sm" aria-live="polite">{backfillProgress}</p>}
+          {backfillMonthResults.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {backfillMonthResults.map(({ month, result, error }) => (
+                <div key={month} className={`rounded-lg border p-4 ${error || result?.errorCount ? "border-destructive/30 bg-destructive/5" : "border-emerald/30 bg-emerald-soft"}`}>
+                  <p className="font-medium">ماه {month} {error ? "با خطا روبه‌رو شد." : result?.errorMessage?.includes("NoDataYet") ? "گزارشی برای این ماه دریافت نشد." : "بررسی شد."}</p>
+                  {error ? <p className="mt-2 text-sm">{error}</p> : result && (
+                    <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                      <ResultItem label="وضعیت" value={result.status} />
+                      <ResultItem label="شناسه درخواست" value={result.requestId} />
+                      <ResultItem label="رکوردهای پردازش‌شده" value={result.processedRecords} />
+                      <ResultItem label="تعداد خطا" value={result.errorCount} />
+                      {result.errorMessage && <ResultItem label="پیام" value={result.errorMessage} />}
+                    </dl>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {backfillResult && backfillMonthResults.length === 0 && (
             <div className="mt-4 rounded-lg border border-emerald/30 bg-emerald-soft p-4">
               <p className="font-medium text-emerald">سرویس با موفقیت اجرا شد.</p>
               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
@@ -619,6 +689,13 @@ type SingleCompanyMonthResponse = {
   errorCount: number;
   errorMessage: string | null;
   completedAt: string | null;
+};
+
+type CompletedMonthsResponse = { shamsiYear: number; months: number[] };
+type MonthlyBackfillResult = {
+  month: number;
+  result: SingleCompanyMonthResponse | null;
+  error: string | null;
 };
 
 function NumberField({

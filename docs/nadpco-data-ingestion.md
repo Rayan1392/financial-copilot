@@ -108,6 +108,13 @@ persisted monthly rows plus deterministic run history:
 
 All endpoints require a `DataAdmin` actor.
 
+The manual company monthly activity form accepts a symbol and Shamsi year. Enter a month to
+refresh one period. Leave it blank to retrieve completed months in that year in ascending order.
+The protected `GET /api/v1/admin/noavaran-current/monthly-backfill/completed-months?shamsiYear=1405`
+endpoint returns that list based on the current Tehran calendar date. Each month is fetched through
+the existing single-company endpoint and reports its own outcome. A month with no vendor report or
+a provider error does not prevent later months from running.
+
 Check provider health:
 
 ```http

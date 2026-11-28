@@ -60,6 +60,14 @@ public static class ShamsiMonthCalculator
         return new ShamsiMonth(Calendar.GetYear(now), Calendar.GetMonth(now)).Previous();
     }
 
+    /// <summary>Completed months in a Shamsi year, in ascending order, based on Tehran's current date.</summary>
+    public static IReadOnlyList<int> CompletedMonthsInYear(int shamsiYear, DateTimeOffset utcNow)
+    {
+        var latest = LatestCompletedCalendarMonth(utcNow);
+        var lastMonth = latest.Year > shamsiYear ? 12 : latest.Year < shamsiYear ? 0 : latest.Month;
+        return Enumerable.Range(1, lastMonth).ToArray();
+    }
+
     private static TimeZoneInfo ResolveTehranTimeZone()
     {
         try

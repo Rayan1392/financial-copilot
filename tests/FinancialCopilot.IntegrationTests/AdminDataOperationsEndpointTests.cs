@@ -581,6 +581,43 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NoavaranCurrent_CompletedMonths_ValidatesYearAndReturnsTehranCalendarRange()
+    {
+        using var client = CreateDataAdminClient();
+        using var response = await client.GetAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/completed-months?shamsiYear=1405");
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1405, document.RootElement.GetProperty("shamsiYear").GetInt32());
+        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            document.RootElement.GetProperty("months").EnumerateArray().Select(month => month.GetInt32()));
+    }
+
+    [Fact]
+    public async Task NoavaranCurrent_CompletedMonths_RejectsUnsupportedYear()
+    {
+        using var client = CreateDataAdminClient();
+        using var response = await client.GetAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/completed-months?shamsiYear=1501");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NoavaranCurrent_CompletedMonths_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.GetAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/completed-months?shamsiYear=1405");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task NoavaranCurrent_SingleCompanyMonthDirect_ProviderFailure_PreservesNonSuccessContract()
     {
         _factory.SingleCompanyMonthly.ThrowProviderFailure = true;

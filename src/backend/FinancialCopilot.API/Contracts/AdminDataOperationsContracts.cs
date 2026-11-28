@@ -207,6 +207,8 @@ public sealed record AdminMonthlyActivitySingleCompanyMonthDirectResponse(
     string? ErrorMessage,
     DateTimeOffset? CompletedAt);
 
+public sealed record CompletedShamsiMonthsResponse(int ShamsiYear, IReadOnlyList<int> Months);
+
 public sealed record AdminMonthlyActivityBackfillStartResponse(
     Guid? BatchId,
     string Outcome,

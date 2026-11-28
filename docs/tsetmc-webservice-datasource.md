@@ -29,8 +29,8 @@ responses verified on 2026-11-24 contained active equities in flows 1, 2, and 4.
 |--------|------|-------------|
 | InsCode | long | TSETMC instrument code (primary key) |
 | InstrumentID | string | 12-char ISIN-like code |
-| CValMne | string | 5-letter symbol |
-| LVal18AFC | string | 18-char Persian full symbol |
+| CValMne | string | Latin mnemonic (for example `MKBT1`); not stored as the symbol |
+| LVal18AFC | string | Persian trading symbol (for example «اخابر»); stored as `TradingInstruments.Symbol` (BUG-055) |
 | LSoc30 | string | 30-char Persian company name |
 | YMarNSC | string | Market code |
 | CGdSVal | string | Instrument kind (single char) |

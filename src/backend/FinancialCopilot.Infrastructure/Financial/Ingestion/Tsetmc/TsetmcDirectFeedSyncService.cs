@@ -68,7 +68,10 @@ public sealed class TsetmcDirectFeedSyncService(
 
             successfulFlows++;
             fetched.AddRange(records);
-            await StoreRawAsync("Instruments", flow, records, cancellationToken);
+            // Derivative flows are filtered to listed option contracts by the client; their raw
+            // response (tens of megabytes) is deliberately not stored.
+            if (!_options.DerivativeInstrumentFlows.Contains(flow))
+                await StoreRawAsync("Instruments", flow, records, cancellationToken);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -435,6 +438,14 @@ public sealed class TsetmcDirectFeedSyncService(
         {
             // TsetmcDailyTradeRecord has Symbol (from LVal18AFC).
             var instrument = EnsureInstrumentStub(instruments, source.InsCode, source.Symbol, now);
+            // An instrument first seen through the symbol-less intraday feed carries its numeric
+            // code as symbol. The daily feed is the first one that names it (Feature 167).
+            if (!string.IsNullOrWhiteSpace(source.Symbol) &&
+                TsetmcInstrumentStub.HasStubSymbol(instrument.Symbol, instrument.InstrumentCode))
+            {
+                instrument.Symbol = source.Symbol.Trim();
+                instrument.SourceChangedAt = now;
+            }
 
             var extId = BuildDailyTradeGuid(source.InsCode, source.TradingDate);
             if (!existing.TryGetValue(extId, out var row))

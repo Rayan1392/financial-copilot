@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Options;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Worker;
@@ -14,6 +15,25 @@ public sealed class TsetmcPollingOptions
 
     /// <summary>Minimum gap between consecutive intraday syncs (seconds). Default 60s.</summary>
     public int IntradayIntervalSeconds { get; init; } = 60;
+
+    /// <summary>Feature 167: poll option contract terms and open interest. Off by default.</summary>
+    public bool OptionContractsEnabled { get; init; }
+
+    /// <summary>Minimum gap between option contract syncs inside the intraday window (seconds).</summary>
+    public int OptionContractsIntervalSeconds { get; init; } = 300;
+
+    /// <summary>Feature 167: poll the option order book. Off by default.</summary>
+    public bool OptionOrderBookEnabled { get; init; }
+
+    /// <summary>Minimum gap between option order-book syncs inside the intraday window (seconds).</summary>
+    public int OptionOrderBookIntervalSeconds { get; init; } = 60;
+
+    public const int MinimumIntervalSeconds = 10;
+
+    public bool HasValidIntervals =>
+        IntradayTickSeconds > 0 && IntradayIntervalSeconds > 0 &&
+        OptionContractsIntervalSeconds >= MinimumIntervalSeconds &&
+        OptionOrderBookIntervalSeconds >= MinimumIntervalSeconds;
 }
 
 /// <summary>
@@ -25,6 +45,11 @@ public sealed class TsetmcPollingOptions
 /// Daily trades + daily indices (end-of-day snapshots)
 ///   — Saturday through Tuesday: fired once at 17:00 IRST.
 ///   — Wednesday: fired once at 20:00 IRST.
+///
+/// Option contracts (terms, open interest) and option order book — Feature 167
+///   — inside the intraday window, each on its own interval and only when its switch is on.
+///   — contracts once more after the end-of-day instruments sync, so new listings get their terms.
+///   Each runs in its own scope; a failure is logged and does not delay trades, indices or the other.
 ///
 /// IRST = Iran Standard Time = UTC+03:30.
 /// All schedule evaluation is done in IRST so Daylight Saving does not apply
@@ -48,6 +73,8 @@ public sealed class TsetmcPollingWorker(
         if (!pollingOptions.Value.Enabled) return;
 
         DateTimeOffset nextIntraday = DateTimeOffset.MinValue;
+        DateTimeOffset nextOptionContracts = DateTimeOffset.MinValue;
+        DateTimeOffset nextOptionOrderBook = DateTimeOffset.MinValue;
         DateOnly lastEodDate = DateOnly.MinValue;
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(
@@ -70,17 +97,35 @@ public sealed class TsetmcPollingWorker(
                     nextIntraday = timeProvider.GetUtcNow().AddSeconds(
                         Math.Max(10, pollingOptions.Value.IntradayIntervalSeconds));
                 }
+
+                if (pollingOptions.Value.OptionContractsEnabled && nextOptionContracts <= utcNow)
+                {
+                    await RunOptionContractsAsync(stoppingToken);
+                    nextOptionContracts = timeProvider.GetUtcNow().AddSeconds(Math.Max(
+                        TsetmcPollingOptions.MinimumIntervalSeconds, pollingOptions.Value.OptionContractsIntervalSeconds));
+                }
+
+                if (pollingOptions.Value.OptionOrderBookEnabled && nextOptionOrderBook <= utcNow)
+                {
+                    await RunOptionDatasetAsync("OptionOrderBook", svc => svc.SynchronizeOrderBookAsync(stoppingToken), stoppingToken);
+                    nextOptionOrderBook = timeProvider.GetUtcNow().AddSeconds(Math.Max(
+                        TsetmcPollingOptions.MinimumIntervalSeconds, pollingOptions.Value.OptionOrderBookIntervalSeconds));
+                }
             }
             else
             {
                 // Reset so the next session starts immediately when the window opens.
                 nextIntraday = DateTimeOffset.MinValue;
+                nextOptionContracts = DateTimeOffset.MinValue;
+                nextOptionOrderBook = DateTimeOffset.MinValue;
             }
 
             // ── End-of-day: once per calendar day, after the designated cut-off ─
             if (IsEodWindow(dow, timeNow) && lastEodDate != today)
             {
                 await RunEodAsync(stoppingToken);
+                if (pollingOptions.Value.OptionContractsEnabled)
+                    await RunOptionContractsAsync(stoppingToken);
                 lastEodDate = today;
             }
         }
@@ -166,6 +211,35 @@ public sealed class TsetmcPollingWorker(
                 "TSETMC daily indices synced: {Fetched} fetched, {Persisted} persisted in {Duration}.",
                 r.RowsFetched, r.RowsPersisted, r.Duration);
         }, ct);
+    }
+
+    private Task RunOptionContractsAsync(CancellationToken ct) =>
+        RunOptionDatasetAsync("OptionContracts", svc => svc.SynchronizeContractsAsync(ct), ct);
+
+    /// <summary>
+    /// Runs one option dataset in its own scope. The sync service logs its own counts; a failure
+    /// (including the provider's 403 page) is logged here and swallowed so the loop keeps going.
+    /// </summary>
+    private async Task RunOptionDatasetAsync(
+        string dataset,
+        Func<IOptionMarketSyncService, Task> action,
+        CancellationToken ct)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IOptionMarketSyncService>();
+            if (!svc.IsOperational) return;
+            await action(svc);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TSETMC polling {Dataset} failed.", dataset);
+        }
     }
 
     private async Task RunDatasetAsync(

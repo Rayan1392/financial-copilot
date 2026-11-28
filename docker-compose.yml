@@ -158,6 +158,13 @@ services:
         TsetmcWebService__InstrumentFlows__3: ${TSETMC_INSTRUMENT_FLOW_3:-1}
         TsetmcWebService__InstrumentFlows__4: ${TSETMC_INSTRUMENT_FLOW_4:-2}
         TsetmcWebService__InstrumentFlows__5: ${TSETMC_INSTRUMENT_FLOW_5:-4}
+        # Feature 167: flow 3 (derivatives) gives listed option contracts their symbol and ISIN.
+        TsetmcWebService__InstrumentFlows__6: ${TSETMC_INSTRUMENT_FLOW_6:-3}
+        # Feature 167: option polling is off until an operator turns each switch on.
+        TsetmcPolling__OptionContractsEnabled: ${TSETMC_OPTION_CONTRACTS_ENABLED:-false}
+        TsetmcPolling__OptionContractsIntervalSeconds: ${TSETMC_OPTION_CONTRACTS_INTERVAL_SECONDS:-300}
+        TsetmcPolling__OptionOrderBookEnabled: ${TSETMC_OPTION_ORDER_BOOK_ENABLED:-false}
+        TsetmcPolling__OptionOrderBookIntervalSeconds: ${TSETMC_OPTION_ORDER_BOOK_INTERVAL_SECONDS:-60}
         TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
         TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
         CyclicalWaves__BaseAddress: ${CYCLICAL_WAVES_BASE_ADDRESS:-https://back1.cyclicalwaves.com/api/}

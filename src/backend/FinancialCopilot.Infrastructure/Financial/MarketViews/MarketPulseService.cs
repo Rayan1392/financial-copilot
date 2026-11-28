@@ -82,7 +82,10 @@ public sealed class MarketPulseService(
         var staleBefore = now.AddMinutes(-Math.Max(1, _options.StaleAfterMinutes));
 
         var instruments = dbContext.TradingInstruments.AsNoTracking()
-            .Where(row => row.IsActive && row.ProviderName == sourcePriority.PrimarySourceName);
+            .Where(row => row.IsActive && row.ProviderName == sourcePriority.PrimarySourceName)
+            // Option contracts are instruments too, but their price moves say nothing about
+            // market breadth (Feature 167).
+            .Where(row => !dbContext.OptionContracts.Any(contract => contract.TradingInstrumentId == row.Id));
         if (!normalizedSegment.Equals("all", StringComparison.OrdinalIgnoreCase))
             instruments = instruments.Where(row => row.MarketCode == normalizedSegment);
 

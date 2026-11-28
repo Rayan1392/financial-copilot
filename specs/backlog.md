@@ -47,3 +47,9 @@ Ideas and deferred work that are not yet a spec.
 - 159 change `valuation-gauge-answer-image-share`: offer the image actions («کپی تصویر», image share) for other visual answers (financial reports, tables, charts, the symbol snapshot card). The mechanism takes any content (`AnswerActions` `image` prop); each answer needs its own picture width and a check of its on-screen-only controls.
 - 159 change `valuation-gauge-answer-image-share`: a «دانلود تصویر» action for gauge answers, for browsers that can neither copy images nor share files (for example Telegram's in-app browser).
 - 159 change `valuation-gauge-answer-image-share`: the picture's card padding follows the viewport breakpoint (`p-4 sm:p-5`), so a picture made on a phone is about 8 CSS px shorter than one made on a desktop. Make the picture independent of the viewport if the difference ever matters.
+
+- Feature 167: put exercise ranking (design phase 4): effective sale price = strike − best ask of the put, mirror of the call ranking.
+- Feature 167: user-facing exposure of the option chain and the call exercise ranking (assistant answer, option-chain page); OQ-169.
+- Feature 167: ranking refinements — exchange and exercise fees, annualizing by days to expiry, a minimum open interest, filling a quantity across several ask levels (today only level 1 counts); OQ-168.
+- Feature 167: order-book history, Black–Scholes price and implied volatility, writer margin (`AFactor`, `BFactor`, `CFactor`).
+- Feature 167: an automated test of `TsetmcPollingWorker`'s loop (schedule windows, per-dataset isolation); none exists for the worker today.

@@ -131,6 +131,70 @@ Returns today's intraday index snapshots.
 
 ---
 
+### `Option(UserName, Password)` — Option contract terms and open interest (Feature 167)
+
+Returns every option contract the exchange lists, about 1,900 rows and 0.9 MB.
+
+| Column | Type | Description | Stored as |
+|--------|------|-------------|-----------|
+| InsCode | long | Instrument code of the contract | link to `TradingInstruments` |
+| InstrumentID | string | ISIN; its prefix gives the side | `OptionContracts.Side` |
+| BuyOP, SellOP | long | Open positions; always equal | `OpenInterest` (from `BuyOP`) |
+| YesterdayOP | long | Open positions of the previous day | `PreviousOpenInterest` |
+| ContractSize | int | Shares per contract | `ContractSize` |
+| StrikePrice | decimal | Strike price | `StrikePrice` |
+| UAInsCode | long | Instrument code of the underlying | `UnderlyingInstrumentId` |
+| BeginDate, EndDate | int | `yyyyMMdd` | `BeginDate`, `ExpiryDate` |
+| AFactor, BFactor, CFactor, Delta, MarketSameRiskOP | — | Margin factors and risk figures | not stored |
+
+Side from the ISIN prefix: `IRO9` and `IROA` are calls (symbols start with ض), `IROF` and `IROB`
+are puts (symbols start with ط). Any other row (embedded puts and similar, ISIN `IRS…`, symbols
+starting with ه or ظ) is not a listed call or put and is ignored.
+
+### `BestLimitsAllIns(UserName, Password, Flow)` — Order book (Feature 167)
+
+Returns up to five order-book levels per instrument. Flow 3 is about 8,900 rows and 2.6 MB and
+answers in under a second. The response is read as a stream and its raw payload is not stored.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| number | byte | Level, 1 (best) to 5 |
+| InsCode | long | Instrument code |
+| PMeDem, QTitMeDem, ZOrdMeDem | int, long, int | Bid price, volume, order count |
+| PMeOf, QTitMeOf, ZOrdMeOf | int, long, int | Ask price, volume, order count |
+| HEven | int | Time of the last change (`HHmmss`, market time) |
+
+A zero price or volume means there is no order on that side; it is stored as null. Only
+instruments that are known option contracts are kept. Each sync replaces the whole stored book:
+a level the provider no longer reports is deleted.
+
+### `Instrument` with a derivative flow (flow 3)
+
+Flow 3 returns every derivative contract ever listed: about 65,000 rows and 66 MB, of which
+about 3,100 are valid. For the flows in `DerivativeInstrumentFlows` (default `[3]`) the client
+reads the response as a stream, keeps only valid listed option contracts (by ISIN prefix), uses
+the Persian trading symbol (`LVal18AFC`) as the symbol and the contract description (`LVal30`)
+as the name, and the sync does not store the raw payload.
+
+### Live verification, 2026-11-28 (one call per operation)
+
+| Check | Result |
+|---|---|
+| `Option` | 1,867 contracts, 89 underlyings, no expired contract, expiries 2026-11-28 to 2028-05-10. `BuyOP` equals `SellOP` on every row. One row has a non-positive strike. Contract size 1,000 on 1,762 rows. |
+| Side | 897 calls and 897 puts by ISIN prefix; the symbol prefix agrees on every one. 73 other rows. |
+| `Instrument(Flow = 3)` | 64,693 rows, 3,130 valid, 2,044 valid listed options. Contains all `Option` contracts; 1,768 of the 1,794 listed ones are valid. Underlyings are not in flow 3. |
+| `BestLimitsAllIns(Flow = 3)` | 8,877 rows for 1,899 instruments. 1,557 option contracts have at least one level, 923 have a level-1 ask. 342 instruments are not option contracts. No level-1 ask below its bid. |
+| `TradeLastDay(Flow = 3)` | 644 rows; 633 are option contracts. |
+| Whole pipeline on a test database with these responses | Instruments 5.1 s; contracts 1.2 s first run, 0.6 s unchanged; order book 1.6 s first run, 0.7 s unchanged. 1,768 contracts and 4,919 levels stored. |
+
+### Provider host
+
+`service.tsetmc.com` resolves to two addresses. On 2026-11-28 `94.182.113.112` answered HTTP 403
+with an HTML page to every request, including the WSDL, and `46.102.143.212` answered 200, with
+and without a VPN. The client treats the 403 page as a provider failure and retries within
+`RetryCount`; it does not pick an address, by the owner's decision of 2026-11-28 (OQ-171).
+Whether production sees the failing address is not known.
+
 ## Configuration (`appsettings.json`)
 
 ```json
@@ -143,7 +207,9 @@ Returns today's intraday index snapshots.
     "TimeoutSeconds": 60,
     "RetryCount": 3,
     "IntradayTradeFlows": [0, 1, 2, 3, 4, 5],
-    "InstrumentFlows": [5, 6, 7, 1, 2, 4],
+    "InstrumentFlows": [5, 6, 7, 1, 2, 4, 3],
+    "DerivativeInstrumentFlows": [3],
+    "OptionOrderBookFlow": 3,
     "DailyTradeFromDate": "20200101",
     "DailyTradeToDate": null,
     "DailyIndexFromDate": "20200101",
@@ -194,6 +260,28 @@ Wednesday has a later cut-off because the exchange session ends later that day. 
 | `IntradayTickSeconds` | `30` | How often the loop wakes to check the schedule window |
 | `IntradayIntervalSeconds` | `60` | Minimum gap between consecutive intraday sync calls |
 
+### Option market data (Feature 167)
+
+| Dataset | Window | Cadence | Switch (default off) |
+|------|--------|---------|------|
+| Option contracts and open interest (`Option`) | intraday window, and once after the end-of-day instruments sync | `OptionContractsIntervalSeconds` (300) | `OptionContractsEnabled` |
+| Option order book (`BestLimitsAllIns`, flow 3) | intraday window | `OptionOrderBookIntervalSeconds` (60) | `OptionOrderBookEnabled` |
+
+Both keys are in the `TsetmcPolling` section. Intervals below 10 seconds fail start-up
+validation. Each dataset runs in its own scope after trades and indices; a failure is logged and
+does not delay the others. The contract sync does not create instruments: a contract whose own
+instrument or underlying is not in `TradingInstruments` yet is counted as unresolved and stored
+by a later run, after the instruments sync has seen it.
+
+Sync-state rows `Tsetmc_OptionContracts` and `Tsetmc_OptionOrderBook` are stamped on every run.
+The watermark advances only after a successful run, and the option chain reports the order-book
+watermark as the observation time of the book.
+
+Rollout: deploy with both switches off; run the instruments sync (adds flow 3); run the stub
+backfill; run `optioncontracts` once and check the counts; turn on `OptionContractsEnabled`, then
+`OptionOrderBookEnabled`, and watch one session. Rollback: turn both switches off; the tables can
+stay.
+
 ## DataAdmin Endpoints
 
 | Method | Route | Description |
@@ -205,6 +293,35 @@ Wednesday has a later cut-off because the exchange session ends later that day. 
 | GET | `/api/v1/admin/tsetmc/source-priority` | Phase 4: shows active quote source and cutover state |
 
 Valid `dataset` values: `instruments`, `intradaytrades`, `dailytrades`, `dailyindices`, `intradayindices`.
+
+Feature 167 adds, with their own response (fetched, persisted, unchanged, rejected, unresolved,
+removed, ignored, duration; HTTP 503 when the provider fails, stored data untouched):
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/v1/admin/tsetmc/optioncontracts/sync` | Option contract terms and open interest |
+| POST | `/api/v1/admin/tsetmc/optionorderbook/sync` | Option order book |
+| POST | `/api/v1/admin/tsetmc/instrument-stubs/backfill` | Renames instruments still stored under their numeric code, from stored daily trade payloads; safe to repeat |
+
+## Option Market Read API (Feature 167)
+
+Authenticated users (`MarketSummaryRead` policy, per-actor rate limit).
+
+| Method | Route | Query | Result |
+|--------|-------|-------|--------|
+| GET | `/api/v1/market/options/chain` | `underlying` (symbol), `expiry` (optional) | Expiry dates, underlying price, and per strike the call and put with last and closing price, best bid and ask with volumes, open interest, contract size; observation times of the order book and open interest. 404 when the symbol has no unexpired listed option or the expiry is not listed. |
+| GET | `/api/v1/market/options/call-exercise-ranking` | `underlying`, `expiry` (optional), `quantity` (contracts, default 1) | Calls ordered by effective purchase cost (strike + best ask), with premium over the underlying price; calls that cannot be ranked are listed with the reason. 409 when no price is stored for the underlying. |
+
+## Option Market Tables (Feature 167)
+
+`FinancialIngestionDbContext`, migration `Feature167OptionMarket`.
+
+| Table | Key | Content |
+|---|---|---|
+| `OptionContracts` | `Id`; unique `TradingInstrumentId` | Side, underlying instrument, strike, expiry, begin date, contract size, open interest, previous open interest, observation times. Check constraints on side and terms. |
+| `OptionOrderBookLevels` | (`TradingInstrumentId`, `Level`) | Latest bid and ask price, volume and order count per level; provider time; time of last change. No history. |
+
+Market pulse leaves known option contracts out of its instrument set.
 
 ## Migration Phases (spec 054)
 

@@ -278,6 +278,24 @@ This list is illustrative only. EPS, P/E, margins, growth measures, and cash-flo
 - **Monthly route:** the endpoint assigned to a company's `ReportingType`.
 - **Monthly coverage:** whether a company can have persisted monthly data: has route, no route, outside scope, or unknown.
 
+## Option Market (Feature 167)
+
+- **Option contract (قرارداد اختیار معامله):** a listed contract on one underlying share with a fixed strike price, expiry date and contract size. It is a trading instrument of its own.
+- **Call (اختیار خرید):** the right to buy the underlying at the strike price. Symbols start with ض.
+- **Put (اختیار فروش):** the right to sell the underlying at the strike price. Symbols start with ط.
+- **Underlying (دارایی پایه):** the share the contract is written on.
+- **Strike price (قیمت اعمال):** the price per share at which the option is exercised.
+- **Expiry (سررسید):** the last day the contract exists; a contract past its expiry is not part of a chain.
+- **Contract size (اندازه قرارداد):** shares covered by one contract.
+- **Open interest (موقعیت‌های باز):** contracts currently open.
+- **Order-book level:** one price step of resting orders, 1 (best) to 5, with bid and ask price, volume and order count. A side without an order is absent, not zero.
+- **Best bid / best ask (بهترین تقاضا / بهترین عرضه):** level 1 of the order book.
+- **Option chain (زنجیره اختیار):** the calls and puts of one underlying and expiry, listed by strike.
+- **Effective purchase cost:** strike price + best ask of a call; the cost per share of buying the call and exercising it.
+- **Premium over spot:** (effective purchase cost − underlying last price) ÷ underlying last price.
+- **Call exercise ranking:** the calls of one underlying and expiry ordered by ascending effective purchase cost. A call is ranked only when its best ask has volume for the requested number of contracts and the order book was observed in the underlying's latest trading session.
+- **Instrument stub:** an instrument row created from a feed that carries no symbol; its symbol is the numeric instrument code until the daily trade feed or the instruments sync names it.
+
 ## Ambiguity Rules
 
 When the user does not specify comparison type:

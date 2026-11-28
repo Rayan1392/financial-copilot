@@ -22,6 +22,15 @@ public sealed class TsetmcWebServiceOptions
     /// <summary>Flows to request for Instrument dimension. Valid values: 5–7 (equity/ETF/rights).</summary>
     public byte[] InstrumentFlows { get; init; } = [];
 
+    /// <summary>
+    /// Instrument flows that hold derivative contracts (3 = TSE/IFB derivatives market). For these
+    /// flows only currently valid listed option contracts are read, with their Persian trading symbol.
+    /// </summary>
+    public byte[] DerivativeInstrumentFlows { get; init; } = [3];
+
+    /// <summary>Flow requested from BestLimitsAllIns for the option order book.</summary>
+    public byte OptionOrderBookFlow { get; init; } = 3;
+
     /// <summary>Start date for daily trade backfill (yyyyMMdd format, e.g. "20200101").</summary>
     public string DailyTradeFromDate { get; init; } = "20200101";
 

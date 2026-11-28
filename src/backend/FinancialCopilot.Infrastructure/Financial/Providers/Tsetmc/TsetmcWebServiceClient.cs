@@ -13,7 +13,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Tsetmc;
 /// Endpoint: http://service.tsetmc.com/WebService/TsePublicV2.asmx
 /// Uses raw HTTP + SOAP 1.1 envelopes, no WCF dependency.
 /// </summary>
-public sealed class TsetmcWebServiceClient(
+public sealed partial class TsetmcWebServiceClient(
     HttpClient httpClient,
     IOptions<TsetmcWebServiceOptions> options,
     ILogger<TsetmcWebServiceClient> logger) : ITsetmcWebServiceClient
@@ -27,6 +27,9 @@ public sealed class TsetmcWebServiceClient(
         byte flow,
         CancellationToken cancellationToken)
     {
+        if (_options.DerivativeInstrumentFlows.Contains(flow))
+            return await GetDerivativeInstrumentsAsync(flow, cancellationToken);
+
         var xml = BuildEnvelope("Instrument", $"<Flow>{flow}</Flow>");
         var ds = await InvokeAsync("Instrument", xml, cancellationToken);
         return ParseInstruments(ds);

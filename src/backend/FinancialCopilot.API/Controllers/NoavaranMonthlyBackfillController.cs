@@ -15,8 +15,22 @@ namespace FinancialCopilot.API.Controllers;
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
 public sealed class NoavaranMonthlyBackfillController(
     ISingleCompanyMonthlyIngestionService singleCompanyIngestion,
-    FinancialIngestionDbContext dbContext) : ControllerBase
+    FinancialIngestionDbContext dbContext,
+    TimeProvider timeProvider) : ControllerBase
 {
+    [HttpGet("completed-months")]
+    public ActionResult<CompletedShamsiMonthsResponse> GetCompletedMonths([FromQuery] int shamsiYear)
+    {
+        if (shamsiYear is < 1404 or > 1500)
+            ModelState.AddModelError(nameof(shamsiYear), "ShamsiYear must be between 1404 and 1500 for NADPCO monthly activity.");
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        return Ok(new CompletedShamsiMonthsResponse(
+            shamsiYear,
+            ShamsiMonthCalculator.CompletedMonthsInYear(shamsiYear, timeProvider.GetUtcNow())));
+    }
+
     [HttpPost("single-company-month")]
     public async Task<ActionResult<AdminMonthlyActivitySingleCompanyMonthDirectResponse>> RunSingleCompanyMonth(
         [FromBody] AdminMonthlyActivitySingleCompanyMonthDirectRequest request,

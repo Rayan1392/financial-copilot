@@ -54,6 +54,19 @@ public sealed class ShamsiMonthCalculatorTests
         Assert.Equal(new ShamsiMonth(1405, 6), month);
     }
 
+    [Theory]
+    [InlineData(1405, "2026-11-28T08:00:00Z", 8)]
+    [InlineData(1404, "2026-11-28T08:00:00Z", 12)]
+    [InlineData(1406, "2026-11-28T08:00:00Z", 0)]
+    [InlineData(1405, "2026-03-21T08:00:00Z", 0)]
+    [InlineData(1405, "2026-09-22T21:00:00Z", 6)]
+    public void CompletedMonthsInYear_ReturnsAscendingCompletedMonths(int year, string utcNow, int count)
+    {
+        var months = ShamsiMonthCalculator.CompletedMonthsInYear(year, DateTimeOffset.Parse(utcNow));
+
+        Assert.Equal(Enumerable.Range(1, count), months);
+    }
+
     [Fact]
     public void LatestPublishedMonth_NeverEarlierThanPermittedFloor()
     {

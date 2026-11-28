@@ -104,9 +104,11 @@ Status: Gate B: Approved by the owner on 2026-11-28 («یک اجرای فول ر
 
 ## Owner steps (not done by the agent)
 
-- [ ] Commit, release and the production migration.
+- [x] Commit (`acda444d`, pushed to `develop` 2026-11-28).
+- [ ] Release and the production migration.
 - [ ] Server `.env`: remove or change `CYCLICALWAVES_V2_DAILY_SYNC_CRON_UTC` to `30 2,15 * * *`; set
-  `CYCLICALWAVES_V2_INTRADAY_SYNC_ENABLED=true` and `CYCLICALWAVES_V2_CODAL_GAUGE_REFRESH_ENABLED=true`. The first Worker
+  `CYCLICALWAVES_V2_CODAL_GAUGE_REFRESH_ENABLED=true` and, if another delay than 30 minutes is wanted,
+  `CYCLICALWAVES_V2_CODAL_GAUGE_RECHECK_MINUTES`. Leave `CYCLICALWAVES_V2_INTRADAY_SYNC_ENABLED` off (OQ-184 answer). The first Worker
   start runs one catch-up `Full` when no `Full` run has completed since the latest of the two new times.
-- [ ] AC-12 after the first trading day; send the run history so the cycle length can be compared with the estimate.
-- [ ] OQ-184: ask TahlilApp about request limits.
+- [~] AC-12 not needed while the market-hours run stays off (OQ-184 answer, 2026-11-28).
+- [x] OQ-184: asked TahlilApp; answered 2026-11-28.

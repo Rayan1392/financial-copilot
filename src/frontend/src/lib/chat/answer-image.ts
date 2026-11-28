@@ -72,3 +72,8 @@ export function gaugeImageFileName(symbol: string): string {
 export function comparisonImageFileName(): string {
   return `مقایسه-با-صنعت-${exportDate().replaceAll("/", "-")}.png`;
 }
+
+/** File name of a shared product revenue mix picture: the symbol and today's Jalali date. */
+export function productMixImageFileName(symbol: string): string {
+  return `ترکیب-فروش-${safeFileSymbol(symbol)}-${exportDate().replaceAll("/", "-")}.png`;
+}

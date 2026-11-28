@@ -101,6 +101,15 @@ Example:
 }
 ```
 
+Since the live response of 2026-11-28 (supplied by the Product Owner after تحلیل‌اپ confirmed it), each gauge object
+also carries `forward`, which the PDF does not document:
+
+```json
+"pe": {"a":414,"b":849,"c":1491,"d":867,"e":523,"f":517,"close":7.6059713258,"start":2.288590488,
+       "end":38.8073427432,"min":3.4347303090703263,"max":9.383916148306325,"avg":5.829381862709068,
+       "status":3,"forward":3.8198454018903374}
+```
+
 `pe` or `ps` can be `null` when that gauge does not exist. In a present gauge, `close` can be
 `null`, for example when the company is loss-making or has not traded for over 30 days. Do not
 convert nulls to zero.
@@ -114,6 +123,7 @@ convert nulls to zero.
 | `avg` | Historical mean. |
 | `max` | Mean of the highest fifth of historical values. |
 | `status` | Relative location of `close`; see below. |
+| `forward` | The provider's forward P/E or P/S for the gauge. Optional: `null` or an absent member means no forward value (assumed from one sample; never converted to zero). Stored exactly as received, with no sign rule. |
 
 | `status` | Interpretation |
 |---:|---|

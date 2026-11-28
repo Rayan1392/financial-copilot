@@ -120,27 +120,60 @@ public static class ValuationGaugeProjector
     {
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(estimate);
+        if (estimate is not { GrowthFactor: { } growth, LatestSalesMonthEnd: { } latestMonth, LatestQuarterEnd: { } latestQuarter } ||
+            PlaceForward(card, forwardValue) is not { } placed)
+            return card;
+
+        var margin = card.Kind == ValuationGaugeKind.Pe && estimate.Margin is { } median ? Percent(median) : null;
+        var forward = new ValuationGaugeForwardEstimate(
+            placed.Value,
+            placed.Angle,
+            placed.Side,
+            ForwardRatioEstimator.MethodVersion,
+            decimal.Round(growth, 4, MidpointRounding.AwayFromZero).ToString("F4", CultureInfo.InvariantCulture),
+            margin,
+            latestMonth,
+            latestQuarter,
+            ValuationGaugeForwardSources.Sapio);
+        return card with { Forward = forward };
+    }
+
+    /// <summary>
+    /// Attaches the provider's own forward ratio to a displayable ratio card with a rendered dial, with the same
+    /// rounding, angle and pin rule as the current needle. A current value is not required: a loss-making company can
+    /// have a forward P/E. A missing, non-positive or unusable value leaves the card unchanged and names the reason.
+    /// </summary>
+    public static (ValuationGaugeCard Card, string ReasonCode) WithProviderForward(ValuationGaugeCard card, string? providerForward)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        if (card.Kind == ValuationGaugeKind.Equilibrium || !card.IsDisplayable() || card.Ratio is null)
+            return (card, ProviderForwardReasonCodes.CardNotDisplayable);
+        if (card.Geometry is null) return (card, ProviderForwardReasonCodes.AxisNotRenderable);
+        if (string.IsNullOrWhiteSpace(providerForward)) return (card, ProviderForwardReasonCodes.Missing);
+        // The stored value is an exact decimal that can exceed the range a dial can place.
+        if (Parse(providerForward) is not { } value) return (card, ProviderForwardReasonCodes.OutOfRange);
+        if (value <= 0m) return (card, ProviderForwardReasonCodes.NotPositive);
+        if (PlaceForward(card, value) is not { } placed) return (card, ProviderForwardReasonCodes.AxisNotRenderable);
+
+        var forward = new ValuationGaugeForwardEstimate(
+            placed.Value, placed.Angle, placed.Side, null, null, null, null, null, ValuationGaugeForwardSources.Provider);
+        return (card with { Forward = forward }, ProviderForwardReasonCodes.None);
+    }
+
+    /// <summary>Two-decimal value, angle and pin side of a forward value on a ratio card's own axis; null without a dial.</summary>
+    private static (string Value, decimal Angle, ValuationGaugeNeedleSide Side)? PlaceForward(ValuationGaugeCard card, decimal forwardValue)
+    {
         if (card.Kind == ValuationGaugeKind.Equilibrium || !card.IsDisplayable() || card.Ratio is not { } ratio || card.Geometry is null ||
             Parse(ratio.Start) is not { } start || Parse(ratio.Min) is not { } min || Parse(ratio.Average) is not { } average ||
-            Parse(ratio.Max) is not { } max || Parse(ratio.End) is not { } end ||
-            estimate is not { GrowthFactor: { } growth, LatestSalesMonthEnd: { } latestMonth, LatestQuarterEnd: { } latestQuarter })
-            return card;
+            Parse(ratio.Max) is not { } max || Parse(ratio.End) is not { } end)
+            return null;
 
         var value = decimal.Round(forwardValue, 2, MidpointRounding.AwayFromZero);
         var side = value < start ? ValuationGaugeNeedleSide.PinnedBelow
             : value > end ? ValuationGaugeNeedleSide.PinnedAbove
             : ValuationGaugeNeedleSide.Inside;
-        var margin = card.Kind == ValuationGaugeKind.Pe && estimate.Margin is { } median ? Percent(median) : null;
-        var forward = new ValuationGaugeForwardEstimate(
-            value.ToString("F2", CultureInfo.InvariantCulture),
-            Angle(value, RatioAnchors(start, min, average, max, end), RatioAnchorAngles),
-            side,
-            ForwardRatioEstimator.MethodVersion,
-            decimal.Round(growth, 4, MidpointRounding.AwayFromZero).ToString("F4", CultureInfo.InvariantCulture),
-            margin,
-            latestMonth,
-            latestQuarter);
-        return card with { Forward = forward };
+        return (value.ToString("F2", CultureInfo.InvariantCulture),
+            Angle(value, RatioAnchors(start, min, average, max, end), RatioAnchorAngles), side);
     }
 
     /// <summary>The seven ratio anchors: the five provider values and the two display split points.</summary>

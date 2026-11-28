@@ -104,6 +104,52 @@ public sealed class CyclicalWavesV2GaugeClientTests
         Assert.Equal(FinancialProviderErrorCode.InvalidResponse, exception.Code);
     }
 
+    [Fact]
+    public async Task Gauge_details_keep_the_provider_forward_value_exactly()
+    {
+        // Shape of the live response of 2026-11-28: `forward` sits inside each gauge object.
+        var client = Client(HttpStatusCode.OK, GaugePayload(
+            pe: "\"forward\":3.8198454018903374", ps: "\"forward\":0.8630831034441018"));
+
+        var result = await client.GetGaugeDetailsAsync("IRO1FOLD0001", CancellationToken.None);
+
+        Assert.Equal("3.8198454018903374", result!.Pe!.Forward!.Value.ToString());
+        Assert.Equal("0.8630831034441018", result.Ps!.Forward!.Value.ToString());
+    }
+
+    [Fact]
+    public async Task A_null_or_absent_forward_value_is_null_and_never_zero()
+    {
+        var client = Client(HttpStatusCode.OK, GaugePayload(pe: "\"forward\":null", ps: null));
+
+        var result = await client.GetGaugeDetailsAsync("IRO1FOLD0001", CancellationToken.None);
+
+        Assert.Null(result!.Pe!.Forward);
+        Assert.Null(result.Ps!.Forward);
+        Assert.Equal("7.6", result.Pe.Close!.Value.ToString());
+    }
+
+    [Theory]
+    [InlineData("\"forward\":\"3.8\"")]
+    [InlineData("\"forward\":{}")]
+    public async Task A_forward_value_that_is_not_a_number_makes_the_gauge_payload_invalid(string forward)
+    {
+        var client = Client(HttpStatusCode.OK, GaugePayload(pe: forward, ps: null));
+
+        var exception = await Assert.ThrowsAsync<FinancialProviderException>(
+            () => client.GetGaugeDetailsAsync("IRO1FOLD0001", CancellationToken.None));
+
+        Assert.Equal(FinancialProviderErrorCode.InvalidResponse, exception.Code);
+    }
+
+    private static string GaugePayload(string? pe, string? ps)
+    {
+        static string Gauge(string? extra) =>
+            "{\"a\":1,\"b\":2,\"c\":3,\"d\":4,\"e\":5,\"f\":6,\"close\":7.6,\"start\":2.2,\"end\":38.8,\"min\":3.4,\"max\":9.3,\"avg\":5.8,\"status\":3"
+            + (extra is null ? "" : "," + extra) + "}";
+        return $"{{\"ticker\":\"فولاد\",\"enticker\":\"IRO1FOLD0001\",\"pe\":{Gauge(pe)},\"ps\":{Gauge(ps)}}}";
+    }
+
     private static CyclicalWavesV2GaugeDataClient Client(HttpStatusCode status, string json) => CreateClient(
         new StubHttpHandler((_, _) => StubHttpHandler.Json(status, json)));
 

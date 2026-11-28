@@ -100,20 +100,46 @@ public sealed record ValuationGaugeCard(
 }
 
 /// <summary>
-/// Sapio's forward estimate of this card's ratio (change «valuation-gauge-forward-ratio»), never the provider's.
+/// The forward value of this card's ratio. <see cref="Source"/> says whose number it is: the provider's own forward
+/// ratio (change «valuation-gauge-provider-forward») or Sapio's estimate (change «valuation-gauge-forward-ratio»).
 /// <see cref="Value"/> has two decimals; <see cref="Angle"/> and <see cref="Side"/> are on the card's own axis with the
-/// same pin rule as the current needle. <see cref="SalesGrowthFactor"/> is the 4-month year-over-year factor (4
-/// decimals); <see cref="MarginPercent"/> is the median net margin in percent (1 decimal), present on the P/E card only.
+/// same pin rule as the current needle. The method members exist for a Sapio estimate only:
+/// <see cref="SalesGrowthFactor"/> is the 4-month year-over-year factor (4 decimals) and <see cref="MarginPercent"/> the
+/// median net margin in percent (1 decimal, P/E card only).
 /// </summary>
 public sealed record ValuationGaugeForwardEstimate(
     string Value,
     decimal Angle,
     ValuationGaugeNeedleSide Side,
-    string MethodVersion,
-    string SalesGrowthFactor,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MethodVersion,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SalesGrowthFactor,
     string? MarginPercent,
-    DateOnly LatestSalesMonthEnd,
-    DateOnly LatestQuarterEnd);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateOnly? LatestSalesMonthEnd,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateOnly? LatestQuarterEnd,
+    // Absent on cards stored before the provider value existed; those are Sapio estimates.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Source = null)
+{
+    /// <summary>True when the value is the provider's own forward ratio and not Sapio's estimate.</summary>
+    public bool IsProviderValue() => string.Equals(Source, ValuationGaugeForwardSources.Provider, StringComparison.Ordinal);
+}
+
+/// <summary>Whose forward value a card carries. A stored card without a source is a Sapio estimate.</summary>
+public static class ValuationGaugeForwardSources
+{
+    public const string Provider = "provider";
+    public const string Sapio = "sapio";
+}
+
+/// <summary>Why a ratio card shows, or does not show, the provider's forward value.</summary>
+public static class ProviderForwardReasonCodes
+{
+    public const string None = "none";
+    public const string Missing = "provider_forward_missing";
+    public const string NotPositive = "provider_forward_not_positive";
+    public const string OutOfRange = "provider_forward_out_of_range";
+    public const string CardNotDisplayable = "card_not_displayable";
+    public const string AxisNotRenderable = "axis_not_renderable";
+}
 
 /// <summary>Provider facts for a P/E or P/S gauge. Values are the provider's exact decimals as invariant strings.</summary>
 public sealed record ValuationRatioGaugeFacts(
@@ -198,7 +224,9 @@ public sealed record RatioGaugeSnapshot(
     string End,
     IReadOnlyList<long> DayCounts,
     int? ProviderStatus,
-    DateTimeOffset FetchedAtUtc);
+    DateTimeOffset FetchedAtUtc,
+    // The provider's own forward ratio as an exact decimal string; null when the provider has none.
+    string? Forward = null);
 
 public sealed record EquilibriumRangeSnapshot(
     bool HasRange,
@@ -249,6 +277,9 @@ public interface IValuationGaugeObserver
 
     /// <summary>Once per request when the estimator input read timed out or failed; only the estimate is dropped.</summary>
     void ForwardReadFailed(string reasonCode, TimeSpan elapsed, Exception? error);
+
+    /// <summary>Per ratio card when the provider forward value is enabled: shown or not, and the reason.</summary>
+    void ProviderForwardProjected(ValuationGaugeKind kind, bool shown, string reasonCode);
 }
 
 public sealed class NullValuationGaugeObserver : IValuationGaugeObserver
@@ -258,6 +289,7 @@ public sealed class NullValuationGaugeObserver : IValuationGaugeObserver
     public void Completed(TimeSpan elapsed, int displayableCards, string matchOutcome) { }
     public void ForwardEstimated(ValuationGaugeKind kind, bool shown, string reasonCode, TimeSpan? readElapsed) { }
     public void ForwardReadFailed(string reasonCode, TimeSpan elapsed, Exception? error) { }
+    public void ProviderForwardProjected(ValuationGaugeKind kind, bool shown, string reasonCode) { }
 }
 
 public interface IValuationGaugeCardsUseCase

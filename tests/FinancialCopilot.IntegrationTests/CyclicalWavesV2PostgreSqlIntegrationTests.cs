@@ -32,7 +32,7 @@ public sealed class CyclicalWavesV2PostgreSqlIntegrationTests(PostgreSqlIntegrat
 
         Assert.Equal(14, await CountAsync(db, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'cyclicalwaves'"));
         Assert.Equal(29, await db.CyclicalWavesV2MetricDefinitions.CountAsync());
-        Assert.Equal(27, await CountAsync(db, "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'cyclicalwaves' AND table_name IN ('GaugeDetails', 'EquilibriumRanges') AND column_name ~ '(High|Middle|Low)$' AND data_type = 'numeric'"));
+        Assert.Equal(30, await CountAsync(db, "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'cyclicalwaves' AND table_name IN ('GaugeDetails', 'EquilibriumRanges') AND column_name ~ '(High|Middle|Low)$' AND data_type = 'numeric'"));
         Assert.Equal(0, await CountAsync(db, "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'cyclicalwaves' AND table_name IN ('GaugeDetails', 'EquilibriumRanges') AND column_name ~ '(High|Middle|Low)$' AND data_type <> 'numeric'"));
         Assert.Equal(3, await CountAsync(db, "SELECT count(*) FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace WHERE n.nspname = 'cyclicalwaves' AND t.relname IN ('GaugeAvailability', 'GaugeDetails', 'EquilibriumRanges') AND c.contype = 'p'"));
         Assert.Equal(3, await CountAsync(db, "SELECT count(*) FROM information_schema.referential_constraints rc JOIN information_schema.table_constraints child ON child.constraint_name = rc.constraint_name AND child.constraint_schema = rc.constraint_schema JOIN information_schema.constraint_column_usage parent ON parent.constraint_name = rc.constraint_name AND parent.constraint_schema = rc.constraint_schema WHERE child.table_schema = 'cyclicalwaves' AND child.table_name IN ('GaugeAvailability', 'GaugeDetails', 'EquilibriumRanges') AND parent.table_schema = 'cyclicalwaves' AND parent.table_name = 'Tickers'"));
@@ -169,6 +169,58 @@ public sealed class CyclicalWavesV2PostgreSqlIntegrationTests(PostgreSqlIntegrat
     /// BUG-052: on a closed market day the vendor returns the same gauges. The relative valuation inputs must stay
     /// usable after that sync, although the values were last changed more than the freshness window ago.
     /// </summary>
+    [SkippableFact]
+    public async Task GaugeStore_PersistsTheProviderForwardValueAndTreatsItsChangeAsAnUpdate()
+    {
+        await using var database = await fixture.CreateDatabaseAsync();
+        await using var db = database.CreateContext();
+        db.CyclicalWavesV2Tickers.Add(new CyclicalWavesV2TickerRow
+        {
+            Id = Guid.NewGuid(), Ticker = "فولاد", NormalizedTicker = PersianSymbolNormalizer.Normalize("فولاد"),
+            Enticker = "IRO1FOLD0001", IsActive = true, CreatedAt = Now, UpdatedAt = Now, LastSeenInCatalogAt = Now
+        });
+        await db.SaveChangesAsync();
+        var store = new EfCoreCyclicalWavesV2GaugeStore(db);
+        await store.ApplyGaugeCatalogAsync(
+            [new CyclicalWavesV2GaugeCatalogItem("فولاد", "IRO1FOLD0001", true, true)], Now, CancellationToken.None);
+        var withoutForward = new CyclicalWavesV2Gauge(1, 2, 3, 4, 5, 6, ExactDecimal.Parse("4"),
+            ExactDecimal.Parse("1"), ExactDecimal.Parse("6"), ExactDecimal.Parse("1"), ExactDecimal.Parse("2"), ExactDecimal.Parse("6"), 3);
+        CyclicalWavesV2GaugeDetails Details(string? pe, string? ps) => new("فولاد", "IRO1FOLD0001",
+            withoutForward with { Forward = pe is null ? null : ExactDecimal.Parse(pe) },
+            withoutForward with { Forward = ps is null ? null : ExactDecimal.Parse(ps) });
+        static (ExactDecimal? Pe, ExactDecimal? Ps, DateTimeOffset FetchedAt) Expected(string? pe, string? ps, DateTimeOffset at) =>
+            (pe is null ? null : ExactDecimal.Parse(pe), ps is null ? null : ExactDecimal.Parse(ps), at);
+        async Task<(ExactDecimal? Pe, ExactDecimal? Ps, DateTimeOffset FetchedAt)> StoredAsync()
+        {
+            var rows = await db.CyclicalWavesV2GaugeDetails.AsNoTracking().ToDictionaryAsync(row => row.GaugeType);
+            return (rows["PE"].Forward, rows["PS"].Forward, rows["PE"].FetchedAtUtc);
+        }
+
+        // A gauge fetched before the provider sent the member has no forward value.
+        Assert.Equal(CyclicalWavesV2ApplyOutcome.Updated, await store.ApplyGaugeDetailsAsync(Details(null, null), Now, CancellationToken.None));
+        Assert.Equal(Expected(null, null, Now), await StoredAsync());
+
+        // The forward value alone is a change.
+        var first = Now.AddHours(1);
+        Assert.Equal(CyclicalWavesV2ApplyOutcome.Updated,
+            await store.ApplyGaugeDetailsAsync(Details("3.8198454018903374", "0.8630831034441018"), first, CancellationToken.None));
+        Assert.Equal(Expected("3.8198454018903374", "0.8630831034441018", first), await StoredAsync());
+
+        // Unchanged values only move the fetch time (BUG-052).
+        var second = Now.AddHours(2);
+        Assert.Equal(CyclicalWavesV2ApplyOutcome.Unchanged,
+            await store.ApplyGaugeDetailsAsync(Details("3.8198454018903374", "0.8630831034441018"), second, CancellationToken.None));
+        Assert.Equal(second, (await StoredAsync()).FetchedAt);
+
+        // A negative value is stored as received; a value that disappears is cleared, never kept or zeroed.
+        var third = Now.AddHours(3);
+        Assert.Equal(CyclicalWavesV2ApplyOutcome.Updated,
+            await store.ApplyGaugeDetailsAsync(Details("-12.5", null), third, CancellationToken.None));
+        Assert.Equal(Expected("-12.5", null, third), await StoredAsync());
+        Assert.Equal(1, await CountAsync(db, "SELECT count(*) FROM cyclicalwaves.\"GaugeDetails\" WHERE \"GaugeType\" = 'PS' AND \"ForwardHigh\" IS NULL AND \"ForwardMiddle\" IS NULL AND \"ForwardLow\" IS NULL AND \"ForwardSign\" IS NULL AND \"ForwardScale\" IS NULL"));
+        Assert.Equal(2, await CountAsync(db, "SELECT count(*) FROM pg_constraint WHERE conname IN ('CK_CyclicalWavesV2GaugeDetails_ForwardParts', 'CK_CyclicalWavesV2GaugeDetails_ForwardRanges')"));
+    }
+
     [SkippableFact]
     public async Task GaugeStore_UnchangedFetchKeepsRelativeValuationInputsFresh()
     {

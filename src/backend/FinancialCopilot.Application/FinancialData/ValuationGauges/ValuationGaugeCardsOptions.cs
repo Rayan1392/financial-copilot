@@ -25,16 +25,30 @@ public sealed class ValuationGaugeCardsOptions
     /// <summary>Sapio's forward P/E and P/S estimate on the ratio cards; off by default.</summary>
     public ValuationGaugeForwardOptions ForwardEstimate { get; set; } = new();
 
+    /// <summary>The provider's own forward P/E and P/S on the ratio cards; on by default (OQ-163).</summary>
+    public ValuationGaugeProviderForwardOptions ProviderForward { get; set; } = new();
+
     public bool IsValid(out string error)
     {
         error = MaxFetchAgeHours is < 1 or > 720 ? "MaxFetchAgeHours must be 1-720."
             : ReadTimeoutMilliseconds is < 100 or > 30000 ? "ReadTimeoutMilliseconds must be 100-30000."
             : QuoteTimeoutMilliseconds is < 100 or > 30000 ? "QuoteTimeoutMilliseconds must be 100-30000."
             : PercentageDecimals is < 0 or > 3 ? "PercentageDecimals must be 0-3."
+            : ProviderForward is null ? "ProviderForward is required."
             : ForwardEstimate is null ? "ForwardEstimate is required."
             : ForwardEstimate.Error();
         return error.Length == 0;
     }
+}
+
+/// <summary>
+/// Configuration <c>ValuationGaugeCards:ProviderForward</c> (change «valuation-gauge-provider-forward»). The value comes
+/// with the gauge snapshot, so there is nothing to tune; <see cref="Enabled"/> is the kill switch and turning it off
+/// restores the cards as they were before the provider value was shown.
+/// </summary>
+public sealed class ValuationGaugeProviderForwardOptions
+{
+    public bool Enabled { get; set; } = true;
 }
 
 /// <summary>

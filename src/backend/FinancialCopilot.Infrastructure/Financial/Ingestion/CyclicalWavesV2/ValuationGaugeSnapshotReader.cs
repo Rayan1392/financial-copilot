@@ -82,7 +82,8 @@ public sealed class ValuationGaugeSnapshotReader(FinancialIngestionDbContext db)
             row.End.ToString(),
             [row.A, row.B, row.C, row.D, row.E, row.F],
             row.Status,
-            row.FetchedAtUtc);
+            row.FetchedAtUtc,
+            Text(row.Forward));
 
     private static string? Text(ExactDecimal? value) => value?.ToString();
 
@@ -171,7 +172,7 @@ public sealed class ValuationGaugeTelemetry(ILogger<ValuationGaugeTelemetry>? lo
     private static readonly Histogram<double> FetchAge = Meter.CreateHistogram<double>("valuation_gauge.snapshot_age", unit: "h", description: "Vendor snapshot fetch age at answer time.");
     private static readonly Histogram<double> Latency = Meter.CreateHistogram<double>("valuation_gauge.latency", unit: "ms", description: "Card generation latency.");
     private static readonly Counter<long> Requests = Meter.CreateCounter<long>("valuation_gauge.requests", description: "Gauge requests by vendor match outcome and usability.");
-    private static readonly Counter<long> Forward = Meter.CreateCounter<long>("valuation_gauge.forward_estimates", description: "Sapio forward estimates by kind, shown and reason.");
+    private static readonly Counter<long> Forward = Meter.CreateCounter<long>("valuation_gauge.forward_estimates", description: "Forward values on ratio cards by kind, shown, reason and source (provider or sapio).");
     private static readonly Histogram<double> ForwardLatency = Meter.CreateHistogram<double>("valuation_gauge.forward_read_latency", unit: "ms", description: "Forward-estimate input read latency.");
 
     public void CardProjected(ValuationGaugeKind kind, ValuationGaugeCardState state, string reasonCode, TimeSpan? fetchAge)
@@ -190,10 +191,13 @@ public sealed class ValuationGaugeTelemetry(ILogger<ValuationGaugeTelemetry>? lo
 
     public void ForwardEstimated(ValuationGaugeKind kind, bool shown, string reasonCode, TimeSpan? readElapsed)
     {
-        Forward.Add(1, new TagList { { "kind", kind.ToString() }, { "shown", shown }, { "reason", reasonCode } });
+        Forward.Add(1, new TagList { { "kind", kind.ToString() }, { "shown", shown }, { "reason", reasonCode }, { "source", ValuationGaugeForwardSources.Sapio } });
         if (readElapsed is { } elapsed)
             ForwardLatency.Record(elapsed.TotalMilliseconds, new TagList { { "kind", kind.ToString() } });
     }
+
+    public void ProviderForwardProjected(ValuationGaugeKind kind, bool shown, string reasonCode) =>
+        Forward.Add(1, new TagList { { "kind", kind.ToString() }, { "shown", shown }, { "reason", reasonCode }, { "source", ValuationGaugeForwardSources.Provider } });
 
     public void ForwardReadFailed(string reasonCode, TimeSpan elapsed, Exception? error) =>
         _logger.LogWarning(error, "Valuation gauge forward estimate dropped: {ReasonCode} after {ElapsedMs} ms.", reasonCode, (long)elapsed.TotalMilliseconds);

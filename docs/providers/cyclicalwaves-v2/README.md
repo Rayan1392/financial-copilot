@@ -139,8 +139,14 @@ route.
   - `distanceToAveragePercent` = (current − average) / average, only when the average is > 0;
   - `currentBand` (1–6), only for a needle inside the axis with a non-zero day total;
   - `daysBelowBandPercent` and `daysInBandPercent`, the sums of the displayed largest-remainder shares;
-  - for the equilibrium range, only with a quote: `priceVsMidpointPercent` and `priceVsLowerPercent`, each as
-    (price − x) / |x|, omitted when x = 0.
+  - for the equilibrium range, only with a quote and a positive price: `lowerDistancePercent`,
+    `midpointDistancePercent` and `upperDistancePercent`, each as (level − price) / price: how far today's price must
+    move to reach the level, positive when the level is above the price (change `equilibrium-distance-from-price`).
+    The card and the text show them without a sign, as «تا میانه ۳۳٫۲٪ رشد» / «… افت» / «هم‌سطح», with a note that they
+    are distances and not a forecast;
+  - `priceVsMidpointPercent` and `priceVsLowerPercent`, each as (price − x) / |x|, omitted when x = 0: the figures
+    released before that change. They are still written for older clients and shown only for a stored card that has
+    no distances.
 - **Sector ranges:** each ratio sector carries its exact `from`/`to` edges (start, min, the midpoint of min and average,
   average, the midpoint of average and max, max, end).
 - **Stored cards:** cards stored before this change lack `insights` and `from`/`to`. They still render, without those

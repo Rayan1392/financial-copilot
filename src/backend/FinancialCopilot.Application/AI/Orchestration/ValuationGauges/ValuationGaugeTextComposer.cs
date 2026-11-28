@@ -104,13 +104,29 @@ public static class ValuationGaugeTextComposer
             builder.Append("قیمت بازار ").Append(Rial0(quote.Price)).Append(" ریال");
             if (facts.Position is { } position)
                 builder.Append(" — ").Append(EquilibriumPositionText(position));
-            var comparisons = new List<string>();
-            if (card.Insights?.PriceVsMidpointPercent is { } vsMid)
-                comparisons.Add("تا میانهٔ بازه " + Percent(vsMid, signed: true));
-            if (card.Insights?.PriceVsLowerPercent is { } vsLow)
-                comparisons.Add(LowerBoundComparison(vsLow));
-            if (comparisons.Count > 0)
-                builder.AppendLine().Append(string.Join("، ", comparisons));
+            var distances = new List<string>();
+            if (card.Insights?.LowerDistancePercent is { } toLower)
+                distances.Add("تا حد پایین " + LevelDistance(toLower));
+            if (card.Insights?.MidpointDistancePercent is { } toMidpoint)
+                distances.Add("تا میانه " + LevelDistance(toMidpoint));
+            if (card.Insights?.UpperDistancePercent is { } toUpper)
+                distances.Add("تا حد بالا " + LevelDistance(toUpper));
+            if (distances.Count > 0)
+            {
+                // A measured distance, not a forecast: the prefix names what is measured.
+                builder.AppendLine().Append(LevelDistancePrefix).Append(string.Join("، ", distances));
+            }
+            else
+            {
+                // A result built before the distances existed keeps its released figures.
+                var comparisons = new List<string>();
+                if (card.Insights?.PriceVsMidpointPercent is { } vsMid)
+                    comparisons.Add("تا میانهٔ بازه " + Percent(vsMid, signed: true));
+                if (card.Insights?.PriceVsLowerPercent is { } vsLow)
+                    comparisons.Add(LowerBoundComparison(vsLow));
+                if (comparisons.Count > 0)
+                    builder.AppendLine().Append(string.Join("، ", comparisons));
+            }
             // No provider name for users (owner, 2026-11-26); the payload keeps it.
             builder.AppendLine().Append("قیمت: ").Append(QuoteSourceText(quote.SourceLabel))
                 .Append("، ").Append(DateTime(quote.AsOf));
@@ -232,6 +248,23 @@ public static class ValuationGaugeTextComposer
         if (trimmed.StartsWith('-') && RoundHalfAwayFromZero(trimmed[1..], 1) != "0.0")
             return "زیر حد پایین " + Percent(trimmed[1..]);
         return "بالای حد پایین " + Percent(trimmed, signed: true);
+    }
+
+    /// <summary>Opens the line of level distances in the text answer.</summary>
+    public const string LevelDistancePrefix = "فاصلهٔ قیمت روز: ";
+
+    /// <summary>
+    /// The distance from today's price to a level, with the direction as a word instead of a sign: «۳۳٫۲٪ رشد» when the
+    /// level is above the price, «۵۶٫۷٪ افت» when below, «هم‌سطح» when it rounds to zero. The web card applies the same
+    /// rule (<c>levelDistance</c> in <c>valuation-gauges.ts</c>).
+    /// </summary>
+    public static string LevelDistance(string value)
+    {
+        var trimmed = value.Trim();
+        var falls = trimmed.StartsWith('-');
+        var magnitude = falls ? trimmed[1..] : trimmed.TrimStart('+');
+        if (RoundHalfAwayFromZero(magnitude, 1) == "0.0") return "هم‌سطح";
+        return Percent(magnitude) + (falls ? " افت" : " رشد");
     }
 
     /// <summary>A derived percentage («‎+۱۹٫۰٪»); the plus sign is shown only for signed distances.</summary>

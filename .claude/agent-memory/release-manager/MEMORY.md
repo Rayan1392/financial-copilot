@@ -3,6 +3,21 @@
 Release log and open items. Policy: `docs/release/release-process.md`. Source of truth: `CHANGELOG.md`.
 Older detail and the full version table: `release-history.md` (same folder).
 
+## Release 1.39.0
+
+- Tagged on 2026-11-28 (MINOR: one notable Changed item). The equilibrium range card measures the distance to the
+  lower bound, the midpoint and the upper bound from today's price, with the direction as a word («رشد» / «افت»)
+  instead of a sign (change `159-…/equilibrium-distance-from-price`, `3863a943`). Backend and frontend; no migration,
+  no Telegram gateway change.
+- Develop release commit `25e09869`, prod merge `df79d8d8` (temporary worktree), annotated tag `v1.39.0`
+  (tag object `e40a58e3`). Release check passed; release-note tests 12/12. Gauge unit tests (235) and the gauge
+  frontend tests (69) passed before the release.
+- Deploy run 46115565776 succeeded (about 11m40s). `/releases` lists 1.39.0 and
+  `https://api.sapioai.ir/health` returned HTTP 200 `Healthy`.
+- Open: the four-tile layout of the equilibrium card was verified by tests only, not in a browser or on a device;
+  the owner is to look at it. BUG-053 still blocks the gauge card E2E tests. `specs/README.md` still says "not
+  released" for this change and for the two changes of 1.38.0.
+
 ## Release 1.38.0
 
 - Tagged on 2026-11-28 (MINOR: two Added items). Added the provider's forward P/E and P/S on the valuation gauge

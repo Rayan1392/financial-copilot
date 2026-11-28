@@ -34,7 +34,9 @@ public sealed class AiFacadeController(
     TimeProvider? timeProvider = null,
     // Feature 159 change «standalone-valuation-gauge-cards»: what the symbol menu may offer.
     IChatCapabilityAvailability? capabilityAvailability = null,
-    Feature154RoutingScope? routingScope = null) : ControllerBase
+    Feature154RoutingScope? routingScope = null,
+    // Change «option-starter-card-switch»: whether the new-chat option card is offered.
+    FinancialCopilot.Application.FinancialData.Options.OptionAnswersOptions? optionAnswers = null) : ControllerBase
 {
     [HttpGet("capabilities/guidance")]
     public ActionResult<IReadOnlyCollection<CapabilityStarterPromptHttpResponse>> GetCapabilityGuidance(
@@ -52,12 +54,16 @@ public sealed class AiFacadeController(
     /// client shows a shortcut only when the same request would be answered (V2, flag on, CyclicalWaves source).
     /// </summary>
     [HttpGet("capabilities/availability")]
-    public ActionResult<ChatCapabilityAvailabilityHttpResponse> GetCapabilityAvailability() =>
-        Ok(new ChatCapabilityAvailabilityHttpResponse(
+    public ActionResult<ChatCapabilityAvailabilityHttpResponse> GetCapabilityAvailability()
+    {
+        var optionComparison = routingScope?.IsActive == true &&
+            capabilityAvailability?.EvaluateForV2(CapabilityExecutionRoutes.OptionComparison, OptionComparisonCapability.Code).IsAvailable == true;
+        return Ok(new ChatCapabilityAvailabilityHttpResponse(
             ValuationGaugeCards: routingScope?.IsActive == true &&
                 capabilityAvailability?.EvaluateForV2(CapabilityExecutionRoutes.ValuationGauges, ValuationGaugeCapability.Code).IsAvailable == true,
-            OptionComparison: routingScope?.IsActive == true &&
-                capabilityAvailability?.EvaluateForV2(CapabilityExecutionRoutes.OptionComparison, OptionComparisonCapability.Code).IsAvailable == true));
+            OptionComparison: optionComparison,
+            OptionComparisonStarterCard: optionAnswers?.ShowsStarterCard(optionComparison) == true));
+    }
 
     [HttpPost("query")]
     public async Task<ActionResult<AiQueryHttpResponse>> Query(

@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.41.2] - 2026-11-28
+
+نمایش کارت پیشنهادی «اختیار خرید نماد» در صفحهٔ گفت‌وگوی تازه جدا از خودِ پرسش‌های اختیار معامله تنظیم می‌شود.
+
+### Changed
+
+- کارت پیشنهادی «اختیار خرید نماد» در صفحهٔ گفت‌وگوی تازه فعلاً نشان داده نمی‌شود. نمایش این کارت تأثیری بر پرسش‌های اختیار معامله ندارد و هر وقت این پرسش‌ها فعال باشند، با نوشتن پرسش جواب می‌گیرند.
+
 ## [1.41.1] - 2026-11-28
 
 شرح نسخهٔ 1.41.0 دربارهٔ زمان به‌روزرسانی گیج‌ها اصلاح شد.
@@ -688,7 +696,8 @@
 - تأیید ایمیل و بازیابی گذرواژه.
 - پنل مدیریت داده‌ها و کاربران.
 
-[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.41.1...develop
+[Unreleased]: https://github.com/Rayan1392/financial-copilot/compare/v1.41.2...develop
+[1.41.2]: https://github.com/Rayan1392/financial-copilot/compare/v1.41.1...v1.41.2
 [1.41.1]: https://github.com/Rayan1392/financial-copilot/compare/v1.41.0...v1.41.1
 [1.41.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.40.0...v1.41.0
 [1.40.0]: https://github.com/Rayan1392/financial-copilot/compare/v1.39.0...v1.40.0

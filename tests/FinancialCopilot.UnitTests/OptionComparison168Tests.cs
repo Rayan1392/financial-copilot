@@ -240,6 +240,20 @@ public sealed class OptionComparison168Tests
 
     // ── Settings ─────────────────────────────────────────────────────────────
 
+    [Theory]
+    [InlineData(true, true, true, true)]
+    [InlineData(true, true, false, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, true, false)]
+    public void StarterCard_NeedsTheCapabilityTheFlagAndItsOwnKey(
+        bool enabled, bool capabilityAvailable, bool starterCardEnabled, bool shown)
+    {
+        // Change «option-starter-card-switch»: off by default; never shown while the capability is off.
+        Assert.False(Options.StarterCardEnabled);
+        var options = new OptionAnswersOptions { Enabled = enabled, StarterCardEnabled = starterCardEnabled };
+        Assert.Equal(shown, options.ShowsStarterCard(capabilityAvailable));
+    }
+
     [Fact]
     public void Settings_DefaultToTheNamedFeeSource_AndRejectBadValues()
     {

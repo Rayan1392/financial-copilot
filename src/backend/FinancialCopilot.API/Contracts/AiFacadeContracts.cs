@@ -49,7 +49,11 @@ public sealed record GroundedAnalysisHttpResponse(
 
 public sealed record ExternalSourceHttpResponse(string Id, string Title, string Url, string PublishedAt);
 
-public sealed record ChatCapabilityAvailabilityHttpResponse(bool ValuationGaugeCards, bool OptionComparison = false);
+public sealed record ChatCapabilityAvailabilityHttpResponse(
+    bool ValuationGaugeCards,
+    bool OptionComparison = false,
+    // Change «option-starter-card-switch»: the new-chat option card, behind OptionAnswers:StarterCardEnabled.
+    bool OptionComparisonStarterCard = false);
 
 public sealed record CapabilityStarterPromptHttpResponse(
     string CapabilityCode,

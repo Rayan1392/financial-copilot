@@ -92,6 +92,24 @@ describe("homeStarterPrompts", () => {
       expect(homeStarterPrompts(availability).map((prompt) => prompt.id)).toEqual(eight);
     },
   );
+
+  // Change «option-starter-card-switch»: the option card follows its own server key, not the capability flag.
+  it("shows the option card second only while the API offers the option starter card", () => {
+    expect(
+      homeStarterPrompts({ valuationGaugeCards: true, optionComparisonStarterCard: true }).map(
+        (prompt) => prompt.id,
+      ),
+    ).toEqual(["valuation-gauges", "option-calls", ...eight]);
+  });
+
+  it.each([{ optionComparisonStarterCard: false }, { valuationGaugeCards: true }])(
+    "leaves the option card out while the option starter card is off (%o)",
+    (availability) => {
+      expect(homeStarterPrompts(availability).map((prompt) => prompt.id)).not.toContain(
+        "option-calls",
+      );
+    },
+  );
 });
 
 describe("starterPickerSymbols", () => {

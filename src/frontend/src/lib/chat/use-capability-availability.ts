@@ -11,6 +11,8 @@ export const CHAT_CAPABILITY_AVAILABILITY_QUERY_KEY = ["chat-capability-availabi
 export function useChatCapabilityAvailability(): {
   valuationGaugeCards: boolean;
   optionComparison: boolean;
+  /** The new-chat option card; typed option questions and the symbol menu follow `optionComparison` only. */
+  optionComparisonStarterCard: boolean;
 } {
   const { data } = useQuery({
     queryKey: CHAT_CAPABILITY_AVAILABILITY_QUERY_KEY,
@@ -23,5 +25,6 @@ export function useChatCapabilityAvailability(): {
   return {
     valuationGaugeCards: data?.valuationGaugeCards === true,
     optionComparison: data?.optionComparison === true,
+    optionComparisonStarterCard: data?.optionComparisonStarterCard === true,
   };
 }

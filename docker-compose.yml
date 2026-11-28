@@ -168,6 +168,8 @@ services:
         # Feature 168: option comparison answers. Off until an operator turns the switch on. The
         # risk-free rate is the compounded yearly yield of fixed-income funds (OQ-178).
         OptionAnswers__Enabled: ${OPTION_ANSWERS_ENABLED:-false}
+        # The «اختیار خرید نماد» new-chat card; typed option questions work without it.
+        OptionAnswers__StarterCardEnabled: ${OPTION_ANSWERS_STARTER_CARD_ENABLED:-false}
         OptionAnswers__RiskFreeAnnualRate: ${OPTION_ANSWERS_RISK_FREE_ANNUAL_RATE:-0.415}
         TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
         TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}

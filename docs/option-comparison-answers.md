@@ -86,7 +86,10 @@ comparison with rows costs one credit (`OptionComparisonAnswered`, OQ-173).
   same payload without a chat turn; `GET /api/v1/market/options/underlyings` lists symbols with
   listed options.
 - **Entry points**: starter card «اختیار خرید نماد», and a symbol-menu item for symbols that have
-  listed options. Both are hidden while the capability is unavailable.
+  listed options. Both are hidden while the capability is unavailable. The starter card also needs
+  `OptionAnswers:StarterCardEnabled` (change `option-starter-card-switch`, default off); typed
+  questions and the symbol-menu item do not depend on it. The availability endpoint
+  (`GET /api/ai/v1/capabilities/availability`) reports it as `optionComparisonStarterCard`.
 
 All Persian labels live in `OptionComparisonWording` (backend) and
 `src/frontend/src/lib/chat/option-comparison.ts` (web). Neither may contain «بهترین», «مناسب»,
@@ -115,13 +118,15 @@ until trackers get a web surface (OQ-186).
 | Key | Default | Meaning |
 |---|---|---|
 | `Enabled` | `false` | Master switch of the capability |
+| `StarterCardEnabled` | `false` | Shows the «اختیار خرید نماد» new-chat card; only with `Enabled` on |
 | `TradeFeeRate`, `ExerciseFeeRate`, `ShareTransferTaxRate` | 0.001, 0.0005, 0.005 | Fee rates, each 0 to 0.05 |
 | `AnnualizationFloorDays` | 3 | Minimum days to expiry for annualized figures |
 | `MaxExpiries` | 3 | Expiries per answer when none is asked |
 | `RiskFreeAnnualRate` | none in code; 0.415 in `appsettings.json` and `docker-compose.yml` | Effective annual rate (OQ-178: compounded yearly yield of fixed-income funds) |
 | `VolatilityWindowDays`, `TradingDaysPerYear` | 90, 240 | Historical volatility inputs |
 
-Compose variables: `OPTION_ANSWERS_ENABLED`, `OPTION_ANSWERS_RISK_FREE_ANNUAL_RATE`.
+Compose variables: `OPTION_ANSWERS_ENABLED`, `OPTION_ANSWERS_STARTER_CARD_ENABLED`,
+`OPTION_ANSWERS_RISK_FREE_ANNUAL_RATE`. A change takes effect when the API restarts.
 
 Rollout: Feature 167 polling switches on and one session checked; then `OptionAnswers:Enabled`.
 Rollback: turn `OptionAnswers:Enabled` off; stored answers stay readable.

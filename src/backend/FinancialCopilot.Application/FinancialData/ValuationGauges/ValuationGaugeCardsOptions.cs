@@ -19,6 +19,12 @@ public sealed class ValuationGaugeCardsOptions
     /// <summary>Budget for the canonical market quote used by the equilibrium needle.</summary>
     public int QuoteTimeoutMilliseconds { get; set; } = 1500;
 
+    /// <summary>
+    /// Tehran time ("HH:mm") from which the equilibrium price is read from today's daily trade row when it exists; before
+    /// it, today's latest intraday trade is used (change «equilibrium-intraday-price», OQ-187).
+    /// </summary>
+    public string DailyPriceReadyTehran { get; set; } = "19:00";
+
     /// <summary>Decimals of the day-count percentages (largest-remainder rounding to exactly 100).</summary>
     public int PercentageDecimals { get; set; } = 1;
 
@@ -33,6 +39,8 @@ public sealed class ValuationGaugeCardsOptions
         error = MaxFetchAgeHours is < 1 or > 720 ? "MaxFetchAgeHours must be 1-720."
             : ReadTimeoutMilliseconds is < 100 or > 30000 ? "ReadTimeoutMilliseconds must be 100-30000."
             : QuoteTimeoutMilliseconds is < 100 or > 30000 ? "QuoteTimeoutMilliseconds must be 100-30000."
+            : !ValuationGaugeQuoteSelection.TryParseTehranTime(DailyPriceReadyTehran, out _)
+                ? "DailyPriceReadyTehran must be a time HH:mm."
             : PercentageDecimals is < 0 or > 3 ? "PercentageDecimals must be 0-3."
             : ProviderForward is null ? "ProviderForward is required."
             : ForwardEstimate is null ? "ForwardEstimate is required."

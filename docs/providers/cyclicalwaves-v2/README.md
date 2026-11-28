@@ -94,8 +94,12 @@ LIMIT 5;
 V2 Chat answers «گیج P/E ‹نماد›», «گیج P/S ‹نماد›», «بازهٔ قیمت تعادلی ‹نماد›» (or «گیج قیمت تعادلی») and «گیج‌های
 ارزش‌گذاری ‹نماد›» with typed cards built from the latest-state `GaugeAvailability`, `GaugeDetails` and
 `EquilibriumRanges` rows. A «گیج» or «بازه» word is required (OQ-130): the bare «قیمت تعادلی ‹نماد›» keeps its current
-route. The equilibrium needle uses the canonical quote (`PersistedMarketDataProvider`, the same reader as the relative
-valuation inputs), shown with its own source and time. Cards make no LLM, vendor HTTP or cross-provider fallback call.
+route. The equilibrium needle uses the TSETMC trade tables through `PersistedMarketDataProvider`, shown with its own
+source and time (change `equilibrium-intraday-price`): before `DailyPriceReadyTehran` (19:00 Tehran) today's latest
+`IntradayTradeSnapshots` row however old (the intraday poll stops at the close); from then today's
+`DailyInstrumentTrades` row when it exists, else still today's intraday row (the daily row is late on some Wednesdays);
+with no intraday row today (Thursday, Friday, holiday, no trade) the latest daily row. The relative valuation inputs
+(Feature 125) keep the shared 15-minute intraday freshness (`MarketViews:StaleAfterMinutes`). Cards make no LLM, vendor HTTP or cross-provider fallback call.
 Each usable card (Available or Partial, including a range-only equilibrium card) costs one credit, so the three-card
 answer costs three (change `valuation-gauge-per-card-credits`, OQ-138, OQ-139; it supersedes OQ-131). The answer
 settles with `ValuationGaugesAnswered.<n>` at that fixed amount in every `UsageBasedCredits:Mode`
@@ -110,6 +114,7 @@ temporarily-unavailable answers are free. No table, migration or tariff seed was
 | `ValuationGaugeCards:Enabled` (`VALUATION_GAUGE_CARDS_ENABLED`) | `false` | Master switch for the route and the symbol-menu shortcut. |
 | `ValuationGaugeCards:MaxFetchAgeHours` (`VALUATION_GAUGE_CARDS_MAX_FETCH_AGE_HOURS`) | `48` | Older snapshots (or `FetchedAtUtc` more than 5 minutes in the future) are reported stale and not shown. 1–720. |
 | `ValuationGaugeCards:ReadTimeoutMilliseconds` / `QuoteTimeoutMilliseconds` | `2000` / `1500` | Budgets for the snapshot read and the quote read; 100–30000. |
+| `ValuationGaugeCards:DailyPriceReadyTehran` | `19:00` | Tehran time (`HH:mm`) from which the equilibrium price is today's daily trade row when it exists; before it, today's intraday trade. |
 | `ValuationGaugeCards:PercentageDecimals` | `1` | Largest-remainder precision of the six day-share percentages; 0–3. |
 | `FinancialData:CapabilitySources:valuation_gauges` (`FINANCIAL_DATA_SOURCE_VALUATION_GAUGES`) | empty | Needed only when `ChatProvider` is `NoavaranAmin`; may map only to `CyclicalWaves`. Base CyclicalWaves needs no entry. |
 

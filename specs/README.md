@@ -67,6 +67,9 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
   equilibrium card measures the distance to the lower bound, the midpoint and the upper bound from today's price and
   names the direction with a word («تا میانه ۳۳٫۲٪ رشد»); it replaces «تا میانهٔ بازه» and «زیر/بالای حد پایین» in new
   answers.
+  `equilibrium-intraday-price` (OQ-187, OQ-188, Gate A+B 2026-11-28, implemented locally, not released): the equilibrium
+  card's price is today's latest intraday trade with no freshness limit until `ValuationGaugeCards:DailyPriceReadyTehran`
+  (19:00), then today's daily row when it exists; Feature 125 keeps the 15-minute rule.
   `valuation-gauge-answer-image-share` (OQ-153 to OQ-156, Gate A+B 2026-11-27, implemented locally 2026-11-27, not
   released): a gauge answer can be copied («کپی تصویر») or shared as a PNG of its cards, drawn in the browser from an
   off-screen render of the same card component at a fixed width; text fallbacks remain. Real-device check (iOS Safari,

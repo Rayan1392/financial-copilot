@@ -36,7 +36,7 @@ Status: Gate B: Approved by the owner on 2026-11-28
       UTC-to-local month boundary.
 - [x] Add focused endpoint tests for authorization, validation, and response shape. Re-run existing
       direct monthly endpoint tests and architecture tests. Use existing test doubles for provider calls.
-- [ ] Add focused Vitest coverage for one explicit month, an ordered blank-month sequence with a middle
+- [x] Add focused Vitest coverage for one explicit month, an ordered blank-month sequence with a middle
       provider failure, an empty range, duplicate-submit protection, and unmount cancellation.
 
 ## Definition Of Done
